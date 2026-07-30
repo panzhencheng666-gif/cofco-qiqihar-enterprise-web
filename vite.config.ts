@@ -11,33 +11,8 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
+    manifest: true,
     chunkSizeWarningLimit: 900,
-    rolldownOptions: {
-      output: {
-        codeSplitting: {
-          groups: [
-            {
-              name: "pro-components",
-              test: /node_modules[\\/]@ant-design[\\/]pro-/,
-              priority: 30,
-              maxSize: 1800 * 1024,
-              entriesAware: true,
-              entriesAwareMergeThreshold: 50 * 1024,
-              includeDependenciesRecursively: false,
-            },
-            {
-              name: "ant-design",
-              test: /node_modules[\\/](?:antd|rc-|@rc-component|@ant-design[\\/](?:icons|icons-svg|cssinjs|colors|fast-color|cssinjs-utils))/,
-              priority: 20,
-              maxSize: 1800 * 1024,
-              entriesAware: true,
-              entriesAwareMergeThreshold: 50 * 1024,
-              includeDependenciesRecursively: false,
-            },
-          ],
-        },
-      },
-    },
   },
   test: {
     environment: "jsdom",

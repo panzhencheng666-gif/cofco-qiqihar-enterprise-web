@@ -1,6 +1,6 @@
 import { useCan, useOne } from "@refinedev/core";
 import { Alert, Breadcrumb, Button, Result, Space, Typography } from "antd";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useParams } from "react-router";
 import type { MonitoringObject } from "@/domains/monitoring-object/model";
 import { DocumentWorkspace } from "@/shared/ui/DocumentWorkspace";
@@ -10,6 +10,9 @@ import type {
   BusinessDocument,
   DocumentMode,
 } from "@/workflows/document-workspace/model";
+import { fieldValueDisplay } from "@/workflows/document-workspace/model";
+import { resolveDocumentViewState } from "@/workflows/document-workspace/view-state";
+import type { EnterpriseQueryError } from "@/workflows/enterprise-gateway/errors";
 
 function documentMode(
   document: BusinessDocument,
@@ -30,11 +33,11 @@ function documentMode(
 export function ObjectDocumentPage() {
   const { objectId = "", documentId = "" } = useParams();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const objectQuery = useOne<MonitoringObject>({
+  const objectQuery = useOne<MonitoringObject, EnterpriseQueryError>({
     resource: "objects",
     id: objectId,
   });
-  const documentQuery = useOne<BusinessDocument>({
+  const documentQuery = useOne<BusinessDocument, EnterpriseQueryError>({
     resource: "documents",
     id: documentId,
   });
@@ -48,28 +51,58 @@ export function ObjectDocumentPage() {
     action: "review",
     params: { id: documentId },
   });
-  const object = objectQuery.result;
-  const document = documentQuery.result;
-  const loading =
-    objectQuery.query.isLoading ||
-    documentQuery.query.isLoading ||
-    editAccess.isLoading ||
-    reviewAccess.isLoading;
-  const mismatch = document && document.objectId !== objectId;
-  const mode = useMemo(
-    () =>
-      document
-        ? documentMode(
-            document,
-            editAccess.data?.can === true,
-            reviewAccess.data?.can === true,
-          )
-        : "read",
-    [document, editAccess.data?.can, reviewAccess.data?.can],
-  );
+  const viewState = resolveDocumentViewState({
+    requestedObjectId: objectId,
+    object: objectQuery.result,
+    document: documentQuery.result,
+    objectLoading: objectQuery.query.isLoading,
+    documentLoading: documentQuery.query.isLoading,
+    accessLoading: editAccess.isLoading || reviewAccess.isLoading,
+    objectError: objectQuery.query.error,
+    documentError: documentQuery.query.error,
+    accessError: editAccess.error ?? reviewAccess.error,
+  });
 
-  if (loading) return <Result status="info" title="正在加载规范业务单据" />;
-  if (!object || !document || mismatch) {
+  if (viewState.kind === "loading") {
+    return <Result status="info" title="正在加载规范业务单据" />;
+  }
+  if (viewState.kind === "query-error") {
+    return (
+      <Alert
+        role="alert"
+        type="error"
+        showIcon
+        message="业务单据加载失败"
+        description="服务暂时不可用，已保留当前对象和单据地址，未修改任何业务数据。"
+        action={
+          <Button
+            onClick={() => {
+              void Promise.allSettled([
+                objectQuery.query.refetch(),
+                documentQuery.query.refetch(),
+                editAccess.refetch(),
+                reviewAccess.refetch(),
+              ]);
+            }}
+          >
+            重新加载
+          </Button>
+        }
+      />
+    );
+  }
+  if (viewState.kind === "not-found") {
+    return (
+      <Result
+        status="404"
+        title={
+          viewState.target === "object" ? "监测对象不存在" : "业务单据不存在"
+        }
+        subTitle="请从任务、对象档案或审核队列重新进入规范业务单据。"
+      />
+    );
+  }
+  if (viewState.kind === "mismatch") {
     return (
       <Alert
         role="alert"
@@ -80,6 +113,32 @@ export function ObjectDocumentPage() {
       />
     );
   }
+  const { object, document } = viewState;
+  const mode = documentMode(
+    document,
+    editAccess.data?.can === true,
+    reviewAccess.data?.can === true,
+  );
+  const workspaceDocument = {
+    commodity: document.commodity,
+    reportingPeriod: document.reportingPeriod,
+    formVersion: document.formVersion,
+    sections: document.sections.map((section) => ({
+      id: section.id,
+      title: section.title,
+      fields: section.fields.map((field) => {
+        const display = fieldValueDisplay(field.value);
+        return {
+          code: field.code,
+          label: field.label,
+          displayValue: display.text,
+          valueStatus: display.statusLabel,
+          hasAmount: display.hasAmount,
+          unit: field.unit,
+        };
+      }),
+    })),
+  };
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
@@ -97,7 +156,7 @@ export function ObjectDocumentPage() {
         <Button onClick={() => setDrawerOpen(true)}>查看对象全景</Button>
       </Space>
       <div className="document-grid">
-        <DocumentWorkspace document={document} mode={mode} />
+        <DocumentWorkspace document={workspaceDocument} mode={mode} />
         <ReviewPanel quality={document.quality} />
       </div>
       <ObjectDrawer

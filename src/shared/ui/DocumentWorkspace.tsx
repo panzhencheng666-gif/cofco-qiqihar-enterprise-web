@@ -5,7 +5,9 @@ export type WorkspaceMode = "edit" | "read" | "review";
 export interface WorkspaceFieldView {
   code: string;
   label: string;
-  value: string | number | null;
+  displayValue: string;
+  valueStatus: string;
+  hasAmount: boolean;
   unit?: string;
 }
 
@@ -69,8 +71,13 @@ export function DocumentWorkspace({ document, mode }: DocumentWorkspaceProps) {
           <Descriptions bordered column={2}>
             {section.fields.map((field) => (
               <Descriptions.Item key={field.code} label={field.label}>
-                {field.value ?? "未填报"}
-                {field.value !== null && field.unit ? ` ${field.unit}` : ""}
+                <Space size={8}>
+                  <span>
+                    {field.displayValue}
+                    {field.hasAmount && field.unit ? ` ${field.unit}` : ""}
+                  </span>
+                  <Tag>{field.valueStatus}</Tag>
+                </Space>
               </Descriptions.Item>
             ))}
           </Descriptions>

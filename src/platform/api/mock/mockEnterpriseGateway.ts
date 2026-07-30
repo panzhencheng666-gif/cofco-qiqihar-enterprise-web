@@ -1,5 +1,9 @@
 import type { MonitoringObject } from "@/domains/monitoring-object/model";
-import type { BusinessDocument } from "@/workflows/document-workspace/model";
+import {
+  fixedDecimal,
+  type BusinessDocument,
+} from "@/workflows/document-workspace/model";
+import { enterpriseNotFoundError } from "@/workflows/enterprise-gateway/errors";
 import type { WorkTask } from "@/workflows/task-inbox/model";
 import type { EnterpriseGateway } from "@/workflows/enterprise-gateway/port";
 
@@ -42,21 +46,24 @@ const documents: readonly BusinessDocument[] = [
           {
             code: "purchase_price",
             label: "实际收购价格",
-            value: 2168,
+            value: { status: "reported", amount: fixedDecimal("2168") },
             unit: "元/吨",
             quality: "passed",
           },
           {
             code: "purchase_quantity",
             label: "实际收购数量",
-            value: 186,
+            value: { status: "reported", amount: fixedDecimal("186") },
             unit: "吨",
             quality: "passed",
           },
           {
             code: "moisture",
             label: "水分",
-            value: 27.6,
+            value: {
+              status: "reported",
+              amount: fixedDecimal("27.6"),
+            },
             unit: "%",
             quality: "warning",
           },
@@ -69,7 +76,7 @@ const documents: readonly BusinessDocument[] = [
           {
             code: "physical_inventory",
             label: "实际库存数量",
-            value: 4620,
+            value: { status: "reported", amount: fixedDecimal("4620") },
             unit: "吨",
             quality: "passed",
           },
@@ -95,14 +102,14 @@ const documents: readonly BusinessDocument[] = [
           {
             code: "area",
             label: "种植面积",
-            value: 120,
+            value: { status: "reported", amount: fixedDecimal("120") },
             unit: "亩",
             quality: "passed",
           },
           {
             code: "yield",
             label: "单产",
-            value: null,
+            value: { status: "not-reported" },
             unit: "斤/亩",
             quality: "blocking",
           },
@@ -144,10 +151,10 @@ const tasks: readonly WorkTask[] = [
 function required<T extends { id: string }>(
   records: readonly T[],
   id: string,
-  label: string,
+  resource: "object" | "document",
 ): T {
   const record = records.find((item) => item.id === id);
-  if (!record) throw new Error(`${label}不存在：${id}`);
+  if (!record) throw enterpriseNotFoundError(resource, id);
   return record;
 }
 
@@ -163,13 +170,11 @@ export const mockEnterpriseGateway: EnterpriseGateway = {
     return Promise.resolve(tasks.filter((task) => task.status === "待复核"));
   },
   getObject(objectId) {
-    return Promise.resolve().then(() =>
-      required(objects, objectId, "监测对象"),
-    );
+    return Promise.resolve().then(() => required(objects, objectId, "object"));
   },
   getDocument(documentId) {
     return Promise.resolve().then(() =>
-      required(documents, documentId, "业务单据"),
+      required(documents, documentId, "document"),
     );
   },
 };

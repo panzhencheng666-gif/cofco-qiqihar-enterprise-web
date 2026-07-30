@@ -1,5 +1,5 @@
 import { useList } from "@refinedev/core";
-import { Button, Tag, Typography } from "antd";
+import { Alert, Button, Empty, Result, Tag, Typography } from "antd";
 import { useNavigate } from "react-router";
 import {
   EnterpriseTable,
@@ -7,6 +7,7 @@ import {
 } from "@/shared/ui/EnterpriseTable";
 import { canonicalDocumentPath } from "@/workflows/document-workspace/routing";
 import type { MonitoringDomain, WorkTask } from "@/workflows/task-inbox/model";
+import { resolveQueueViewState } from "@/workflows/task-inbox/view-state";
 
 export function TaskInboxPage({ domain }: { domain: MonitoringDomain }) {
   const navigate = useNavigate();
@@ -14,6 +15,11 @@ export function TaskInboxPage({ domain }: { domain: MonitoringDomain }) {
   const rows = (query.result?.data ?? []).filter(
     (task) => task.domain === domain,
   );
+  const viewState = resolveQueueViewState({
+    isLoading: query.query.isLoading,
+    isError: query.query.isError,
+    itemCount: rows.length,
+  });
   const columns: EnterpriseColumn<WorkTask>[] = [
     { title: "任务", dataIndex: "title" },
     { title: "对象", dataIndex: "objectName" },
@@ -26,7 +32,6 @@ export function TaskInboxPage({ domain }: { domain: MonitoringDomain }) {
     },
     {
       title: "操作",
-      valueType: "option",
       render: (_, row) => [
         <Button
           key="open"
@@ -48,12 +53,27 @@ export function TaskInboxPage({ domain }: { domain: MonitoringDomain }) {
           ? "产情监测 · 我的任务"
           : "市场监测 · 我的任务"}
       </Typography.Title>
-      <EnterpriseTable
-        ariaLabel="我的任务"
-        columns={columns}
-        rows={rows}
-        loading={query.query.isLoading}
-      />
+      {viewState === "loading" && (
+        <Result status="info" title="正在加载任务列表" />
+      )}
+      {viewState === "error" && (
+        <Alert
+          role="alert"
+          type="error"
+          showIcon
+          message="任务列表加载失败"
+          description="服务暂时不可用，已保留当前页面坐标，未修改任何业务数据。"
+          action={
+            <Button onClick={() => void query.query.refetch()}>重新加载</Button>
+          }
+        />
+      )}
+      {viewState === "empty" && (
+        <Empty description="当前业务范围没有待处理任务" />
+      )}
+      {viewState === "ready" && (
+        <EnterpriseTable ariaLabel="我的任务" columns={columns} rows={rows} />
+      )}
     </>
   );
 }

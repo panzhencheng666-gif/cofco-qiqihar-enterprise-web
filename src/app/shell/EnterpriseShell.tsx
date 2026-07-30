@@ -1,72 +1,93 @@
-import { DatabaseOutlined, MenuFoldOutlined } from "@ant-design/icons";
-import {
-  Button,
-  Layout,
-  Menu,
-  Space,
-  Tag,
-  Typography,
-  type MenuProps,
-} from "antd";
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { navigationItems, type NavigationItem } from "@/app/router/navigation";
 
-type MenuItem = NonNullable<MenuProps["items"]>[number];
-
-function toMenuItem(item: NavigationItem): MenuItem {
-  return {
-    key: item.path,
-    label: item.label,
-    children: item.children?.map(toMenuItem),
-  };
-}
-
 export function EnterpriseShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedPath, setExpandedPath] = useState<string>();
   const location = useLocation();
   const navigate = useNavigate();
-  const items = useMemo(() => navigationItems.map(toMenuItem), []);
+
+  function openItem(item: NavigationItem) {
+    if (item.children?.length) {
+      setExpandedPath((current) =>
+        current === item.path ? undefined : item.path,
+      );
+      return;
+    }
+    void navigate(item.path);
+  }
 
   return (
-    <Layout className="enterprise-shell">
-      <Layout.Sider
-        width={248}
-        collapsed={collapsed}
-        className="enterprise-sider"
+    <div className="enterprise-shell">
+      <aside
+        className={`enterprise-sider${collapsed ? " enterprise-sider-collapsed" : ""}`}
       >
         <div className="enterprise-brand">
-          <DatabaseOutlined />
+          <span aria-hidden="true" className="enterprise-brand-mark">
+            ▦
+          </span>
           {!collapsed && <span>粮食商情企业系统</span>}
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={items}
-          onClick={({ key }) => void navigate(String(key))}
-        />
-      </Layout.Sider>
-      <Layout>
-        <Layout.Header className="enterprise-header">
-          <Space>
-            <Button
-              type="text"
-              icon={<MenuFoldOutlined />}
+        <nav aria-label="主导航">
+          <ul className="enterprise-navigation">
+            {navigationItems.map((item) => {
+              const expanded = expandedPath === item.path;
+              const selected =
+                location.pathname === item.path ||
+                (item.path !== "/" &&
+                  location.pathname.startsWith(`${item.path}/`));
+              return (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    className={`enterprise-navigation-item${selected ? " is-selected" : ""}`}
+                    aria-expanded={item.children?.length ? expanded : undefined}
+                    onClick={() => openItem(item)}
+                  >
+                    {collapsed ? item.label.slice(0, 1) : item.label}
+                  </button>
+                  {!collapsed && expanded && item.children && (
+                    <ul className="enterprise-navigation-children">
+                      {item.children.map((child) => (
+                        <li key={child.key}>
+                          <button
+                            type="button"
+                            className={`enterprise-navigation-item enterprise-navigation-child${location.pathname === child.path ? " is-selected" : ""}`}
+                            onClick={() => void navigate(child.path)}
+                          >
+                            {child.label}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </aside>
+      <section className="enterprise-frame">
+        <header className="enterprise-header">
+          <div className="enterprise-header-group">
+            <button
+              type="button"
+              className="enterprise-header-button"
               onClick={() => setCollapsed((value) => !value)}
               aria-label="收起或展开菜单"
-            />
-            <Typography.Text strong>齐齐哈尔粮食商情企业系统</Typography.Text>
-          </Space>
-          <Space>
-            <Tag color="gold">模拟数据</Tag>
+            >
+              ☰
+            </button>
+            <strong>齐齐哈尔粮食商情企业系统</strong>
+          </div>
+          <div className="enterprise-header-group">
+            <span className="enterprise-simulated-badge">模拟数据</span>
             <span>区域审核员</span>
-          </Space>
-        </Layout.Header>
-        <Layout.Content className="enterprise-content">
-          {children}
-        </Layout.Content>
-      </Layout>
-    </Layout>
+          </div>
+        </header>
+        <main className="enterprise-content">{children}</main>
+      </section>
+    </div>
   );
 }

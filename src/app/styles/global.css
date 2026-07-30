@@ -16,10 +16,22 @@ body {
 
 .enterprise-shell {
   min-height: 100vh;
+  display: flex;
 }
 
 .enterprise-sider {
-  background: #102a43 !important;
+  width: 248px;
+  flex: 0 0 248px;
+  background: #102a43;
+  color: #fff;
+  transition:
+    width 0.2s ease,
+    flex-basis 0.2s ease;
+}
+
+.enterprise-sider-collapsed {
+  width: 72px;
+  flex-basis: 72px;
 }
 
 .enterprise-brand {
@@ -32,13 +44,98 @@ body {
   font-weight: 700;
 }
 
+.enterprise-brand-mark {
+  font-size: 22px;
+}
+
+.enterprise-navigation,
+.enterprise-navigation-children {
+  margin: 0;
+  padding: 0 10px;
+  list-style: none;
+}
+
+.enterprise-navigation-children {
+  padding-left: 14px;
+}
+
+.enterprise-navigation-item {
+  width: 100%;
+  min-height: 40px;
+  margin: 2px 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: #d9e2ec;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.enterprise-navigation-item:hover,
+.enterprise-navigation-item:focus-visible {
+  color: #fff;
+  background: #243b53;
+  outline: none;
+}
+
+.enterprise-navigation-item.is-selected {
+  color: #fff;
+  background: #0f766e;
+}
+
+.enterprise-navigation-child {
+  color: #bcccdc;
+  font-size: 13px;
+}
+
+.enterprise-frame {
+  min-width: 0;
+  flex: 1;
+  background: #f3f6f8;
+}
+
 .enterprise-header {
   height: 64px;
-  padding: 0 24px !important;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid #d9e2ec;
+  background: #fff;
+}
+
+.enterprise-header-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.enterprise-header-button {
+  min-width: 36px;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.enterprise-header-button:hover,
+.enterprise-header-button:focus-visible {
+  background: #e9f0f5;
+  outline: 2px solid #0f766e;
+}
+
+.enterprise-simulated-badge {
+  padding: 3px 9px;
+  border: 1px solid #d69e2e;
+  border-radius: 999px;
+  color: #8d5a00;
+  background: #fff8dc;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .enterprise-content {

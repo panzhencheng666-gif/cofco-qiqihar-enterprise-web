@@ -1,6 +1,6 @@
-import { ProTable, type ProColumns } from "@ant-design/pro-components";
+import { Table, type TableColumnsType } from "antd";
 
-export type EnterpriseColumn<T> = ProColumns<T>;
+export type EnterpriseColumn<T> = TableColumnsType<T>[number];
 
 interface EnterpriseTableProps<T extends { id: string }> {
   ariaLabel: string;
@@ -19,13 +19,11 @@ export function EnterpriseTable<T extends { id: string }>({
 }: EnterpriseTableProps<T>) {
   return (
     <section role="region" aria-label={ariaLabel}>
-      <ProTable<T>
+      <Table<T>
         rowKey="id"
         columns={columns}
         dataSource={[...rows]}
         loading={loading}
-        search={false}
-        options={false}
         pagination={{ pageSize: 20, showSizeChanger: false }}
         scroll={{ x: "max-content" }}
         onRow={(row) => ({

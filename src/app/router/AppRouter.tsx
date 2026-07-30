@@ -1,8 +1,12 @@
 import { Route, Routes } from "react-router";
 import { lazy, Suspense } from "react";
 import { EnterpriseShell } from "@/app/shell/EnterpriseShell";
-import { OverviewPage } from "@/pages/OverviewPage";
 
+const OverviewPage = lazy(() =>
+  import("@/pages/OverviewPage").then((module) => ({
+    default: module.OverviewPage,
+  })),
+);
 const StackCompatibilityPage = lazy(() =>
   import("@/app/compatibility/StackCompatibilityPage").then((module) => ({
     default: module.StackCompatibilityPage,

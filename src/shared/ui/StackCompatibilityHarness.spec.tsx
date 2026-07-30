@@ -13,5 +13,11 @@ describe("StackCompatibilityHarness", () => {
     );
 
     expect(screen.getByText("模拟数据 · 仅用于兼容性验证")).toBeVisible();
+    expect(screen.getByLabelText("企业简称")).toBeVisible();
+    expect(screen.getByLabelText("主要能力")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "暗色模式" })).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "虚拟滚动表格" }),
+    ).toHaveTextContent("120 条模拟记录");
   });
 });
