@@ -11,9 +11,14 @@ import { accessControlProvider } from "./accessControlProvider";
 interface AppProvidersProps {
   children: ReactNode;
   resources: IResourceItem[];
+  disableRouteChangeHandler?: boolean;
 }
 
-export function AppProviders({ children, resources }: AppProvidersProps) {
+export function AppProviders({
+  children,
+  resources,
+  disableRouteChangeHandler = false,
+}: AppProvidersProps) {
   return (
     <ConfigProvider locale={zhCN} theme={enterpriseTheme}>
       <App>
@@ -22,7 +27,12 @@ export function AppProviders({ children, resources }: AppProvidersProps) {
           routerProvider={routerProvider}
           accessControlProvider={accessControlProvider}
           resources={resources}
-          options={{ syncWithLocation: true, warnWhenUnsavedChanges: true }}
+          options={{
+            syncWithLocation: true,
+            warnWhenUnsavedChanges: true,
+            disableTelemetry: true,
+            disableRouteChangeHandler,
+          }}
         >
           {children}
         </Refine>

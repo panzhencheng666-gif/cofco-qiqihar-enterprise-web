@@ -9,7 +9,9 @@ export function renderWithApp(
 ) {
   return render(
     <MemoryRouter initialEntries={["/"]}>
-      <AppProviders resources={[]}>{ui}</AppProviders>
+      <AppProviders resources={[]} disableRouteChangeHandler>
+        {ui}
+      </AppProviders>
     </MemoryRouter>,
     options,
   );

@@ -1,0 +1,53 @@
+:root {
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #172b3a;
+  background: #f3f6f8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1024px;
+  background: #f3f6f8;
+}
+
+.enterprise-shell {
+  min-height: 100vh;
+}
+
+.enterprise-sider {
+  background: #102a43 !important;
+}
+
+.enterprise-brand {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  color: #fff;
+  font-weight: 700;
+}
+
+.enterprise-header {
+  height: 64px;
+  padding: 0 24px !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #d9e2ec;
+}
+
+.enterprise-content {
+  padding: 24px;
+  overflow: auto;
+}
+
+.document-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+}
