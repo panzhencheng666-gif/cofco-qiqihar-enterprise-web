@@ -9,8 +9,10 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 63180",
+    "prototype": "vite --config vite.prototype.config.ts",
     "preview": "vite preview --host 127.0.0.1 --port 63180 --strictPort",
     "build": "tsc -b && vite build",
+    "build:prototype": "vite build --config vite.prototype.config.ts",
     "budget": "node scripts/check-initial-bundle-budget.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
