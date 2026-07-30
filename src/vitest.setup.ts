@@ -15,9 +15,16 @@ Object.defineProperty(window, "matchMedia", {
 });
 
 class ResizeObserverStub implements ResizeObserver {
-  constructor(_callback: ResizeObserverCallback) {}
-  observe(_target: Element, _options?: ResizeObserverOptions) {}
-  unobserve(_target: Element) {}
+  constructor(_callback: ResizeObserverCallback) {
+    void _callback;
+  }
+  observe(_target: Element, _options?: ResizeObserverOptions) {
+    void _target;
+    void _options;
+  }
+  unobserve(_target: Element) {
+    void _target;
+  }
   disconnect() {}
 }
 
