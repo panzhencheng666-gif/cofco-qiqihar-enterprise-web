@@ -33,7 +33,7 @@ module.exports = {
     {
       name: "procomponents-only-through-shared-ui",
       severity: "error",
-      from: { path: "^src/(app|pages|workflows|domains|platform)" },
+      from: { path: "^src/(?!shared/ui(?:/|$)).*" },
       to: { path: "^node_modules/@ant-design/pro-components" },
     },
   ],

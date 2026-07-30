@@ -26,7 +26,6 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/require-await": "off",
     },
   },
 );

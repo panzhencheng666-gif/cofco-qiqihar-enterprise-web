@@ -6,8 +6,8 @@ import type {
 } from "@refinedev/core";
 import type { EnterpriseGateway } from "@/workflows/enterprise-gateway/port";
 
-function unsupported(operation: string): never {
-  throw new Error(`模拟只读数据源不支持 ${operation}`);
+function unsupported(operation: string): Promise<never> {
+  return Promise.reject(new Error(`模拟只读数据源不支持 ${operation}`));
 }
 
 export function createEnterpriseDataProvider(
@@ -41,13 +41,13 @@ export function createEnterpriseDataProvider(
       }
       return unsupported(`getOne(${resource})`);
     },
-    async create() {
+    create() {
       return unsupported("create");
     },
-    async update() {
+    update() {
       return unsupported("update");
     },
-    async deleteOne() {
+    deleteOne() {
       return unsupported("deleteOne");
     },
   };

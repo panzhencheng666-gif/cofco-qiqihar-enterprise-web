@@ -10,10 +10,10 @@ const allowedActions = new Set([
 ]);
 
 export const accessControlProvider: AccessControlProvider = {
-  async can({ resource, action }) {
-    return {
+  can({ resource, action }) {
+    return Promise.resolve({
       can: allowedActions.has(`${resource}:${action}`),
       reason: "本地兼容阶段只开放读取与复核投影",
-    };
+    });
   },
 };

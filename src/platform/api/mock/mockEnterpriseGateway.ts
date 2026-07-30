@@ -152,18 +152,24 @@ function required<T extends { id: string }>(
 }
 
 export const mockEnterpriseGateway: EnterpriseGateway = {
-  async listTasks(filter) {
-    return filter?.domain
-      ? tasks.filter((task) => task.domain === filter.domain)
-      : tasks;
+  listTasks(filter) {
+    return Promise.resolve(
+      filter?.domain
+        ? tasks.filter((task) => task.domain === filter.domain)
+        : tasks,
+    );
   },
-  async listReviewTasks() {
-    return tasks.filter((task) => task.status === "待复核");
+  listReviewTasks() {
+    return Promise.resolve(tasks.filter((task) => task.status === "待复核"));
   },
-  async getObject(objectId) {
-    return required(objects, objectId, "监测对象");
+  getObject(objectId) {
+    return Promise.resolve().then(() =>
+      required(objects, objectId, "监测对象"),
+    );
   },
-  async getDocument(documentId) {
-    return required(documents, documentId, "业务单据");
+  getDocument(documentId) {
+    return Promise.resolve().then(() =>
+      required(documents, documentId, "业务单据"),
+    );
   },
 };
