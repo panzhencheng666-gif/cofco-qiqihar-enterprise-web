@@ -7,6 +7,11 @@ test("task and review entries open the same canonical document", async ({
   await expect(
     page.getByRole("heading", { name: "市场监测 · 我的任务" }),
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: "市场监测" })).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await expect(page.getByRole("button", { name: "我的任务" })).toBeVisible();
   await page.getByRole("button", { name: "打开单据" }).click();
   await expect(page).toHaveURL(
     /\/objects\/site-qqhr-001\/documents\/doc-market-20260730-001$/,
@@ -89,6 +94,14 @@ test("React 19 compatibility controls operate without static API failures", asyn
       element.dispatchEvent(new Event("scroll"));
     });
   await expect(virtualTable.getByText("兼容样本 120")).toBeVisible();
+
+  const proTable = page.getByRole("region", {
+    name: "ProTable 运行时兼容表格",
+  });
+  await expect(proTable.getByText("ProTable 真实组件")).toBeVisible();
+  const proTableRowSelection = proTable.getByRole("checkbox").last();
+  await proTableRowSelection.check();
+  await expect(proTableRowSelection).toBeChecked();
 
   await page.getByRole("button", { name: "测试 Modal" }).click();
   await expect(

@@ -14,7 +14,11 @@ import {
   theme as antdTheme,
   type TableColumnsType,
 } from "antd";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
+
+const ProTableCompatibilityProbe = lazy(
+  () => import("./ProTableCompatibilityProbe"),
+);
 
 interface CompatibilityRow {
   id: string;
@@ -179,6 +183,9 @@ export function StackCompatibilityHarness() {
           style={{ marginTop: 12 }}
         />
       </section>
+      <Suspense fallback={<div>正在加载 ProTable 兼容门禁</div>}>
+        <ProTableCompatibilityProbe />
+      </Suspense>
       <Modal
         title="React 19 Modal"
         open={modalOpen}

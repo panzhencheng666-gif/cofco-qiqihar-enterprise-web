@@ -3,16 +3,21 @@ import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router";
 import { AppProviders } from "@/app/providers/AppProviders";
 
+interface RenderWithAppOptions extends Omit<RenderOptions, "wrapper"> {
+  initialEntries?: string[];
+}
+
 export function renderWithApp(
   ui: ReactElement,
-  options?: Omit<RenderOptions, "wrapper">,
+  options: RenderWithAppOptions = {},
 ) {
+  const { initialEntries = ["/"], ...renderOptions } = options;
   return render(
-    <MemoryRouter initialEntries={["/"]}>
+    <MemoryRouter initialEntries={initialEntries}>
       <AppProviders resources={[]} disableRouteChangeHandler>
         {ui}
       </AppProviders>
     </MemoryRouter>,
-    options,
+    renderOptions,
   );
 }

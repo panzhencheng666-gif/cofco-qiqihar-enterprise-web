@@ -2,17 +2,35 @@ import { useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { navigationItems, type NavigationItem } from "@/app/router/navigation";
 
+function owningParentPath(pathname: string): string | undefined {
+  return navigationItems.find((item) =>
+    item.children?.some(
+      (child) =>
+        pathname === child.path || pathname.startsWith(`${child.path}/`),
+    ),
+  )?.path;
+}
+
 export function EnterpriseShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [expandedPath, setExpandedPath] = useState<string>();
   const location = useLocation();
+  const automaticExpandedPath = owningParentPath(location.pathname);
+  const [expansionOverride, setExpansionOverride] = useState<{
+    locationKey: string;
+    path: string | undefined;
+  }>();
+  const expandedPath =
+    expansionOverride?.locationKey === location.key
+      ? expansionOverride.path
+      : automaticExpandedPath;
   const navigate = useNavigate();
 
   function openItem(item: NavigationItem) {
     if (item.children?.length) {
-      setExpandedPath((current) =>
-        current === item.path ? undefined : item.path,
-      );
+      setExpansionOverride({
+        locationKey: location.key,
+        path: expandedPath === item.path ? undefined : item.path,
+      });
       return;
     }
     void navigate(item.path);

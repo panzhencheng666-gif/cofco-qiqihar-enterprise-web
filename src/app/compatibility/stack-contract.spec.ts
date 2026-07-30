@@ -18,6 +18,8 @@ describe("locked enterprise stack", () => {
       "@refinedev/core": "5.0.12",
       antd: "5.29.3",
       "@ant-design/pro-components": "2.8.10",
+      "@ant-design/pro-form": "2.32.0",
+      "@ant-design/pro-table": "3.21.0",
       "@ant-design/v5-patch-for-react-19": "1.0.3",
     });
     expect(manifest.devDependencies).toMatchObject({

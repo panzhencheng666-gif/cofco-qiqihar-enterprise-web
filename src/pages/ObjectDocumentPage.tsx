@@ -53,6 +53,7 @@ export function ObjectDocumentPage() {
   });
   const viewState = resolveDocumentViewState({
     requestedObjectId: objectId,
+    requestedDocumentId: documentId,
     object: objectQuery.result,
     document: documentQuery.result,
     objectLoading: objectQuery.query.isLoading,

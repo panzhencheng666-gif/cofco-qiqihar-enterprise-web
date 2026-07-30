@@ -15,6 +15,7 @@ export type DocumentViewState =
 
 export interface DocumentViewStateInput {
   requestedObjectId: string;
+  requestedDocumentId: string;
   object: MonitoringObject | undefined;
   document: BusinessDocument | undefined;
   objectLoading: boolean;
@@ -27,6 +28,7 @@ export interface DocumentViewStateInput {
 
 export function resolveDocumentViewState({
   requestedObjectId,
+  requestedDocumentId,
   object,
   document,
   objectLoading,
@@ -50,7 +52,11 @@ export function resolveDocumentViewState({
   }
   if (!object) return { kind: "not-found", target: "object" };
   if (!document) return { kind: "not-found", target: "document" };
-  if (object.id !== requestedObjectId || document.objectId !== object.id) {
+  if (
+    object.id !== requestedObjectId ||
+    document.id !== requestedDocumentId ||
+    document.objectId !== object.id
+  ) {
     return { kind: "mismatch" };
   }
   return { kind: "ready", object, document };

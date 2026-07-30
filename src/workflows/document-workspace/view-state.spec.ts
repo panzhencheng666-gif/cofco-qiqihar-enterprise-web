@@ -42,6 +42,7 @@ const document: BusinessDocument = {
 
 const base = {
   requestedObjectId: object.id,
+  requestedDocumentId: document.id,
   object,
   document,
   objectLoading: false,
@@ -88,5 +89,14 @@ describe("resolveDocumentViewState", () => {
       }),
     ).toEqual({ kind: "mismatch" });
     expect(resolveDocumentViewState(base)).toMatchObject({ kind: "ready" });
+  });
+
+  it("blocks a different document returned for the requested document coordinate", () => {
+    expect(
+      resolveDocumentViewState({
+        ...base,
+        requestedDocumentId: "document-requested",
+      }),
+    ).toEqual({ kind: "mismatch" });
   });
 });

@@ -30,14 +30,25 @@ Local URL: `http://127.0.0.1:63180`
 budget, then starts fixed-port `vite preview` for serial Chromium acceptance.
 `npm run verify` uses the same production-preview path.
 
-## Initial Bundle Budget
+## Production JavaScript Budgets
 
-The executable G0 budget is **at most 900 KiB (921,600 bytes) of minified
-JavaScript required by the initial page**. The budget script reads
-`dist/index.html`, follows the Vite manifest's static `imports`, deduplicates
-the entry script and module preloads, and excludes dynamic route chunks,
-source maps, and CSS. It also blocks any single initial chunk above 900 KiB
-and prints gzip size as supporting transfer evidence.
+`npm run budget` enforces two independent limits:
+
+1. **Initial page:** at most 900 KiB (921,600 bytes) of total minified
+   JavaScript, and no initial chunk above 900 KiB. The script reads
+   `dist/index.html`, follows the Vite manifest's static `imports`, and
+   deduplicates the entry script and module preloads.
+2. **Every production chunk:** every JavaScript file represented by the
+   production manifest, including dynamically loaded route/component chunks,
+   must individually remain at or below 900 KiB.
+
+Source maps and CSS are outside these JavaScript limits. Gzip sizes are
+reported as supporting transfer evidence but are not the blocking metric.
+`npm run verify` always executes both limits after a fresh production build.
+
+The `/system/compatibility` G0 route exercises the pinned ProForm and ProTable
+packages, editable and virtualized Ant Design tables, theme algorithms, and
+overlay/static APIs through production-preview Chromium acceptance.
 
 ## Safety
 
@@ -45,3 +56,6 @@ and prints gzip size as supporting transfer evidence.
 - Do not connect the browser directly to MySQL or PostgreSQL.
 - Do not treat Refine access-control or audit providers as server authority.
 - Do not delete the legacy Vue application before parallel acceptance and rollback rehearsal.
+- Review documented dependency exceptions in
+  [`docs/security/dependency-exceptions.md`](docs/security/dependency-exceptions.md)
+  before changing the rendering or routing model.
