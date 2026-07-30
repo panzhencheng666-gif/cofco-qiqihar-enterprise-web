@@ -17,7 +17,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/vitest.setup.ts"],
-    exclude: [...configDefaults.exclude, "e2e/**"],
+    exclude: [...configDefaults.exclude, "e2e/**", ".worktrees/**"],
     restoreMocks: true,
     clearMocks: true,
     coverage: {
