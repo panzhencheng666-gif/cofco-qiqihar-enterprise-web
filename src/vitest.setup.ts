@@ -14,6 +14,17 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
+const getComputedStyleWithoutPseudoElements =
+  window.getComputedStyle.bind(window);
+
+Object.defineProperty(window, "getComputedStyle", {
+  writable: true,
+  value: (element: Element, pseudoElement?: string | null) => {
+    void pseudoElement;
+    return getComputedStyleWithoutPseudoElements(element);
+  },
+});
+
 class ResizeObserverStub implements ResizeObserver {
   constructor(_callback: ResizeObserverCallback) {
     void _callback;

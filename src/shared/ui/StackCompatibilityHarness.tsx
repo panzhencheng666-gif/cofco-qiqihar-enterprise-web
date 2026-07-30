@@ -1,5 +1,5 @@
 import { EditableProTable, type ProColumns } from "@ant-design/pro-components";
-import { App, Button, Card, Drawer, Modal, Space } from "antd";
+import { App, Button, Card, Drawer, Modal, Space, Typography } from "antd";
 import { useState } from "react";
 
 interface CompatibilityRow {
@@ -39,6 +39,9 @@ export function StackCompatibilityHarness() {
           <Button onClick={() => setDrawerOpen(true)}>测试 Drawer</Button>
         </Space>
       </Card>
+      <Typography.Text type="secondary">
+        模拟数据 · 仅用于兼容性验证
+      </Typography.Text>
       <EditableProTable<CompatibilityRow>
         rowKey="id"
         columns={columns}
