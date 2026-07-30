@@ -1,7 +1,10 @@
 import { useList } from "@refinedev/core";
 import { Button, Typography } from "antd";
 import { useNavigate } from "react-router";
-import { EnterpriseTable, type EnterpriseColumn } from "@/shared/ui";
+import {
+  EnterpriseTable,
+  type EnterpriseColumn,
+} from "@/shared/ui/EnterpriseTable";
 import { canonicalDocumentPath } from "@/workflows/document-workspace/routing";
 import type { WorkTask } from "@/workflows/task-inbox/model";
 

@@ -3,7 +3,9 @@ import { Alert, Breadcrumb, Button, Result, Space, Typography } from "antd";
 import { useMemo, useState } from "react";
 import { useParams } from "react-router";
 import type { MonitoringObject } from "@/domains/monitoring-object/model";
-import { DocumentWorkspace, ObjectDrawer, ReviewPanel } from "@/shared/ui";
+import { DocumentWorkspace } from "@/shared/ui/DocumentWorkspace";
+import { ObjectDrawer } from "@/shared/ui/ObjectDrawer";
+import { ReviewPanel } from "@/shared/ui/ReviewPanel";
 import type {
   BusinessDocument,
   DocumentMode,

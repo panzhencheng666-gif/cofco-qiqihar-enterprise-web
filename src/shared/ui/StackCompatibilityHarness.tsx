@@ -56,6 +56,8 @@ export function StackCompatibilityHarness() {
       <Modal
         title="React 19 Modal"
         open={modalOpen}
+        cancelText="取消"
+        okText="确定"
         onCancel={() => setModalOpen(false)}
         onOk={() => setModalOpen(false)}
       >

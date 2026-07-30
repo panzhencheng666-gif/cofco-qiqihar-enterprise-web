@@ -1,5 +1,5 @@
 import { Typography } from "antd";
-import { StackCompatibilityHarness } from "@/shared/ui";
+import { StackCompatibilityHarness } from "@/shared/ui/StackCompatibilityHarness";
 
 export function StackCompatibilityPage() {
   return (
