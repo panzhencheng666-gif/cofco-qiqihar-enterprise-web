@@ -473,7 +473,7 @@ const contentByPage: Record<PrototypePage, PageContent> = {
 };
 
 const variantLabels: Record<PrototypeVariant, string> = {
-  A: "责任轨道型",
+  A: "正式融合型",
   B: "对象台账型",
   C: "指挥调度型",
 };
@@ -496,6 +496,113 @@ const secondaryNavigation: Record<PrototypePage, readonly string[]> = {
     "物流与流向",
   ],
   supply: ["供需总览", "产品账户", "账户勾稽", "版本与血缘"],
+};
+
+interface FusionPageMeta {
+  application: string;
+  applicationNote: string;
+  breadcrumb: readonly string[];
+  workspaceTitle: string;
+  workspaceSummary: string;
+  actions: readonly string[];
+  tabs: readonly string[];
+  lifecycle: readonly {
+    label: string;
+    detail: string;
+    state: "done" | "current" | "warning" | "open";
+  }[];
+  context: readonly { label: string; value: string }[];
+  filters: readonly string[];
+}
+
+const fusionMetaByPage: Record<PrototypePage, FusionPageMeta> = {
+  work: {
+    application: "我的工作",
+    applicationNote: "统一处理跨业务责任、审核、异常和发布事项",
+    breadcrumb: ["经营工作", "我的工作"],
+    workspaceTitle: "我的经营工作台",
+    workspaceSummary: "聚合当前岗位必须处理、审核、解释和跟踪的经营事项。",
+    actions: ["批量领取", "转交规则"],
+    tabs: ["待我处理", "待我审核", "异常与逾期", "待发布", "已办跟踪"],
+    lifecycle: [
+      { label: "责任到岗", detail: "12 项", state: "done" },
+      { label: "任务受理", detail: "9 项处理中", state: "current" },
+      { label: "质量复核", detail: "3 项阻断", state: "warning" },
+      { label: "业务审核", detail: "7 项待办", state: "open" },
+      { label: "正式发布", detail: "4 项受影响", state: "open" },
+    ],
+    context: [],
+    filters: ["全部业务域", "全部状态", "今日及逾期"],
+  },
+  production: {
+    application: "产情监测",
+    applicationNote: "管理生产事实、调查采集、质量审核和正式发布",
+    breadcrumb: ["产情运营", "产情监测", "种植生产"],
+    workspaceTitle: "种植生产运营工作区",
+    workspaceSummary:
+      "从样本对象、调查采集到分级审核与正式发布的统一作业入口。",
+    actions: ["导入调查结果", "导出当前视图", "更多", "新建调查任务"],
+    tabs: [
+      "运营总览",
+      "样本对象",
+      "采集任务",
+      "审核与发布",
+      "数据质量",
+      "来源与版本",
+    ],
+    lifecycle: [
+      { label: "任务下达", detail: "428 份", state: "done" },
+      { label: "调查采集", detail: "395 已提交", state: "done" },
+      { label: "规则校验", detail: "5 项阻断", state: "warning" },
+      { label: "分级审核", detail: "37 项待办", state: "current" },
+      { label: "正式发布", detail: "生成事实版本", state: "open" },
+    ],
+    context: [],
+    filters: ["齐齐哈尔全域", "全部来源类型", "全部状态"],
+  },
+  market: {
+    application: "市场监测",
+    applicationNote: "治理主体报送、市场事实、质量审核和指标发布",
+    breadcrumb: ["市场运营", "市场监测", "市场总览"],
+    workspaceTitle: "市场运行监测工作区",
+    workspaceSummary: "统一组织报价、交易、库存、加工和物流事实的采集与审核。",
+    actions: ["导入主体报送", "导出当前视图", "更多", "新建采集任务"],
+    tabs: [
+      "运营总览",
+      "市场主体",
+      "采集任务",
+      "审核与发布",
+      "数据质量",
+      "来源与版本",
+    ],
+    lifecycle: [
+      { label: "任务下达", detail: "86 家", state: "done" },
+      { label: "主体报送", detail: "79 家已报", state: "done" },
+      { label: "事实匹配", detail: "3 项待解释", state: "warning" },
+      { label: "业务审核", detail: "7 项待办", state: "current" },
+      { label: "指标发布", detail: "本周未发布", state: "open" },
+    ],
+    context: [],
+    filters: ["全部县区", "全部事实类型", "全部状态"],
+  },
+  supply: {
+    application: "供需平衡",
+    applicationNote: "管理产品账户、采用指标、账户勾稽和版本发布",
+    breadcrumb: ["决策分析", "供需平衡", "玉米产品账户"],
+    workspaceTitle: "玉米供需账户工作区",
+    workspaceSummary: "使用已发布事实与指标完成账户计算、差额解释和版本审核。",
+    actions: ["比较版本", "查看口径", "更多", "新建测算草案"],
+    tabs: ["供需总览", "产品账户", "账户勾稽", "采用指标", "版本与血缘"],
+    lifecycle: [
+      { label: "版本创建", detail: "第 4 版", state: "done" },
+      { label: "指标采用", detail: "1 项待审核", state: "warning" },
+      { label: "账户计算", detail: "计算完成", state: "done" },
+      { label: "差额解释", detail: "差额 1.7 万吨", state: "current" },
+      { label: "审核发布", detail: "尚未发布", state: "open" },
+    ],
+    context: [],
+    filters: ["玉米", "2026/27 年度", "第 4 版"],
+  },
 };
 
 function isVariant(value: string | null): value is PrototypeVariant {
@@ -564,45 +671,555 @@ function PageNavigation({
   );
 }
 
-function ResponsibilityRail({ page }: { page: PrototypePage }) {
-  const reviewState =
+type FusionIconName =
+  | "apps"
+  | "home"
+  | "search"
+  | "task"
+  | "bell"
+  | "help"
+  | "chevron"
+  | "download"
+  | "plus";
+
+function FusionIcon({ name }: { name: FusionIconName }) {
+  if (name === "apps") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="prototype-fusion-icon"
+        viewBox="0 0 24 24"
+      >
+        {[5, 12, 19].flatMap((x) =>
+          [5, 12, 19].map((y) => (
+            <rect
+              height="3"
+              key={`${String(x)}-${String(y)}`}
+              rx="0.8"
+              width="3"
+              x={x - 1.5}
+              y={y - 1.5}
+            />
+          )),
+        )}
+      </svg>
+    );
+  }
+
+  if (name === "home") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="prototype-fusion-icon"
+        viewBox="0 0 24 24"
+      >
+        <path d="m3.5 10.5 8.5-7 8.5 7v9.5h-6v-6h-5v6h-5z" />
+      </svg>
+    );
+  }
+
+  if (name === "search") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="prototype-fusion-icon"
+        viewBox="0 0 24 24"
+      >
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m15.5 15.5 5 5" />
+      </svg>
+    );
+  }
+
+  if (name === "task") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="prototype-fusion-icon"
+        viewBox="0 0 24 24"
+      >
+        <rect height="17" rx="2" width="14" x="5" y="4" />
+        <path d="M8.5 9h7M8.5 13h7M8.5 17h4" />
+      </svg>
+    );
+  }
+
+  if (name === "bell") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="prototype-fusion-icon"
+        viewBox="0 0 24 24"
+      >
+        <path d="M5 17h14l-1.5-2.5V10a5.5 5.5 0 0 0-11 0v4.5z" />
+        <path d="M10 20h4" />
+      </svg>
+    );
+  }
+
+  if (name === "help") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="prototype-fusion-icon"
+        viewBox="0 0 24 24"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9.7 9.2a2.5 2.5 0 1 1 3.7 2.2c-1 .6-1.4 1.2-1.4 2.3M12 17.5h.01" />
+      </svg>
+    );
+  }
+
+  if (name === "chevron") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="prototype-fusion-icon"
+        viewBox="0 0 24 24"
+      >
+        <path d="m8 10 4 4 4-4" />
+      </svg>
+    );
+  }
+
+  if (name === "download") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="prototype-fusion-icon"
+        viewBox="0 0 24 24"
+      >
+        <path d="M12 4v10m-4-4 4 4 4-4M5 19h14" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="prototype-fusion-icon"
+      viewBox="0 0 24 24"
+    >
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+function FusionGlobalHeader({
+  page,
+  onSelectPage,
+}: {
+  page: PrototypePage;
+  onSelectPage: (page: PrototypePage) => void;
+}) {
+  const [applicationMenuOpen, setApplicationMenuOpen] = useState(false);
+  const meta = fusionMetaByPage[page];
+
+  return (
+    <header className="prototype-fusion-header">
+      <button
+        aria-label="打开应用列表"
+        className="prototype-fusion-launcher"
+        type="button"
+      >
+        <FusionIcon name="apps" />
+      </button>
+      <div className="prototype-fusion-brand">
+        <span>齐</span>
+        <div>
+          <strong>齐齐哈尔粮食商情企业平台</strong>
+          <small>统一业务与数据运营平台</small>
+        </div>
+      </div>
+      <button className="prototype-fusion-selector" type="button">
+        <FusionIcon name="home" />
+        <span>
+          <small>当前组织</small>
+          <strong>东北区域经营中心</strong>
+        </span>
+        <FusionIcon name="chevron" />
+      </button>
+      <div className="prototype-fusion-app-switcher">
+        <button
+          aria-expanded={applicationMenuOpen}
+          className="prototype-fusion-selector"
+          type="button"
+          onClick={() => setApplicationMenuOpen((open) => !open)}
+        >
+          <FusionIcon name="task" />
+          <span>
+            <small>当前业务应用</small>
+            <strong>{meta.application}</strong>
+          </span>
+          <FusionIcon name="chevron" />
+        </button>
+        {applicationMenuOpen && (
+          <div
+            className="prototype-fusion-app-menu"
+            role="menu"
+            aria-label="切换业务应用"
+          >
+            {pages.map((item) => (
+              <button
+                className={item.key === page ? "is-active" : undefined}
+                key={item.key}
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  onSelectPage(item.key);
+                  setApplicationMenuOpen(false);
+                }}
+              >
+                <span>{item.code}</span>
+                <strong>{item.label}</strong>
+                <small>{fusionMetaByPage[item.key].applicationNote}</small>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <label className="prototype-fusion-search">
+        <FusionIcon name="search" />
+        <input
+          aria-label="搜索应用和业务对象"
+          placeholder="搜索应用、对象、任务、单据和指标"
+        />
+      </label>
+      <div className="prototype-fusion-header-spacer" />
+      <span className="prototype-fusion-environment">
+        界面样板 · 非正式数据
+      </span>
+      <button
+        aria-label="任务中心，3 项待处理"
+        className="prototype-fusion-header-tool"
+        type="button"
+      >
+        <FusionIcon name="task" />
+        <b>3</b>
+      </button>
+      <button
+        aria-label="通知，8 条未读"
+        className="prototype-fusion-header-tool"
+        type="button"
+      >
+        <FusionIcon name="bell" />
+        <b>8</b>
+      </button>
+      <button
+        aria-label="帮助"
+        className="prototype-fusion-header-tool"
+        type="button"
+      >
+        <FusionIcon name="help" />
+      </button>
+      <div className="prototype-fusion-user">
+        <span>王</span>
+        <div>
+          <strong>王洋</strong>
+          <small>区域数据管理员</small>
+        </div>
+        <FusionIcon name="chevron" />
+      </div>
+    </header>
+  );
+}
+
+function FusionSidebar({
+  page,
+  onSelectPage,
+}: {
+  page: PrototypePage;
+  onSelectPage: (page: PrototypePage) => void;
+}) {
+  const meta = fusionMetaByPage[page];
+
+  return (
+    <aside className="prototype-fusion-sidebar">
+      <div className="prototype-fusion-current-app">
+        <span className="prototype-fusion-current-app__mark">
+          {page === "production"
+            ? "产"
+            : page === "market"
+              ? "市"
+              : page === "supply"
+                ? "供"
+                : "工"}
+        </span>
+        <div>
+          <small>当前业务应用</small>
+          <strong>{meta.application}</strong>
+        </div>
+      </div>
+      <div className="prototype-fusion-sidebar-copy">
+        {meta.applicationNote}
+      </div>
+      <nav
+        aria-label={`${meta.application}工作区`}
+        className="prototype-fusion-workareas"
+      >
+        <span>业务工作区</span>
+        {secondaryNavigation[page].map((item, index) => (
+          <button
+            className={index === 0 ? "is-active" : undefined}
+            key={item}
+            type="button"
+          >
+            <i aria-hidden="true" />
+            {item}
+            {index === 0 && <b>{contentByPage[page].rows.length}</b>}
+          </button>
+        ))}
+      </nav>
+      <div className="prototype-fusion-related-apps">
+        <span>快速切换应用</span>
+        {pages
+          .filter((item) => item.key !== page)
+          .map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => onSelectPage(item.key)}
+            >
+              <span>{item.code}</span>
+              {item.label}
+            </button>
+          ))}
+      </div>
+      <div className="prototype-fusion-sidebar-status">
+        <span className="prototype-live-dot" />
+        <div>
+          <strong>核心服务全部正常</strong>
+          <small>最近同步 10:46 · 会话安全</small>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function FusionPageHeader({ meta }: { meta: FusionPageMeta }) {
+  return (
+    <div className="prototype-fusion-page-header">
+      <div className="prototype-fusion-heading">
+        <div className="prototype-fusion-breadcrumb">
+          {meta.breadcrumb.map((item, index) => (
+            <span key={item}>
+              {item}
+              {index < meta.breadcrumb.length - 1 && <i>/</i>}
+            </span>
+          ))}
+        </div>
+        <h1>{meta.workspaceTitle}</h1>
+        <p>{meta.workspaceSummary}</p>
+      </div>
+      <div className="prototype-fusion-page-actions">
+        {meta.actions.map((action, index) => (
+          <button
+            className={
+              index === meta.actions.length - 1 && meta.actions.length > 2
+                ? "is-primary"
+                : undefined
+            }
+            key={action}
+            type="button"
+          >
+            {action.includes("导出") && <FusionIcon name="download" />}
+            {index === meta.actions.length - 1 && meta.actions.length > 2 && (
+              <FusionIcon name="plus" />
+            )}
+            {action}
+            {action === "更多" && <FusionIcon name="chevron" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FusionContextBand({
+  page,
+  content,
+}: {
+  page: PrototypePage;
+  content: PageContent;
+}) {
+  const objectLabel =
+    page === "production"
+      ? "玉米"
+      : page === "market"
+        ? "粮食市场"
+        : page === "supply"
+          ? "玉米产品账户"
+          : "全部责任事项";
+  const releaseLabel =
     page === "supply"
-      ? "勾稽待解释"
+      ? "第 4 版草案"
       : page === "work"
-        ? "按任务区分"
-        : "业务审核中";
-  const releaseState =
+        ? "按任务跟踪"
+        : "本期未发布";
+  const contextItems = [
+    ["组织", "东北区域经营中心"],
+    ["责任区域", "齐齐哈尔 · 全域"],
+    ["业务期间", content.period],
+    ["业务对象", objectLabel],
+    ["数据范围与截止", `本区域全部样本 · ${content.cutoff}`],
+    ["质量 / 审核 / 版本", `有条件通过 · 审核中 · ${releaseLabel}`],
+  ] as const;
+
+  return (
+    <div className="prototype-fusion-context" aria-label="责任与版本轨道">
+      <div className="prototype-fusion-context__lead">
+        <span className="prototype-live-dot" />
+        <small>当前责任上下文</small>
+        <strong>岗位责任有效</strong>
+      </div>
+      {contextItems.map(([label, value], index) => (
+        <div
+          className={
+            index === contextItems.length - 1
+              ? "prototype-fusion-context__warning"
+              : undefined
+          }
+          key={label}
+        >
+          <small>{label}</small>
+          <strong>{value}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FusionTabs({ meta }: { meta: FusionPageMeta }) {
+  return (
+    <div className="prototype-fusion-tabs" aria-label="页面工作区">
+      {meta.tabs.map((tab, index) => (
+        <button
+          className={index === 0 ? "is-active" : undefined}
+          key={tab}
+          type="button"
+        >
+          {tab}
+        </button>
+      ))}
+      <span>一个业务 · 一套对象 · 一条生命周期</span>
+    </div>
+  );
+}
+
+function FusionLifecyclePanel({
+  page,
+  meta,
+  content,
+}: {
+  page: PrototypePage;
+  meta: FusionPageMeta;
+  content: PageContent;
+}) {
+  const versionLabel =
     page === "supply"
       ? "第 4 版草案"
       : page === "work"
         ? "多版本跟踪"
-        : "本期未发布";
-  const steps = [
-    ["责任组织", "东北区域经营中心", "done"],
-    ["当前岗位", "区域数据管理员", "done"],
-    ["业务期间", contentByPage[page].period, "done"],
-    ["数据截止", contentByPage[page].cutoff, "current"],
-    ["质量资格", page === "work" ? "3 项阻断" : "有条件通过", "warning"],
-    ["审核状态", reviewState, "warning"],
-    ["发布版本", releaseState, "open"],
-  ] as const;
+        : "2026 年第 3 版";
 
   return (
-    <div className="prototype-responsibility-rail" aria-label="责任与版本轨道">
-      {steps.map(([label, value, state], index) => (
-        <div
-          className={`prototype-responsibility-step is-${state}`}
-          key={label}
-        >
-          <span className="prototype-responsibility-step__number">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <span className="prototype-responsibility-step__copy">
-            <small>{label}</small>
-            <strong>{value}</strong>
-          </span>
+    <section className="prototype-fusion-panel prototype-fusion-lifecycle">
+      <div className="prototype-fusion-panel-heading">
+        <div>
+          <span>本期作业控制</span>
+          <h2>本期业务生命周期</h2>
         </div>
-      ))}
+        <small>{content.period} · 系统自动汇总</small>
+      </div>
+      <div className="prototype-fusion-lifecycle-steps">
+        {meta.lifecycle.map((stage, index) => (
+          <div className={`is-${stage.state}`} key={stage.label}>
+            <span>{stage.state === "done" ? "✓" : String(index + 1)}</span>
+            <p>
+              <strong>{stage.label}</strong>
+              <small>{stage.detail}</small>
+            </p>
+          </div>
+        ))}
+      </div>
+      {page !== "work" && <DomainStory page={page} />}
+      <div className="prototype-fusion-lifecycle-facts">
+        <div>
+          <small>当前责任组织</small>
+          <strong>东北区域经营中心</strong>
+        </div>
+        <div>
+          <small>工作版本</small>
+          <strong>{versionLabel}</strong>
+        </div>
+        <div>
+          <small>质量规则</small>
+          <strong>
+            {page === "supply" ? "账户勾稽规则第 4 版" : "经营监测规则第 4 版"}
+          </strong>
+        </div>
+        <div>
+          <small>发布窗口</small>
+          <strong>今日 16:00</strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FusionAttentionPanel({ content }: { content: PageContent }) {
+  return (
+    <aside className="prototype-fusion-panel prototype-fusion-attention">
+      <div className="prototype-fusion-panel-heading">
+        <div>
+          <span>风险与例外</span>
+          <h2>需要立即处理</h2>
+        </div>
+        <button type="button">进入任务中心 →</button>
+      </div>
+      <AttentionList content={content} />
+    </aside>
+  );
+}
+
+function FusionFilterBar({
+  page,
+  meta,
+}: {
+  page: PrototypePage;
+  meta: FusionPageMeta;
+}) {
+  const sectionTitle =
+    page === "supply"
+      ? "账户项与采用版本"
+      : page === "work"
+        ? "责任事项与处理任务"
+        : page === "production"
+          ? "样本对象与调查任务"
+          : "市场对象与采集任务";
+  const sectionNote =
+    page === "supply"
+      ? "账户项只采用具备资格的正式事实与指标版本"
+      : "对象与任务关联呈现，从同一对象进入采集、审核、质量和历史";
+
+  return (
+    <div className="prototype-fusion-filterbar">
+      <div>
+        <h2>{sectionTitle}</h2>
+        <p>{sectionNote}</p>
+      </div>
+      <div className="prototype-fusion-filters">
+        {meta.filters.map((filter) => (
+          <button key={filter} type="button">
+            {filter}
+            <FusionIcon name="chevron" />
+          </button>
+        ))}
+        <button type="button">列设置</button>
+        <button aria-label="刷新当前清单" type="button">
+          ↻
+        </button>
+      </div>
     </div>
   );
 }
@@ -873,105 +1490,26 @@ function VariantA({
   page: PrototypePage;
   onSelectPage: (page: PrototypePage) => void;
 }) {
-  const definition = pages.find((item) => item.key === page) ?? pages[0];
   const content = contentByPage[page];
+  const meta = fusionMetaByPage[page];
 
   return (
-    <div className="prototype-a">
-      <PrototypeHeader />
-      <div className="prototype-a__body">
-        <aside className="prototype-a__sidebar">
-          <div className="prototype-sidebar-heading">
-            <span>经营工作空间</span>
-            <strong>粮情研判</strong>
-          </div>
-          <PageNavigation page={page} onSelect={onSelectPage} />
-          <div className="prototype-sidebar-section">
-            <small>当前页工作区</small>
-            {secondaryNavigation[page].map((item, index) => (
-              <button
-                className={index === 0 ? "is-active" : undefined}
-                key={item}
-                type="button"
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-          <div className="prototype-sidebar-foot">
-            <span className="prototype-live-dot" />
-            <span>
-              <strong>数据服务正常</strong>
-              <small>最近同步 10:46</small>
-            </span>
-          </div>
-        </aside>
-        <main className="prototype-a__main">
-          <div className="prototype-title-row">
-            <div>
-              <span className="prototype-eyebrow">{definition.eyebrow}</span>
-              <h1>{definition.title}</h1>
-              <p>{definition.summary}</p>
-            </div>
-            <div className="prototype-title-actions">
-              <button type="button">查看口径</button>
-              <button className="is-primary" type="button">
-                进入业务清单
-              </button>
-            </div>
-          </div>
-          <ResponsibilityRail page={page} />
-          <div className="prototype-section-tabs" aria-label="页面内导航">
-            {secondaryNavigation[page].map((item, index) => (
-              <button
-                className={index === 0 ? "is-active" : undefined}
-                key={item}
-                type="button"
-              >
-                {item}
-              </button>
-            ))}
-            <span>{content.period}</span>
-          </div>
+    <div className="prototype-a prototype-fusion">
+      <FusionGlobalHeader page={page} onSelectPage={onSelectPage} />
+      <div className="prototype-fusion-shell">
+        <FusionSidebar page={page} onSelectPage={onSelectPage} />
+        <main className="prototype-fusion-main">
+          <FusionPageHeader meta={meta} />
+          <FusionContextBand content={content} page={page} />
+          <FusionTabs meta={meta} />
           <MetricStrip metrics={content.metrics} />
-          <div className="prototype-a__workspace">
-            <section className="prototype-paper prototype-a__primary">
-              <div className="prototype-section-heading">
-                <div>
-                  <span>01 / 核心作业</span>
-                  <h2>
-                    {page === "supply" ? "账户勾稽与采用明细" : "本期业务状态"}
-                  </h2>
-                </div>
-                <button type="button">筛选与列设置</button>
-              </div>
-              <DomainStory page={page} />
-              <BusinessTable content={content} />
-            </section>
-            <aside className="prototype-paper prototype-a__attention">
-              <div className="prototype-section-heading">
-                <div>
-                  <span>02 / 风险处置</span>
-                  <h2>需立即处理</h2>
-                </div>
-                <b>{content.attention.length}</b>
-              </div>
-              <AttentionList content={content} />
-              <div className="prototype-attention-foot">
-                <span>只显示影响质量资格和发布的事项</span>
-                <button type="button">查看全部</button>
-              </div>
-            </aside>
+          <div className="prototype-fusion-focus-grid">
+            <FusionLifecyclePanel content={content} meta={meta} page={page} />
+            <FusionAttentionPanel content={content} />
           </div>
-          <section className="prototype-paper prototype-a__sources">
-            <div className="prototype-section-heading">
-              <div>
-                <span>03 / 采用依据</span>
-                <h2>来源、资格与版本</h2>
-              </div>
-              <small>所有结果保留至规范事实和正式指标版本</small>
-            </div>
-            <SourceQualification content={content} />
+          <section className="prototype-fusion-panel prototype-fusion-table-panel">
+            <FusionFilterBar meta={meta} page={page} />
+            <BusinessTable content={content} />
           </section>
         </main>
       </div>

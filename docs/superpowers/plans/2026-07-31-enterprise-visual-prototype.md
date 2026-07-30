@@ -347,3 +347,12 @@ Capture the recommended `A` variant on all four pages and a comparison view of v
 - [ ] **Step 5: Present the review URLs**
 
 Give the user the base URL and direct URLs for variants A, B, and C. State that A is recommended, ask which structure or combination should become the formal design, and do not promote prototype code directly into production.
+
+## Superseded Recommendation
+
+Variant A’s initial responsibility-rail presentation was superseded after
+visual comparison. The approved recommendation is now the formal fusion
+direction defined in
+`docs/superpowers/specs/2026-07-31-enterprise-visual-fusion-design.md`
+and implemented through
+`docs/superpowers/plans/2026-07-31-enterprise-visual-fusion-prototype.md`.
