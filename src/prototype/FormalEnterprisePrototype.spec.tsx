@@ -12,7 +12,9 @@ describe("formal enterprise shell", () => {
     );
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
-    expect(screen.getByText("演示环境 · 非生产数据")).toBeVisible();
+    expect(
+      screen.queryByText("演示环境 · 非生产数据"),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "业务报告" })).toBeVisible();
     expect(
       screen.getByRole("navigation", { name: "报表中心模块" }),
@@ -20,18 +22,52 @@ describe("formal enterprise shell", () => {
     expect(screen.queryByLabelText("界面方案切换")).not.toBeInTheDocument();
   });
 
-  it("exposes exactly six business applications", async () => {
-    const user = userEvent.setup();
+  it("uses one enterprise application bar and a non-repeating sidebar", () => {
+    const { container } = render(
+      <FormalEnterprisePrototype initialSearch="?page=market&section=collection" />,
+    );
+
+    const applications = screen.getByRole("navigation", {
+      name: "业务应用",
+    });
+    expect(within(applications).getAllByRole("button")).toHaveLength(6);
+    expect(
+      within(applications).getByRole("button", { name: "市场监测" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByText("当前业务应用")).not.toBeInTheDocument();
+    expect(screen.queryByText("统一业务与数据运营平台")).not.toBeInTheDocument();
+    expect(container.querySelector(".formal-sidebar-description")).toBeNull();
+    expect(container.querySelector(".formal-enterprise-shell")).not.toBeNull();
+  });
+
+  it("exposes exactly six business applications", () => {
     render(<FormalEnterprisePrototype initialSearch="?page=work" />);
 
-    await user.click(
-      screen.getByRole("button", { name: /当前业务应用.*我的工作/ }),
+    const applications = screen.getByRole("navigation", {
+      name: "业务应用",
+    });
+    expect(within(applications).getAllByRole("button")).toHaveLength(6);
+    expect(within(applications).getByText("经营总览")).toBeVisible();
+    expect(within(applications).getByText("供需与态势")).toBeVisible();
+    expect(within(applications).getByText("报表中心")).toBeVisible();
+  });
+
+  it("collapses the sidebar without hiding business names from assistive technology", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <FormalEnterprisePrototype initialSearch="?page=production&section=collection" />,
     );
-    const menu = screen.getByRole("menu", { name: "切换业务应用" });
-    expect(within(menu).getAllByRole("menuitem")).toHaveLength(6);
-    expect(within(menu).getByText("经营总览")).toBeVisible();
-    expect(within(menu).getByText("供需与态势")).toBeVisible();
-    expect(within(menu).getByText("报表中心")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "收起左侧导航" }));
+    expect(container.querySelector(".formal-enterprise")).toHaveClass(
+      "is-sidebar-collapsed",
+    );
+    expect(
+      screen.getByRole("navigation", { name: "产情监测模块" }),
+    ).toHaveTextContent("数据采集");
+    expect(
+      screen.getByRole("button", { name: "展开左侧导航" }),
+    ).toBeVisible();
   });
 
   it("keeps reporting supervision centralized and auditable", () => {
@@ -145,7 +181,7 @@ describe("formal enterprise shell", () => {
       name: "市场监测模块",
     });
     expect(within(navigation).getAllByRole("button")).toHaveLength(5);
-    expect(within(navigation).getByText("市场总览")).toBeVisible();
+    expect(within(navigation).getByText("监测总览")).toBeVisible();
     expect(within(navigation).getByText("数据采集")).toBeVisible();
     expect(screen.queryByText("业务生命周期")).not.toBeInTheDocument();
   });
