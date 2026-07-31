@@ -1,5 +1,8 @@
 import { useState } from "react";
-import type { BusinessReportContext } from "./businessReportModel";
+import type {
+  BusinessReportContext,
+  ReportableApplication,
+} from "./businessReportModel";
 import {
   businessReportRows,
   dutyMonthlyRows,
@@ -17,18 +20,76 @@ import {
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
-const reportContext: BusinessReportContext = {
-  application: "market",
-  applicationLabel: "市场监测",
-  product: "玉米",
-  region: "齐齐哈尔市全域",
-  regionLevel: "地市级",
-  period: "2026 年第 31 周",
-  dataCutoff: "2026-07-31 17:00",
-  dataVersion: "第 31 周已核定数据",
-  author: "市场分析岗",
-  reviewer: "报告复核岗",
-};
+const reportApplications: readonly {
+  key: ReportableApplication;
+  label: string;
+  products: readonly string[];
+  versions: readonly string[];
+}[] = [
+  {
+    key: "production",
+    label: "产情监测",
+    products: ["玉米", "大豆", "稻谷"],
+    versions: ["产情第 30 周正式指标版本", "产情第 31 周待核定版本"],
+  },
+  {
+    key: "market",
+    label: "市场监测",
+    products: ["玉米", "大豆", "稻谷", "农资专题"],
+    versions: ["第 31 周已核定数据", "7 月 31 日已核定数据"],
+  },
+  {
+    key: "supply",
+    label: "供需与态势",
+    products: ["玉米原粮", "大豆原粮", "稻谷原粮", "大米产品"],
+    versions: ["2026/27 年度市级合并账户", "2026/27 年度县级账户"],
+  },
+];
+
+const reportRegions = [
+  "齐齐哈尔市全域",
+  "讷河市",
+  "龙江县",
+  "黑河市全域",
+  "呼伦贝尔指定范围",
+] as const;
+
+const reportPeriods = [
+  "2026-07-31",
+  "2026 年第 31 周",
+  "2026 年 7 月",
+  "2026/27 营销年度",
+] as const;
+
+function buildReportContext({
+  application,
+  product,
+  region,
+  period,
+  dataVersion,
+}: {
+  application: ReportableApplication;
+  product: string;
+  region: string;
+  period: string;
+  dataVersion: string;
+}): BusinessReportContext {
+  const definition = reportApplications.find(
+    (item) => item.key === application,
+  )!;
+  return {
+    application,
+    applicationLabel: definition.label,
+    product,
+    region,
+    regionLevel: region.endsWith("市全域") ? "地市级" : "县级或指定范围",
+    period,
+    dataCutoff: "2026-07-31 17:00",
+    dataVersion,
+    author: `${definition.label.replace("监测", "")}分析岗`,
+    reviewer: "报告复核岗",
+  };
+}
 
 function toneFor(value: string): WorkspaceTone {
   if (
@@ -57,16 +118,18 @@ function toneFor(value: string): WorkspaceTone {
 
 function ReportContext({
   state,
+  context,
 }: {
   state: string;
+  context: BusinessReportContext;
 }) {
   return (
     <BusinessContextBar
       items={[
-        ["所选业务", reportContext.applicationLabel],
-        ["地区与产品", `${reportContext.region} · ${reportContext.product}`],
-        ["报告期间", reportContext.period],
-        ["采用版本", reportContext.dataVersion],
+        ["所选业务", context.applicationLabel],
+        ["地区与产品", `${context.region} · ${context.product}`],
+        ["报告期间", context.period],
+        ["采用版本", context.dataVersion],
       ]}
       state={state}
     />
@@ -78,6 +141,33 @@ function BusinessReports({
 }: {
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
+  const [application, setApplication] =
+    useState<ReportableApplication>("market");
+  const definition = reportApplications.find(
+    (item) => item.key === application,
+  )!;
+  const [region, setRegion] = useState<string>("齐齐哈尔市全域");
+  const [product, setProduct] = useState<string>("玉米");
+  const [period, setPeriod] = useState<string>("2026 年第 31 周");
+  const [dataVersion, setDataVersion] =
+    useState<string>("第 31 周已核定数据");
+  const context = buildReportContext({
+    application,
+    product,
+    region,
+    period,
+    dataVersion,
+  });
+
+  function changeApplication(next: ReportableApplication) {
+    const nextDefinition = reportApplications.find(
+      (item) => item.key === next,
+    )!;
+    setApplication(next);
+    setProduct(nextDefinition.products[0]);
+    setDataVersion(nextDefinition.versions[0]);
+  }
+
   return (
     <div className="unified-workspace">
       <WorkspaceHeader
@@ -93,37 +183,81 @@ function BusinessReports({
         summary="按业务、地区、产品、期间和已核定数据版本生成报告，不复制原始业务数据。"
         title="业务报告"
       />
-      <ReportContext state="报告上下文已锁定" />
+      <ReportContext context={context} state="报告条件完整" />
       <section
         aria-label="业务报告生成条件"
         className="report-context-composer"
       >
-        <div>
+        <label>
           <small>业务</small>
-          <strong>市场监测</strong>
-        </div>
-        <div>
+          <select
+            aria-label="业务类型"
+            value={application}
+            onChange={(event) =>
+              changeApplication(event.target.value as ReportableApplication)
+            }
+          >
+            {reportApplications.map((item) => (
+              <option key={item.key} value={item.key}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           <small>地区</small>
-          <strong>齐齐哈尔市全域</strong>
-        </div>
-        <div>
+          <select
+            aria-label="报告地区"
+            value={region}
+            onChange={(event) => setRegion(event.target.value)}
+          >
+            {reportRegions.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+        <label>
           <small>产品</small>
-          <strong>玉米</strong>
-        </div>
-        <div>
+          <select
+            aria-label="产品或专题"
+            value={product}
+            onChange={(event) => setProduct(event.target.value)}
+          >
+            {definition.products.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+        <label>
           <small>期间</small>
-          <strong>2026 年第 31 周</strong>
-        </div>
-        <div>
+          <select
+            aria-label="报告期间"
+            value={period}
+            onChange={(event) => setPeriod(event.target.value)}
+          >
+            {reportPeriods.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+        <label>
           <small>数据版本</small>
-          <strong>第 31 周已核定数据</strong>
-        </div>
+          <select
+            aria-label="采用数据版本"
+            value={dataVersion}
+            onChange={(event) => setDataVersion(event.target.value)}
+          >
+            {definition.versions.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+        </label>
         <div className="report-frequency-actions">
           {(["日报", "周报", "月报"] as const).map((frequency) => (
             <button
               key={frequency}
               type="button"
-              onClick={() => onComposeReport(reportContext)}
+              onClick={() => onComposeReport(context)}
             >
               生成{frequency}
             </button>
@@ -216,6 +350,13 @@ function BusinessReports({
 
 function DutyReports() {
   const [view, setView] = useState<"weekly" | "monthly">("weekly");
+  const dutyContext = buildReportContext({
+    application: "market",
+    product: "全部责任事项",
+    region: "齐齐哈尔市全域",
+    period: "2026 年第 31 周",
+    dataVersion: "第 31 周责任截止快照",
+  });
   return (
     <div className="unified-workspace">
       <WorkspaceHeader
@@ -232,7 +373,49 @@ function DutyReports() {
         summary="监督责任人是否按时完成所属区域任务；不在这里重复填写产情或市场业务值。"
         title="填报履责监督"
       />
-      <ReportContext state="第 31 周责任快照已固定" />
+      <ReportContext
+        context={dutyContext}
+        state="第 31 周责任快照已固定"
+      />
+      <section aria-label="履责报告筛选条件" className="report-filter-bar">
+        <label>
+          <span>业务类型</span>
+          <select aria-label="履责业务类型" defaultValue="all">
+            <option value="all">全部业务</option>
+            <option>产情监测</option>
+            <option>市场监测</option>
+          </select>
+        </label>
+        <label>
+          <span>责任区域</span>
+          <select aria-label="履责责任区域" defaultValue="all">
+            <option value="all">全部责任区域</option>
+            <option>齐齐哈尔市本级</option>
+            <option>讷河市</option>
+            <option>甘南县</option>
+            <option>拜泉县</option>
+          </select>
+        </label>
+        <label>
+          <span>统计周期</span>
+          <select aria-label="履责统计周期" defaultValue="week-31">
+            <option value="week-31">2026 年第 31 周</option>
+            <option value="month-07">2026 年 7 月</option>
+          </select>
+        </label>
+        <label>
+          <span>履责状态</span>
+          <select aria-label="履责状态" defaultValue="all">
+            <option value="all">全部状态</option>
+            <option>按时完成</option>
+            <option>逾期补填</option>
+            <option>截止未提交</option>
+          </select>
+        </label>
+        <p>
+          本页监督是否按时完成；业务日报、周报、月报请在“业务报告”中生成。
+        </p>
+      </section>
       <section aria-label="填报责任规则" className="duty-rule-strip">
         <article>
           <small>责任归属</small>
@@ -412,6 +595,13 @@ function DutyReports() {
 }
 
 function ReviewWorkspace() {
+  const context = buildReportContext({
+    application: "market",
+    product: "玉米",
+    region: "齐齐哈尔市全域",
+    period: "2026 年第 31 周",
+    dataVersion: "第 31 周已核定数据",
+  });
   return (
     <div className="unified-workspace">
       <WorkspaceHeader
@@ -420,7 +610,7 @@ function ReviewWorkspace() {
         summary="复核报告结论、引用数据版本、地区产品口径和敏感信息。"
         title="报告复核"
       />
-      <ReportContext state="4 份报告等待复核" />
+      <ReportContext context={context} state="4 份报告等待复核" />
       <WorkspacePanel
         kicker="复核队列"
         note="复核不修改原始业务值；数据问题退回所属业务重新审核。"
@@ -464,6 +654,13 @@ function ReviewWorkspace() {
 }
 
 function DistributionWorkspace() {
+  const context = buildReportContext({
+    application: "market",
+    product: "玉米",
+    region: "齐齐哈尔市全域",
+    period: "2026 年第 31 周",
+    dataVersion: "第 31 周已核定数据",
+  });
   return (
     <div className="unified-workspace">
       <WorkspaceHeader
@@ -472,7 +669,7 @@ function DistributionWorkspace() {
         summary="统一控制报告发布范围、接收对象、发布时间和替代关系。"
         title="发布与分发"
       />
-      <ReportContext state="发布渠道正常" />
+      <ReportContext context={context} state="发布渠道正常" />
       <WorkspacePanel
         kicker="发布计划"
         note="仅已复核的正式报告可以进入发布计划。"
@@ -516,6 +713,13 @@ function DistributionWorkspace() {
 }
 
 function VersionWorkspace() {
+  const context = buildReportContext({
+    application: "market",
+    product: "玉米",
+    region: "齐齐哈尔市全域",
+    period: "2026 年第 31 周",
+    dataVersion: "第 31 周已核定数据",
+  });
   return (
     <div className="unified-workspace">
       <WorkspaceHeader
@@ -524,7 +728,7 @@ function VersionWorkspace() {
         summary="查询报告生成、复核、发布和替代全过程，正式版本不可覆盖。"
         title="报告历史版本"
       />
-      <ReportContext state="版本链完整" />
+      <ReportContext context={context} state="版本链完整" />
       <WorkspacePanel
         kicker="版本台账"
         note="同一报告的修订版通过替代关系关联，原发布版继续留痕。"

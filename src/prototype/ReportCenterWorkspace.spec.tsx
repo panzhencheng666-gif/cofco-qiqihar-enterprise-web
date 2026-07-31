@@ -19,17 +19,34 @@ describe("ReportCenterWorkspace", () => {
     const context = screen.getByRole("region", {
       name: "业务报告生成条件",
     });
-    expect(within(context).getByText("市场监测")).toBeVisible();
-    expect(within(context).getByText("齐齐哈尔市全域")).toBeVisible();
-    expect(within(context).getByText("2026 年第 31 周")).toBeVisible();
-    expect(within(context).getByText("第 31 周已核定数据")).toBeVisible();
+    expect(
+      within(context).getByRole("combobox", { name: "业务类型" }),
+    ).toHaveValue("market");
+    expect(
+      within(context).getByRole("combobox", { name: "报告地区" }),
+    ).toHaveValue("齐齐哈尔市全域");
+    expect(
+      within(context).getByRole("combobox", { name: "报告期间" }),
+    ).toHaveValue("2026 年第 31 周");
+    expect(
+      within(context).getByRole("combobox", { name: "采用数据版本" }),
+    ).toHaveValue("第 31 周已核定数据");
+
+    await user.selectOptions(
+      within(context).getByRole("combobox", { name: "业务类型" }),
+      "production",
+    );
+    await user.selectOptions(
+      within(context).getByRole("combobox", { name: "报告地区" }),
+      "讷河市",
+    );
 
     await user.click(screen.getByRole("button", { name: "生成周报" }));
     expect(onComposeReport).toHaveBeenCalledWith(
       expect.objectContaining({
-        application: "market",
+        application: "production",
         product: "玉米",
-        region: "齐齐哈尔市全域",
+        region: "讷河市",
       }),
     );
   });
@@ -51,6 +68,15 @@ describe("ReportCenterWorkspace", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "导出责任月报" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "履责业务类型" }),
+    ).toHaveValue("all");
+    expect(
+      screen.getByRole("combobox", { name: "履责责任区域" }),
+    ).toHaveValue("all");
+    expect(
+      screen.getByText(/业务日报、周报、月报请在“业务报告”中生成/),
     ).toBeVisible();
 
     const table = screen.getByRole("table", { name: "填报履责记录" });
