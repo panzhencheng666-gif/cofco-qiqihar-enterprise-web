@@ -45,14 +45,14 @@ export interface BusinessClassification {
 function classification(
   id: BusinessClassification["id"],
 ): BusinessClassification {
-  const [domain, label] = id.split(".") as [
+  const [domain, key] = id.split(".") as [
     BusinessClassificationDomain,
     string,
   ];
   return {
     id,
     domain,
-    label,
+    label: governedLabels[id],
     productDimension:
       domain === "supply" ? "product-account" : domain === "operations" ? "none" : "crop",
     taskEnabled: domain !== "reporting",
@@ -60,6 +60,33 @@ function classification(
     reportEnabled: true,
   };
 }
+
+const governedLabels: Record<BusinessClassification["id"], string> = {
+  "production.planting-production": "种植生产",
+  "production.cost-support": "成本与政策支持",
+  "production.farmer-stock-sales": "农户余粮与销售",
+  "production.planting-intention": "种植意向",
+  "production.quality-survey": "质量调查",
+  "market.quote-trade": "报价与交易",
+  "market.quality": "市场质量",
+  "market.inventory": "市场库存",
+  "market.processing": "加工",
+  "market.consumption-use": "消费与使用",
+  "market.sales": "销售",
+  "market.logistics": "物流",
+  "market.agricultural-input": "农资",
+  "supply.supply": "供给",
+  "supply.use-outflow": "使用与外流",
+  "supply.results": "结果",
+  "supply.auxiliary": "辅助口径",
+  "operations.obligation-performance": "履责表现",
+  "operations.data-quality": "数据质量",
+  "reporting.production": "产情报告",
+  "reporting.market": "市场报告",
+  "reporting.supply": "供需报告",
+  "reporting.cross-business": "跨业务报告",
+  "reporting.duty": "履责报告",
+};
 
 export const businessClassifications: readonly BusinessClassification[] =
   requiredBusinessClassificationIds.map(classification);

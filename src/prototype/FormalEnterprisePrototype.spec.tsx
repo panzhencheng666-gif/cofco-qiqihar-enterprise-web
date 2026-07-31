@@ -11,7 +11,7 @@ describe("formal enterprise prototype", () => {
       <FormalEnterprisePrototype initialSearch="?page=production&section=objects" />,
     );
 
-    expect(screen.getByText("企业经营平台")).toBeVisible();
+    expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
     expect(within(navigation).getAllByRole("button")).toHaveLength(3);
     expect(within(navigation).getByText("业务任务")).toBeVisible();
@@ -34,5 +34,14 @@ describe("formal enterprise prototype", () => {
     expect(
       screen.getByRole("navigation", { name: "供需与态势模块" }),
     ).toHaveTextContent("供需测算");
+  });
+
+  it("blocks workspace actions when a URL coordinate is unauthorized", () => {
+    render(
+      <FormalEnterprisePrototype initialSearch="?page=production&section=tasks&region=not-authorized" />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("当前范围无权查询");
+    expect(screen.queryByRole("button", { name: "在线填报" })).not.toBeInTheDocument();
   });
 });

@@ -12,6 +12,9 @@ import {
   responsibilityAssignments,
 } from "./formalEnterpriseData";
 import type { ReportingSection } from "./formalEnterpriseModel";
+import type { BusinessCoordinates } from "./formalEnterpriseModel";
+import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   WorkspaceScopeBar,
   WorkspaceFilterBar,
@@ -134,6 +137,8 @@ function BusinessReports({
   onComposeReport,
 }: {
   onComposeReport: (context: BusinessReportContext) => void;
+  scope?: OperationalScope;
+  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }) {
   const [application, setApplication] =
     useState<ReportableApplication>("market");
@@ -163,7 +168,7 @@ function BusinessReports({
   }
 
   return (
-    <div className="unified-workspace">
+    <div className="unified-workspace" data-classification-source={businessClassificationFixtures.reportCompatibility.join(",")}>
       <WorkspaceHeader
         actions={
           <>
@@ -758,6 +763,8 @@ function VersionWorkspace() {
 export function ReportCenterWorkspace({
   section,
   onComposeReport,
+  scope: _scope,
+  onScopeChange: _onScopeChange,
 }: {
   section:
     | ReportingSection
@@ -767,6 +774,8 @@ export function ReportCenterWorkspace({
     | "distribution"
     | "versions";
   onComposeReport: (context: BusinessReportContext) => void;
+  scope?: OperationalScope;
+  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }) {
   if (section === "duty-reports") return <DutyReports />;
   if (section === "review" || section === "review-distribution") return <ReviewWorkspace />;

@@ -19,6 +19,9 @@ import {
   type MarketProductKind,
 } from "./marketMonitoringModel";
 import type { MarketSection } from "./formalEnterpriseModel";
+import type { BusinessCoordinates } from "./formalEnterpriseModel";
+import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import { getEnterpriseRegion } from "./enterpriseRegions";
 import {
@@ -38,6 +41,8 @@ export interface MarketMonitoringWorkspaceProps {
   section: MarketSection | "overview" | "collection" | "review" | "reports";
   onSectionChange?: (section: MarketSection | "collection") => void;
   onComposeReport: (context: BusinessReportContext) => void;
+  scope?: OperationalScope;
+  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }
 
 const marketReportContext: BusinessReportContext = {
@@ -193,7 +198,7 @@ function MarketOverview({
   );
 
   return (
-    <div className="market-workspace market-overview">
+    <div className="market-workspace market-overview" data-classification-source={businessClassificationFixtures.marketAnalysis.join(",")}>
       <MarketPageHeader
         eyebrow="市场监测 / 市场总览"
         title="粮食市场监测总览"

@@ -114,6 +114,7 @@ describe("formal location", () => {
     expect(readFormalLocation(writeFormalLocation(location), authorization)).toEqual({
       location,
       issues: [],
+      queryAllowed: true,
     });
   });
 });

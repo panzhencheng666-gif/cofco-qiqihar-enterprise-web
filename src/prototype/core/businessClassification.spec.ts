@@ -4,6 +4,7 @@ import {
   businessClassificationOptionSources,
   requiredBusinessClassificationIds,
 } from "./businessClassification";
+import { businessClassificationFixtures } from "../formalEnterpriseData";
 
 describe("business classification catalog", () => {
   it("provides each required classification exactly once", () => {
@@ -20,5 +21,26 @@ describe("business classification catalog", () => {
     for (const source of Object.values(businessClassificationOptionSources)) {
       expect(source.every((id) => ids.has(id))).toBe(true);
     }
+  });
+
+  it("shares the catalog option sources with real workspace fixtures", () => {
+    expect(businessClassificationFixtures.workItems).toBe(
+      businessClassificationOptionSources.workItems,
+    );
+    expect(businessClassificationFixtures.executiveFilters).toBe(
+      businessClassificationOptionSources.executiveFilters,
+    );
+    expect(businessClassificationFixtures.productionAnalysis).toBe(
+      businessClassificationOptionSources.productionAnalysis,
+    );
+    expect(businessClassificationFixtures.marketAnalysis).toBe(
+      businessClassificationOptionSources.marketAnalysis,
+    );
+    expect(businessClassificationFixtures.supplyAnalysis).toBe(
+      businessClassificationOptionSources.supplyAnalysis,
+    );
+    expect(businessClassificationFixtures.reportCompatibility).toBe(
+      businessClassificationOptionSources.reportCompatibility,
+    );
   });
 });

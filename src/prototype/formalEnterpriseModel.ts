@@ -1,4 +1,9 @@
 import type { BusinessClassification } from "./core/businessClassification";
+import {
+  readOperationalScope,
+  type OperationalScopeIdentity,
+  type OperationalScopeIssue,
+} from "./core/operationalScope";
 import type { EnterpriseRegionId } from "./enterpriseRegions";
 
 export const formalSectionsByApplication = {
@@ -32,7 +37,8 @@ export type WorkSection = SectionFor<"work">;
 export type OverviewSection = SectionFor<"overview">;
 export type ProductionSection = SectionFor<"production">;
 export type MarketSection = SectionFor<"market">;
-export type SupplySection = SectionFor<"supply"> | "statement";
+/** Workspace compatibility is intentionally wider than the URL route contract. */
+export type SupplySection = SectionFor<"supply"> | (string & {});
 export type ReportingSection = SectionFor<"reporting">;
 export type FormalSection = SectionFor<FormalApplication>;
 
@@ -78,9 +84,14 @@ export interface FormalLocationAuthorization {
   permissionKeys: readonly string[];
 }
 
+export type FormalLocationAuthority =
+  | FormalLocationAuthorization
+  | OperationalScopeIdentity;
+
 export interface FormalLocationReadResult {
   location: FormalLocation;
-  issues: readonly string[];
+  issues: readonly OperationalScopeIssue[];
+  queryAllowed: boolean;
 }
 
 function isFormalApplication(value: string | null): value is FormalApplication {
@@ -157,14 +168,10 @@ export function writeFormalLocation(location: FormalLocation): string {
 
 export function readFormalLocation(
   search: string,
-  _authorization: FormalLocationAuthorization,
+  authority: FormalLocationAuthority,
 ): FormalLocationReadResult {
   const parameters = new URLSearchParams(search);
-  const coordinates = { regionId: parameters.get("region") ?? "authorized-all" } as BusinessCoordinates;
-  for (const [coordinate, parameter] of locationCoordinateParameters.slice(1)) {
-    const value = parameters.get(parameter);
-    if (value) Object.assign(coordinates, { [coordinate]: value });
-  }
+  const scope = readOperationalScope(search, toOperationalScopeIdentity(authority));
   const selectionType = parameters.get("selectionType");
   const selectionId = parameters.get("selectionId");
   const selection =
@@ -175,11 +182,27 @@ export function readFormalLocation(
   return {
     location: {
       route: readFormalRoute(search),
-      coordinates,
+      coordinates: scope.scope.coordinates,
       ...(selection ? { selection } : {}),
       ...(savedViewId ? { savedViewId } : {}),
     },
-    issues: [],
+    issues: scope.issues,
+    queryAllowed: scope.queryAllowed,
+  };
+}
+
+function toOperationalScopeIdentity(
+  authority: FormalLocationAuthority,
+): OperationalScopeIdentity {
+  if ("workUnit" in authority) return authority;
+  return {
+    workUnit: {
+      organizationId: "current-organization",
+      unitId: "current-unit",
+      label: "当前工作单位",
+    },
+    identity: { userId: "current-user", postId: "current-post" },
+    authorization: authority,
   };
 }
 

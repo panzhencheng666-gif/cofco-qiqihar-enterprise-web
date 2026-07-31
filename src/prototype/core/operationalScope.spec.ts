@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { readOperationalScope } from "./operationalScope";
+import {
+  formalSectionsByApplication,
+  getDefaultFormalSection,
+  readFormalLocation,
+} from "../formalEnterpriseModel";
 
 const authorization = {
   workUnit: {
@@ -45,5 +50,29 @@ describe("operational scope", () => {
       { code: "unknown-or-unauthorized-region", value: "not-authorized" },
     ]);
     expect(invalidScope.queryAllowed).toBe(false);
+  });
+
+  it("rejects every unauthorized coordinate on every application default route", () => {
+    const invalidQueries = [
+      ["businessSubtype", "not-authorized", "unknown-or-unauthorized-business-subtype"],
+      ["product", "not-authorized", "unknown-or-unauthorized-product"],
+      ["cultivar", "not-authorized", "unknown-or-unauthorized-cultivar"],
+      ["dataLayer", "invalid", "invalid-data-layer"],
+      ["releaseVersion", "not-authorized", "unknown-or-unauthorized-release-version"],
+    ] as const;
+
+    for (const application of Object.keys(formalSectionsByApplication) as Array<
+      keyof typeof formalSectionsByApplication
+    >) {
+      for (const [key, value, code] of invalidQueries) {
+        const result = readFormalLocation(
+          `?page=${application}&section=${getDefaultFormalSection(application)}&${key}=${value}`,
+          authorization,
+        );
+        expect(result.queryAllowed).toBe(false);
+        expect(result.issues).toContainEqual({ code, value });
+        expect(result.location.coordinates).toEqual({ regionId: "authorized-all" });
+      }
+    }
   });
 });

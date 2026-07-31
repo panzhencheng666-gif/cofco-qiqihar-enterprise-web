@@ -3,6 +3,9 @@ import type { BusinessReportContext } from "./businessReportModel";
 import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import { getEnterpriseRegion } from "./enterpriseRegions";
 import type { SupplySection } from "./formalEnterpriseModel";
+import type { BusinessCoordinates } from "./formalEnterpriseModel";
+import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   WorkspaceFilterBar,
   WorkspaceHeader,
@@ -17,6 +20,8 @@ import {
 export interface SupplyDemandWorkspaceProps {
   section: SupplySection | "statement";
   onComposeReport: (context: BusinessReportContext) => void;
+  scope?: OperationalScope;
+  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }
 
 type SupplyProduct =
@@ -289,7 +294,7 @@ function SupplyStatement({
   };
 
   return (
-    <div className="unified-workspace supply-workspace">
+    <div className="unified-workspace supply-workspace" data-classification-source={businessClassificationFixtures.supplyAnalysis.join(",")}>
       <WorkspaceHeader
         actions={
           <button

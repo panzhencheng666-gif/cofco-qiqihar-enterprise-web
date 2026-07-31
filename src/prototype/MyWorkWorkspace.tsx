@@ -1,4 +1,7 @@
 import type { WorkSection } from "./formalEnterpriseModel";
+import type { BusinessCoordinates } from "./formalEnterpriseModel";
+import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   BusinessContextBar,
   WorkspaceHeader,
@@ -111,6 +114,8 @@ export function MyWorkWorkspace({
     application: BusinessDestination[0],
     section: BusinessDestination[1],
   ) => void;
+  scope?: OperationalScope;
+  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }) {
   const selectedGroup = section === "tasks" || section === "inbox" ? null : section;
   const visibleTasks = selectedGroup
@@ -126,7 +131,7 @@ export function MyWorkWorkspace({
   };
 
   return (
-    <div className="unified-workspace">
+    <div className="unified-workspace" data-classification-source={businessClassificationFixtures.workItems.join(",")}>
       <WorkspaceHeader
         eyebrow="统一工作门户 / 我的工作"
         title={titles[section][0]}

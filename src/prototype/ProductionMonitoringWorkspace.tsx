@@ -3,6 +3,9 @@ import type { BusinessReportContext } from "./businessReportModel";
 import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import { getEnterpriseRegion } from "./enterpriseRegions";
 import type { ProductionSection } from "./formalEnterpriseModel";
+import type { BusinessCoordinates } from "./formalEnterpriseModel";
+import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   productionCropProfiles,
   productionObjectRows,
@@ -34,6 +37,8 @@ export interface ProductionMonitoringWorkspaceProps {
   section: ProductionSection | "overview" | "collection" | "review" | "reports";
   onSectionChange?: (section: ProductionSection | "collection") => void;
   onComposeReport: (context: BusinessReportContext) => void;
+  scope?: OperationalScope;
+  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }
 
 const productionReportContext: BusinessReportContext = {
@@ -115,7 +120,7 @@ function ProductionOverview({
   const [crop, setCrop] = useState<ProductionCrop>("corn");
   const profile = productionCropProfiles.find((item) => item.key === crop)!;
   return (
-    <div className="unified-workspace production-workspace">
+    <div className="unified-workspace production-workspace" data-classification-source={businessClassificationFixtures.productionAnalysis.join(",")}>
       <WorkspaceHeader
         eyebrow="产情监测 / 产情总览"
         title="种植生产监测工作区"

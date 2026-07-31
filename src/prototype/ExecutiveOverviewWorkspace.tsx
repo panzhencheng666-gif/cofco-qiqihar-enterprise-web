@@ -1,4 +1,12 @@
-import type { FormalApplication, FormalSection } from "./formalEnterpriseModel";
+import {
+  createFormalRoute,
+  type FormalApplication,
+  type FormalRoute,
+  type FormalSection,
+} from "./formalEnterpriseModel";
+import type { BusinessCoordinates } from "./formalEnterpriseModel";
+import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   WorkspaceScopeBar,
   WorkspaceHeader,
@@ -10,14 +18,22 @@ import {
 
 export function ExecutiveOverviewWorkspace({
   onOpenApplication,
+  onOpenRoute,
 }: {
-  onOpenApplication: (
+  onOpenApplication?: (
     application: FormalApplication,
     section: FormalSection | "overview",
   ) => void;
+  onOpenRoute?: (route: FormalRoute) => void;
+  scope?: OperationalScope;
+  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }) {
+  function open(route: FormalRoute) {
+    if (onOpenRoute) return onOpenRoute(route);
+    onOpenApplication?.(route.application, "overview");
+  }
   return (
-    <div className="unified-workspace">
+    <div className="unified-workspace" data-classification-source={businessClassificationFixtures.executiveFilters.join(",")}>
       <WorkspaceHeader
         eyebrow="经营门户 / 经营总览"
         title="粮食商情经营总览"
@@ -95,7 +111,7 @@ export function ExecutiveOverviewWorkspace({
               className="unified-table-action"
               key="open-production"
               type="button"
-              onClick={() => onOpenApplication("production", "overview")}
+              onClick={() => open(createFormalRoute("production", "tasks"))}
             >
               进入产情监测
             </button>,
@@ -115,7 +131,7 @@ export function ExecutiveOverviewWorkspace({
               className="unified-table-action"
               key="open-market"
               type="button"
-              onClick={() => onOpenApplication("market", "overview")}
+              onClick={() => open(createFormalRoute("market", "tasks"))}
             >
               进入市场监测
             </button>,
@@ -135,7 +151,7 @@ export function ExecutiveOverviewWorkspace({
               className="unified-table-action"
               key="open-supply"
               type="button"
-              onClick={() => onOpenApplication("supply", "overview")}
+              onClick={() => open(createFormalRoute("supply", "calculation"))}
             >
               进入供需账户
             </button>,
