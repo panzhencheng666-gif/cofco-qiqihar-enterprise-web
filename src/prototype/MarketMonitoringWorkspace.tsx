@@ -7,9 +7,14 @@ import {
   marketTasks,
 } from "./marketMonitoringData";
 import {
+  getApplicableFieldGroups,
   getMarketCompletion,
   grainLabels,
   marketRoleLabels,
+  type MarketCollectionMode,
+  type MarketCollectionTarget,
+  type MarketFieldGroupKey,
+  type MarketTask,
   type GrainKind,
 } from "./marketMonitoringModel";
 import type { MarketSection } from "./formalEnterpriseModel";
@@ -454,19 +459,427 @@ function MarketObjectRegistry() {
   );
 }
 
-function MarketCollectionPlaceholder() {
+const marketFieldRows: Record<
+  MarketFieldGroupKey,
+  readonly { label: string; value: string; unit?: string; note?: string }[]
+> = {
+  purchase: [
+    {
+      label: "收购价格",
+      value: "3,092",
+      unit: "元/吨",
+      note: "到厂价 · 含税",
+    },
+    { label: "本期收购量", value: "1,860", unit: "吨" },
+    { label: "商品形态", value: "散粮 · 潮粮" },
+    { label: "品种名称", value: "龙粳31" },
+    { label: "作物年度", value: "2025年产" },
+  ],
+  quality: [
+    { label: "水分", value: "15.2", unit: "%" },
+    { label: "杂质", value: "0.8", unit: "%" },
+    { label: "不完善粒", value: "2.1", unit: "%" },
+    { label: "出糙率", value: "78.4", unit: "%" },
+    { label: "出米率", value: "68.1", unit: "%" },
+  ],
+  processing: [
+    { label: "日加工量", value: "420", unit: "吨/日" },
+    { label: "运行生产线", value: "2 / 3", unit: "条" },
+    { label: "设计日产能", value: "600", unit: "吨/日" },
+    { label: "开机率", value: "70.0", unit: "%", note: "系统计算" },
+  ],
+  inventory: [
+    { label: "稻谷库存", value: "12,680", unit: "吨" },
+    { label: "成品米库存", value: "3,260", unit: "吨" },
+    { label: "统计时点", value: "7月31日 08:00" },
+    { label: "库存性质", value: "企业商品库存" },
+  ],
+  sales: [
+    { label: "大米销售价", value: "5,126", unit: "元/吨" },
+    { label: "本期销售量", value: "386", unit: "吨" },
+    { label: "交付方式", value: "出厂自提" },
+    { label: "销售质量等级", value: "一级粳米" },
+  ],
+  movement: [
+    { label: "到达量", value: "8,260", unit: "吨" },
+    { label: "发运量", value: "12,580", unit: "吨" },
+    { label: "包装形态", value: "散粮" },
+    { label: "主要起点", value: "讷河市、龙江县" },
+    { label: "主要目的地", value: "辽宁鲅鱼圈" },
+  ],
+  evidence: [
+    { label: "运单批次", value: "3 批" },
+    { label: "已匹配运单", value: "18 / 20", unit: "张" },
+    { label: "过磅凭证", value: "已上传 20 张" },
+    { label: "数据来源", value: "铁路运单与站点台账" },
+  ],
+};
+
+function MarketEntryFields({
+  task,
+}: {
+  task: MarketTask;
+}) {
+  const groups = getApplicableFieldGroups(task.role, task.grain);
+  return (
+    <>
+      <nav aria-label="当前填报内容" className="market-field-navigation">
+        {groups.map((group, index) => (
+          <button
+            className={index === 0 ? "is-active" : undefined}
+            key={group.key}
+            type="button"
+          >
+            {group.label}
+          </button>
+        ))}
+      </nav>
+      <div className="market-entry-groups">
+        {groups.map((group) => (
+          <section className="market-entry-group" key={group.key}>
+            <header>
+              <div>
+                <span>{String(groups.indexOf(group) + 1).padStart(2, "0")}</span>
+                <strong>{group.label}</strong>
+              </div>
+              <small>
+                {group.key === "quality"
+                  ? "价格对应质量条件"
+                  : "本任务适用字段"}
+              </small>
+            </header>
+            <div className="market-entry-fields">
+              {marketFieldRows[group.key].map((field) => (
+                <label key={field.label}>
+                  <span>
+                    {field.label}
+                    {["收购价格", "本期收购量", "到达量", "发运量"].includes(
+                      field.label,
+                    ) && <b>*</b>}
+                  </span>
+                  <div>
+                    <input
+                      aria-label={field.label}
+                      defaultValue={field.value}
+                      readOnly
+                    />
+                    {field.unit && <em>{field.unit}</em>}
+                  </div>
+                  {field.note && <small>{field.note}</small>}
+                </label>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function MarketOnlineCollection({
+  target,
+}: {
+  target: MarketCollectionTarget;
+}) {
+  const tasks = marketTasks.filter((task) => task.target === target);
+  const [taskId, setTaskId] = useState(tasks[0]?.id ?? "");
+  const selectedTask =
+    tasks.find((task) => task.id === taskId) ?? tasks[0] ?? marketTasks[0];
+
+  return (
+    <>
+      <div className="market-collection-layout">
+        <aside className="market-task-list">
+          <header>
+            <span>本人任务</span>
+            <strong>{target === "subject" ? "市场主体" : "物流节点"}</strong>
+            <small>{tasks.length} 项 · 仅本人可填写</small>
+          </header>
+          <div>
+            {tasks.map((task) => (
+              <button
+                className={task.id === selectedTask.id ? "is-active" : undefined}
+                key={task.id}
+                type="button"
+                onClick={() => setTaskId(task.id)}
+              >
+                <span>{task.id}</span>
+                <strong>{task.targetName}</strong>
+                <small>
+                  {task.region} · {grainLabels[task.grain]}
+                </small>
+                <div>
+                  <MarketStatus>{task.status}</MarketStatus>
+                  <em>{getMarketCompletion(task)}%</em>
+                </div>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <section className="market-entry-panel">
+          <header className="market-entry-heading">
+            <div>
+              <span>
+                {selectedTask.id} · {marketRoleLabels[selectedTask.role]}
+              </span>
+              <h2>{selectedTask.targetName}</h2>
+              <p>
+                {selectedTask.region} · {grainLabels[selectedTask.grain]} ·
+                截止 {selectedTask.deadline}
+              </p>
+            </div>
+            <MarketStatus>{selectedTask.status}</MarketStatus>
+          </header>
+          <MarketEntryFields task={selectedTask} />
+        </section>
+
+        <aside className="market-validation-panel">
+          <header>
+            <span>数据检查</span>
+            <strong>提交前检查结果</strong>
+          </header>
+          <div className="market-validation-score">
+            <strong>{getMarketCompletion(selectedTask)}%</strong>
+            <span>
+              已填写 {selectedTask.completedFields} /{" "}
+              {selectedTask.applicableFields} 项
+            </span>
+          </div>
+          <section>
+            <h3>必须完成</h3>
+            <p className="is-good">
+              <b>✓</b>
+              <span>
+                <strong>主体、期间和品类</strong>
+                <small>任务预置，不允许修改</small>
+              </span>
+            </p>
+            <p className="is-good">
+              <b>✓</b>
+              <span>
+                <strong>价格与计价条件</strong>
+                <small>含税、交付地点已填写</small>
+              </span>
+            </p>
+            <p className="is-warning">
+              <b>!</b>
+              <span>
+                <strong>2项凭证待补充</strong>
+                <small>
+                  {target === "subject"
+                    ? "质量检验单尚未上传"
+                    : "2张铁路运单尚未匹配"}
+                </small>
+              </span>
+            </p>
+          </section>
+          <section>
+            <h3>责任与权限</h3>
+            <p className="is-locked">
+              <b>锁</b>
+              <span>
+                <strong>{selectedTask.owner}（责任人）</strong>
+                <small>审核人和管理员均不能代填</small>
+              </span>
+            </p>
+          </section>
+          <footer>
+            <span>最近保存</span>
+            <strong>今天 13:02 · 王洋</strong>
+          </footer>
+        </aside>
+      </div>
+      <footer className="market-collection-footer">
+        <span>
+          当前任务仅责任人 {selectedTask.owner} 可编辑 ·
+          提交后进入统一审核队列
+        </span>
+        <button type="button">保存草稿</button>
+        <button type="button">检查数据</button>
+        <button className="is-primary" type="button">
+          提交审核
+        </button>
+      </footer>
+    </>
+  );
+}
+
+function MarketExcelCollection() {
+  return (
+    <section className="market-panel market-import-panel">
+      <div className="market-import-heading">
+        <div>
+          <span>Excel批量导入</span>
+          <h2>当前采集任务批量录入</h2>
+          <p>上传后先预检，不直接提交</p>
+        </div>
+        <button type="button">下载当前任务模板</button>
+      </div>
+      <div className="market-import-flow">
+        <article className="is-done">
+          <span>01</span>
+          <strong>下载任务模板</strong>
+          <p>地区、期间、责任人和样本编号已经锁定</p>
+        </article>
+        <article className="is-current">
+          <span>02</span>
+          <strong>上传并预检</strong>
+          <p>支持 .xlsx，单次不超过 5,000 行</p>
+        </article>
+        <article>
+          <span>03</span>
+          <strong>修正错误</strong>
+          <p>错误定位到工作表、行和列</p>
+        </article>
+        <article>
+          <span>04</span>
+          <strong>确认导入</strong>
+          <p>进入与在线填报相同的审核流程</p>
+        </article>
+      </div>
+      <div className="market-upload-zone">
+        <span>↥</span>
+        <strong>拖放 Excel 文件到此处，或选择文件</strong>
+        <p>系统先检查模板、任务身份、必填项、单位和重复数据</p>
+        <button className="is-primary" type="button">
+          选择 Excel 文件
+        </button>
+      </div>
+      <footer className="market-import-summary">
+        <div>
+          <small>最近一次预检</small>
+          <strong>228 行</strong>
+        </div>
+        <div>
+          <small>通过</small>
+          <strong>215 行</strong>
+        </div>
+        <div className="is-warning">
+          <small>警告</small>
+          <strong>8 行</strong>
+        </div>
+        <div className="is-danger">
+          <small>错误</small>
+          <strong>5 行</strong>
+        </div>
+        <button type="button">导出错误明细</button>
+      </footer>
+    </section>
+  );
+}
+
+function MarketSystemCollection() {
+  return (
+    <section className="market-panel market-system-panel">
+      <div className="market-import-heading">
+        <div>
+          <span>系统接入记录</span>
+          <h2>稳定来源接入与异常处理</h2>
+          <p>系统接入只改变数据来源，不改变责任、校验和审核流程。</p>
+        </div>
+        <button type="button">查看全部接入记录</button>
+      </div>
+      <div className="market-system-summary">
+        <article>
+          <span>今日接收</span>
+          <strong>1,286<small>条</small></strong>
+          <p>最近接收 13:04</p>
+        </article>
+        <article className="is-good">
+          <span>自动通过</span>
+          <strong>1,241<small>条</small></strong>
+          <p>进入待审核业务单据</p>
+        </article>
+        <article className="is-warning">
+          <span>需要确认</span>
+          <strong>37<small>条</small></strong>
+          <p>单位或主体映射待确认</p>
+        </article>
+        <article className="is-danger">
+          <span>接入失败</span>
+          <strong>8<small>条</small></strong>
+          <p>不会自动改为零值</p>
+        </article>
+      </div>
+      <div className="market-system-list">
+        <div>
+          <strong>铁路货运运单数据</strong>
+          <span>13:04 · 568条</span>
+          <MarketStatus>审核通过</MarketStatus>
+        </div>
+        <div>
+          <strong>企业仓储库存台账</strong>
+          <span>12:48 · 426条</span>
+          <MarketStatus>待审核</MarketStatus>
+        </div>
+        <div>
+          <strong>米厂生产日报</strong>
+          <span>11:32 · 292条</span>
+          <MarketStatus>8项异常</MarketStatus>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MarketCollectionWorkspace() {
+  const [target, setTarget] =
+    useState<MarketCollectionTarget>("subject");
+  const [mode, setMode] = useState<MarketCollectionMode>("online");
+
   return (
     <div className="market-workspace">
       <MarketPageHeader
         eyebrow="市场监测 / 数据采集"
         title="市场监测数据采集"
-        summary="从具体任务进入在线填报、Excel批量导入或系统接入记录。"
+        summary="在同一工作台完成市场主体和物流节点采集，三种录入方式共用校验、责任和审核规则。"
       />
       <MarketContextStrip object="本人负责的市场采集任务" />
-      <section className="market-panel market-empty-workspace">
-        <strong>采集任务工作台</strong>
-        <p>任务、表单、数据检查和提交操作将在同一工作区内完成。</p>
+      <section className="market-collection-switches">
+        <div aria-label="采集对象">
+          <button
+            className={target === "subject" ? "is-active" : undefined}
+            type="button"
+            onClick={() => setTarget("subject")}
+          >
+            市场主体填报
+          </button>
+          <button
+            className={target === "logistics" ? "is-active" : undefined}
+            type="button"
+            onClick={() => setTarget("logistics")}
+          >
+            物流节点填报
+          </button>
+        </div>
+        <div aria-label="采集方式">
+          {(
+            [
+              ["online", "在线填报"],
+              ["excel", "Excel批量导入"],
+              ["system", "系统接入记录"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              className={mode === key ? "is-active" : undefined}
+              key={key}
+              type="button"
+              onClick={() => setMode(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span>同一任务 · 同一责任人 · 同一审核流程</span>
       </section>
+      {mode === "online" ? (
+        <MarketOnlineCollection key={target} target={target} />
+      ) : mode === "excel" ? (
+        <MarketExcelCollection />
+      ) : (
+        <MarketSystemCollection />
+      )}
     </div>
   );
 }
@@ -552,7 +965,7 @@ export function MarketMonitoringWorkspace({
   onSectionChange,
   onComposeReport,
 }: MarketMonitoringWorkspaceProps) {
-  if (section === "collection") return <MarketCollectionPlaceholder />;
+  if (section === "collection") return <MarketCollectionWorkspace />;
   if (section === "objects") return <MarketObjectRegistry />;
   if (section === "review") return <MarketReviewWorkspace />;
   if (section === "reports") {

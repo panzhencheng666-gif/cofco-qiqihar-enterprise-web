@@ -39,4 +39,49 @@ describe("market monitoring workspace", () => {
 
     expect(onSectionChange).toHaveBeenCalledWith("collection");
   });
+
+  it("keeps subject and logistics collection in one workbench", async () => {
+    const user = userEvent.setup();
+    render(
+      <MarketMonitoringWorkspace
+        section="collection"
+        onComposeReport={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "市场主体填报" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "物流节点填报" }),
+    ).toBeVisible();
+    expect(screen.getAllByText("讷河恒泰米业").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("收购与价格").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("质量条件").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "物流节点填报" }));
+
+    expect(
+      screen.getAllByText("齐齐哈尔铁路货运站").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("流入流出").length).toBeGreaterThan(0);
+  });
+
+  it("supports Excel precheck without creating a second workflow", async () => {
+    const user = userEvent.setup();
+    render(
+      <MarketMonitoringWorkspace
+        section="collection"
+        onComposeReport={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Excel批量导入" }));
+
+    expect(screen.getByText("上传后先预检，不直接提交")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "下载当前任务模板" }),
+    ).toBeVisible();
+    expect(screen.getByText("错误定位到工作表、行和列")).toBeVisible();
+  });
 });
