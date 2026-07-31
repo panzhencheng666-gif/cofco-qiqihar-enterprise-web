@@ -107,6 +107,24 @@ describe("supply demand workspace", () => {
     expect(screen.queryByRole("region", { name: "当前业务上下文" })).toBeNull();
   });
 
+  it("does not reuse the corn account after another product is selected", async () => {
+    const user = userEvent.setup();
+    render(<RegionHarness />);
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "供需产品" }),
+      "soybean",
+    );
+
+    expect(
+      screen.getByRole("table", { name: "供需账户准备状态" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("table", { name: "区域粮食供需平衡表" }),
+    ).toBeNull();
+    expect(screen.getByText("大豆原粮")).toBeVisible();
+  });
+
   it("does not mix Qiqihar county rows into another region's comparison", async () => {
     const user = userEvent.setup();
     function RegionalHarness() {

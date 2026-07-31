@@ -341,7 +341,6 @@ function SupplyOverview({
   const { regionId } = useEnterpriseRegion();
   const scope = getSupplyBalanceScopeForRegion(regionId);
   const scopeKey = scope?.key ?? null;
-  const equation = scopeKey ? getSupplyBalanceEquation(scopeKey) : null;
   const region = getEnterpriseRegion(regionId);
   const productItem = supplyProducts.find((item) => item.key === product)!;
   const reportContext: BusinessReportContext = {
@@ -376,7 +375,7 @@ function SupplyOverview({
         }
       />
       <SupplyFilterBar product={product} onProductChange={setProduct} />
-      {scope && scopeKey && equation ? (
+      {scope && scopeKey && product === "corn" ? (
         <>
           <WorkspaceInlineStats
             label="当前供需账户"
@@ -412,7 +411,9 @@ function SupplyOverview({
 
 function ProductAccounts() {
   const [product, setProduct] = useState<SupplyProduct>("corn");
+  const { regionId } = useEnterpriseRegion();
   const productItem = supplyProducts.find((item) => item.key === product)!;
+  const hasDetailedAccount = regionId === "qiqihar-all" && product === "corn";
   return (
     <div className="unified-workspace supply-workspace">
       <WorkspaceHeader
@@ -421,56 +422,69 @@ function ProductAccounts() {
         summary="玉米、大豆、稻谷和大米分别建账；加工转换在上下游账户成对记录。"
       />
       <SupplyFilterBar product={product} onProductChange={setProduct} />
-      <WorkspaceTableToolbar
-        title={`${productItem.account}账户项目`}
-        note="一个规范事实最多进入一个可加总角色。"
-      />
-      <WorkspaceTable
-        columns={["账户项目", "角色", "采用值", "来源", "质量状态", "采用版本"]}
-        label="产品账户项目"
-        rows={[
-          [
-            "期初库存",
-            "供给",
-            "91.6 万吨",
-            "上一年度采用后账面期末",
-            <WorkspaceStatus key="opening" tone="good">
-              通过
-            </WorkspaceStatus>,
-            "2025/26 发布版",
-          ],
-          [
-            "本期生产",
-            "供给",
-            "621.8 万吨",
-            "产情正式区域估计",
-            <WorkspaceStatus key="production" tone="good">
-              通过
-            </WorkspaceStatus>,
-            "产情第 30 周正式版",
-          ],
-          [
-            "区域外净流入",
-            "供给",
-            "49.7 万吨",
-            "去重物流边界事实",
-            <WorkspaceStatus key="inflow" tone="warning">
-              两项待核
-            </WorkspaceStatus>,
-            "市场第 31 周候选版",
-          ],
-          [
-            "加工使用",
-            "使用",
-            "184.2 万吨",
-            "加工投入规范事实",
-            <WorkspaceStatus key="processing" tone="good">
-              通过
-            </WorkspaceStatus>,
-            "市场第 30 周正式版",
-          ],
-        ]}
-      />
+      {hasDetailedAccount ? (
+        <>
+          <WorkspaceTableToolbar
+            title={`${productItem.account}账户项目`}
+            note="一个规范事实最多进入一个可加总角色。"
+          />
+          <WorkspaceTable
+            columns={[
+              "账户项目",
+              "角色",
+              "采用值",
+              "来源",
+              "质量状态",
+              "采用版本",
+            ]}
+            label="产品账户项目"
+            rows={[
+              [
+                "期初库存",
+                "供给",
+                "91.6 万吨",
+                "上一年度采用后账面期末",
+                <WorkspaceStatus key="opening" tone="good">
+                  通过
+                </WorkspaceStatus>,
+                "2025/26 发布版",
+              ],
+              [
+                "本期生产",
+                "供给",
+                "621.8 万吨",
+                "产情正式区域估计",
+                <WorkspaceStatus key="production" tone="good">
+                  通过
+                </WorkspaceStatus>,
+                "产情第 30 周正式版",
+              ],
+              [
+                "区域外净流入",
+                "供给",
+                "49.7 万吨",
+                "去重物流边界事实",
+                <WorkspaceStatus key="inflow" tone="warning">
+                  两项待核
+                </WorkspaceStatus>,
+                "市场第 31 周候选版",
+              ],
+              [
+                "加工使用",
+                "使用",
+                "184.2 万吨",
+                "加工投入规范事实",
+                <WorkspaceStatus key="processing" tone="good">
+                  通过
+                </WorkspaceStatus>,
+                "市场第 30 周正式版",
+              ],
+            ]}
+          />
+        </>
+      ) : (
+        <UnavailableAccount product={product} />
+      )}
     </div>
   );
 }
@@ -492,7 +506,7 @@ function RegionalBalance() {
         summary="比较市级合并账户与县区账户的供给、使用、期末库存、差异和数据完整度，并进入单一地区明细。"
       />
       <SupplyFilterBar product={product} onProductChange={setProduct} />
-      {!isQiqihar ? (
+      {!isQiqihar || product !== "corn" ? (
         <UnavailableAccount product={product} />
       ) : (
         <>
