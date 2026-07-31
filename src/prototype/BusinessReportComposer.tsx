@@ -202,7 +202,7 @@ export function BusinessReportComposer({
               </div>
             </dl>
             <p>
-              正式发布后如需修改，应生成新版本并说明替代原因，原报告继续保留。
+              正式发布后如需修改，应重新编制并说明替代原因，原报告继续保留。
             </p>
           </aside>
         </div>

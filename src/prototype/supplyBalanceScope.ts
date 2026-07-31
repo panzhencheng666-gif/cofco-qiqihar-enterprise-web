@@ -1,9 +1,5 @@
 export type SupplyBalanceScopeKey =
-  | "qiqihar"
-  | "nehe"
-  | "longjiang"
-  | "gannan"
-  | "tailai";
+  "qiqihar" | "nehe" | "longjiang" | "gannan" | "tailai";
 
 export interface SupplyBalanceScope {
   key: SupplyBalanceScopeKey;
@@ -31,7 +27,7 @@ export const supplyBalanceScopes: readonly SupplyBalanceScope[] = [
     level: "市级合并",
     coverage: "16 / 16 个县区",
     internalFlowElimination: "42.6 万吨",
-    version: "2026/27 年度第 4 版",
+    version: "2026/27 年度市级合并账户",
     status: "已核定",
     metrics: [
       {
@@ -68,7 +64,7 @@ export const supplyBalanceScopes: readonly SupplyBalanceScope[] = [
     level: "县级账户",
     coverage: "12 / 14 项已核定",
     internalFlowElimination: "不适用",
-    version: "2026/27 年度第 3 版",
+    version: "2026/27 年度讷河账户",
     status: "待补数据",
     metrics: [
       {
@@ -105,7 +101,7 @@ export const supplyBalanceScopes: readonly SupplyBalanceScope[] = [
     level: "县级账户",
     coverage: "14 / 14 项已核定",
     internalFlowElimination: "不适用",
-    version: "2026/27 年度第 3 版",
+    version: "2026/27 年度龙江账户",
     status: "已核定",
     metrics: [
       {
@@ -141,7 +137,7 @@ export const supplyBalanceScopes: readonly SupplyBalanceScope[] = [
     level: "县级账户",
     coverage: "11 / 14 项已核定",
     internalFlowElimination: "不适用",
-    version: "2026/27 年度第 2 版",
+    version: "2026/27 年度甘南账户",
     status: "待补数据",
     metrics: [
       {
@@ -178,7 +174,7 @@ export const supplyBalanceScopes: readonly SupplyBalanceScope[] = [
     level: "县级账户",
     coverage: "14 / 14 项已核定",
     internalFlowElimination: "不适用",
-    version: "2026/27 年度第 3 版",
+    version: "2026/27 年度泰来账户",
     status: "已核定",
     metrics: [
       {

@@ -94,7 +94,7 @@ describe("formal enterprise shell", () => {
 
     expect(screen.getByRole("dialog", { name: "编制业务报告" })).toBeVisible();
     expect(screen.getByText("市场监测 · 玉米")).toBeVisible();
-    expect(screen.getByText("市场监测第 31 周审核版")).toBeVisible();
+    expect(screen.getByText("市场监测第 31 周已核定数据")).toBeVisible();
   });
 
   it("shows city consolidation and allows county drill-down", async () => {
@@ -120,5 +120,14 @@ describe("formal enterprise shell", () => {
     expect(screen.getByRole("dialog", { name: "编制业务报告" })).toBeVisible();
     const dialog = screen.getByRole("dialog", { name: "编制业务报告" });
     expect(within(dialog).getByText("讷河市")).toBeVisible();
+  });
+
+  it("uses formal business language instead of implementation wording", () => {
+    render(<FormalEnterprisePrototype initialSearch="?page=market" />);
+
+    expect(screen.queryByText(/事实|血缘|重新计算/)).not.toBeInTheDocument();
+    expect(screen.getByText("业务台账")).toBeVisible();
+    expect(screen.getByText("本期数据已核定")).toBeVisible();
+    expect(screen.getByText("修订留痕 · 原记录保留")).toBeVisible();
   });
 });

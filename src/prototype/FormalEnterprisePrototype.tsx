@@ -63,7 +63,7 @@ const reportPageMeta: Record<
   overview: {
     eyebrow: "报送运营 / 报送总览",
     title: "报送与报告运营工作区",
-    summary: "集中管理每周填报责任、截止履责、监督报告和业务报告版本。",
+    summary: "集中管理每周填报责任、截止履责、监督报告和正式业务报告。",
     primaryAction: "进入本周填报",
     secondaryAction: "导出当前态势",
   },
@@ -89,7 +89,7 @@ const reportPageMeta: Record<
   overdue: {
     eyebrow: "报送工作 / 逾期记录",
     title: "逾期记录监督台",
-    summary: "截止未提交自动记录逾期，责任人后续补填仍保留原逾期事实。",
+    summary: "截止未提交自动记录逾期，责任人后续补填仍保留原逾期记录。",
     secondaryAction: "导出逾期清单",
   },
   "duty-weekly": {
@@ -107,15 +107,15 @@ const reportPageMeta: Record<
   "business-reports": {
     eyebrow: "报告管理 / 业务报告",
     title: "业务日报、周报与月报",
-    summary: "报告只引用正式业务版本，生成过程不重新计算指标。",
-    primaryAction: "新建报告运行",
+    summary: "报告采用已核定的业务数据，并保留编制、审核和发布时间。",
+    primaryAction: "编制业务报告",
     secondaryAction: "管理报告定义",
   },
   versions: {
-    eyebrow: "报告管理 / 报告版本",
-    title: "报告版本与替代关系",
-    summary: "正式报告不可覆盖，修订生成新版本并保留原报告和替代原因。",
-    secondaryAction: "导出版本清单",
+    eyebrow: "报告管理 / 历史记录",
+    title: "报告历史与替代记录",
+    summary: "正式报告不可覆盖，修订时保留原报告和替代原因。",
+    secondaryAction: "导出历史清单",
   },
 };
 
@@ -452,7 +452,7 @@ function BusinessScopeBand({ scope }: { scope: FormalBusinessScope }) {
   return (
     <section aria-label="业务对象与品种范围" className="formal-business-scope">
       <div className="formal-business-scope__heading">
-        <small>统一业务对象</small>
+        <small>监测范围</small>
         <strong>{scope.title}</strong>
         <span>{scope.note}</span>
       </div>
@@ -508,7 +508,7 @@ function SupplyBalanceScopeBand({
             type="button"
             onClick={() => onSelect(scope.key)}
           >
-            {scope.label}
+            {scope.key === "qiqihar" ? "市级全域" : scope.label}
           </button>
         ))}
       </div>
@@ -526,7 +526,7 @@ function SupplyBalanceScopeBand({
           </strong>
         </div>
         <div>
-          <small>账户版本</small>
+          <small>采用账户</small>
           <strong>{selected.version}</strong>
         </div>
         <span>{selected.status}</span>
@@ -559,15 +559,15 @@ function LifecyclePanel({ stages }: { stages: readonly FormalStage[] }) {
       <div className="formal-control-strip">
         <div>
           <small>数据来源</small>
-          <strong>统一业务记录</strong>
+          <strong>业务台账</strong>
         </div>
         <div>
-          <small>计算原则</small>
-          <strong>正式结果只生成一次</strong>
+          <small>数据状态</small>
+          <strong>本期数据已核定</strong>
         </div>
         <div>
-          <small>历史版本</small>
-          <strong>追加发布 · 不覆盖</strong>
+          <small>历史记录</small>
+          <strong>修订留痕 · 原记录保留</strong>
         </div>
       </div>
     </section>
@@ -706,8 +706,8 @@ function GeneralWorkspace({
     const dataVersion = isSupply
       ? supplyScope.version
       : application === "production"
-        ? "产情监测第 31 周审核版"
-        : "市场监测第 31 周审核版";
+        ? "产情监测第 31 周已核定数据"
+        : "市场监测第 31 周已核定数据";
     onComposeReport({
       application,
       applicationLabel:
@@ -796,7 +796,7 @@ function ReportingOverview() {
       label: "待复核报告",
       value: "4",
       unit: "份",
-      note: "数字与引用版本已锁定",
+      note: "数据范围和截止时间已确认",
       tone: "warning",
     },
   ];
@@ -811,7 +811,7 @@ function ReportingOverview() {
     {
       level: "逾期",
       title: "8 个区域任务截止未提交",
-      detail: "系统已按截止时间记录责任人与逾期事实",
+      detail: "系统已按截止时间记录责任人与逾期情况",
       tone: "danger",
     },
     {
@@ -1093,7 +1093,7 @@ function RecordsWorkspace({ overdueOnly = false }: { overdueOnly?: boolean }) {
         <FormalIcon name="clock" />
         <div>
           <strong>
-            {overdueOnly ? "逾期事实永久保留" : "全过程按时间追加记录"}
+            {overdueOnly ? "逾期记录永久保留" : "全过程按时间追加记录"}
           </strong>
           <p>
             {overdueOnly
@@ -1200,7 +1200,7 @@ function DutyWeeklyWorkspace() {
         title="全部填报人履责明细"
         actions={
           <>
-            <button type="button">查看报告版本</button>
+            <button type="button">查看历史记录</button>
             <button className="is-primary" type="button">
               <FormalIcon name="download" />
               导出责任周报
@@ -1310,9 +1310,9 @@ function BusinessReportsWorkspace({
     <>
       <ContextBand
         reporting
-        deadline={versions ? "正式版本不可覆盖" : "报告运行时锁定截止时点"}
+        deadline={versions ? "历史报告不可覆盖" : "数据截止时间已确认"}
         objectLabel={
-          versions ? "日报、周报和月报正式版本" : "业务报告定义与生成运行"
+          versions ? "已发布报告与替代记录" : "业务报告编制与归档"
         }
         period="2026 年 7 月"
       />
@@ -1320,29 +1320,29 @@ function BusinessReportsWorkspace({
         <FormalIcon name="report" />
         <div>
           <strong>
-            {versions ? "修订生成替代版本" : "报告不重新计算业务指标"}
+            {versions ? "修订时保留原报告" : "报告采用已核定数据"}
           </strong>
           <p>
             {versions
-              ? "原报告、替代原因、引用版本和文件记录全部保留。"
-              : "日报、周报和月报只读取已经发布的事实、指标和供需结果版本。"}
+              ? "原报告、替代原因、采用数据和文件记录全部保留。"
+              : "日报、周报和月报采用已经核定的产情、市场和供需数据。"}
           </p>
         </div>
-        <span>{versions ? "不可变版本" : "统一结果引用"}</span>
+        <span>{versions ? "历史可查" : "采用核定数据"}</span>
       </section>
       <MetricGrid
         metrics={[
           {
-            label: versions ? "正式报告版本" : "本期待生成",
+            label: versions ? "历史报告" : "本期待编制",
             value: versions ? "26" : "12",
             unit: "份",
-            note: versions ? "均保留文件与引用" : "日报、周报和月报",
+            note: versions ? "文件和采用数据均保留" : "日报、周报和月报",
           },
           {
             label: "等待复核",
             value: "4",
             unit: "份",
-            note: "数字和版本已经锁定",
+            note: "数据范围和截止时间已确认",
             tone: "warning",
           },
           {
@@ -1367,15 +1367,15 @@ function BusinessReportsWorkspace({
           "频率",
           "报告范围",
           "报告期间",
-          "引用正式版本",
+          "采用数据",
           "报告状态",
           "责任岗位",
           "发布计划",
         ]}
         note={
           versions
-            ? "报告版本固定数据截止、引用版本集合、模板和正式文件。"
-            : "报告内容可以多频率生成，但数字只能来自同一正式结果。"
+            ? "历史报告保留数据截止、采用数据、模板和正式文件。"
+            : "日报、周报和月报采用同一套已核定业务数据。"
         }
         rows={businessReportRows.map((row) => [
           row.name,
@@ -1387,12 +1387,12 @@ function BusinessReportsWorkspace({
           row.owner,
           row.publishedAt,
         ])}
-        title={versions ? "正式报告版本清单" : "业务报告运行"}
+        title={versions ? "报告历史记录" : "业务报告"}
         actions={
           <>
             <button type="button">全部频率</button>
             <button className="is-primary" type="button">
-              {versions ? "导出版本清单" : "新建报告运行"}
+              {versions ? "导出历史清单" : "编制业务报告"}
             </button>
           </>
         }

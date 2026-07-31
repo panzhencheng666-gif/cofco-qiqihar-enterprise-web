@@ -165,7 +165,7 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       code: "02",
       label: "产情监测",
       shortLabel: "产情",
-      note: "治理调查对象、生产事实、质量审核和正式发布",
+      note: "管理调查对象、生产监测、质量审核和结果发布",
       navigation: [
         { key: "overview", label: "监测总览" },
         { key: "planting", label: "种植生产" },
@@ -180,7 +180,7 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       code: "03",
       label: "市场监测",
       shortLabel: "市场",
-      note: "治理市场主体、行情交易、库存加工和物流事实",
+      note: "管理市场主体、行情、库存、加工和物流信息",
       navigation: [
         { key: "overview", label: "监测总览" },
         { key: "subjects", label: "市场主体" },
@@ -195,14 +195,12 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       code: "04",
       label: "供需与态势",
       shortLabel: "供需",
-      note: "引用正式指标完成产品账户、勾稽解释和版本发布",
+      note: "管理产品账户、区域平衡、态势分析和报告发布",
       navigation: [
         { key: "overview", label: "供需总览" },
         { key: "accounts", label: "产品账户" },
-        { key: "adoption", label: "指标采用" },
-        { key: "balance", label: "账户勾稽" },
-        { key: "situation", label: "态势与地图" },
-        { key: "lineage", label: "版本与血缘" },
+        { key: "regional", label: "区域平衡" },
+        { key: "situation", label: "态势分析" },
       ],
     },
     {
@@ -235,10 +233,7 @@ export const reportingNavigation: readonly ReportingNavigationGroup[] = [
   },
   {
     label: "报告管理",
-    items: [
-      { key: "business-reports", label: "业务报告" },
-      { key: "versions", label: "报告版本" },
-    ],
+    items: [{ key: "business-reports", label: "业务报告" }],
   },
 ];
 
@@ -330,7 +325,7 @@ export const formalWorkspaceByApplication: Record<
   production: {
     eyebrow: "产情运营 / 监测总览",
     title: "种植生产运营工作区",
-    summary: "围绕样本对象完成每周调查、生产事实治理、审核和正式发布。",
+    summary: "围绕农户和调查样本完成每周监测、审核和结果发布。",
     primaryAction: "新建调查任务",
     secondaryActions: ["导入调查结果", "编制业务报告"],
     period: "2026 年第 31 周 · 灌浆期",
@@ -338,7 +333,7 @@ export const formalWorkspaceByApplication: Record<
     objectLabel: "玉米 · 齐齐哈尔全域",
     businessScope: {
       title: "品种与调查对象",
-      note: "同一生产事实模型，按品种切换",
+      note: "按品种查看面积、长势、产量和调查对象",
       products: [
         { name: "玉米", detail: "1,284.6 万亩", active: true },
         { name: "大豆", detail: "480.2 万亩" },
@@ -356,13 +351,13 @@ export const formalWorkspaceByApplication: Record<
         label: "玉米监测面积",
         value: "1,284.6",
         unit: "万亩",
-        note: "正式口径第 3 版",
+        note: "本期数据已核定",
       },
       {
         label: "预计单产",
         value: "468.2",
         unit: "公斤/亩",
-        note: "统一指标版本",
+        note: "7 月 31 日审核",
         tone: "good",
       },
       {
@@ -384,7 +379,7 @@ export const formalWorkspaceByApplication: Record<
       { label: "调查采集", detail: "395 已提交", state: "done" },
       { label: "规则校验", detail: "5 项阻断", state: "warning" },
       { label: "分级审核", detail: "37 项待办", state: "current" },
-      { label: "事实发布", detail: "尚未发布", state: "open" },
+      { label: "结果发布", detail: "尚未发布", state: "open" },
     ],
     risks: [
       {
@@ -407,7 +402,7 @@ export const formalWorkspaceByApplication: Record<
       },
     ],
     tableTitle: "样本对象与调查任务",
-    tableNote: "同一对象进入调查、质量、审核和版本历史，不重复建档。",
+    tableNote: "调查、审核和历史记录使用同一对象档案。",
     columns: ["监测对象", "对象类型", "行政区划", "本周任务", "质量状态"],
     rows: [
       [
@@ -437,7 +432,7 @@ export const formalWorkspaceByApplication: Record<
   market: {
     eyebrow: "市场运营 / 监测总览",
     title: "市场运行监测工作区",
-    summary: "统一管理主体报送、价格交易、库存加工和物流事实。",
+    summary: "统一管理主体报送、价格交易、库存加工和物流信息。",
     primaryAction: "新建采集任务",
     secondaryActions: ["导入主体报送", "编制业务报告"],
     period: "2026 年第 31 周",
@@ -445,7 +440,7 @@ export const formalWorkspaceByApplication: Record<
     objectLabel: "玉米市场 · 齐齐哈尔全域",
     businessScope: {
       title: "品种与市场主体",
-      note: "主体只建档一次，按品种形成事实",
+      note: "按品种查看主体报价、库存、交易和物流",
       products: [
         { name: "玉米", detail: "86 家主体", active: true },
         { name: "大豆", detail: "42 家主体" },
@@ -489,7 +484,7 @@ export const formalWorkspaceByApplication: Record<
     stages: [
       { label: "任务下达", detail: "86 家", state: "done" },
       { label: "主体报送", detail: "79 家已报", state: "done" },
-      { label: "事实匹配", detail: "3 项待解释", state: "warning" },
+      { label: "数据核对", detail: "3 项待解释", state: "warning" },
       { label: "业务审核", detail: "7 项待办", state: "current" },
       { label: "指标发布", detail: "本周未发布", state: "open" },
     ],
@@ -514,8 +509,8 @@ export const formalWorkspaceByApplication: Record<
       },
     ],
     tableTitle: "市场主体与本周报送",
-    tableNote: "主体、设施和市场事实分层管理，共用统一每周报送责任。",
-    columns: ["市场主体", "主体类型", "责任区域", "本周报送", "事实资格"],
+    tableNote: "市场主体、设施和报送数据使用同一份主体档案。",
+    columns: ["市场主体", "主体类型", "责任区域", "本周报送", "数据状态"],
     rows: [
       [
         "齐齐哈尔北方粮贸有限公司",
@@ -538,19 +533,19 @@ export const formalWorkspaceByApplication: Record<
   supply: {
     eyebrow: "决策分析 / 产品账户",
     title: "玉米供需账户工作区",
-    summary: "引用已发布事实和指标完成账户测算、勾稽解释与版本发布。",
-    primaryAction: "新建测算草案",
-    secondaryActions: ["比较版本", "编制业务报告"],
-    period: "2026/27 年度 · 第 4 版",
+    summary: "采用已核定的产情、库存和流向数据编制区域供需账户。",
+    primaryAction: "新建账户草案",
+    secondaryActions: ["查看历史记录", "编制业务报告"],
+    period: "2026/27 年度",
     deadline: "报告周五 18:00",
     objectLabel: "玉米原粮账户",
     businessScope: {
       title: "产品账户与来源对象",
-      note: "三类账户共用正式产情和市场指标",
+      note: "账户采用已核定的产情和市场数据",
       products: [
-        { name: "玉米", detail: "2026/27 · 第 4 版", active: true },
-        { name: "大豆", detail: "2026/27 · 第 2 版" },
-        { name: "稻谷", detail: "2026/27 · 第 3 版" },
+        { name: "玉米", detail: "2026/27 年度", active: true },
+        { name: "大豆", detail: "2026/27 年度" },
+        { name: "稻谷", detail: "2026/27 年度" },
       ],
       actors: [
         { label: "农户产量样本", value: "554 个" },
@@ -573,14 +568,14 @@ export const formalWorkspaceByApplication: Record<
         note: "使用＋加工＋损耗＋净调出",
       },
       {
-        label: "采用后期末库存",
+        label: "期末库存",
         value: "103.9",
         unit: "万吨",
-        note: "下一期正式期初来源",
+        note: "作为下一年度期初库存",
         tone: "good",
       },
       {
-        label: "库存平衡差额",
+        label: "平衡差额",
         value: "1.7",
         unit: "万吨",
         note: "超过 0.5 万吨阈值",
@@ -588,43 +583,43 @@ export const formalWorkspaceByApplication: Record<
       },
     ],
     stages: [
-      { label: "版本创建", detail: "第 4 版", state: "done" },
-      { label: "指标采用", detail: "1 项待审核", state: "warning" },
-      { label: "账户计算", detail: "统一结果完成", state: "done" },
+      { label: "账户建立", detail: "本期草案", state: "done" },
+      { label: "数据确认", detail: "1 项待审核", state: "warning" },
+      { label: "账户编制", detail: "本期数据已汇总", state: "done" },
       { label: "差额解释", detail: "差额 1.7 万吨", state: "current" },
       { label: "审核发布", detail: "尚未发布", state: "open" },
     ],
     risks: [
       {
-        level: "勾稽",
+        level: "差额",
         title: "账户差额 1.7 万吨",
         detail: "主要来自区域流向周报尚未审核",
         tone: "danger",
       },
       {
-        level: "血缘",
-        title: "1 个采用指标不是正式版",
-        detail: "区域流向第 30 周启动等待发布",
+        level: "来源",
+        title: "1 项采用数据尚未核定",
+        detail: "第 30 周区域流向资料等待审核",
         tone: "warning",
       },
       {
-        level: "版本",
-        title: "第 3 版仍有两份报告引用",
-        detail: "第 4 版发布前需完成影响确认",
+        level: "报告",
+        title: "上期报告仍有两份在用",
+        detail: "本期发布前需确认替代范围",
         tone: "good",
       },
     ],
-    tableTitle: "账户项与采用版本",
-    tableNote: "所有结果只读、可勾稽、可追溯，业务页面不能直接修改。",
-    columns: ["账户项", "正式采用值", "引用版本", "勾稽状态", "责任岗位"],
+    tableTitle: "账户项目与采用数据",
+    tableNote: "集中显示采用值、数据来源和审核情况。",
+    columns: ["账户项目", "采用值", "数据来源", "核对状态", "责任岗位"],
     rows: [
-      ["期初库存", "91.6 万吨", "库存正式版 2026-07", "通过", "供需分析岗"],
-      ["本期产量", "621.8 万吨", "产情指标第 7 版", "通过", "产情发布岗"],
-      ["区域净调入", "49.7 万吨", "市场流向第 3 版", "待解释", "市场审核岗"],
+      ["期初库存", "91.6 万吨", "7 月库存月报", "通过", "供需分析岗"],
+      ["本期产量", "621.8 万吨", "7 月 31 日产情结果", "通过", "产情发布岗"],
+      ["区域净调入", "49.7 万吨", "第 30 周区域流向", "待解释", "市场审核岗"],
       [
-        "采用后期末库存",
+        "期末库存",
         "103.9 万吨",
-        "账户结果第 4 版草案",
+        "本期账户草案",
         "待审核",
         "供需发布岗",
       ],
@@ -880,7 +875,7 @@ export const businessReportRows: readonly BusinessReportRow[] = [
     frequency: "日报",
     scope: "齐齐哈尔市全域",
     period: "2026-07-31",
-    dataVersion: "市场指标第 18 版",
+    dataVersion: "7 月 31 日已核定数据",
     status: "等待复核",
     owner: "市场分析岗",
     publishedAt: "计划今日 18:30",
@@ -890,7 +885,7 @@ export const businessReportRows: readonly BusinessReportRow[] = [
     frequency: "周报",
     scope: "16 个县区",
     period: "2026 年第 31 周",
-    dataVersion: "产情指标第 7 版",
+    dataVersion: "第 31 周已核定数据",
     status: "生成中",
     owner: "产情分析岗",
     publishedAt: "计划今日 19:00",
@@ -900,8 +895,8 @@ export const businessReportRows: readonly BusinessReportRow[] = [
     frequency: "月报",
     scope: "东北区域经营中心",
     period: "2026 年 7 月",
-    dataVersion: "正式版本集合 2026-07",
-    status: "第 2 版已发布",
+    dataVersion: "2026 年 7 月已核定数据",
+    status: "已发布",
     owner: "报告发布岗",
     publishedAt: "7 月 30 日 17:20",
   },
@@ -910,9 +905,9 @@ export const businessReportRows: readonly BusinessReportRow[] = [
     frequency: "月报",
     scope: "玉米原粮账户",
     period: "2026/27 年度 · 7 月",
-    dataVersion: "供需结果第 3 版",
+    dataVersion: "2026/27 年度已核定账户",
     status: "等待替代确认",
     owner: "供需分析岗",
-    publishedAt: "第 4 版发布后替代",
+    publishedAt: "修订报告确认后替代",
   },
 ];
