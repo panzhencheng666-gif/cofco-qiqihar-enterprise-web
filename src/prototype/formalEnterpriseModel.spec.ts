@@ -15,56 +15,66 @@ import {
 } from "./formalEnterpriseData";
 
 describe("formal enterprise route model", () => {
-  it("reads reporting sections and falls back to the formal workbench", () => {
-    expect(readFormalRoute("?page=reporting&section=responsibility")).toEqual({
+  it("reads every application section and falls back to the work inbox", () => {
+    expect(readFormalRoute("?page=reporting&section=duty-reports")).toEqual({
       application: "reporting",
-      reportingSection: "responsibility",
-      marketSection: "overview",
+      section: "duty-reports",
     });
 
     expect(readFormalRoute("?page=unknown&section=unknown")).toEqual({
       application: "work",
-      reportingSection: "overview",
-      marketSection: "overview",
+      section: "inbox",
     });
 
     expect(readFormalRoute("?page=market&section=collection")).toEqual({
       application: "market",
-      reportingSection: "overview",
-      marketSection: "collection",
+      section: "collection",
     });
 
     expect(readFormalRoute("?page=market&section=unknown")).toEqual({
       application: "market",
-      reportingSection: "overview",
-      marketSection: "overview",
+      section: "overview",
+    });
+
+    expect(readFormalRoute("?page=production&section=collection")).toEqual({
+      application: "production",
+      section: "collection",
+    });
+
+    expect(readFormalRoute("?page=supply&section=lineage")).toEqual({
+      application: "supply",
+      section: "lineage",
     });
   });
 
-  it("writes stable application and reporting section query parameters", () => {
+  it("writes stable application and section query parameters", () => {
     expect(
       writeFormalRoute({
         application: "reporting",
-        reportingSection: "duty-monthly",
-        marketSection: "overview",
+        section: "duty-reports",
       }),
-    ).toBe("page=reporting&section=duty-monthly");
+    ).toBe("page=reporting&section=duty-reports");
 
     expect(
       writeFormalRoute({
         application: "market",
-        reportingSection: "overview",
-        marketSection: "overview",
+        section: "overview",
       }),
     ).toBe("page=market");
 
     expect(
       writeFormalRoute({
-        application: "market",
-        reportingSection: "overview",
-        marketSection: "collection",
+        application: "production",
+        section: "collection",
       }),
-    ).toBe("page=market&section=collection");
+    ).toBe("page=production&section=collection");
+
+    expect(
+      writeFormalRoute({
+        application: "work",
+        section: "inbox",
+      }),
+    ).toBe("page=work");
   });
 });
 
@@ -134,12 +144,19 @@ describe("formal enterprise sample data", () => {
     );
   });
 
-  it("contains the integrated report application and monthly duty report", () => {
+  it("contains the six ordinary-user entries and a consolidated duty report", () => {
     expect(
       formalApplicationDefinitions.map((application) => application.key),
-    ).toContain("reporting");
+    ).toEqual([
+      "work",
+      "overview",
+      "production",
+      "market",
+      "supply",
+      "reporting",
+    ]);
     expect(reportingNavigation.flatMap((group) => group.items)).toContainEqual(
-      expect.objectContaining({ key: "duty-monthly" }),
+      expect.objectContaining({ key: "duty-reports" }),
     );
   });
 });

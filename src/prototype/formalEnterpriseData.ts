@@ -161,23 +161,30 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       ],
     },
     {
-      key: "production",
+      key: "overview",
       code: "02",
+      label: "经营总览",
+      shortLabel: "总览",
+      note: "查看已授权正式指标、业务风险和最新发布结果",
+      navigation: [{ key: "overview", label: "经营总览" }],
+    },
+    {
+      key: "production",
+      code: "03",
       label: "产情监测",
       shortLabel: "产情",
-      note: "管理调查对象、生产监测、质量审核和结果发布",
+      note: "管理调查对象、产情采集、质量审核和结果发布",
       navigation: [
-        { key: "overview", label: "监测总览" },
-        { key: "planting", label: "种植生产" },
-        { key: "stock", label: "农户余粮" },
-        { key: "sales", label: "农户销售" },
-        { key: "intention", label: "种植意愿" },
-        { key: "quality", label: "质量与发布" },
+        { key: "overview", label: "产情总览" },
+        { key: "objects", label: "监测对象" },
+        { key: "collection", label: "数据采集" },
+        { key: "review", label: "审核发布" },
+        { key: "reports", label: "分析与报告" },
       ],
     },
     {
       key: "market",
-      code: "03",
+      code: "04",
       label: "市场监测",
       shortLabel: "市场",
       note: "管理市场主体、行情、库存、加工和物流信息",
@@ -191,53 +198,54 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
     },
     {
       key: "supply",
-      code: "04",
+      code: "05",
       label: "供需与态势",
       shortLabel: "供需",
-      note: "管理产品账户、区域平衡、态势分析和报告发布",
+      note: "查看产品账户、区域平衡、指标来源和态势分析",
       navigation: [
         { key: "overview", label: "供需总览" },
         { key: "accounts", label: "产品账户" },
         { key: "regional", label: "区域平衡" },
+        { key: "lineage", label: "指标与来源" },
         { key: "situation", label: "态势分析" },
       ],
     },
     {
       key: "reporting",
-      code: "05",
-      label: "报送与报告",
-      shortLabel: "报送",
-      note: "集中管理每周填报责任、逾期监督和正式报告",
-      navigation: [],
+      code: "06",
+      label: "报表中心",
+      shortLabel: "报表",
+      note: "统一管理业务报告、履责报告、复核发布和历史版本",
+      navigation: [
+        { key: "business-reports", label: "业务报告" },
+        { key: "duty-reports", label: "履责报告" },
+        { key: "review", label: "报告复核" },
+        { key: "distribution", label: "发布与分发" },
+        { key: "versions", label: "历史版本" },
+      ],
     },
   ];
 
 export const reportingNavigation: readonly ReportingNavigationGroup[] = [
   {
-    label: "报送工作",
+    label: "报告工作",
     items: [
-      { key: "overview", label: "报送总览" },
-      { key: "weekly", label: "本周填报", badge: "9" },
-      { key: "records", label: "填报记录" },
-      { key: "overdue", label: "逾期记录", badge: "3" },
+      { key: "business-reports", label: "业务报告" },
+      { key: "duty-reports", label: "履责报告", badge: "3" },
     ],
   },
   {
-    label: "责任管理",
+    label: "发布管理",
     items: [
-      { key: "responsibility", label: "填报责任" },
-      { key: "duty-weekly", label: "责任周报" },
-      { key: "duty-monthly", label: "责任月报" },
+      { key: "review", label: "报告复核", badge: "4" },
+      { key: "distribution", label: "发布与分发" },
+      { key: "versions", label: "历史版本" },
     ],
-  },
-  {
-    label: "报告管理",
-    items: [{ key: "business-reports", label: "业务报告" }],
   },
 ];
 
 export const formalWorkspaceByApplication: Record<
-  Exclude<FormalApplication, "reporting">,
+  Exclude<FormalApplication, "reporting" | "overview">,
   FormalWorkspace
 > = {
   work: {

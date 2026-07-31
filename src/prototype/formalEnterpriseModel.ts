@@ -1,39 +1,50 @@
 export const formalApplications = [
   "work",
+  "overview",
   "production",
   "market",
   "supply",
   "reporting",
 ] as const;
 
-export const reportingSections = [
-  "overview",
-  "responsibility",
-  "weekly",
-  "records",
-  "overdue",
-  "duty-weekly",
-  "duty-monthly",
-  "business-reports",
-  "versions",
-] as const;
-
-export const marketSections = [
-  "overview",
-  "objects",
-  "collection",
-  "review",
-  "reports",
-] as const;
+export const formalSectionsByApplication = {
+  work: ["inbox", "reporting", "review", "exception", "completed"],
+  overview: ["overview"],
+  production: ["overview", "objects", "collection", "review", "reports"],
+  market: ["overview", "objects", "collection", "review", "reports"],
+  supply: ["overview", "accounts", "regional", "lineage", "situation"],
+  reporting: [
+    "business-reports",
+    "duty-reports",
+    "review",
+    "distribution",
+    "versions",
+  ],
+} as const;
 
 export type FormalApplication = (typeof formalApplications)[number];
-export type ReportingSection = (typeof reportingSections)[number];
-export type MarketSection = (typeof marketSections)[number];
+export type WorkSection = (typeof formalSectionsByApplication.work)[number];
+export type OverviewSection =
+  (typeof formalSectionsByApplication.overview)[number];
+export type ProductionSection =
+  (typeof formalSectionsByApplication.production)[number];
+export type MarketSection =
+  (typeof formalSectionsByApplication.market)[number];
+export type SupplySection =
+  (typeof formalSectionsByApplication.supply)[number];
+export type ReportingSection =
+  (typeof formalSectionsByApplication.reporting)[number];
+export type FormalSection =
+  | WorkSection
+  | OverviewSection
+  | ProductionSection
+  | MarketSection
+  | SupplySection
+  | ReportingSection;
 
 export interface FormalRoute {
   application: FormalApplication;
-  reportingSection: ReportingSection;
-  marketSection: MarketSection;
+  section: FormalSection;
 }
 
 export type WeeklyTaskStatus =
@@ -72,12 +83,19 @@ function isFormalApplication(value: string | null): value is FormalApplication {
   return formalApplications.some((application) => application === value);
 }
 
-function isReportingSection(value: string | null): value is ReportingSection {
-  return reportingSections.some((section) => section === value);
+export function isSectionForApplication(
+  application: FormalApplication,
+  value: string | null,
+): value is FormalSection {
+  return (formalSectionsByApplication[application] as readonly string[]).some(
+    (section) => section === value,
+  );
 }
 
-function isMarketSection(value: string | null): value is MarketSection {
-  return marketSections.some((section) => section === value);
+export function getDefaultFormalSection(
+  application: FormalApplication,
+): FormalSection {
+  return formalSectionsByApplication[application][0];
 }
 
 export function readFormalRoute(search: string): FormalRoute {
@@ -90,28 +108,17 @@ export function readFormalRoute(search: string): FormalRoute {
 
   return {
     application,
-    reportingSection:
-      application === "reporting" && isReportingSection(sectionValue)
-        ? sectionValue
-        : "overview",
-    marketSection:
-      application === "market" && isMarketSection(sectionValue)
-        ? sectionValue
-        : "overview",
+    section: isSectionForApplication(application, sectionValue)
+      ? sectionValue
+      : getDefaultFormalSection(application),
   };
 }
 
 export function writeFormalRoute(route: FormalRoute): string {
   const parameters = new URLSearchParams();
   parameters.set("page", route.application);
-  if (
-    route.application === "reporting" &&
-    route.reportingSection !== "overview"
-  ) {
-    parameters.set("section", route.reportingSection);
-  }
-  if (route.application === "market" && route.marketSection !== "overview") {
-    parameters.set("section", route.marketSection);
+  if (route.section !== getDefaultFormalSection(route.application)) {
+    parameters.set("section", route.section);
   }
   return parameters.toString();
 }
