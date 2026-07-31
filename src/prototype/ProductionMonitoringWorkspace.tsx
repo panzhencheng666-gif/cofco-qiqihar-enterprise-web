@@ -16,12 +16,13 @@ import {
 import {
   BusinessContextBar,
   CollectionModeSwitch,
-  CompactMetricStrip,
   type CollectionMode,
+  WorkspaceFilterBar,
   WorkspaceHeader,
-  WorkspacePanel,
   WorkspaceStatus,
+  WorkspaceSummaryStrip,
   WorkspaceTable,
+  WorkspaceTableToolbar,
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
@@ -97,12 +98,14 @@ function ProductionScope({
 }) {
   const profile = productionCropProfiles.find((item) => item.key === crop)!;
   return (
-    <WorkspacePanel
+    <section
+      aria-label="品种与质量监测范围"
       className="production-scope-panel"
-      kicker="作物、品种与质量"
-      title="品种与质量监测范围"
-      note="保留填报原始品种名称；待映射品种不覆盖原值。"
     >
+      <WorkspaceTableToolbar
+        title="品种与质量监测范围"
+        note="保留填报原始品种名称；待映射品种不覆盖原值"
+      />
       <div className="production-crop-switch">
         {productionCropProfiles.map((item) => (
           <button
@@ -150,7 +153,7 @@ function ProductionScope({
           </div>
         </div>
       </div>
-    </WorkspacePanel>
+    </section>
   );
 }
 
@@ -190,115 +193,98 @@ function ProductionOverview({
         state="本期调查进行中"
       />
       <ProductionScope crop={crop} onCropChange={setCrop} />
-      <CompactMetricStrip
-        metrics={[
+      <WorkspaceSummaryStrip
+        label="产情业务摘要"
+        items={[
           {
             label: `${profile.label}监测面积`,
-            value: profile.area.replace(" 万亩", ""),
-            unit: "万亩",
+            value: profile.area,
             note: "正式行政台账口径",
             tone: "good",
           },
           {
             label: "预计单产",
-            value: profile.expectedYield.replace(" 公斤/亩", ""),
-            unit: "公斤/亩",
+            value: profile.expectedYield,
             note: "正式区域估计",
           },
           {
             label: "有效样本",
-            value: "554",
-            unit: "个",
+            value: "554 个",
             note: "样本响应率 92.4%",
           },
           {
             label: "质量阻断",
-            value: "5",
-            unit: "项",
+            value: "5 项",
             note: "关闭前不得正式发布",
             tone: "danger",
           },
         ]}
       />
-      <div className="unified-two-column">
-        <WorkspacePanel
-          kicker="统计口径"
-          title="样本结果与区域估计"
-          note="样本观测不直接冒充区域总量。"
-        >
-          <div className="production-estimate-grid">
-            <article>
-              <span>样本结果</span>
-              <strong>{profile.sampleResult}</strong>
-              <p>554 个有效样本 · 样本响应率 92.4%</p>
-              <WorkspaceStatus>调查观测</WorkspaceStatus>
-            </article>
-            <article>
-              <span>区域估计</span>
-              <strong>{profile.regionalEstimate}</strong>
-              <p>分层权重第 7 版 · 95% 区间 ±6.8 公斤/亩</p>
-              <WorkspaceStatus tone="good">正式估计</WorkspaceStatus>
-            </article>
-          </div>
-        </WorkspacePanel>
-        <WorkspacePanel
-          kicker="质量与覆盖"
-          title="本期发布条件"
-          note="覆盖、质量和审核分别判断"
-        >
-          <div className="unified-record-list">
-            <article>
-              <div>
-                <strong>样本响应率</strong>
-                <p>395 / 428 个本期任务形成有效提交</p>
-              </div>
-              <WorkspaceStatus tone="good">92.4%</WorkspaceStatus>
-            </article>
-            <article>
-              <div>
-                <strong>有效数据覆盖率</strong>
-                <p>按适用字段和正式免报项目计算</p>
-              </div>
-              <WorkspaceStatus tone="warning">89.7%</WorkspaceStatus>
-            </article>
-            <article>
-              <div>
-                <strong>质量阻断</strong>
-                <p>稻谷检验单、玉米测产依据等待补充</p>
-              </div>
-              <WorkspaceStatus tone="danger">5 项</WorkspaceStatus>
-            </article>
-          </div>
-        </WorkspacePanel>
-      </div>
-      <WorkspacePanel
-        kicker="调查执行"
-        title="本期调查任务"
-        note="行政台账、农技站观察和农户样本分别展示。"
-      >
-        <WorkspaceTable
-          columns={[
-            "监测对象",
-            "来源通道",
-            "行政区划",
-            "作物与品种",
-            "当前状态",
-          ]}
-          label="产情调查任务"
-          rows={productionObjectRows.slice(0, 4).map((item) => [
-            item.name,
-            item.source,
-            item.region,
-            `${item.crops} · ${item.varieties}`,
-            <WorkspaceStatus
-              key={item.name}
-              tone={statusTone(item.state)}
-            >
-              {item.state}
+      <WorkspaceTableToolbar
+        title="样本结果与区域估计"
+        note="样本观测不直接作为区域总量，发布条件单独核定"
+      />
+      <WorkspaceTable
+        columns={["统计口径", "本期结果", "来源与方法", "状态"]}
+        label="样本结果与区域估计"
+        rows={[
+          [
+            "样本结果",
+            profile.sampleResult,
+            "554 个有效样本 · 样本响应率 92.4%",
+            <WorkspaceStatus key="sample-result">
+              调查观测
             </WorkspaceStatus>,
-          ])}
-        />
-      </WorkspacePanel>
+          ],
+          [
+            "区域估计",
+            profile.regionalEstimate,
+            "分层权重第 7 版 · 95% 区间 ±6.8 公斤/亩",
+            <WorkspaceStatus key="regional-estimate" tone="good">
+              正式估计
+            </WorkspaceStatus>,
+          ],
+          [
+            "有效数据覆盖率",
+            "89.7%",
+            "按适用字段和正式免报项目计算",
+            <WorkspaceStatus key="coverage" tone="warning">
+              待提高
+            </WorkspaceStatus>,
+          ],
+          [
+            "质量阻断",
+            "5 项",
+            "稻谷检验单、玉米测产依据等待补充",
+            <WorkspaceStatus key="quality-block" tone="danger">
+              阻断
+            </WorkspaceStatus>,
+          ],
+        ]}
+      />
+      <WorkspaceTableToolbar
+        title="产情调查任务"
+        note="行政台账、农技站观察和农户样本分别展示"
+      />
+      <WorkspaceTable
+        columns={[
+          "监测对象",
+          "来源通道",
+          "行政区划",
+          "作物与品种",
+          "当前状态",
+        ]}
+        label="产情调查任务"
+        rows={productionObjectRows.slice(0, 4).map((item) => [
+          item.name,
+          item.source,
+          item.region,
+          `${item.crops} · ${item.varieties}`,
+          <WorkspaceStatus key={item.name} tone={statusTone(item.state)}>
+            {item.state}
+          </WorkspaceStatus>,
+        ])}
+      />
     </div>
   );
 }
@@ -320,37 +306,33 @@ function ProductionObjects() {
         }
       />
       <ProductionContext object="全部授权产情监测对象" state="对象名录有效" />
-      <CompactMetricStrip
-        metrics={[
+      <WorkspaceSummaryStrip
+        label="产情对象摘要"
+        items={[
           {
             label: "农户样本",
-            value: "386",
-            unit: "户",
+            value: "386 户",
             note: "一户一档",
           },
           {
             label: "家庭农场",
-            value: "96",
-            unit: "家",
+            value: "96 家",
             note: "种植与经营信息合并",
           },
           {
             label: "合作社",
-            value: "42",
-            unit: "家",
+            value: "42 家",
             note: "成员不重复建主体",
           },
           {
             label: "农技站与样方",
-            value: "74",
-            unit: "个",
+            value: "74 个",
             note: "专业观察与田间测产",
             tone: "good",
           },
         ]}
       />
-      <WorkspacePanel
-        kicker="对象主档"
+      <WorkspaceTableToolbar
         title="产情监测对象"
         note="面积按耕地实际所在地统计，不按人员居住地替代。"
         actions={
@@ -359,36 +341,32 @@ function ProductionObjects() {
             <button type="button">全部地区</button>
           </>
         }
-      >
-        <WorkspaceTable
-          columns={[
-            "对象名称",
-            "对象类型",
-            "行政区划",
-            "作物",
-            "具体品种",
-            "来源通道",
-            "责任人",
-            "状态",
-          ]}
-          label="产情监测对象名录"
-          rows={productionObjectRows.map((item) => [
-            item.name,
-            productionObjectLabels[item.type],
-            item.region,
-            item.crops,
-            item.varieties,
-            item.source,
-            item.owner,
-            <WorkspaceStatus
-              key={item.name}
-              tone={statusTone(item.state)}
-            >
-              {item.state}
-            </WorkspaceStatus>,
-          ])}
-        />
-      </WorkspacePanel>
+      />
+      <WorkspaceTable
+        columns={[
+          "对象名称",
+          "对象类型",
+          "行政区划",
+          "作物",
+          "具体品种",
+          "来源通道",
+          "责任人",
+          "状态",
+        ]}
+        label="产情监测对象名录"
+        rows={productionObjectRows.map((item) => [
+          item.name,
+          productionObjectLabels[item.type],
+          item.region,
+          item.crops,
+          item.varieties,
+          item.source,
+          item.owner,
+          <WorkspaceStatus key={item.name} tone={statusTone(item.state)}>
+            {item.state}
+          </WorkspaceStatus>,
+        ])}
+      />
     </div>
   );
 }
@@ -709,12 +687,12 @@ function ProductionCollection() {
         object="玉米 · 家庭农场产情与余粮调查"
         state="责任人本人可写"
       />
-      <WorkspacePanel
-        kicker="采集方式"
+      <WorkspaceTableToolbar
         title="选择当前任务的数据进入方式"
         note="切换方式不会新建第二份业务单据。"
         actions={<CollectionModeSwitch mode={mode} onChange={setMode} />}
-      >
+      />
+      <section className="production-collection-workbench">
         {mode === "online" ? (
           <ProductionOnlineEntry />
         ) : mode === "excel" ? (
@@ -722,7 +700,7 @@ function ProductionCollection() {
         ) : (
           <ProductionSystemEntry />
         )}
-      </WorkspacePanel>
+      </section>
     </div>
   );
 }
@@ -748,84 +726,79 @@ function ProductionReview() {
         state="5 项质量阻断"
         tone="danger"
       />
-      <CompactMetricStrip
-        metrics={[
+      <WorkspaceSummaryStrip
+        label="产情审核摘要"
+        items={[
           {
             label: "待业务审核",
-            value: "37",
-            unit: "项",
+            value: "37 项",
             note: "按授权地区与事项",
             tone: "warning",
           },
           {
             label: "质量警告",
-            value: "12",
-            unit: "项",
+            value: "12 项",
             note: "允许说明后继续",
             tone: "warning",
           },
           {
             label: "质量阻断",
-            value: "5",
-            unit: "项",
+            value: "5 项",
             note: "不得进入正式发布",
             tone: "danger",
           },
           {
             label: "本期正式版本",
-            value: "0",
-            unit: "个",
+            value: "0 个",
             note: "预计今天 19:00 发布",
           },
         ]}
       />
-      <WorkspacePanel
-        kicker="分级审核"
+      <WorkspaceTableToolbar
         title="产情单据审核队列"
         note="每列状态独立保存，避免用一个状态覆盖全部过程。"
-      >
-        <WorkspaceTable
-          columns={[
-            "单据",
-            "地区",
-            "责任人",
-            "履责状态",
-            "单据状态",
-            "质量状态",
-            "发布状态",
-          ]}
-          label="产情审核队列"
-          rows={productionReviewRows.map((item) => [
-            item.document,
-            item.region,
-            item.owner,
-            <WorkspaceStatus
-              key={`${item.document}-duty`}
-              tone={statusTone(item.duty)}
-            >
-              {item.duty}
-            </WorkspaceStatus>,
-            <WorkspaceStatus
-              key={`${item.document}-document`}
-              tone={statusTone(item.documentState)}
-            >
-              {item.documentState}
-            </WorkspaceStatus>,
-            <WorkspaceStatus
-              key={`${item.document}-quality`}
-              tone={statusTone(item.quality)}
-            >
-              {item.quality}
-            </WorkspaceStatus>,
-            <WorkspaceStatus
-              key={`${item.document}-publication`}
-              tone={statusTone(item.publication)}
-            >
-              {item.publication}
-            </WorkspaceStatus>,
-          ])}
-        />
-      </WorkspacePanel>
+      />
+      <WorkspaceTable
+        columns={[
+          "单据",
+          "地区",
+          "责任人",
+          "履责状态",
+          "单据状态",
+          "质量状态",
+          "发布状态",
+        ]}
+        label="产情审核队列"
+        rows={productionReviewRows.map((item) => [
+          item.document,
+          item.region,
+          item.owner,
+          <WorkspaceStatus
+            key={`${item.document}-duty`}
+            tone={statusTone(item.duty)}
+          >
+            {item.duty}
+          </WorkspaceStatus>,
+          <WorkspaceStatus
+            key={`${item.document}-document`}
+            tone={statusTone(item.documentState)}
+          >
+            {item.documentState}
+          </WorkspaceStatus>,
+          <WorkspaceStatus
+            key={`${item.document}-quality`}
+            tone={statusTone(item.quality)}
+          >
+            {item.quality}
+          </WorkspaceStatus>,
+          <WorkspaceStatus
+            key={`${item.document}-publication`}
+            tone={statusTone(item.publication)}
+          >
+            {item.publication}
+          </WorkspaceStatus>,
+        ])}
+      />
     </div>
   );
 }
@@ -849,66 +822,92 @@ function ProductionReports({
         object={`${product} · 正式产情指标`}
         state="第 30 周正式版本可用"
       />
-      <WorkspacePanel
-        kicker="报告范围"
-        title="选择报告作物"
-        note="报告频率由产情报告计划决定。"
+      <WorkspaceFilterBar
+        label="产情报告范围"
       >
-        <div className="production-report-scope">
-          {productionCropProfiles.map((item) => (
+        <label>
+          <span>报告作物</span>
+          <select
+            aria-label="报告作物"
+            value={crop}
+            onChange={(event) =>
+              setCrop(event.target.value as ProductionCrop)
+            }
+          >
+            {productionCropProfiles.map((item) => (
+              <option key={item.key} value={item.key}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>采用版本</span>
+          <input
+            aria-label="采用版本"
+            readOnly
+            value="产情监测第 30 周正式指标版本"
+          />
+        </label>
+        <label>
+          <span>数据范围</span>
+          <input
+            aria-label="数据范围"
+            readOnly
+            value="齐齐哈尔指定范围 · 16 个县区"
+          />
+        </label>
+      </WorkspaceFilterBar>
+      <WorkspaceTableToolbar
+        title="产情报告清单"
+        note="从正式产情指标版本生成，不重复录入汇总数"
+      />
+      <WorkspaceTable
+        columns={["报告类型", "报告名称", "采用内容", "最近版本", "操作"]}
+        label="产情报告清单"
+        rows={[
+          [
+            "周报",
+            `${product}产情监测周报`,
+            "面积、长势、单产、产量和质量",
+            "第 30 周正式周报",
             <button
-              aria-pressed={crop === item.key}
-              className={crop === item.key ? "is-active" : undefined}
-              key={item.key}
-              type="button"
-              onClick={() => setCrop(item.key)}
-            >
-              {item.label}
-            </button>
-          ))}
-          <p>
-            <small>采用版本</small>
-            <strong>产情监测第 30 周正式指标版本</strong>
-          </p>
-          <p>
-            <small>数据范围</small>
-            <strong>齐齐哈尔指定范围 · 16 个县区</strong>
-          </p>
-        </div>
-      </WorkspacePanel>
-      <div className="unified-three-column">
-        <WorkspacePanel kicker="周报" title={`${product}产情监测周报`}>
-          <div className="unified-domain-summary">
-            <strong>面积、长势、单产、产量和质量</strong>
-            <p>采用正式区域估计并说明样本响应率和质量等级。</p>
-            <button
-              className="unified-button is-primary"
+              className="unified-table-action"
+              key="weekly-report"
               type="button"
               onClick={() => onComposeReport(context)}
             >
               生成产情周报
-            </button>
-          </div>
-        </WorkspacePanel>
-        <WorkspacePanel kicker="专题" title={`${product}关键农时专题`}>
-          <div className="unified-domain-summary">
-            <strong>播种、灌浆、测产或收获专题</strong>
-            <p>仅在报告计划开放的关键农时生成，不机械提供日报。</p>
-            <button className="unified-button" type="button">
+            </button>,
+          ],
+          [
+            "关键农时专题",
+            `${product}关键农时专题`,
+            "播种、灌浆、测产或收获专题",
+            "按报告计划开放",
+            <button
+              className="unified-table-action"
+              key="seasonal-report"
+              type="button"
+            >
               选择专题期间
-            </button>
-          </div>
-        </WorkspacePanel>
-        <WorkspacePanel kicker="版本" title="产情报告历史">
-          <div className="unified-domain-summary">
-            <strong>最近发布：第 30 周正式周报</strong>
-            <p>发布于 7 月 25 日 18:40，采用指标版本与文件均已固定。</p>
-            <button className="unified-button" type="button">
+            </button>,
+          ],
+          [
+            "历史版本",
+            "产情报告历史",
+            "采用指标版本、文件和发布时间",
+            "7 月 25 日 18:40 发布",
+            <button
+              className="unified-table-action"
+              key="report-history"
+              type="button"
+            >
               查看历史版本
-            </button>
-          </div>
-        </WorkspacePanel>
-      </div>
+            </button>,
+          ],
+        ]}
+      />
     </div>
   );
 }

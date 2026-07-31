@@ -7,7 +7,7 @@ afterEach(cleanup);
 
 describe("production monitoring workspace", () => {
   it("keeps crop varieties, quality, sample results and regional estimates visible", () => {
-    render(
+    const { container } = render(
       <ProductionMonitoringWorkspace
         section="overview"
         onComposeReport={vi.fn()}
@@ -19,11 +19,20 @@ describe("production monitoring workspace", () => {
     expect(screen.getByText("黑农84")).toBeVisible();
     expect(screen.getByText("龙粳31")).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "品种与质量监测范围" }),
+      screen.getByRole("toolbar", { name: "品种与质量监测范围" }),
     ).toBeVisible();
     expect(screen.getByText("样本结果")).toBeVisible();
     expect(screen.getByText("区域估计")).toBeVisible();
     expect(screen.getByText("样本响应率 92.4%")).toBeVisible();
+    expect(screen.getByLabelText("产情业务摘要").children).toHaveLength(4);
+    expect(
+      screen.getByRole("table", { name: "样本结果与区域估计" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "产情调查任务" }),
+    ).toBeVisible();
+    expect(container.querySelector(".production-estimate-grid")).toBeNull();
+    expect(container.querySelector(".unified-two-column")).toBeNull();
   });
 
   it("supports three collection channels in the same production task", async () => {

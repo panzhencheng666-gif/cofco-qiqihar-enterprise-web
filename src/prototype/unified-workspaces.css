@@ -628,6 +628,17 @@
   line-height: 1.6;
 }
 
+.production-scope-panel,
+.production-collection-workbench {
+  border: 1px solid var(--workspace-line);
+  background: #fff;
+}
+
+.production-scope-panel > .workspace-table-toolbar,
+.production-collection-workbench > .workspace-table-toolbar {
+  border-width: 0 0 1px;
+}
+
 .production-crop-switch {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -729,39 +740,6 @@
   color: inherit;
   font-size: 9px;
   opacity: 0.7;
-}
-
-.production-estimate-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.production-estimate-grid article {
-  min-height: 142px;
-  padding: 17px;
-}
-
-.production-estimate-grid article + article {
-  border-left: 1px solid var(--workspace-line);
-}
-
-.production-estimate-grid article > span {
-  color: var(--workspace-teal-deep);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.production-estimate-grid article > strong {
-  display: block;
-  margin-top: 10px;
-  color: var(--workspace-text);
-  font-size: 18px;
-}
-
-.production-estimate-grid article > p {
-  margin: 8px 0 12px;
-  color: var(--workspace-muted);
-  font-size: 10px;
 }
 
 .production-entry-layout {
@@ -1023,48 +1001,6 @@
   justify-content: space-between;
   padding: 18px;
   border-bottom: 1px solid var(--workspace-line);
-}
-
-.production-report-scope {
-  display: grid;
-  grid-template-columns: repeat(3, auto) minmax(220px, 1fr) minmax(220px, 1fr);
-  align-items: stretch;
-}
-
-.production-report-scope > button {
-  min-width: 90px;
-  min-height: 58px;
-  border: 0;
-  border-right: 1px solid var(--workspace-line);
-  color: var(--workspace-text);
-  background: #fff;
-  font: inherit;
-  font-size: 12px;
-}
-
-.production-report-scope > button.is-active {
-  color: #fff;
-  background: var(--workspace-teal);
-}
-
-.production-report-scope > p {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  margin: 0;
-  padding: 10px 14px;
-  border-left: 1px solid var(--workspace-line);
-}
-
-.production-report-scope small {
-  color: var(--workspace-muted-light);
-  font-size: 9px;
-}
-
-.production-report-scope strong {
-  color: var(--workspace-text);
-  font-size: 11px;
 }
 
 .supply-product-strip {
