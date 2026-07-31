@@ -1,11 +1,12 @@
 import type { WorkSection } from "./formalEnterpriseModel";
 import {
   BusinessContextBar,
-  CompactMetricStrip,
   WorkspaceHeader,
-  WorkspacePanel,
+  WorkspacePagination,
   WorkspaceStatus,
+  WorkspaceSummaryStrip,
   WorkspaceTable,
+  WorkspaceTableToolbar,
 } from "./UnifiedWorkspacePrimitives";
 
 type BusinessDestination = readonly [
@@ -147,121 +148,122 @@ export function MyWorkWorkspace({
         ]}
         state="责任岗位有效"
       />
-      <CompactMetricStrip
-        metrics={[
+      <WorkspaceSummaryStrip
+        label="本人工作摘要"
+        items={[
           {
             label: "待我填报",
-            value: "3",
-            unit: "项",
+            value: "3 项",
             note: "仅本人具有填写权限",
             tone: "warning",
           },
           {
             label: "待我审核",
-            value: "7",
-            unit: "项",
+            value: "7 项",
             note: "最早截止今天 14:00",
           },
           {
             label: "异常与逾期",
-            value: "2",
-            unit: "项",
+            value: "2 项",
             note: "逾期记录不可覆盖",
             tone: "danger",
           },
           {
             label: "本月按时率",
-            value: "96.8",
-            unit: "%",
+            value: "96.8%",
             note: "按固定截止快照统计",
             tone: "good",
           },
         ]}
       />
-      <div className="unified-two-column">
-        <WorkspacePanel
-          kicker="本人任务"
-          title="统一任务清单"
-          note="这里不保存业务值；进入任务后打开所属业务的同一份单据。"
-        >
-          <WorkspaceTable
-            columns={[
-              "任务与业务",
-              "责任区域",
-              "截止",
-              "履责状态",
-              "单据状态",
-              "质量状态",
-              "操作",
-            ]}
-            label="本人责任任务"
-            rows={visibleTasks.map((task) => [
-              <div key={`${task.title}-title`}>
-                <strong>{task.title}</strong>
-                <p>{task.business}</p>
-              </div>,
-              task.region,
-              task.deadline,
-              <WorkspaceStatus
-                key={`${task.title}-duty`}
-                tone={toneFor(task.duty)}
-              >
-                {task.duty}
-              </WorkspaceStatus>,
-              <WorkspaceStatus
-                key={`${task.title}-document`}
-                tone={toneFor(task.document)}
-              >
-                {task.document}
-              </WorkspaceStatus>,
-              <WorkspaceStatus
-                key={`${task.title}-quality`}
-                tone={toneFor(task.quality)}
-              >
-                {task.quality}
-              </WorkspaceStatus>,
-              <button
-                className="unified-table-action"
-                key={`${task.title}-action`}
-                type="button"
-                onClick={() => onOpenBusiness(...task.destination)}
-              >
-                {task.action}
-              </button>,
-            ])}
-          />
-        </WorkspacePanel>
-        <WorkspacePanel
-          className="unified-attention-panel"
-          kicker="今日重点"
-          title="截止与整改提醒"
-          note="按风险和剩余时间排序"
-        >
-          <div className="unified-record-list">
-            <article>
-              <div>
-                <strong>讷河市稻谷质量依据待补</strong>
-                <p>出米率检验单缺失，责任人需在今天 16:00 前补充。</p>
-              </div>
-              <WorkspaceStatus tone="danger">阻断</WorkspaceStatus>
-            </article>
-            <article>
-              <div>
-                <strong>甘南县库存周报已记录逾期</strong>
-                <p>补填后保留原截止未提交记录和补填时间。</p>
-              </div>
-              <WorkspaceStatus tone="danger">逾期</WorkspaceStatus>
-            </article>
-            <article>
-              <div>
-                <strong>龙江县市场报送等待审核</strong>
-                <p>价格、数量和质量条件均已完成校验。</p>
-              </div>
-              <WorkspaceStatus tone="warning">待审核</WorkspaceStatus>
-            </article>
-          </div>
-        </WorkspacePanel>
-      </div>
+      <WorkspaceTableToolbar
+        title="统一任务清单"
+        note="进入任务后打开所属业务的同一份单据"
+      />
+      <WorkspaceTable
+        columns={[
+          "任务与业务",
+          "责任区域",
+          "截止",
+          "履责状态",
+          "单据状态",
+          "质量状态",
+          "操作",
+        ]}
+        label="本人责任任务"
+        rows={visibleTasks.map((task) => [
+          <div key={`${task.title}-title`}>
+            <strong>{task.title}</strong>
+            <p>{task.business}</p>
+          </div>,
+          task.region,
+          task.deadline,
+          <WorkspaceStatus
+            key={`${task.title}-duty`}
+            tone={toneFor(task.duty)}
+          >
+            {task.duty}
+          </WorkspaceStatus>,
+          <WorkspaceStatus
+            key={`${task.title}-document`}
+            tone={toneFor(task.document)}
+          >
+            {task.document}
+          </WorkspaceStatus>,
+          <WorkspaceStatus
+            key={`${task.title}-quality`}
+            tone={toneFor(task.quality)}
+          >
+            {task.quality}
+          </WorkspaceStatus>,
+          <button
+            className="unified-table-action"
+            key={`${task.title}-action`}
+            type="button"
+            onClick={() => onOpenBusiness(...task.destination)}
+          >
+            {task.action}
+          </button>,
+        ])}
+      />
+      <WorkspacePagination
+        end={visibleTasks.length}
+        page={1}
+        pages={1}
+        start={1}
+        total={visibleTasks.length}
+      />
+      <WorkspaceTableToolbar
+        title="今日重点事项"
+        note="按风险等级和剩余处理时间排序"
+      />
+      <WorkspaceTable
+        columns={["事项", "处理要求", "状态"]}
+        label="今日重点事项"
+        rows={[
+          [
+            "讷河市稻谷质量依据待补",
+            "出米率检验单缺失，责任人需在今天 16:00 前补充",
+            <WorkspaceStatus key="paddy-evidence" tone="danger">
+              阻断
+            </WorkspaceStatus>,
+          ],
+          [
+            "甘南县库存周报已记录逾期",
+            "补填后保留原截止未提交记录和补填时间",
+            <WorkspaceStatus key="inventory-overdue" tone="danger">
+              逾期
+            </WorkspaceStatus>,
+          ],
+          [
+            "龙江县市场报送等待审核",
+            "价格、数量和质量条件均已完成校验",
+            <WorkspaceStatus key="market-review" tone="warning">
+              待审核
+            </WorkspaceStatus>,
+          ],
+        ]}
+      />
     </div>
   );
 }

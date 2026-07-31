@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
@@ -31,20 +31,47 @@ describe("enterprise portal workspaces", () => {
       <ExecutiveOverviewWorkspace onOpenApplication={onOpenApplication} />,
     );
 
-    expect(
-      screen.getByRole("heading", { name: "产情正式指标" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "市场运行态势" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "供需账户状态" }),
-    ).toBeVisible();
+    const businessSummary = screen.getByRole("table", {
+      name: "业务运行摘要",
+    });
+    expect(within(businessSummary).getByText("产情正式指标")).toBeVisible();
+    expect(within(businessSummary).getByText("市场运行态势")).toBeVisible();
+    expect(within(businessSummary).getByText("供需账户状态")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "维护经营数字" }),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "进入产情监测" }));
     expect(onOpenApplication).toHaveBeenCalledWith("production", "overview");
+  });
+
+  it("presents My Work as one task-led table instead of a dashboard grid", () => {
+    const { container } = render(
+      <MyWorkWorkspace section="inbox" onOpenBusiness={vi.fn()} />,
+    );
+
+    expect(
+      screen.getByRole("table", { name: "本人责任任务" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "今日重点事项" }),
+    ).toBeVisible();
+    expect(container.querySelector(".unified-two-column")).toBeNull();
+    expect(container.querySelector(".unified-attention-panel")).toBeNull();
+  });
+
+  it("limits executive overview to one summary strip and operational tables", () => {
+    const { container } = render(
+      <ExecutiveOverviewWorkspace onOpenApplication={vi.fn()} />,
+    );
+
+    expect(screen.getByLabelText("经营核心摘要").children).toHaveLength(4);
+    expect(
+      screen.getByRole("table", { name: "业务运行摘要" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "经营风险清单" }),
+    ).toBeVisible();
+    expect(container.querySelector(".unified-three-column")).toBeNull();
   });
 });

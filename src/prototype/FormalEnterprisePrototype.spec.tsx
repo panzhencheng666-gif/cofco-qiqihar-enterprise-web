@@ -137,9 +137,12 @@ describe("formal enterprise shell", () => {
     render(<FormalEnterprisePrototype initialSearch="?page=overview" />);
 
     expect(screen.getByRole("heading", { name: "粮食商情经营总览" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "产情正式指标" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "市场运行态势" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "供需账户状态" })).toBeVisible();
+    const businessSummary = screen.getByRole("table", {
+      name: "业务运行摘要",
+    });
+    expect(within(businessSummary).getByText("产情正式指标")).toBeVisible();
+    expect(within(businessSummary).getByText("市场运行态势")).toBeVisible();
+    expect(within(businessSummary).getByText("供需账户状态")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "维护经营数字" }),
     ).not.toBeInTheDocument();

@@ -4,11 +4,11 @@ import type {
 } from "./formalEnterpriseModel";
 import {
   BusinessContextBar,
-  CompactMetricStrip,
   WorkspaceHeader,
-  WorkspacePanel,
   WorkspaceStatus,
+  WorkspaceSummaryStrip,
   WorkspaceTable,
+  WorkspaceTableToolbar,
 } from "./UnifiedWorkspacePrimitives";
 
 export function ExecutiveOverviewWorkspace({
@@ -40,136 +40,149 @@ export function ExecutiveOverviewWorkspace({
         ]}
         state="正式与初步数据已区分"
       />
-      <CompactMetricStrip
-        metrics={[
+      <WorkspaceSummaryStrip
+        label="经营核心摘要"
+        items={[
           {
             label: "产情正式指标",
-            value: "36",
-            unit: "项",
+            value: "36 项",
             note: "第 30 周正式版本",
             tone: "good",
           },
           {
             label: "市场运行态势",
-            value: "79",
-            unit: "家已报",
+            value: "79 家已报",
             note: "本期应报 86 家",
             tone: "warning",
           },
           {
             label: "供需账户状态",
-            value: "12",
-            unit: "项核定",
+            value: "12 项核定",
             note: "14 项账户输入",
             tone: "warning",
           },
           {
             label: "今日业务风险",
-            value: "5",
-            unit: "项",
+            value: "5 项",
             note: "2 项影响正式发布",
             tone: "danger",
           },
         ]}
       />
-      <div className="unified-three-column">
-        <WorkspacePanel
-          kicker="产情"
-          title="产情正式指标"
-          note="正式区域估计 · 第 30 周"
-          actions={
+      <WorkspaceTableToolbar
+        title="业务运行摘要"
+        note="正式结果、初步结果和待核事项分开显示"
+      />
+      <WorkspaceTable
+        columns={[
+          "业务",
+          "核心结果",
+          "地区与期间",
+          "数据状态",
+          "风险或缺口",
+          "操作",
+        ]}
+        label="业务运行摘要"
+        rows={[
+          [
+            <div key="production-name">
+              <strong>产情正式指标</strong>
+              <p>区域估计与质量调查</p>
+            </div>,
+            "玉米预计单产 468.2 公斤/亩",
+            "16 个县区 · 2026 年第 30 周",
+            <WorkspaceStatus key="production-status" tone="good">
+              正式发布
+            </WorkspaceStatus>,
+            "样本响应率 92.4%，无发布阻断",
             <button
+              className="unified-table-action"
+              key="open-production"
               type="button"
               onClick={() => onOpenApplication("production", "overview")}
             >
               进入产情监测
-            </button>
-          }
-        >
-          <div className="unified-domain-summary">
-            <strong>玉米预计单产 468.2 公斤/亩</strong>
-            <p>覆盖 16 个县区，样本响应率 92.4%，正式版本已发布。</p>
-            <WorkspaceStatus tone="good">正式发布</WorkspaceStatus>
-          </div>
-        </WorkspacePanel>
-        <WorkspacePanel
-          kicker="市场"
-          title="市场运行态势"
-          note="第 31 周初步数据"
-          actions={
+            </button>,
+          ],
+          [
+            <div key="market-name">
+              <strong>市场运行态势</strong>
+              <p>价格、库存、加工与物流</p>
+            </div>,
+            "玉米主流收购价 2,346 元/吨",
+            "三大区域 · 2026 年第 31 周",
+            <WorkspaceStatus key="market-status" tone="warning">
+              初步数据
+            </WorkspaceStatus>,
+            "79 家已报，7 家待报",
             <button
+              className="unified-table-action"
+              key="open-market"
               type="button"
               onClick={() => onOpenApplication("market", "overview")}
             >
               进入市场监测
-            </button>
-          }
-        >
-          <div className="unified-domain-summary">
-            <strong>玉米主流收购价 2,346 元/吨</strong>
-            <p>79 家已报，7 家待报；当前结果不得冒充正式周报。</p>
-            <WorkspaceStatus tone="warning">初步数据</WorkspaceStatus>
-          </div>
-        </WorkspacePanel>
-        <WorkspacePanel
-          kicker="供需"
-          title="供需账户状态"
-          note="2026/27 年度账户"
-          actions={
+            </button>,
+          ],
+          [
+            <div key="supply-name">
+              <strong>供需账户状态</strong>
+              <p>供给、使用、库存与差异解释</p>
+            </div>,
+            "调整前账面期末 103.9 万吨",
+            "三大区域 · 2026/27 年度",
+            <WorkspaceStatus key="supply-status" tone="warning">
+              待补数据
+            </WorkspaceStatus>,
+            "两项流向资料待核，库存差异待解释",
             <button
+              className="unified-table-action"
+              key="open-supply"
               type="button"
               onClick={() => onOpenApplication("supply", "overview")}
             >
               进入供需账户
-            </button>
-          }
-        >
-          <div className="unified-domain-summary">
-            <strong>调整前账面期末 103.9 万吨</strong>
-            <p>两项流向资料待核，库存平衡差额需要解释。</p>
-            <WorkspaceStatus tone="warning">待补数据</WorkspaceStatus>
-          </div>
-        </WorkspacePanel>
-      </div>
-      <WorkspacePanel
-        kicker="跨业务风险"
-        title="需要管理层关注"
-        note="风险只读展示，处置回到对应业务工作区。"
-      >
-        <WorkspaceTable
-          columns={["风险事项", "所属业务", "地区", "影响", "当前状态"]}
-          label="经营风险清单"
-          rows={[
-            [
-              "讷河市稻谷质量检验单缺失",
-              "产情监测",
-              "讷河市",
-              "阻断正式发布",
-              <WorkspaceStatus key="paddy-risk" tone="danger">
-                阻断
-              </WorkspaceStatus>,
-            ],
-            [
-              "北部县区玉米价差扩大",
-              "市场监测",
-              "齐齐哈尔北部",
-              "需要补充交易依据",
-              <WorkspaceStatus key="price-risk" tone="warning">
-                待解释
-              </WorkspaceStatus>,
-            ],
-            [
-              "区域流向两项资料待核",
-              "供需与态势",
-              "讷河市",
-              "暂不具备正式发布条件",
-              <WorkspaceStatus key="supply-risk" tone="warning">
-                待核定
-              </WorkspaceStatus>,
-            ],
-          ]}
-        />
-      </WorkspacePanel>
+            </button>,
+          ],
+        ]}
+      />
+      <WorkspaceTableToolbar
+        title="经营风险清单"
+        note="处置回到所属业务工作区"
+      />
+      <WorkspaceTable
+        columns={["风险事项", "所属业务", "地区", "影响", "当前状态"]}
+        label="经营风险清单"
+        rows={[
+          [
+            "讷河市稻谷质量检验单缺失",
+            "产情监测",
+            "讷河市",
+            "阻断正式发布",
+            <WorkspaceStatus key="paddy-risk" tone="danger">
+              阻断
+            </WorkspaceStatus>,
+          ],
+          [
+            "北部县区玉米价差扩大",
+            "市场监测",
+            "齐齐哈尔北部",
+            "需要补充交易依据",
+            <WorkspaceStatus key="price-risk" tone="warning">
+              待解释
+            </WorkspaceStatus>,
+          ],
+          [
+            "区域流向两项资料待核",
+            "供需与态势",
+            "讷河市",
+            "暂不具备正式发布条件",
+            <WorkspaceStatus key="supply-risk" tone="warning">
+              待核定
+            </WorkspaceStatus>,
+          ],
+        ]}
+      />
     </div>
   );
 }
