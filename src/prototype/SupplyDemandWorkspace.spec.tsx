@@ -7,14 +7,14 @@ afterEach(cleanup);
 
 describe("supply demand workspace", () => {
   it("explains ending inventory and the inventory balance difference", () => {
-    render(
+    const { container } = render(
       <SupplyDemandWorkspace
         section="overview"
         onComposeReport={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("调整前账面期末")).toBeVisible();
+    expect(screen.getAllByText("调整前账面期末").length).toBeGreaterThan(0);
     expect(screen.getAllByText("库存平衡差额").length).toBeGreaterThan(0);
     expect(
       screen.getByText("调查汇总期末 − 调整前账面期末"),
@@ -25,6 +25,16 @@ describe("supply demand workspace", () => {
     expect(
       screen.getAllByText("1.7", { selector: "strong" }).length,
     ).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("region", { name: "供需核心等式" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "供需账户构成" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "库存差异解释" }),
+    ).toBeVisible();
+    expect(container.querySelector(".unified-metric-strip")).toBeNull();
   });
 
   it("shows region, product, period and adopted input version together", () => {

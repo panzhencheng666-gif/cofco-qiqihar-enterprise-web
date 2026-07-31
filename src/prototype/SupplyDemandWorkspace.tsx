@@ -9,11 +9,11 @@ import {
 } from "./supplyBalanceScope";
 import {
   BusinessContextBar,
-  CompactMetricStrip,
   WorkspaceHeader,
-  WorkspacePanel,
   WorkspaceStatus,
+  WorkspaceSummaryStrip,
   WorkspaceTable,
+  WorkspaceTableToolbar,
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
@@ -187,60 +187,109 @@ function EquationWorkspace({
 }) {
   const equation = getSupplyBalanceEquation(scopeKey);
   return (
-    <WorkspacePanel
-      className="supply-equation-panel"
-      kicker="账户恒等式"
-      title="供给、使用、期末与库存差额"
-      note="期末库存和库存平衡差额是两个不同概念。"
-    >
-      <div className="supply-equation">
-        <article>
+    <>
+      <WorkspaceTableToolbar
+        title="供需核心等式"
+        note="期末库存和库存平衡差额是两个不同概念"
+      />
+      <section aria-label="供需核心等式" className="supply-core-equation">
+        <span>
           <small>总供给</small>
           <strong>{equation.totalSupply}</strong>
-          <span>万吨</span>
-          <p>期初库存＋本期生产＋区域外流入＋其他供给</p>
-        </article>
+          <em>万吨</em>
+        </span>
         <b>−</b>
-        <article>
+        <span>
           <small>总使用</small>
           <strong>{equation.totalUse}</strong>
-          <span>万吨</span>
-          <p>消费＋加工＋损耗＋区域外流出＋其他使用</p>
-        </article>
+          <em>万吨</em>
+        </span>
         <b>=</b>
-        <article className="is-primary">
+        <span className="is-result">
           <small>调整前账面期末</small>
           <strong>{equation.bookEnding}</strong>
-          <span>万吨</span>
-          <p>总供给 − 总使用</p>
-        </article>
-        <b>⇄</b>
-        <article className="is-survey">
-          <small>调查汇总期末</small>
-          <strong>{equation.surveyEnding}</strong>
-          <span>万吨</span>
-          <p>企业与农户库存调查汇总</p>
-        </article>
-      </div>
-      <div className="supply-difference-strip">
-        <div>
-          <small>批准库存调整</small>
-          <strong>{equation.approvedAdjustment} 万吨</strong>
-          <span>当前无已批准调整</span>
-        </div>
-        <div>
-          <small>采用后账面期末</small>
-          <strong>{equation.adoptedEnding} 万吨</strong>
-          <span>作为下一年度正式期初的候选值</span>
-        </div>
-        <div className="is-warning">
-          <small>库存平衡差额</small>
-          <strong>{equation.inventoryDifference}</strong>
-          <span>万吨</span>
-          <p>调查汇总期末 − 调整前账面期末</p>
-        </div>
-      </div>
-    </WorkspacePanel>
+          <em>万吨</em>
+        </span>
+      </section>
+      <WorkspaceTableToolbar
+        title="供需账户构成"
+        note="供给来源、使用去向和库存调查分别列示"
+      />
+      <WorkspaceTable
+        columns={["账户项目", "本期结果", "构成或计算说明", "数据性质"]}
+        label="供需账户构成"
+        rows={[
+          [
+            "总供给",
+            `${equation.totalSupply} 万吨`,
+            "期初库存＋本期生产＋区域外流入＋其他供给",
+            <WorkspaceStatus key="total-supply" tone="good">
+              账户采用值
+            </WorkspaceStatus>,
+          ],
+          [
+            "总使用",
+            `${equation.totalUse} 万吨`,
+            "消费＋加工＋损耗＋区域外流出＋其他使用",
+            <WorkspaceStatus key="total-use" tone="good">
+              账户采用值
+            </WorkspaceStatus>,
+          ],
+          [
+            "调整前账面期末",
+            `${equation.bookEnding} 万吨`,
+            "总供给 − 总使用",
+            <WorkspaceStatus key="book-ending" tone="good">
+              公式结果
+            </WorkspaceStatus>,
+          ],
+          [
+            "调查汇总期末",
+            `${equation.surveyEnding} 万吨`,
+            "企业与农户库存调查汇总",
+            <WorkspaceStatus key="survey-ending" tone="warning">
+              调查对照值
+            </WorkspaceStatus>,
+          ],
+        ]}
+      />
+      <WorkspaceTableToolbar
+        title="库存差异解释"
+        note="未经批准的差额不得直接覆盖账面期末"
+      />
+      <WorkspaceTable
+        columns={["事项", "数值", "计算或采用规则", "当前状态"]}
+        label="库存差异解释"
+        rows={[
+          [
+            "批准库存调整",
+            `${equation.approvedAdjustment} 万吨`,
+            "经审核批准后才进入正式账户",
+            <WorkspaceStatus key="approved-adjustment">
+              当前无调整
+            </WorkspaceStatus>,
+          ],
+          [
+            "采用后账面期末",
+            `${equation.adoptedEnding} 万吨`,
+            "调整前账面期末＋批准库存调整",
+            <WorkspaceStatus key="adopted-ending" tone="good">
+              候选期初
+            </WorkspaceStatus>,
+          ],
+          [
+            "库存平衡差额",
+            <strong key="inventory-difference">
+              {equation.inventoryDifference}
+            </strong>,
+            "调查汇总期末 − 调整前账面期末",
+            <WorkspaceStatus key="difference-status" tone="warning">
+              待解释
+            </WorkspaceStatus>,
+          ],
+        ]}
+      />
+    </>
   );
 }
 
@@ -294,31 +343,28 @@ function SupplyOverview({
       />
       <ProductSwitch product={product} onChange={setProduct} />
       <RegionSwitch selected={scopeKey} onChange={setScopeKey} />
-      <CompactMetricStrip
-        metrics={[
+      <WorkspaceSummaryStrip
+        label="供需账户摘要"
+        items={[
           {
             label: "总供给",
-            value: equation.totalSupply,
-            unit: "万吨",
+            value: `${equation.totalSupply} 万吨`,
             note: "正式指标版本采用值",
           },
           {
             label: "总使用",
-            value: equation.totalUse,
-            unit: "万吨",
+            value: `${equation.totalUse} 万吨`,
             note: "使用与区域外流出",
           },
           {
             label: "采用后账面期末",
-            value: equation.adoptedEnding,
-            unit: "万吨",
+            value: `${equation.adoptedEnding} 万吨`,
             note: "批准调整后正式采用",
             tone: "good",
           },
           {
             label: "库存平衡差额",
-            value: equation.inventoryDifference,
-            unit: "万吨",
+            value: `${equation.inventoryDifference} 万吨`,
             note: "调查期末与账面期末之差",
             tone: "warning",
           },
@@ -345,65 +391,63 @@ function ProductAccounts() {
         state="账户规范第 4 版有效"
       />
       <ProductSwitch product={product} onChange={setProduct} />
-      <WorkspacePanel
-        kicker="账户构成"
+      <WorkspaceTableToolbar
         title={`${productItem.account}账户项目`}
         note="一个规范事实最多进入一个可加总角色。"
-      >
-        <WorkspaceTable
-          columns={[
-            "账户项目",
-            "角色",
-            "采用值",
-            "来源",
-            "质量状态",
-            "采用版本",
-          ]}
-          label="产品账户项目"
-          rows={[
-            [
-              "期初库存",
-              "供给",
-              "91.6 万吨",
-              "上一年度采用后账面期末",
-              <WorkspaceStatus key="opening" tone="good">
-                通过
-              </WorkspaceStatus>,
-              "2025/26 发布版",
-            ],
-            [
-              "本期生产",
-              "供给",
-              "621.8 万吨",
-              "产情正式区域估计",
-              <WorkspaceStatus key="production" tone="good">
-                通过
-              </WorkspaceStatus>,
-              "产情第 30 周正式版",
-            ],
-            [
-              "区域外净流入",
-              "供给",
-              "49.7 万吨",
-              "去重物流边界事实",
-              <WorkspaceStatus key="inflow" tone="warning">
-                两项待核
-              </WorkspaceStatus>,
-              "市场第 31 周候选版",
-            ],
-            [
-              "加工使用",
-              "使用",
-              "184.2 万吨",
-              "加工投入规范事实",
-              <WorkspaceStatus key="processing" tone="good">
-                通过
-              </WorkspaceStatus>,
-              "市场第 30 周正式版",
-            ],
-          ]}
-        />
-      </WorkspacePanel>
+      />
+      <WorkspaceTable
+        columns={[
+          "账户项目",
+          "角色",
+          "采用值",
+          "来源",
+          "质量状态",
+          "采用版本",
+        ]}
+        label="产品账户项目"
+        rows={[
+          [
+            "期初库存",
+            "供给",
+            "91.6 万吨",
+            "上一年度采用后账面期末",
+            <WorkspaceStatus key="opening" tone="good">
+              通过
+            </WorkspaceStatus>,
+            "2025/26 发布版",
+          ],
+          [
+            "本期生产",
+            "供给",
+            "621.8 万吨",
+            "产情正式区域估计",
+            <WorkspaceStatus key="production" tone="good">
+              通过
+            </WorkspaceStatus>,
+            "产情第 30 周正式版",
+          ],
+          [
+            "区域外净流入",
+            "供给",
+            "49.7 万吨",
+            "去重物流边界事实",
+            <WorkspaceStatus key="inflow" tone="warning">
+              两项待核
+            </WorkspaceStatus>,
+            "市场第 31 周候选版",
+          ],
+          [
+            "加工使用",
+            "使用",
+            "184.2 万吨",
+            "加工投入规范事实",
+            <WorkspaceStatus key="processing" tone="good">
+              通过
+            </WorkspaceStatus>,
+            "市场第 30 周正式版",
+          ],
+        ]}
+      />
     </div>
   );
 }
@@ -426,63 +470,49 @@ function RegionalBalance() {
         tone={scope.status === "已核定" ? "good" : "warning"}
       />
       <RegionSwitch selected={scopeKey} onChange={setScopeKey} />
-      <div className="unified-two-column">
-        <EquationWorkspace scopeKey={scopeKey} />
-        <WorkspacePanel
-          kicker="当前地区"
-          title="范围与合并处理"
-          note="地区切换不会改变产品和营销年度。"
-        >
-          <div className="unified-record-list">
-            <article>
-              <div>
-                <strong>账户层级</strong>
-                <p>{scope.level}</p>
-              </div>
-              <WorkspaceStatus>{scope.level}</WorkspaceStatus>
-            </article>
-            <article>
-              <div>
-                <strong>数据覆盖</strong>
-                <p>{scope.coverage}</p>
-              </div>
-              <WorkspaceStatus tone={toneFor(scope.status)}>
-                {scope.status}
-              </WorkspaceStatus>
-            </article>
-            <article>
-              <div>
-                <strong>市内流转抵销</strong>
-                <p>
-                  {scope.level === "市级合并"
-                    ? `${scope.internalFlowElimination} 已抵销`
-                    : "县级账户分别列示流入和流出"}
-                </p>
-              </div>
-              <WorkspaceStatus tone="good">规则有效</WorkspaceStatus>
-            </article>
-          </div>
-        </WorkspacePanel>
-      </div>
-      <WorkspacePanel
-        kicker="县区账户"
+      <WorkspaceSummaryStrip
+        label="地区账户规则"
+        items={[
+          {
+            label: "账户层级",
+            value: scope.level,
+            note: "地区切换不改变产品和营销年度",
+          },
+          {
+            label: "数据覆盖",
+            value: scope.coverage,
+            note: scope.status,
+            tone: toneFor(scope.status),
+          },
+          {
+            label: "市内流转处理",
+            value:
+              scope.level === "市级合并"
+                ? `${scope.internalFlowElimination} 已抵销`
+                : "分别列示流入流出",
+            note: "账户规则有效",
+            tone: "good",
+          },
+        ]}
+      />
+      <EquationWorkspace scopeKey={scopeKey} />
+      <WorkspaceTableToolbar
         title="全部县区账户准备状态"
         note="没有正式输入的县区明确显示待准备，不以零补齐。"
-      >
-        <WorkspaceTable
-          columns={["县区", "账户版本", "输入覆盖", "缺失或质量问题", "状态"]}
-          label="县区供需账户"
-          rows={countyAccountRows.map((row) => [
-            row[0],
-            row[1],
-            row[2],
-            row[3],
-            <WorkspaceStatus key={row[0]} tone={toneFor(row[4])}>
-              {row[4]}
-            </WorkspaceStatus>,
-          ])}
-        />
-      </WorkspacePanel>
+      />
+      <WorkspaceTable
+        columns={["县区", "账户版本", "输入覆盖", "缺失或质量问题", "状态"]}
+        label="县区供需账户"
+        rows={countyAccountRows.map((row) => [
+          row[0],
+          row[1],
+          row[2],
+          row[3],
+          <WorkspaceStatus key={row[0]} tone={toneFor(row[4])}>
+            {row[4]}
+          </WorkspaceStatus>,
+        ])}
+      />
     </div>
   );
 }
@@ -500,65 +530,63 @@ function IndicatorLineage() {
         scopeKey="qiqihar"
         state="来源可追溯"
       />
-      <WorkspacePanel
-        kicker="采用链路"
+      <WorkspaceTableToolbar
         title="玉米原粮账户采用指标"
         note="供需页面不重新填写来源值。"
-      >
-        <WorkspaceTable
-          columns={[
-            "账户项目",
-            "采用值",
-            "业务来源",
-            "数据截止",
-            "质量与审核",
-            "采用版本",
-          ]}
-          label="供需指标来源"
-          rows={[
-            [
-              "期初库存",
-              "91.6 万吨",
-              "上一年度供需发布结果",
-              "2026-06-30",
-              <WorkspaceStatus key="opening" tone="good">
-                已发布
-              </WorkspaceStatus>,
-              "2025/26 供需结果发布版",
-            ],
-            [
-              "本期生产",
-              "621.8 万吨",
-              "产情监测 · 区域正式估计",
-              "2026-07-24 17:00",
-              <WorkspaceStatus key="production" tone="good">
-                质量通过
-              </WorkspaceStatus>,
-              "产情第 30 周正式指标版本",
-            ],
-            [
-              "区域外净流入",
-              "49.7 万吨",
-              "市场监测 · 边界物流事实",
-              "2026-07-31 17:00",
-              <WorkspaceStatus key="inflow" tone="warning">
-                两项待核
-              </WorkspaceStatus>,
-              "第 31 周市场正式指标版本",
-            ],
-            [
-              "加工使用",
-              "184.2 万吨",
-              "市场监测 · 加工投入",
-              "2026-07-24 17:00",
-              <WorkspaceStatus key="processing" tone="good">
-                审核通过
-              </WorkspaceStatus>,
-              "第 30 周市场正式指标版本",
-            ],
-          ]}
-        />
-      </WorkspacePanel>
+      />
+      <WorkspaceTable
+        columns={[
+          "账户项目",
+          "采用值",
+          "业务来源",
+          "数据截止",
+          "质量与审核",
+          "采用版本",
+        ]}
+        label="供需指标来源"
+        rows={[
+          [
+            "期初库存",
+            "91.6 万吨",
+            "上一年度供需发布结果",
+            "2026-06-30",
+            <WorkspaceStatus key="opening" tone="good">
+              已发布
+            </WorkspaceStatus>,
+            "2025/26 供需结果发布版",
+          ],
+          [
+            "本期生产",
+            "621.8 万吨",
+            "产情监测 · 区域正式估计",
+            "2026-07-24 17:00",
+            <WorkspaceStatus key="production" tone="good">
+              质量通过
+            </WorkspaceStatus>,
+            "产情第 30 周正式指标版本",
+          ],
+          [
+            "区域外净流入",
+            "49.7 万吨",
+            "市场监测 · 边界物流事实",
+            "2026-07-31 17:00",
+            <WorkspaceStatus key="inflow" tone="warning">
+              两项待核
+            </WorkspaceStatus>,
+            "第 31 周市场正式指标版本",
+          ],
+          [
+            "加工使用",
+            "184.2 万吨",
+            "市场监测 · 加工投入",
+            "2026-07-24 17:00",
+            <WorkspaceStatus key="processing" tone="good">
+              审核通过
+            </WorkspaceStatus>,
+            "第 30 周市场正式指标版本",
+          ],
+        ]}
+      />
       <div className="supply-lineage-flow" aria-label="供需指标追溯链路">
         {[
           "供需结果",
@@ -591,43 +619,49 @@ function SituationAnalysis() {
         scopeKey="qiqihar"
         state="初步态势与正式账户已区分"
       />
-      <div className="unified-three-column">
-        {[
+      <WorkspaceTableToolbar
+        title="供需态势解释指标"
+        note="解释指标用于说明变化，不进入可相加供需数量"
+      />
+      <WorkspaceTable
+        columns={["影响因素", "本期结果", "解释", "数据性质"]}
+        label="供需态势解释指标"
+        rows={[
           [
             "价格",
             "玉米主流收购价 2,346 元/吨",
             "周环比 +0.8%，北部县区价差扩大。",
+            <WorkspaceStatus key="price-situation" tone="warning">
+              解释指标
+            </WorkspaceStatus>,
           ],
           [
             "加工",
             "重点企业开机率 72.6%",
             "深加工日耗较四周均值增加 3.1%。",
+            <WorkspaceStatus key="processing-situation" tone="warning">
+              解释指标
+            </WorkspaceStatus>,
           ],
           [
             "物流",
             "铁路发运量环比 -6.4%",
             "仅用于解释区域外流出变化，当前仍为初步数据。",
+            <WorkspaceStatus key="logistics-situation" tone="warning">
+              解释指标
+            </WorkspaceStatus>,
           ],
-        ].map(([kicker, title, note]) => (
-          <WorkspacePanel kicker={kicker} key={kicker} title={title}>
-            <div className="unified-domain-summary">
-              <p>{note}</p>
-              <WorkspaceStatus tone="warning">解释指标</WorkspaceStatus>
-            </div>
-          </WorkspacePanel>
-        ))}
-      </div>
-      <WorkspacePanel
-        kicker="重要判断"
+        ]}
+      />
+      <WorkspaceTableToolbar
         title="本期账户变化说明"
         note="正式发布前仍需完成来源和质量复核。"
-      >
-        <div className="supply-narrative">
+      />
+      <section aria-label="本期账户变化说明" className="supply-narrative">
           玉米账面期末库存预计为 103.9
           万吨；调查汇总期末高于账面推算，形成 1.7
           万吨库存平衡差额。当前差额仅作为解释和风险展示，未经批准不得直接覆盖账面期末。
-        </div>
-      </WorkspacePanel>
+      </section>
     </div>
   );
 }
