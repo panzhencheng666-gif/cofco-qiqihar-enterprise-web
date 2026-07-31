@@ -223,6 +223,21 @@ export function getSupplyBalanceScope(key: string | null | undefined) {
   );
 }
 
+const enterpriseRegionSupplyScope: Partial<
+  Record<EnterpriseRegionId, SupplyBalanceScopeKey>
+> = {
+  "qiqihar-all": "qiqihar",
+  "qiqihar-nehe": "nehe",
+  "qiqihar-longjiang": "longjiang",
+  "qiqihar-gannan": "gannan",
+  "qiqihar-tailai": "tailai",
+};
+
+export function getSupplyBalanceScopeForRegion(regionId: EnterpriseRegionId) {
+  const scopeKey = enterpriseRegionSupplyScope[regionId];
+  return scopeKey ? getSupplyBalanceScope(scopeKey) : null;
+}
+
 export function getSupplyBalanceMetrics(key: string | null | undefined) {
   return getSupplyBalanceScope(key).metrics;
 }
@@ -281,3 +296,4 @@ const supplyBalanceEquations: Record<
 export function getSupplyBalanceEquation(key: string | null | undefined) {
   return supplyBalanceEquations[getSupplyBalanceScope(key).key];
 }
+import type { EnterpriseRegionId } from "./enterpriseRegions";

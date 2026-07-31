@@ -3,6 +3,7 @@ import {
   getSupplyBalanceEquation,
   getSupplyBalanceMetrics,
   getSupplyBalanceScope,
+  getSupplyBalanceScopeForRegion,
   supplyBalanceScopes,
 } from "./supplyBalanceScope";
 
@@ -38,6 +39,11 @@ describe("supply balance scope", () => {
 
   it("falls back to the city account for an unknown route value", () => {
     expect(getSupplyBalanceScope("unknown").key).toBe("qiqihar");
+  });
+
+  it("maps enterprise regions only when a formal account exists", () => {
+    expect(getSupplyBalanceScopeForRegion("qiqihar-nehe")?.key).toBe("nehe");
+    expect(getSupplyBalanceScopeForRegion("heihe-all")).toBeNull();
   });
 
   it("separates book ending inventory from the inventory balance difference", () => {

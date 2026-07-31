@@ -2,6 +2,8 @@ import { useState } from "react";
 import { BusinessReportComposer } from "./BusinessReportComposer";
 import type { BusinessReportContext } from "./businessReportModel";
 import { EnterpriseIcon, type EnterpriseIconName } from "./EnterpriseIcon";
+import { EnterpriseRegionProvider } from "./EnterpriseRegionContext";
+import type { EnterpriseRegionId } from "./enterpriseRegions";
 import { ExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { formalApplicationDefinitions } from "./formalEnterpriseData";
 import {
@@ -56,22 +58,55 @@ function FormalGlobalHeader({
 }) {
   return (
     <header className="formal-header formal-global-header">
-      <button aria-label="应用菜单" className="formal-launcher" type="button">
-        <EnterpriseIcon name="apps" />
-      </button>
-      <div className="formal-brand">
-        <span>齐</span>
-        <strong>齐齐哈尔粮食商情企业平台</strong>
+      <div className="formal-header-primary">
+        <button aria-label="应用菜单" className="formal-launcher" type="button">
+          <EnterpriseIcon name="apps" />
+        </button>
+        <div className="formal-brand">
+          <span>齐</span>
+          <strong>齐齐哈尔粮食商情企业平台</strong>
+        </div>
+        <button
+          aria-label="切换组织，当前为东北区域经营中心"
+          className="formal-org-selector"
+          type="button"
+        >
+          <EnterpriseIcon name="home" />
+          <strong>东北区域经营中心</strong>
+          <span aria-hidden="true">⌄</span>
+        </button>
+        <label className="formal-global-search">
+          <EnterpriseIcon name="search" />
+          <input
+            aria-label="搜索应用和业务对象"
+            placeholder="搜索区域、对象、任务和报告"
+          />
+        </label>
+        <div className="formal-header-spacer" />
+        <button
+          aria-label="任务中心，9 项待处理"
+          className="formal-header-tool"
+          type="button"
+        >
+          <EnterpriseIcon name="task" />
+          <b>9</b>
+        </button>
+        <button
+          aria-label="通知，3 条未读"
+          className="formal-header-tool"
+          type="button"
+        >
+          <EnterpriseIcon name="bell" />
+          <b>3</b>
+        </button>
+        <button aria-label="帮助" className="formal-header-tool" type="button">
+          <EnterpriseIcon name="help" />
+        </button>
+        <div className="formal-user">
+          <span>王</span>
+          <strong>王洋</strong>
+        </div>
       </div>
-      <button
-        aria-label="切换组织，当前为东北区域经营中心"
-        className="formal-org-selector"
-        type="button"
-      >
-        <EnterpriseIcon name="home" />
-        <strong>东北区域经营中心</strong>
-        <span aria-hidden="true">⌄</span>
-      </button>
       <nav aria-label="业务应用" className="formal-application-nav">
         {formalApplicationDefinitions.map((item) => (
           <button
@@ -85,37 +120,6 @@ function FormalGlobalHeader({
           </button>
         ))}
       </nav>
-      <label className="formal-global-search">
-        <EnterpriseIcon name="search" />
-        <input
-          aria-label="搜索应用和业务对象"
-          placeholder="搜索区域、对象、任务和报告"
-        />
-      </label>
-      <div className="formal-header-spacer" />
-      <button
-        aria-label="任务中心，9 项待处理"
-        className="formal-header-tool"
-        type="button"
-      >
-        <EnterpriseIcon name="task" />
-        <b>9</b>
-      </button>
-      <button
-        aria-label="通知，3 条未读"
-        className="formal-header-tool"
-        type="button"
-      >
-        <EnterpriseIcon name="bell" />
-        <b>3</b>
-      </button>
-      <button aria-label="帮助" className="formal-header-tool" type="button">
-        <EnterpriseIcon name="help" />
-      </button>
-      <div className="formal-user">
-        <span>王</span>
-        <strong>王洋</strong>
-      </div>
     </header>
   );
 }
@@ -183,8 +187,9 @@ export function FormalEnterprisePrototype({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () =>
       typeof window.matchMedia === "function" &&
-      window.matchMedia("(max-width: 1280px)").matches,
+      window.matchMedia("(max-width: 1120px)").matches,
   );
+  const [regionId, setRegionId] = useState<EnterpriseRegionId>("qiqihar-all");
   const [reportContext, setReportContext] =
     useState<BusinessReportContext | null>(null);
 
@@ -263,37 +268,39 @@ export function FormalEnterprisePrototype({
   }
 
   return (
-    <div
-      className={`formal-enterprise${
-        sidebarCollapsed ? " is-sidebar-collapsed" : ""
-      }`}
-    >
-      <FormalGlobalHeader
-        route={route}
-        onApplicationChange={(application) =>
-          changeRoute({
-            application,
-            section: getDefaultFormalSection(application),
-          })
-        }
-      />
-      <div className="formal-enterprise-shell">
-        <FormalSidebar
-          collapsed={sidebarCollapsed}
+    <EnterpriseRegionProvider regionId={regionId} onRegionChange={setRegionId}>
+      <div
+        className={`formal-enterprise${
+          sidebarCollapsed ? " is-sidebar-collapsed" : ""
+        }`}
+      >
+        <FormalGlobalHeader
           route={route}
-          onCollapse={() => setSidebarCollapsed((value) => !value)}
-          onSectionChange={(section) =>
-            changeRoute({ application: route.application, section })
+          onApplicationChange={(application) =>
+            changeRoute({
+              application,
+              section: getDefaultFormalSection(application),
+            })
           }
         />
-        <main className="formal-main">{renderWorkspace()}</main>
+        <div className="formal-enterprise-shell">
+          <FormalSidebar
+            collapsed={sidebarCollapsed}
+            route={route}
+            onCollapse={() => setSidebarCollapsed((value) => !value)}
+            onSectionChange={(section) =>
+              changeRoute({ application: route.application, section })
+            }
+          />
+          <main className="formal-main">{renderWorkspace()}</main>
+        </div>
+        {reportContext && (
+          <BusinessReportComposer
+            context={reportContext}
+            onClose={() => setReportContext(null)}
+          />
+        )}
       </div>
-      {reportContext && (
-        <BusinessReportComposer
-          context={reportContext}
-          onClose={() => setReportContext(null)}
-        />
-      )}
-    </div>
+    </EnterpriseRegionProvider>
   );
 }

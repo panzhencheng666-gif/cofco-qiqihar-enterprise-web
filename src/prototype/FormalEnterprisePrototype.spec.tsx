@@ -38,6 +38,8 @@ describe("formal enterprise shell", () => {
     ).not.toBeInTheDocument();
     expect(container.querySelector(".formal-sidebar-description")).toBeNull();
     expect(container.querySelector(".formal-enterprise-shell")).not.toBeNull();
+    expect(container.querySelector(".formal-header-primary")).not.toBeNull();
+    expect(applications.parentElement).toHaveClass("formal-global-header");
   });
 
   it("exposes exactly six business applications", () => {
@@ -50,6 +52,45 @@ describe("formal enterprise shell", () => {
     expect(within(applications).getByText("经营总览")).toBeVisible();
     expect(within(applications).getByText("供需与态势")).toBeVisible();
     expect(within(applications).getByText("报表中心")).toBeVisible();
+  });
+
+  it("uses one complete regional context across production and market monitoring", async () => {
+    const user = userEvent.setup();
+    render(<FormalEnterprisePrototype initialSearch="?page=market" />);
+
+    const marketRegion = screen.getByRole("combobox", { name: "业务地区" });
+    expect(
+      within(marketRegion).getByRole("option", { name: "黑河市全域" }),
+    ).toBeInTheDocument();
+    expect(
+      within(marketRegion).getByRole("option", {
+        name: "莫力达瓦达斡尔族自治旗",
+      }),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(marketRegion, "heihe-all");
+    expect(marketRegion).toHaveValue("heihe-all");
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "业务应用" })).getByRole(
+        "button",
+        { name: "产情监测" },
+      ),
+    );
+    expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
+      "heihe-all",
+    );
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "业务应用" })).getByRole(
+        "button",
+        { name: "报表中心" },
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "履责报告" }));
+    expect(screen.getByRole("combobox", { name: "履责责任区域" })).toHaveValue(
+      "heihe-all",
+    );
   });
 
   it("labels every icon-only shell tool", () => {
@@ -77,11 +118,13 @@ describe("formal enterprise shell", () => {
     expect(screen.getByRole("button", { name: "展开左侧导航" })).toBeVisible();
   });
 
-  it("keeps reporting supervision centralized and auditable", () => {
+  it("keeps reporting supervision centralized and auditable", async () => {
+    const user = userEvent.setup();
     render(
       <FormalEnterprisePrototype initialSearch="?page=reporting&section=duty-reports" />,
     );
 
+    await user.click(screen.getByText("查看填报规则"));
     expect(screen.getByText("一人一责区")).toBeVisible();
     expect(screen.getByText("他人无权代填")).toBeVisible();
     expect(screen.getByText("每周填报一次")).toBeVisible();
@@ -179,17 +222,17 @@ describe("formal enterprise shell", () => {
     render(<FormalEnterprisePrototype initialSearch="?page=supply" />);
 
     const scope = screen.getByRole("region", {
-      name: "供需平衡地区范围",
+      name: "供需账户查询条件",
     });
-    expect(
-      within(scope).getByText("齐齐哈尔市全域", { selector: "strong" }),
-    ).toBeVisible();
-    expect(within(scope).getByText("市级合并")).toBeVisible();
+    const region = within(scope).getByRole("combobox", {
+      name: "业务地区",
+    });
+    expect(region).toHaveValue("qiqihar-all");
 
-    await user.click(within(scope).getByRole("button", { name: "讷河市" }));
-    expect(within(scope).getByText("县级账户")).toBeVisible();
-    expect(within(scope).getByText("12 / 14 项已核定")).toBeVisible();
-    expect(screen.getAllByText("121.8").length).toBeGreaterThan(0);
+    await user.selectOptions(region, "qiqihar-nehe");
+    expect(screen.getByText("县级账户")).toBeVisible();
+    expect(screen.getByText("12 / 14 项已核定")).toBeVisible();
+    expect(screen.getAllByText("121.8 万吨").length).toBeGreaterThan(0);
   });
 
   it("uses compact five-item architectures inside each business", () => {

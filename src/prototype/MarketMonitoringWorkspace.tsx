@@ -19,13 +19,18 @@ import {
   type MarketProductKind,
 } from "./marketMonitoringModel";
 import type { MarketSection } from "./formalEnterpriseModel";
+import { useEnterpriseRegion } from "./EnterpriseRegionContext";
+import { getEnterpriseRegion } from "./enterpriseRegions";
 import {
   BusinessContextBar,
+  WorkspaceFilterBar,
   WorkspaceHeader,
+  WorkspaceInlineStats,
+  WorkspacePagination,
   WorkspaceStatus,
-  WorkspaceSummaryStrip,
   WorkspaceTable,
   WorkspaceTableToolbar,
+  WorkspaceRegionSelect,
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
@@ -76,15 +81,17 @@ function MarketContextStrip({
   object?: string;
   state?: string;
 }) {
+  const { regionId } = useEnterpriseRegion();
+  const region = getEnterpriseRegion(regionId);
   return (
     <BusinessContextBar
       items={[
-        ["监测区域", "三大区域 · 当前授权范围"],
+        ["监测区域", <WorkspaceRegionSelect key="market-region" />],
         ["业务对象", object],
         ["监测期间", "2026 年第 31 周"],
         ["截止时间", "7 月 31 日 17:00"],
       ]}
-      state={state}
+      state={`${region.label} · ${state}`}
       tone={state.includes("待") || state.includes("采集") ? "warning" : "good"}
     />
   );
@@ -111,6 +118,8 @@ function MarketOverview({
   onCollect: () => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
+  const { regionId } = useEnterpriseRegion();
+  const region = getEnterpriseRegion(regionId);
   const [grain, setGrain] = useState<GrainKind>("corn");
   const grainRegistry = {
     corn: {
@@ -155,38 +164,15 @@ function MarketOverview({
       ["影响发布异常", "1", "项", "质量依据待补", "warning"],
     ],
   };
-  const qualityBasis: Record<
-    GrainKind,
-    readonly { label: string; value: string }[]
-  > = {
-    corn: [
-      { label: "水分", value: "14.6%" },
-      { label: "容重", value: "716 克/升" },
-      { label: "杂质", value: "0.9%" },
-      { label: "不完善粒", value: "3.2%" },
-      { label: "霉变粒", value: "0.5%" },
-      { label: "毒素", value: "合格" },
-    ],
-    soybean: [
-      { label: "类别", value: "蛋白豆" },
-      { label: "蛋白", value: "39.6%" },
-      { label: "水分", value: "12.8%" },
-      { label: "杂质", value: "0.7%" },
-      { label: "不完善粒", value: "1.9%" },
-    ],
-    paddy: [
-      { label: "水分", value: "15.2%" },
-      { label: "杂质", value: "0.8%" },
-      { label: "不完善粒", value: "2.1%" },
-      { label: "出糙率", value: "78.4%" },
-      { label: "出米率", value: "68.1%" },
-    ],
-  };
   const selectedReportContext: BusinessReportContext = {
     ...marketReportContext,
     product: grainLabels[grain],
+    region: region.label,
     dataVersion: `${grainLabels[grain]}市场监测第 31 周已核定数据`,
   };
+  const filteredMarketTasks = marketTasks.filter(
+    (task) => task.grain === grain,
+  );
 
   return (
     <div className="market-workspace market-overview">
@@ -208,138 +194,93 @@ function MarketOverview({
           </>
         }
       />
-      <MarketContextStrip />
-
-      <section aria-label="粮食品类" className="market-grain-strip">
-        <div>
-          <small>当前粮食品类</small>
-          <strong>{grainLabels[grain]}市场</strong>
-        </div>
-        {(["corn", "soybean", "paddy"] as const).map((item) => (
-          <button
-            aria-label={`切换到${grainLabels[item]}`}
-            aria-pressed={grain === item}
-            className={grain === item ? "is-active" : undefined}
-            key={item}
-            type="button"
-            onClick={() => setGrain(item)}
+      <WorkspaceFilterBar
+        label="市场监测查询条件"
+        actions={
+          <>
+            <button className="is-primary" type="button">
+              查询
+            </button>
+            <button type="button">重置</button>
+          </>
+        }
+      >
+        <label>
+          <span>监测地区</span>
+          <WorkspaceRegionSelect />
+        </label>
+        <label>
+          <span>样本类型</span>
+          <select aria-label="样本类型" defaultValue="all">
+            <option value="all">企业与物流节点</option>
+            <option value="subject">市场主体</option>
+            <option value="logistics">物流节点</option>
+          </select>
+        </label>
+        <label>
+          <span>粮食品种</span>
+          <select
+            aria-label="粮食品种"
+            value={grain}
+            onChange={(event) => setGrain(event.target.value as GrainKind)}
           >
-            <strong>{grainLabels[item]}</strong>
-            <small>
-              {grainRegistry[item].subjects}家主体 ·{" "}
-              {grainRegistry[item].varietyCount}个品种
-            </small>
-          </button>
-        ))}
-        <span>
-          当前已登记：{grainRegistry[grain].examples}
-          <small>保留企业原始品种名称</small>
-        </span>
-      </section>
-
-      <section aria-label="价格对应质量条件" className="market-quality-basis">
-        <header>
-          <small>当前报价对应质量</small>
-          <strong>
-            {grainLabels[grain]} · {grainRegistry[grain].examples}
-          </strong>
-        </header>
-        <div>
-          {qualityBasis[grain].map((item) => (
-            <p key={item.label}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-            </p>
-          ))}
-        </div>
-        <small>质量与每条报价绑定；切换品类自动切换采集项</small>
-      </section>
-
-      <WorkspaceSummaryStrip
-        label="市场业务摘要"
+            <option value="corn">玉米</option>
+            <option value="soybean">大豆</option>
+            <option value="paddy">稻谷</option>
+          </select>
+        </label>
+        <label>
+          <span>报送周期</span>
+          <select aria-label="报送周期" defaultValue="week-31">
+            <option value="week-31">2026 年第 31 周</option>
+          </select>
+        </label>
+        <label>
+          <span>填报状态</span>
+          <select aria-label="填报状态" defaultValue="all">
+            <option value="all">全部状态</option>
+            <option value="writing">填写中</option>
+            <option value="review">待审核</option>
+            <option value="returned">已退回</option>
+          </select>
+        </label>
+      </WorkspaceFilterBar>
+      <WorkspaceInlineStats
+        label="市场业务统计"
         items={[
           {
-            label: `${grainLabels[grain]}监测主体`,
-            value: `${grainRegistry[grain].subjects} 家`,
-            note: `${grainRegistry[grain].varietyCount} 个已登记品种`,
+            label: "应报",
+            value: "428",
           },
           {
-            label: "本期已报",
-            value: grainMetrics[grain][1][3].replace("本周", ""),
-            note: "按固定任务口径统计",
+            label: "已报",
+            value: "395",
             tone: "good",
           },
           {
-            label: "区域来源",
-            value: "3 个区域",
-            note: "行政村采用最新官方口径",
+            label: "待审核",
+            value: "27",
+            tone: "warning",
           },
           {
-            label: "影响发布异常",
-            value: `${grainMetrics[grain][4][1]} 项`,
-            note: grainMetrics[grain][4][3],
-            tone: grainMetrics[grain][4][4] as WorkspaceTone,
+            label: "质量阻断",
+            value: grainMetrics[grain][4][1],
+            tone: "danger",
+          },
+          {
+            label: "统计口径",
+            value: "按责任对象去重",
+            note: "数据截至 2026-07-31 10:46",
           },
         ]}
       />
       <WorkspaceTableToolbar
-        title="市场运行事实"
-        note={`${grainLabels[grain]}价格、库存、加工与物流采用同一监测期间`}
+        title="市场报送任务清单"
+        note={`${region.label} · ${grainLabels[grain]} · 具体品种、价格与质量绑定展示`}
         actions={
           <>
-            <button type="button">近 30 天</button>
-            <button type="button">全部区域</button>
-          </>
-        }
-      />
-      <WorkspaceTable
-        columns={["监测事项", "本期结果", "变化或说明", "数据状态"]}
-        label="市场运行事实"
-        rows={grainMetrics[grain].map(([label, value, unit, note, tone]) => [
-          label,
-          `${value} ${unit}`,
-          note,
-          <WorkspaceStatus key={label} tone={tone as WorkspaceTone}>
-            {tone === "danger"
-              ? "需处置"
-              : tone === "warning"
-                ? "待核实"
-                : "本期有效"}
-          </WorkspaceStatus>,
-        ])}
-      />
-      <WorkspaceTableToolbar
-        title="三大监测区域"
-        note="行政村数量只采用 2025—2026 年最新官方口径"
-      />
-      <WorkspaceTable
-        columns={[
-          "监测区域",
-          "覆盖范围",
-          "乡镇覆盖",
-          "行政村",
-          "来源状态",
-          "来源说明",
-        ]}
-        label="监测区域与行政来源"
-        rows={marketRegionCoverage.map((region) => [
-          region.label,
-          region.detail,
-          region.townshipCount,
-          region.villageCount,
-          <MarketStatus key={`${region.label}-state`}>
-            {region.sourceState}
-          </MarketStatus>,
-          region.sourceNote,
-        ])}
-      />
-      <WorkspaceTableToolbar
-        title="市场报送任务"
-        note="一项任务对应一名责任人和一份业务单据"
-        actions={
-          <>
-            <button type="button">全部对象</button>
-            <button type="button">全部状态</button>
+            <button type="button">刷新</button>
+            <button type="button">列设置</button>
             <button type="button" onClick={onCollect}>
               进入任务
             </button>
@@ -348,27 +289,70 @@ function MarketOverview({
       />
       <WorkspaceTable
         columns={[
-          "任务编号",
-          "监测对象",
-          "对象角色",
-          "地区",
-          "粮食品类",
+          "序号",
+          "样本对象",
+          "对象类型",
+          "责任地区",
+          "品种与具体品种",
+          "本期任务",
+          "价格与质量摘要",
+          "填报状态",
           "责任人",
-          "完成度",
-          "状态",
+          "操作",
         ]}
-        label="市场报送任务"
-        rows={marketTasks.map((task) => [
-          task.id,
+        label="市场报送任务清单"
+        rows={filteredMarketTasks.map((task, index) => [
+          String(index + 1).padStart(2, "0"),
           <strong key={`${task.id}-name`}>{task.targetName}</strong>,
           marketRoleLabels[task.role],
           task.region,
-          grainLabels[task.grain],
-          task.owner,
-          `${getMarketCompletion(task)}%`,
+          `${grainLabels[task.grain]} · ${grainRegistry[grain].examples}`,
+          task.target === "logistics"
+            ? "流入、发运与即期价格"
+            : "价格、数量、库存",
+          grain === "corn"
+            ? "2,410元/吨 · 水分14.2% · 容重716克/升 · 毒素合格"
+            : grain === "soybean"
+              ? "4,286元/吨 · 蛋白39.6% · 水分12.8% · 杂质0.7%"
+              : "3,092元/吨 · 水分15.2% · 出糙率78.4% · 出米率68.1%",
           <MarketStatus key={`${task.id}-status`}>{task.status}</MarketStatus>,
+          task.owner,
+          <button className="unified-table-action" key={`${task.id}-action`}>
+            查看
+          </button>,
         ])}
       />
+      <WorkspacePagination
+        end={filteredMarketTasks.length}
+        page={1}
+        pages={9}
+        start={1}
+        total={428}
+      />
+      <details className="workspace-policy-details">
+        <summary>查看监测区域行政底册</summary>
+        <WorkspaceTable
+          columns={[
+            "监测区域",
+            "覆盖范围",
+            "乡镇覆盖",
+            "行政村",
+            "来源状态",
+            "来源说明",
+          ]}
+          label="监测区域与行政来源"
+          rows={marketRegionCoverage.map((item) => [
+            item.label,
+            item.detail,
+            item.townshipCount,
+            item.villageCount,
+            <MarketStatus key={`${item.label}-state`}>
+              {item.sourceState}
+            </MarketStatus>,
+            item.sourceNote,
+          ])}
+        />
+      </details>
     </div>
   );
 }

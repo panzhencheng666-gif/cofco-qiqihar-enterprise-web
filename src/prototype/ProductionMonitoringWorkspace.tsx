@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { BusinessReportContext } from "./businessReportModel";
+import { useEnterpriseRegion } from "./EnterpriseRegionContext";
+import { getEnterpriseRegion } from "./enterpriseRegions";
 import type { ProductionSection } from "./formalEnterpriseModel";
 import {
   productionCropProfiles,
@@ -19,10 +21,12 @@ import {
   type CollectionMode,
   WorkspaceFilterBar,
   WorkspaceHeader,
+  WorkspaceInlineStats,
+  WorkspacePagination,
   WorkspaceStatus,
-  WorkspaceSummaryStrip,
   WorkspaceTable,
   WorkspaceTableToolbar,
+  WorkspaceRegionSelect,
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
@@ -75,82 +79,19 @@ function ProductionContext({
   state: string;
   tone?: WorkspaceTone;
 }) {
+  const { regionId } = useEnterpriseRegion();
+  const region = getEnterpriseRegion(regionId);
   return (
     <BusinessContextBar
       items={[
-        ["监测区域", "齐齐哈尔指定范围"],
+        ["监测区域", <WorkspaceRegionSelect key="production-region" />],
         ["业务对象", object],
         ["监测期间", "2026 年第 31 周 · 灌浆期"],
         ["截止时间", "7 月 31 日 17:00"],
       ]}
-      state={state}
+      state={`${region.label} · ${state}`}
       tone={tone}
     />
-  );
-}
-
-function ProductionScope({
-  crop,
-  onCropChange,
-}: {
-  crop: ProductionCrop;
-  onCropChange: (crop: ProductionCrop) => void;
-}) {
-  const profile = productionCropProfiles.find((item) => item.key === crop)!;
-  return (
-    <section aria-label="品种与质量监测范围" className="production-scope-panel">
-      <WorkspaceTableToolbar
-        title="品种与质量监测范围"
-        note="保留填报原始品种名称；待映射品种不覆盖原值"
-      />
-      <div className="production-crop-switch">
-        {productionCropProfiles.map((item) => (
-          <button
-            aria-pressed={item.key === crop}
-            className={item.key === crop ? "is-active" : undefined}
-            key={item.key}
-            type="button"
-            onClick={() => onCropChange(item.key)}
-          >
-            <strong>{item.label}</strong>
-            <small>{item.area}</small>
-            {item.key !== crop && (
-              <em>
-                {item.varieties.slice(0, 2).map((variety) => (
-                  <span key={variety.name}>{variety.name}</span>
-                ))}
-              </em>
-            )}
-          </button>
-        ))}
-      </div>
-      <div className="production-scope-detail">
-        <div>
-          <small>具体品种</small>
-          <div className="production-tag-list">
-            {profile.varieties.map((variety) => (
-              <span
-                className={
-                  variety.status === "待映射" ? "is-warning" : undefined
-                }
-                key={variety.name}
-              >
-                {variety.name}
-                <small>{variety.status}</small>
-              </span>
-            ))}
-          </div>
-        </div>
-        <div>
-          <small>质量指标</small>
-          <div className="production-tag-list">
-            {profile.quality.map((quality) => (
-              <span key={quality}>{quality}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -185,24 +126,71 @@ function ProductionOverview({
           </>
         }
       />
-      <ProductionContext
-        object={`${productionCropLabels[crop]} · 产情调查与区域估计`}
-        state="本期调查进行中"
-      />
-      <ProductionScope crop={crop} onCropChange={setCrop} />
-      <WorkspaceSummaryStrip
-        label="产情业务摘要"
+      <WorkspaceFilterBar
+        label="产情监测查询条件"
+        actions={
+          <>
+            <button className="is-primary" type="button">
+              查询
+            </button>
+            <button type="button">重置</button>
+          </>
+        }
+      >
+        <label>
+          <span>监测地区</span>
+          <WorkspaceRegionSelect />
+        </label>
+        <label>
+          <span>调查对象类型</span>
+          <select aria-label="调查对象类型" defaultValue="all">
+            <option value="all">全部调查对象</option>
+            <option value="farmer">农户与家庭农场</option>
+            <option value="cooperative">合作社</option>
+            <option value="station">农技站与样方</option>
+          </select>
+        </label>
+        <label>
+          <span>监测作物</span>
+          <select
+            aria-label="监测作物"
+            value={crop}
+            onChange={(event) => setCrop(event.target.value as ProductionCrop)}
+          >
+            {productionCropProfiles.map((item) => (
+              <option key={item.key} value={item.key}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>调查周期</span>
+          <select aria-label="调查周期" defaultValue="week-31">
+            <option value="week-31">2026 年第 31 周 · 灌浆期</option>
+          </select>
+        </label>
+        <label>
+          <span>任务状态</span>
+          <select aria-label="产情任务状态" defaultValue="all">
+            <option value="all">全部状态</option>
+            <option value="normal">正常监测</option>
+            <option value="review">复核中</option>
+            <option value="blocked">待补依据</option>
+          </select>
+        </label>
+      </WorkspaceFilterBar>
+      <WorkspaceInlineStats
+        label="产情业务统计"
         items={[
           {
-            label: `${profile.label}监测面积`,
+            label: "监测面积",
             value: profile.area,
-            note: "正式行政台账口径",
             tone: "good",
           },
           {
             label: "预计单产",
             value: profile.expectedYield,
-            note: "正式区域估计",
           },
           {
             label: "有效样本",
@@ -218,62 +206,52 @@ function ProductionOverview({
         ]}
       />
       <WorkspaceTableToolbar
-        title="样本结果与区域估计"
-        note="样本观测不直接作为区域总量，发布条件单独核定"
+        title="产情调查任务清单"
+        note={`${profile.label} · ${profile.sampleResult} · ${profile.regionalEstimate}`}
+        actions={
+          <>
+            <button type="button">刷新</button>
+            <button type="button">列设置</button>
+          </>
+        }
       />
       <WorkspaceTable
-        columns={["统计口径", "本期结果", "来源与方法", "状态"]}
-        label="样本结果与区域估计"
-        rows={[
-          [
-            "样本结果",
-            profile.sampleResult,
-            "554 个有效样本 · 样本响应率 92.4%",
-            <WorkspaceStatus key="sample-result">调查观测</WorkspaceStatus>,
-          ],
-          [
-            "区域估计",
-            profile.regionalEstimate,
-            "分层权重第 7 版 · 95% 区间 ±6.8 公斤/亩",
-            <WorkspaceStatus key="regional-estimate" tone="good">
-              正式估计
-            </WorkspaceStatus>,
-          ],
-          [
-            "有效数据覆盖率",
-            "89.7%",
-            "按适用字段和正式免报项目计算",
-            <WorkspaceStatus key="coverage" tone="warning">
-              待提高
-            </WorkspaceStatus>,
-          ],
-          [
-            "质量阻断",
-            "5 项",
-            "稻谷检验单、玉米测产依据等待补充",
-            <WorkspaceStatus key="quality-block" tone="danger">
-              阻断
-            </WorkspaceStatus>,
-          ],
+        columns={[
+          "序号",
+          "调查对象",
+          "对象类型",
+          "责任地区",
+          "作物与具体品种",
+          "质量调查项目",
+          "本期任务",
+          "任务状态",
+          "责任人",
+          "操作",
         ]}
+        label="产情调查任务清单"
+        rows={productionObjectRows
+          .filter((item) => item.crops.includes(profile.label))
+          .map((item, index) => [
+            String(index + 1).padStart(2, "0"),
+            <strong key={`${item.name}-name`}>{item.name}</strong>,
+            productionObjectLabels[item.type],
+            item.region,
+            `${profile.label} · ${item.varieties}`,
+            profile.quality.join("、"),
+            "面积、长势、测产与质量",
+            <WorkspaceStatus key={item.name} tone={statusTone(item.state)}>
+              {item.state}
+            </WorkspaceStatus>,
+            item.owner,
+            <button
+              className="unified-table-action"
+              key={`${item.name}-action`}
+            >
+              查看
+            </button>,
+          ])}
       />
-      <WorkspaceTableToolbar
-        title="产情调查任务"
-        note="行政台账、农技站观察和农户样本分别展示"
-      />
-      <WorkspaceTable
-        columns={["监测对象", "来源通道", "行政区划", "作物与品种", "当前状态"]}
-        label="产情调查任务"
-        rows={productionObjectRows.slice(0, 4).map((item) => [
-          item.name,
-          item.source,
-          item.region,
-          `${item.crops} · ${item.varieties}`,
-          <WorkspaceStatus key={item.name} tone={statusTone(item.state)}>
-            {item.state}
-          </WorkspaceStatus>,
-        ])}
-      />
+      <WorkspacePagination end={4} page={1} pages={12} start={1} total={554} />
     </div>
   );
 }
@@ -295,7 +273,7 @@ function ProductionObjects() {
         }
       />
       <ProductionContext object="全部授权产情监测对象" state="对象名录有效" />
-      <WorkspaceSummaryStrip
+      <WorkspaceInlineStats
         label="产情对象摘要"
         items={[
           {
@@ -718,7 +696,7 @@ function ProductionReview() {
         state="5 项质量阻断"
         tone="danger"
       />
-      <WorkspaceSummaryStrip
+      <WorkspaceInlineStats
         label="产情审核摘要"
         items={[
           {

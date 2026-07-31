@@ -523,6 +523,75 @@
   white-space: nowrap;
 }
 
+.workspace-inline-stats {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow: auto hidden;
+  border-bottom: 1px solid var(--workspace-line);
+  color: var(--workspace-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.workspace-inline-stats > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 18px;
+}
+
+.workspace-inline-stats > span:first-child {
+  padding-left: 1px;
+}
+
+.workspace-inline-stats > span + span {
+  border-left: 1px solid var(--workspace-line);
+}
+
+.workspace-inline-stats strong {
+  color: var(--workspace-text);
+  font-size: 12px;
+}
+
+.workspace-inline-stats small {
+  color: var(--workspace-muted-light);
+  font-size: 9px;
+}
+
+.workspace-inline-stats .is-good strong {
+  color: var(--workspace-teal-deep);
+}
+
+.workspace-inline-stats .is-warning strong {
+  color: var(--workspace-warning);
+}
+
+.workspace-inline-stats .is-danger strong {
+  color: var(--workspace-danger);
+}
+
+.workspace-policy-details {
+  border-bottom: 1px solid var(--workspace-line);
+  background: transparent;
+}
+
+.workspace-policy-details > summary {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  color: var(--workspace-teal-deep);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.workspace-policy-details[open] > summary {
+  margin-bottom: 4px;
+}
+
 .workspace-summary-strip > span {
   display: inline-flex;
   align-items: baseline;
@@ -1145,54 +1214,6 @@
   border-color: var(--workspace-teal);
   color: #fff;
   background: var(--workspace-teal);
-}
-
-.supply-core-equation {
-  min-height: 72px;
-  display: flex;
-  align-items: stretch;
-  border: 1px solid var(--workspace-line);
-  background: #fff;
-}
-
-.supply-core-equation > span {
-  min-width: 180px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 8px;
-  padding: 0 18px;
-}
-
-.supply-core-equation > span.is-result {
-  color: var(--workspace-teal-deep);
-  background: #eef8f5;
-}
-
-.supply-core-equation > b {
-  display: grid;
-  place-items: center;
-  padding: 0 10px;
-  border-right: 1px solid var(--workspace-line);
-  border-left: 1px solid var(--workspace-line);
-  color: #718995;
-  font-size: 18px;
-}
-
-.supply-core-equation small {
-  color: var(--workspace-muted);
-  font-size: 10px;
-}
-
-.supply-core-equation strong {
-  color: currentColor;
-  font-size: 24px;
-}
-
-.supply-core-equation em {
-  color: var(--workspace-muted);
-  font-size: 10px;
-  font-style: normal;
 }
 
 .supply-lineage-flow {

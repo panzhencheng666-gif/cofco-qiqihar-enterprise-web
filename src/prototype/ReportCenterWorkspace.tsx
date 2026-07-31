@@ -3,6 +3,8 @@ import type {
   BusinessReportContext,
   ReportableApplication,
 } from "./businessReportModel";
+import { useEnterpriseRegion } from "./EnterpriseRegionContext";
+import { getEnterpriseRegion } from "./enterpriseRegions";
 import {
   businessReportRows,
   dutyMonthlyRows,
@@ -14,9 +16,10 @@ import {
   BusinessContextBar,
   WorkspaceFilterBar,
   WorkspaceHeader,
+  WorkspaceInlineStats,
   WorkspacePagination,
+  WorkspaceRegionSelect,
   WorkspaceStatus,
-  WorkspaceSummaryStrip,
   WorkspaceTable,
   WorkspaceTableToolbar,
   type WorkspaceTone,
@@ -47,14 +50,6 @@ const reportApplications: readonly {
     versions: ["2026/27 年度市级合并账户", "2026/27 年度县级账户"],
   },
 ];
-
-const reportRegions = [
-  "齐齐哈尔市全域",
-  "讷河市",
-  "龙江县",
-  "黑河市全域",
-  "呼伦贝尔指定范围",
-] as const;
 
 const reportPeriods = [
   "2026-07-31",
@@ -148,14 +143,15 @@ function BusinessReports({
   const definition = reportApplications.find(
     (item) => item.key === application,
   )!;
-  const [region, setRegion] = useState<string>("齐齐哈尔市全域");
+  const { regionId } = useEnterpriseRegion();
+  const region = getEnterpriseRegion(regionId);
   const [product, setProduct] = useState<string>("玉米");
   const [period, setPeriod] = useState<string>("2026 年第 31 周");
   const [dataVersion, setDataVersion] = useState<string>("第 31 周已核定数据");
   const context = buildReportContext({
     application,
     product,
-    region,
+    region: region.label,
     period,
     dataVersion,
   });
@@ -184,7 +180,6 @@ function BusinessReports({
         summary="按业务、地区、产品、期间和已核定数据版本生成报告，不复制原始业务数据。"
         title="业务报告"
       />
-      <ReportContext context={context} state="报告条件完整" />
       <WorkspaceFilterBar
         label="业务报告生成条件"
         actions={
@@ -219,15 +214,7 @@ function BusinessReports({
         </label>
         <label>
           <span>地区</span>
-          <select
-            aria-label="报告地区"
-            value={region}
-            onChange={(event) => setRegion(event.target.value)}
-          >
-            {reportRegions.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
+          <WorkspaceRegionSelect label="报告地区" />
         </label>
         <label>
           <span>产品</span>
@@ -266,7 +253,7 @@ function BusinessReports({
           </select>
         </label>
       </WorkspaceFilterBar>
-      <WorkspaceSummaryStrip
+      <WorkspaceInlineStats
         label="业务报告摘要"
         items={[
           {
@@ -350,13 +337,6 @@ function BusinessReports({
 
 function DutyReports() {
   const [view, setView] = useState<"weekly" | "monthly">("weekly");
-  const dutyContext = buildReportContext({
-    application: "market",
-    product: "全部责任事项",
-    region: "齐齐哈尔市全域",
-    period: "2026 年第 31 周",
-    dataVersion: "第 31 周责任截止快照",
-  });
   return (
     <div className="unified-workspace">
       <WorkspaceHeader
@@ -373,7 +353,6 @@ function DutyReports() {
         summary="监督责任人是否按时完成所属区域任务；不在这里重复填写产情或市场业务值。"
         title="填报履责监督"
       />
-      <ReportContext context={dutyContext} state="第 31 周责任快照已固定" />
       <WorkspaceFilterBar label="履责报告筛选条件">
         <label>
           <span>业务类型</span>
@@ -385,13 +364,7 @@ function DutyReports() {
         </label>
         <label>
           <span>责任区域</span>
-          <select aria-label="履责责任区域" defaultValue="all">
-            <option value="all">全部责任区域</option>
-            <option>齐齐哈尔市本级</option>
-            <option>讷河市</option>
-            <option>甘南县</option>
-            <option>拜泉县</option>
-          </select>
+          <WorkspaceRegionSelect label="履责责任区域" />
         </label>
         <label>
           <span>统计周期</span>
@@ -413,29 +386,32 @@ function DutyReports() {
       <p className="report-workspace-note">
         本页监督是否按时完成；业务日报、周报、月报请在“业务报告”中生成。
       </p>
-      <WorkspaceTableToolbar
-        title="填报责任规则"
-        note="责任、权限、频率和逾期规则统一执行"
-      />
-      <WorkspaceTable
-        columns={["规则事项", "执行规则", "说明"]}
-        label="填报责任规则"
-        rows={[
-          ["责任归属", "一人一责区", "责任配置按人员、区域、业务和有效期生效"],
-          [
-            "填写权限",
-            "他人无权代填",
-            "管理员可以催办和重派未来任务，不能代替责任人填写",
-          ],
-          ["任务频率", "每周填报一次", "按周生成任务并固定截止时间"],
-          [
-            "逾期规则",
-            "逾期补填保留原逾期记录",
-            "补报不覆盖截止快照，周报和月报均可追溯",
-          ],
-        ]}
-      />
-      <WorkspaceSummaryStrip
+      <details aria-label="查看填报规则" className="workspace-policy-details">
+        <summary>查看填报规则</summary>
+        <WorkspaceTable
+          columns={["规则事项", "执行规则", "说明"]}
+          label="填报责任规则"
+          rows={[
+            [
+              "责任归属",
+              "一人一责区",
+              "责任配置按人员、区域、业务和有效期生效",
+            ],
+            [
+              "填写权限",
+              "他人无权代填",
+              "管理员可以催办和重派未来任务，不能代替责任人填写",
+            ],
+            ["任务频率", "每周填报一次", "按周生成任务并固定截止时间"],
+            [
+              "逾期规则",
+              "逾期补填保留原逾期记录",
+              "补报不覆盖截止快照，周报和月报均可追溯",
+            ],
+          ]}
+        />
+      </details>
+      <WorkspaceInlineStats
         label="本周履责指标"
         items={[
           {

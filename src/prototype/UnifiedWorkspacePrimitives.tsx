@@ -1,7 +1,40 @@
 import type { ReactNode } from "react";
+import { useEnterpriseRegion } from "./EnterpriseRegionContext";
+import {
+  enterpriseRegionGroups,
+  type EnterpriseRegionId,
+} from "./enterpriseRegions";
 
 export type WorkspaceTone = "normal" | "good" | "warning" | "danger";
 export type CollectionMode = "online" | "excel" | "system";
+
+export function WorkspaceRegionSelect({
+  label = "业务地区",
+}: {
+  label?: string;
+}) {
+  const { regionId, setRegionId } = useEnterpriseRegion();
+  return (
+    <select
+      aria-label={label}
+      className="workspace-region-select"
+      value={regionId}
+      onChange={(event) =>
+        setRegionId(event.target.value as EnterpriseRegionId)
+      }
+    >
+      {enterpriseRegionGroups.map((group) => (
+        <optgroup key={group.id} label={group.label}>
+          {group.regions.map((region) => (
+            <option key={region.id} value={region.id}>
+              {region.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
 
 export function WorkspaceHeader({
   eyebrow,
@@ -31,7 +64,7 @@ export function BusinessContextBar({
   state,
   tone = "good",
 }: {
-  items: readonly (readonly [label: string, value: string])[];
+  items: readonly (readonly [label: string, value: ReactNode])[];
   state: string;
   tone?: WorkspaceTone;
 }) {
@@ -45,7 +78,7 @@ export function BusinessContextBar({
       {items.map(([label, value]) => (
         <div key={label}>
           <small>{label}</small>
-          <strong>{value}</strong>
+          {typeof value === "string" ? <strong>{value}</strong> : value}
         </div>
       ))}
     </section>
@@ -166,6 +199,26 @@ export function WorkspaceSummaryStrip({
 }) {
   return (
     <div aria-label={label} className="workspace-summary-strip">
+      {items.map((item) => (
+        <span className={`is-${item.tone ?? "normal"}`} key={item.label}>
+          {item.label}
+          <strong>{item.value}</strong>
+          {item.note && <small>{item.note}</small>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function WorkspaceInlineStats({
+  items,
+  label = "业务状态统计",
+}: {
+  items: readonly WorkspaceSummaryItem[];
+  label?: string;
+}) {
+  return (
+    <div aria-label={label} className="workspace-inline-stats">
       {items.map((item) => (
         <span className={`is-${item.tone ?? "normal"}`} key={item.label}>
           {item.label}

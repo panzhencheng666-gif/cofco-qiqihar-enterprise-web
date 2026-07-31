@@ -1,17 +1,23 @@
 import { useState } from "react";
 import type { BusinessReportContext } from "./businessReportModel";
+import { useEnterpriseRegion } from "./EnterpriseRegionContext";
+import {
+  getEnterpriseRegion,
+  type EnterpriseRegionId,
+} from "./enterpriseRegions";
 import type { SupplySection } from "./formalEnterpriseModel";
 import {
   getSupplyBalanceEquation,
-  getSupplyBalanceScope,
-  supplyBalanceScopes,
+  getSupplyBalanceScopeForRegion,
   type SupplyBalanceScopeKey,
 } from "./supplyBalanceScope";
 import {
   BusinessContextBar,
+  WorkspaceFilterBar,
   WorkspaceHeader,
+  WorkspaceInlineStats,
+  WorkspaceRegionSelect,
   WorkspaceStatus,
-  WorkspaceSummaryStrip,
   WorkspaceTable,
   WorkspaceTableToolbar,
   type WorkspaceTone,
@@ -23,31 +29,26 @@ const supplyProducts: readonly {
   key: SupplyProduct;
   label: string;
   account: string;
-  state: string;
 }[] = [
   {
     key: "corn",
     label: "玉米",
     account: "玉米原粮",
-    state: "市级账户已核定",
   },
   {
     key: "soybean",
     label: "大豆",
     account: "大豆原粮",
-    state: "县级资料待补",
   },
   {
     key: "paddy",
     label: "稻谷",
     account: "稻谷原粮",
-    state: "市级账户已核定",
   },
   {
     key: "rice",
     label: "大米",
     account: "大米产品",
-    state: "加工转换待复核",
   },
 ];
 
@@ -70,6 +71,25 @@ const countyAccountRows = [
   ["拜泉县", "账户准备中", "11 / 14", "加工使用待核", "待补数据"],
 ] as const;
 
+const countyAccountRegionIds: readonly EnterpriseRegionId[] = [
+  "qiqihar-longsha",
+  "qiqihar-jianhua",
+  "qiqihar-tiefeng",
+  "qiqihar-angangxi",
+  "qiqihar-fularji",
+  "qiqihar-nianzishan",
+  "qiqihar-meilisi",
+  "qiqihar-nehe",
+  "qiqihar-longjiang",
+  "qiqihar-yian",
+  "qiqihar-tailai",
+  "qiqihar-gannan",
+  "qiqihar-fuyu",
+  "qiqihar-keshan",
+  "qiqihar-kedong",
+  "qiqihar-baiquan",
+];
+
 function toneFor(value: string): WorkspaceTone {
   if (value.includes("阻断") || value.includes("超过")) return "danger";
   if (
@@ -83,96 +103,84 @@ function toneFor(value: string): WorkspaceTone {
   return "normal";
 }
 
-function ProductSwitch({
+function SupplyFilterBar({
   product,
-  onChange,
+  onProductChange,
 }: {
   product: SupplyProduct;
-  onChange: (product: SupplyProduct) => void;
+  onProductChange: (product: SupplyProduct) => void;
 }) {
   return (
-    <section aria-label="供需产品账户" className="supply-product-strip">
-      <div>
-        <small>产品账户</small>
-        <strong>不同产品形态分别建账，不直接混加物理吨数</strong>
-      </div>
-      {supplyProducts.map((item) => (
-        <button
-          aria-pressed={item.key === product}
-          className={item.key === product ? "is-active" : undefined}
-          key={item.key}
-          type="button"
-          onClick={() => onChange(item.key)}
-        >
-          <strong>{item.label}</strong>
-          <small>{item.account}</small>
-          <span>{item.state}</span>
-        </button>
-      ))}
-    </section>
-  );
-}
-
-function RegionSwitch({
-  selected,
-  onChange,
-}: {
-  selected: SupplyBalanceScopeKey;
-  onChange: (key: SupplyBalanceScopeKey) => void;
-}) {
-  const scope = getSupplyBalanceScope(selected);
-  return (
-    <section aria-label="供需平衡地区范围" className="supply-region-band">
-      <div>
-        <small>当前平衡范围</small>
-        <strong>{scope.label}</strong>
-        <span>{scope.level}</span>
-      </div>
-      <div className="supply-region-switch">
-        {supplyBalanceScopes.map((item) => (
-          <button
-            aria-pressed={item.key === selected}
-            className={item.key === selected ? "is-active" : undefined}
-            key={item.key}
-            type="button"
-            onClick={() => onChange(item.key)}
-          >
-            {item.key === "qiqihar" ? "市级全域" : item.label}
+    <WorkspaceFilterBar
+      label="供需账户查询条件"
+      actions={
+        <>
+          <button className="is-primary" type="button">
+            查询
           </button>
-        ))}
-      </div>
-      <div>
-        <small>采用账户</small>
-        <strong>{scope.version}</strong>
-        <em>{scope.coverage}</em>
-        <WorkspaceStatus tone={toneFor(scope.status)}>
-          {scope.status}
-        </WorkspaceStatus>
-      </div>
-    </section>
+          <button type="button">重置</button>
+        </>
+      }
+    >
+      <label>
+        <span>地区</span>
+        <WorkspaceRegionSelect />
+      </label>
+      <label>
+        <span>产品</span>
+        <select
+          aria-label="供需产品"
+          value={product}
+          onChange={(event) =>
+            onProductChange(event.target.value as SupplyProduct)
+          }
+        >
+          {supplyProducts.map((item) => (
+            <option key={item.key} value={item.key}>
+              {item.label} · {item.account}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>账户期间</span>
+        <select aria-label="供需账户期间" defaultValue="2026-27">
+          <option value="2026-27">2026/27 营销年度</option>
+        </select>
+      </label>
+      <label>
+        <span>账户状态</span>
+        <select aria-label="供需账户状态" defaultValue="all">
+          <option value="all">全部状态</option>
+          <option value="verified">已核定</option>
+          <option value="preparing">待准备</option>
+        </select>
+      </label>
+    </WorkspaceFilterBar>
   );
 }
 
 function SupplyContext({
   product,
-  scopeKey,
   state,
   tone,
 }: {
   product: SupplyProduct;
-  scopeKey: SupplyBalanceScopeKey;
   state: string;
   tone?: WorkspaceTone;
 }) {
+  const { regionId } = useEnterpriseRegion();
   const productItem = supplyProducts.find((item) => item.key === product)!;
-  const scope = getSupplyBalanceScope(scopeKey);
+  const region = getEnterpriseRegion(regionId);
+  const scope = getSupplyBalanceScopeForRegion(regionId);
+  const version = scope ? scope.version : "尚未建立正式账户";
   return (
     <BusinessContextBar
       items={[
-        ["统计区域", scope.label],
+        ["统计区域", region.label],
         ["产品账户", productItem.account],
         ["账户期间", "2026/27 营销年度"],
-        ["采用版本", scope.version],
+        ["采用版本", version],
       ]}
       state={state}
       tone={tone}
@@ -180,105 +188,140 @@ function SupplyContext({
   );
 }
 
-function EquationWorkspace({ scopeKey }: { scopeKey: SupplyBalanceScopeKey }) {
+function UnavailableAccount({ product }: { product: SupplyProduct }) {
+  const { regionId } = useEnterpriseRegion();
+  const region = getEnterpriseRegion(regionId);
+  const productItem = supplyProducts.find((item) => item.key === product)!;
+  return (
+    <>
+      <WorkspaceInlineStats
+        label="供需账户状态"
+        items={[
+          {
+            label: "当前地区",
+            value: region.label,
+          },
+          {
+            label: "账户状态",
+            value: "尚未建立正式供需账户",
+            tone: "warning",
+          },
+          {
+            label: "行政底册",
+            value: region.sourceStatus,
+            note: region.sourceNote,
+            tone: region.sourceStatus === "已核定" ? "good" : "warning",
+          },
+        ]}
+      />
+      <WorkspaceTableToolbar
+        title="供需账户准备状态"
+        note="未取得正式输入时不以零值或示例值代替。"
+      />
+      <WorkspaceTable
+        columns={["地区", "产品账户", "账户期间", "当前状态", "下一项工作"]}
+        label="供需账户准备状态"
+        rows={[
+          [
+            region.label,
+            productItem.account,
+            "2026/27 营销年度",
+            <WorkspaceStatus key="unavailable" tone="warning">
+              尚未建立正式供需账户
+            </WorkspaceStatus>,
+            "核定来源、库存、生产、使用与跨区流向后建账",
+          ],
+        ]}
+      />
+    </>
+  );
+}
+
+function BalanceStatement({ scopeKey }: { scopeKey: SupplyBalanceScopeKey }) {
   const equation = getSupplyBalanceEquation(scopeKey);
   return (
     <>
       <WorkspaceTableToolbar
-        title="供需核心等式"
-        note="期末库存和库存平衡差额是两个不同概念"
-      />
-      <section aria-label="供需核心等式" className="supply-core-equation">
-        <span>
-          <small>总供给</small>
-          <strong>{equation.totalSupply}</strong>
-          <em>万吨</em>
-        </span>
-        <b>−</b>
-        <span>
-          <small>总使用</small>
-          <strong>{equation.totalUse}</strong>
-          <em>万吨</em>
-        </span>
-        <b>=</b>
-        <span className="is-result">
-          <small>调整前账面期末</small>
-          <strong>{equation.bookEnding}</strong>
-          <em>万吨</em>
-        </span>
-      </section>
-      <WorkspaceTableToolbar
-        title="供需账户构成"
-        note="供给来源、使用去向和库存调查分别列示"
+        title="区域粮食供需平衡表"
+        note="单位：万吨；账面结果、调查对照和批准调整在同一张表内连续核对"
       />
       <WorkspaceTable
-        columns={["账户项目", "本期结果", "构成或计算说明", "数据性质"]}
-        label="供需账户构成"
+        columns={[
+          "业务环节",
+          "账户项目",
+          "本期结果",
+          "计算或数据来源",
+          "数据性质",
+          "当前状态",
+        ]}
+        label="区域粮食供需平衡表"
         rows={[
           [
+            "供给",
             "总供给",
             `${equation.totalSupply} 万吨`,
             "期初库存＋本期生产＋区域外流入＋其他供给",
+            "账户采用值",
             <WorkspaceStatus key="total-supply" tone="good">
-              账户采用值
+              已核定
             </WorkspaceStatus>,
           ],
           [
+            "使用",
             "总使用",
             `${equation.totalUse} 万吨`,
             "消费＋加工＋损耗＋区域外流出＋其他使用",
+            "账户采用值",
             <WorkspaceStatus key="total-use" tone="good">
-              账户采用值
+              已核定
             </WorkspaceStatus>,
           ],
           [
+            "账面库存",
             "调整前账面期末",
             `${equation.bookEnding} 万吨`,
             "总供给 − 总使用",
+            "公式结果",
             <WorkspaceStatus key="book-ending" tone="good">
-              公式结果
+              已计算
             </WorkspaceStatus>,
           ],
           [
+            "调查对照",
             "调查汇总期末",
             `${equation.surveyEnding} 万吨`,
             "企业与农户库存调查汇总",
+            "独立调查值",
             <WorkspaceStatus key="survey-ending" tone="warning">
-              调查对照值
+              待核对
             </WorkspaceStatus>,
           ],
-        ]}
-      />
-      <WorkspaceTableToolbar
-        title="库存差异解释"
-        note="未经批准的差额不得直接覆盖账面期末"
-      />
-      <WorkspaceTable
-        columns={["事项", "数值", "计算或采用规则", "当前状态"]}
-        label="库存差异解释"
-        rows={[
           [
+            "调整",
             "批准库存调整",
             `${equation.approvedAdjustment} 万吨`,
-            "经审核批准后才进入正式账户",
+            "仅采用已完成审核批准的调整值",
+            "审核采用值",
             <WorkspaceStatus key="approved-adjustment">
               当前无调整
             </WorkspaceStatus>,
           ],
           [
+            "正式结果",
             "采用后账面期末",
             `${equation.adoptedEnding} 万吨`,
             "调整前账面期末＋批准库存调整",
+            "正式账户结果",
             <WorkspaceStatus key="adopted-ending" tone="good">
-              候选期初
+              候选下期期初
             </WorkspaceStatus>,
           ],
           [
+            "差异检查",
             "库存平衡差额",
-            <strong key="inventory-difference">
-              {equation.inventoryDifference}
-            </strong>,
+            `${equation.inventoryDifference} 万吨`,
             "调查汇总期末 − 调整前账面期末",
+            "质量检查值",
             <WorkspaceStatus key="difference-status" tone="warning">
               待解释
             </WorkspaceStatus>,
@@ -295,19 +338,21 @@ function SupplyOverview({
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
   const [product, setProduct] = useState<SupplyProduct>("corn");
-  const [scopeKey, setScopeKey] = useState<SupplyBalanceScopeKey>("qiqihar");
-  const scope = getSupplyBalanceScope(scopeKey);
-  const equation = getSupplyBalanceEquation(scopeKey);
+  const { regionId } = useEnterpriseRegion();
+  const scope = getSupplyBalanceScopeForRegion(regionId);
+  const scopeKey = scope?.key ?? null;
+  const equation = scopeKey ? getSupplyBalanceEquation(scopeKey) : null;
+  const region = getEnterpriseRegion(regionId);
   const productItem = supplyProducts.find((item) => item.key === product)!;
   const reportContext: BusinessReportContext = {
     application: "supply",
     applicationLabel: "供需与态势",
     product: productItem.account,
-    region: scope.label,
-    regionLevel: scope.level,
+    region: region.label,
+    regionLevel: scope?.level ?? region.level,
     period: "2026/27 营销年度",
     dataCutoff: "7 月 31 日 17:00",
-    dataVersion: scope.version,
+    dataVersion: scope?.version ?? "尚未建立正式账户",
     author: "王洋",
     reviewer: "赵晨",
   };
@@ -330,42 +375,37 @@ function SupplyOverview({
           </>
         }
       />
-      <SupplyContext
-        product={product}
-        scopeKey={scopeKey}
-        state={scope.status === "已核定" ? "正式账户已核定" : "输入资料待补"}
-        tone={scope.status === "已核定" ? "good" : "warning"}
-      />
-      <ProductSwitch product={product} onChange={setProduct} />
-      <RegionSwitch selected={scopeKey} onChange={setScopeKey} />
-      <WorkspaceSummaryStrip
-        label="供需账户摘要"
-        items={[
-          {
-            label: "总供给",
-            value: `${equation.totalSupply} 万吨`,
-            note: "正式指标版本采用值",
-          },
-          {
-            label: "总使用",
-            value: `${equation.totalUse} 万吨`,
-            note: "使用与区域外流出",
-          },
-          {
-            label: "采用后账面期末",
-            value: `${equation.adoptedEnding} 万吨`,
-            note: "批准调整后正式采用",
-            tone: "good",
-          },
-          {
-            label: "库存平衡差额",
-            value: `${equation.inventoryDifference} 万吨`,
-            note: "调查期末与账面期末之差",
-            tone: "warning",
-          },
-        ]}
-      />
-      <EquationWorkspace scopeKey={scopeKey} />
+      <SupplyFilterBar product={product} onProductChange={setProduct} />
+      {scope && scopeKey && equation ? (
+        <>
+          <WorkspaceInlineStats
+            label="当前供需账户"
+            items={[
+              {
+                label: "账户层级",
+                value: scope.level,
+              },
+              {
+                label: "数据覆盖",
+                value: scope.coverage,
+                tone: toneFor(scope.status),
+              },
+              {
+                label: "采用版本",
+                value: scope.version,
+              },
+              {
+                label: "账户状态",
+                value: scope.status,
+                tone: toneFor(scope.status),
+              },
+            ]}
+          />
+          <BalanceStatement scopeKey={scopeKey} />
+        </>
+      ) : (
+        <UnavailableAccount product={product} />
+      )}
     </div>
   );
 }
@@ -380,12 +420,7 @@ function ProductAccounts() {
         title="产品账户与构成项目"
         summary="玉米、大豆、稻谷和大米分别建账；加工转换在上下游账户成对记录。"
       />
-      <SupplyContext
-        product={product}
-        scopeKey="qiqihar"
-        state="账户规范第 4 版有效"
-      />
-      <ProductSwitch product={product} onChange={setProduct} />
+      <SupplyFilterBar product={product} onProductChange={setProduct} />
       <WorkspaceTableToolbar
         title={`${productItem.account}账户项目`}
         note="一个规范事实最多进入一个可加总角色。"
@@ -441,65 +476,87 @@ function ProductAccounts() {
 }
 
 function RegionalBalance() {
-  const [scopeKey, setScopeKey] = useState<SupplyBalanceScopeKey>("qiqihar");
-  const scope = getSupplyBalanceScope(scopeKey);
+  const [product, setProduct] = useState<SupplyProduct>("corn");
+  const { regionId, setRegionId } = useEnterpriseRegion();
+  const region = getEnterpriseRegion(regionId);
+  const isQiqihar = region.parentId === "qiqihar";
+  const comparisonRegionIds: readonly EnterpriseRegionId[] =
+    regionId === "qiqihar-all"
+      ? ["qiqihar-all", ...countyAccountRegionIds]
+      : ["qiqihar-all", regionId];
   return (
     <div className="unified-workspace supply-workspace">
       <WorkspaceHeader
         eyebrow="供需与态势 / 区域平衡"
-        title="市级与县区供需平衡"
-        summary="市级账户抵销市内县区流转；县区账户分别列示流入和流出。"
+        title="市县供需账户对比"
+        summary="比较市级合并账户与县区账户的供给、使用、期末库存、差异和数据完整度，并进入单一地区明细。"
       />
-      <SupplyContext
-        product="corn"
-        scopeKey={scopeKey}
-        state={scope.status}
-        tone={scope.status === "已核定" ? "good" : "warning"}
-      />
-      <RegionSwitch selected={scopeKey} onChange={setScopeKey} />
-      <WorkspaceSummaryStrip
-        label="地区账户规则"
-        items={[
-          {
-            label: "账户层级",
-            value: scope.level,
-            note: "地区切换不改变产品和营销年度",
-          },
-          {
-            label: "数据覆盖",
-            value: scope.coverage,
-            note: scope.status,
-            tone: toneFor(scope.status),
-          },
-          {
-            label: "市内流转处理",
-            value:
-              scope.level === "市级合并"
-                ? `${scope.internalFlowElimination} 已抵销`
-                : "分别列示流入流出",
-            note: "账户规则有效",
-            tone: "good",
-          },
-        ]}
-      />
-      <EquationWorkspace scopeKey={scopeKey} />
-      <WorkspaceTableToolbar
-        title="全部县区账户准备状态"
-        note="没有正式输入的县区明确显示待准备，不以零补齐。"
-      />
-      <WorkspaceTable
-        columns={["县区", "账户版本", "输入覆盖", "缺失或质量问题", "状态"]}
-        label="县区供需账户"
-        rows={countyAccountRows.map((row) => [
-          row[0],
-          row[1],
-          row[2],
-          row[3],
-          <WorkspaceStatus key={row[0]} tone={toneFor(row[4])}>
-            {row[4]}
-          </WorkspaceStatus>,
-        ])}
-      />
+      <SupplyFilterBar product={product} onProductChange={setProduct} />
+      {!isQiqihar ? (
+        <UnavailableAccount product={product} />
+      ) : (
+        <>
+          <WorkspaceTableToolbar
+            title="市县供需账户对比"
+            note={
+              regionId === "qiqihar-all"
+                ? "市级合并账户抵销市内流转；县区账户分别列示流入和流出"
+                : `当前对比：齐齐哈尔市全域与${region.label}`
+            }
+          />
+          <WorkspaceTable
+            columns={[
+              "地区",
+              "账户层级",
+              "账户版本",
+              "总供给",
+              "总使用",
+              "采用后期末",
+              "库存差额",
+              "输入覆盖",
+              "待办或质量问题",
+              "状态",
+              "操作",
+            ]}
+            label="市县供需账户对比"
+            rows={comparisonRegionIds.map((rowRegionId) => {
+              const rowScope = getSupplyBalanceScopeForRegion(rowRegionId);
+              const rowEquation = rowScope
+                ? getSupplyBalanceEquation(rowScope.key)
+                : null;
+              const countyIndex = countyAccountRegionIds.indexOf(rowRegionId);
+              const countyRow =
+                countyIndex >= 0 ? countyAccountRows[countyIndex] : null;
+              const rowStatus = rowScope?.status ?? countyRow?.[4] ?? "待准备";
+              return [
+                getEnterpriseRegion(rowRegionId).label,
+                rowScope?.level ?? "县级账户",
+                rowScope?.version ?? countyRow?.[1] ?? "尚未建立可发布账户",
+                rowEquation ? `${rowEquation.totalSupply} 万吨` : "—",
+                rowEquation ? `${rowEquation.totalUse} 万吨` : "—",
+                rowEquation ? `${rowEquation.adoptedEnding} 万吨` : "—",
+                rowEquation ? `${rowEquation.inventoryDifference} 万吨` : "—",
+                rowScope?.coverage ?? countyRow?.[2] ?? "—",
+                countyRow?.[3] ?? "市内县区流转已抵销",
+                <WorkspaceStatus
+                  key={`${rowRegionId}-status`}
+                  tone={toneFor(rowStatus)}
+                >
+                  {rowStatus}
+                </WorkspaceStatus>,
+                <button
+                  className="unified-table-action"
+                  key={`${rowRegionId}-action`}
+                  type="button"
+                  onClick={() => setRegionId(rowRegionId)}
+                >
+                  {regionId === rowRegionId ? "当前" : "查看"}
+                </button>,
+              ];
+            })}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -512,7 +569,7 @@ function IndicatorLineage() {
         title="指标与来源追溯"
         summary="查看每个账户值采用的正式指标、来源数据、截止时间、质量和审核版本。"
       />
-      <SupplyContext product="corn" scopeKey="qiqihar" state="来源可追溯" />
+      <SupplyContext product="corn" state="来源可追溯" />
       <WorkspaceTableToolbar
         title="玉米原粮账户采用指标"
         note="供需页面不重新填写来源值。"
@@ -597,11 +654,7 @@ function SituationAnalysis() {
         title="供需态势与影响因素"
         summary="价格、质量、成本和种植意愿用于解释账户变化，不作为可相加供需数量。"
       />
-      <SupplyContext
-        product="corn"
-        scopeKey="qiqihar"
-        state="初步态势与正式账户已区分"
-      />
+      <SupplyContext product="corn" state="初步态势与正式账户已区分" />
       <WorkspaceTableToolbar
         title="供需态势解释指标"
         note="解释指标用于说明变化，不进入可相加供需数量"

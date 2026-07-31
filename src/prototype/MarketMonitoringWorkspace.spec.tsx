@@ -17,26 +17,32 @@ describe("market monitoring workspace", () => {
     expect(
       screen.getByRole("heading", { name: "粮食市场监测总览" }),
     ).toBeVisible();
-    expect(screen.getByText("三大监测区域")).toBeVisible();
-    expect(screen.getAllByText("待核定").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "切换到玉米" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "切换到大豆" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "切换到稻谷" })).toBeVisible();
-    expect(screen.getAllByText(/德美亚3号、京科968/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("combobox", { name: "业务地区" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "样本类型" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "粮食品种" })).toHaveValue(
+      "corn",
+    );
     expect(
-      screen.getByRole("region", { name: "价格对应质量条件" }),
+      screen.getByRole("table", { name: "市场报送任务清单" }),
+    ).toHaveTextContent("德美亚3号");
+    expect(
+      screen.getByRole("table", { name: "市场报送任务清单" }),
     ).toHaveTextContent("水分");
     expect(
-      screen.getByRole("region", { name: "价格对应质量条件" }),
+      screen.getByRole("table", { name: "市场报送任务清单" }),
     ).toHaveTextContent("容重");
     expect(
-      screen.getByRole("region", { name: "价格对应质量条件" }),
+      screen.getByRole("table", { name: "市场报送任务清单" }),
     ).toHaveTextContent("毒素");
-    expect(screen.getByLabelText("市场业务摘要")).toBeVisible();
-    expect(screen.getByRole("table", { name: "市场运行事实" })).toBeVisible();
-    expect(screen.getByRole("table", { name: "市场报送任务" })).toBeVisible();
+    expect(screen.getByLabelText("市场业务统计")).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "市场报送任务清单" }),
+    ).toBeVisible();
     expect(container.querySelector(".market-metric-strip")).toBeNull();
     expect(container.querySelector(".market-overview-grid")).toBeNull();
+    expect(container.querySelector(".market-grain-strip")).toBeNull();
+    expect(container.querySelector(".market-quality-basis")).toBeNull();
+    expect(container.querySelector(".workspace-summary-strip")).toBeNull();
   });
 
   it("shows registered varieties in the monitoring-object registry", () => {
@@ -82,7 +88,10 @@ describe("market monitoring workspace", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "切换到大豆" }));
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "粮食品种" }),
+      "soybean",
+    );
     await user.click(screen.getByRole("button", { name: "编制业务报告" }));
 
     expect(onComposeReport).toHaveBeenCalledWith(

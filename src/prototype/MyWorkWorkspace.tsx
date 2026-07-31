@@ -4,7 +4,7 @@ import {
   WorkspaceHeader,
   WorkspacePagination,
   WorkspaceStatus,
-  WorkspaceSummaryStrip,
+  WorkspaceInlineStats,
   WorkspaceTable,
   WorkspaceTableToolbar,
 } from "./UnifiedWorkspacePrimitives";
@@ -148,7 +148,7 @@ export function MyWorkWorkspace({
         ]}
         state="责任岗位有效"
       />
-      <WorkspaceSummaryStrip
+      <WorkspaceInlineStats
         label="本人工作摘要"
         items={[
           {

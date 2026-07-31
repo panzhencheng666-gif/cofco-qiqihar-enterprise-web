@@ -1,19 +1,36 @@
+import { useState, type ReactNode } from "react";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { EnterpriseRegionProvider } from "./EnterpriseRegionContext";
 import { ReportCenterWorkspace } from "./ReportCenterWorkspace";
+import type { EnterpriseRegionId } from "./enterpriseRegions";
 
 afterEach(cleanup);
 
 describe("ReportCenterWorkspace", () => {
+  function RegionHarness({ children }: { children: ReactNode }) {
+    const [regionId, setRegionId] = useState<EnterpriseRegionId>("qiqihar-all");
+    return (
+      <EnterpriseRegionProvider
+        regionId={regionId}
+        onRegionChange={setRegionId}
+      >
+        {children}
+      </EnterpriseRegionProvider>
+    );
+  }
+
   it("builds business reports from an explicit business context", async () => {
     const user = userEvent.setup();
     const onComposeReport = vi.fn();
     const { container } = render(
-      <ReportCenterWorkspace
-        section="business-reports"
-        onComposeReport={onComposeReport}
-      />,
+      <RegionHarness>
+        <ReportCenterWorkspace
+          section="business-reports"
+          onComposeReport={onComposeReport}
+        />
+      </RegionHarness>,
     );
 
     const context = screen.getByRole("region", {
@@ -24,7 +41,7 @@ describe("ReportCenterWorkspace", () => {
     ).toHaveValue("market");
     expect(
       within(context).getByRole("combobox", { name: "报告地区" }),
-    ).toHaveValue("齐齐哈尔市全域");
+    ).toHaveValue("qiqihar-all");
     expect(
       within(context).getByRole("combobox", { name: "报告期间" }),
     ).toHaveValue("2026 年第 31 周");
@@ -38,7 +55,7 @@ describe("ReportCenterWorkspace", () => {
     );
     await user.selectOptions(
       within(context).getByRole("combobox", { name: "报告地区" }),
-      "讷河市",
+      "heihe-all",
     );
 
     await user.click(screen.getByRole("button", { name: "生成周报" }));
@@ -46,22 +63,29 @@ describe("ReportCenterWorkspace", () => {
       expect.objectContaining({
         application: "production",
         product: "玉米",
-        region: "讷河市",
+        region: "黑河市全域",
       }),
     );
     expect(screen.getByRole("table", { name: "业务报告台账" })).toBeVisible();
     expect(container.querySelector(".unified-metric-strip")).toBeNull();
+    expect(container.querySelector(".workspace-summary-strip")).toBeNull();
+    expect(screen.queryByRole("region", { name: "当前业务上下文" })).toBeNull();
   });
 
   it("keeps responsibility supervision centralized and auditable", async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <ReportCenterWorkspace
-        section="duty-reports"
-        onComposeReport={vi.fn()}
-      />,
+      <RegionHarness>
+        <ReportCenterWorkspace
+          section="duty-reports"
+          onComposeReport={vi.fn()}
+        />
+      </RegionHarness>,
     );
 
+    const policy = screen.getByRole("group", { name: "查看填报规则" });
+    expect(policy).not.toHaveAttribute("open");
+    await user.click(screen.getByText("查看填报规则"));
     expect(screen.getByText("一人一责区")).toBeVisible();
     expect(screen.getByText("他人无权代填")).toBeVisible();
     expect(screen.getByText("逾期补填保留原逾期记录")).toBeVisible();
@@ -71,8 +95,14 @@ describe("ReportCenterWorkspace", () => {
       "all",
     );
     expect(screen.getByRole("combobox", { name: "履责责任区域" })).toHaveValue(
-      "all",
+      "qiqihar-all",
     );
+    expect(
+      within(screen.getByRole("combobox", { name: "履责责任区域" })).getByRole(
+        "option",
+        { name: "黑河市全域" },
+      ),
+    ).toBeVisible();
     expect(
       screen.getByText(/业务日报、周报、月报请在“业务报告”中生成/),
     ).toBeVisible();
@@ -81,6 +111,8 @@ describe("ReportCenterWorkspace", () => {
     expect(within(table).getByText("截止未提交")).toBeVisible();
     expect(container.querySelector(".duty-rule-strip")).toBeNull();
     expect(container.querySelector(".unified-metric-strip")).toBeNull();
+    expect(container.querySelector(".workspace-summary-strip")).toBeNull();
+    expect(screen.queryByRole("region", { name: "当前业务上下文" })).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "月度履责" }));
     expect(screen.getByRole("table", { name: "月度履责记录" })).toBeVisible();

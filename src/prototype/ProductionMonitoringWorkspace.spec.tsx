@@ -15,22 +15,33 @@ describe("production monitoring workspace", () => {
       />,
     );
 
-    expect(screen.getByText("德美亚3号")).toBeVisible();
-    expect(screen.getByText("黑农84")).toBeVisible();
-    expect(screen.getByText("龙粳31")).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "业务地区" })).toBeVisible();
     expect(
-      screen.getByRole("toolbar", { name: "品种与质量监测范围" }),
+      screen.getByRole("combobox", { name: "调查对象类型" }),
     ).toBeVisible();
-    expect(screen.getByText("样本结果")).toBeVisible();
-    expect(screen.getByText("区域估计")).toBeVisible();
-    expect(screen.getByText("样本响应率 92.4%")).toBeVisible();
-    expect(screen.getByLabelText("产情业务摘要").children).toHaveLength(4);
+    expect(screen.getByRole("combobox", { name: "监测作物" })).toHaveValue(
+      "corn",
+    );
     expect(
-      screen.getByRole("table", { name: "样本结果与区域估计" }),
+      screen.getByRole("table", { name: "产情调查任务清单" }),
+    ).toHaveTextContent("德美亚3号");
+    expect(
+      screen.getByRole("table", { name: "产情调查任务清单" }),
+    ).toHaveTextContent("水分");
+    expect(
+      screen.getByRole("table", { name: "产情调查任务清单" }),
+    ).toHaveTextContent("容重");
+    expect(
+      screen.getByRole("table", { name: "产情调查任务清单" }),
+    ).toHaveTextContent("毒素");
+    expect(screen.getByLabelText("产情业务统计")).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "产情调查任务清单" }),
     ).toBeVisible();
-    expect(screen.getByRole("table", { name: "产情调查任务" })).toBeVisible();
     expect(container.querySelector(".production-estimate-grid")).toBeNull();
     expect(container.querySelector(".unified-two-column")).toBeNull();
+    expect(container.querySelector(".production-scope-panel")).toBeNull();
+    expect(container.querySelector(".workspace-summary-strip")).toBeNull();
   });
 
   it("supports three collection channels in the same production task", async () => {

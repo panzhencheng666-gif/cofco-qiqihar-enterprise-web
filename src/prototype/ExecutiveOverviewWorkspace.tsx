@@ -3,7 +3,7 @@ import {
   BusinessContextBar,
   WorkspaceHeader,
   WorkspaceStatus,
-  WorkspaceSummaryStrip,
+  WorkspaceInlineStats,
   WorkspaceTable,
   WorkspaceTableToolbar,
 } from "./UnifiedWorkspacePrimitives";
@@ -37,7 +37,7 @@ export function ExecutiveOverviewWorkspace({
         ]}
         state="正式与初步数据已区分"
       />
-      <WorkspaceSummaryStrip
+      <WorkspaceInlineStats
         label="经营核心摘要"
         items={[
           {

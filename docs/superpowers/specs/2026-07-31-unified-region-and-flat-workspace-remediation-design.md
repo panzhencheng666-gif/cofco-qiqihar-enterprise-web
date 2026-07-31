@@ -46,14 +46,18 @@ shows an explicit unavailable-account state instead of fabricated zero values.
 Operational pages use this order:
 
 1. Page title and primary actions.
-2. One compact context/filter row containing region, product, period, and
-   version where applicable.
-3. One dominant table or form workspace.
-4. Secondary details only after the primary table.
+2. Workflow tabs where the business has distinct status queues.
+3. One compact filter row containing region, object type, product, period,
+   status, and version where applicable.
+4. One borderless inline status row.
+5. One dominant table or form workspace.
+6. Pagination and secondary details after the primary table.
 
 Large metric cards and stacked product/quality/status bands are removed from
 operational pages. The executive overview may retain a single compact inline
 summary because it is an aggregation surface rather than a transaction surface.
+Concrete varieties and their applicable quality fields remain visible in the
+dominant table instead of being split into separate dashboard bands.
 
 ## Rule Presentation
 
