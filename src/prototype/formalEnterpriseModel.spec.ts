@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   canFillWeeklyTask,
+  createFormalRoute,
+  readFormalLocation,
   readFormalRoute,
   summarizeDutyMonth,
+  writeFormalLocation,
   writeFormalRoute,
+  type FormalLocation,
   type DutySnapshot,
   type WeeklyTaskAuthorization,
 } from "./formalEnterpriseModel";
@@ -15,40 +19,28 @@ import {
 } from "./formalEnterpriseData";
 
 describe("formal enterprise route model", () => {
-  it("reads every application section and falls back to the work inbox", () => {
-    expect(readFormalRoute("?page=reporting&section=duty-reports")).toEqual({
+  it("reads typed application sections and falls back to the work task list", () => {
+    expect(readFormalRoute("?page=production&section=objects")).toEqual({
+      application: "production",
+      section: "objects",
+    });
+    expect(readFormalRoute("?page=supply&section=analysis")).toEqual({
+      application: "supply",
+      section: "calculation",
+    });
+    expect(readFormalRoute("?page=reporting&section=compose")).toEqual({
       application: "reporting",
-      section: "duty-reports",
+      section: "compose",
     });
 
     expect(readFormalRoute("?page=unknown&section=unknown")).toEqual({
       application: "work",
-      section: "inbox",
-    });
-
-    expect(readFormalRoute("?page=market&section=collection")).toEqual({
-      application: "market",
-      section: "collection",
+      section: "tasks",
     });
 
     expect(readFormalRoute("?page=market&section=unknown")).toEqual({
       application: "market",
-      section: "overview",
-    });
-
-    expect(readFormalRoute("?page=production&section=collection")).toEqual({
-      application: "production",
-      section: "collection",
-    });
-
-    expect(readFormalRoute("?page=supply&section=versions")).toEqual({
-      application: "supply",
-      section: "versions",
-    });
-
-    expect(readFormalRoute("?page=supply&section=regional")).toEqual({
-      application: "supply",
-      section: "statement",
+      section: "tasks",
     });
   });
 
@@ -56,30 +48,73 @@ describe("formal enterprise route model", () => {
     expect(
       writeFormalRoute({
         application: "reporting",
-        section: "duty-reports",
+        section: "compose",
       }),
-    ).toBe("page=reporting&section=duty-reports");
+    ).toBe("page=reporting");
 
     expect(
       writeFormalRoute({
         application: "market",
-        section: "overview",
+        section: "tasks",
       }),
     ).toBe("page=market");
 
     expect(
       writeFormalRoute({
         application: "production",
-        section: "collection",
+        section: "objects",
       }),
-    ).toBe("page=production&section=collection");
+    ).toBe("page=production&section=objects");
 
     expect(
       writeFormalRoute({
         application: "work",
-        section: "inbox",
+        section: "tasks",
       }),
     ).toBe("page=work");
+  });
+});
+
+describe("formal location", () => {
+  const authorization = {
+    authorizedRegionIds: ["qiqihar-nehe"],
+    authorizedBusinessClassificationIds: ["production.planting-production"],
+    authorizedProductIds: ["corn"],
+    authorizedCultivarIds: ["jingke-968"],
+    authorizedReleaseVersionIds: ["METRIC-2026-W31-V3"],
+    permissionKeys: ["prototype:read"],
+  } as const;
+
+  it("constructs only valid application sections", () => {
+    createFormalRoute("reporting", "compose");
+    createFormalRoute("overview", "duty");
+    // @ts-expect-error supply does not have an operations section
+    createFormalRoute("supply", "operations");
+  });
+
+  it("round-trips a full formal location", () => {
+    const location: FormalLocation = {
+      route: createFormalRoute("production", "tasks"),
+      coordinates: {
+        regionId: "qiqihar-nehe",
+        regionLevel: "county",
+        businessSubtypeId: "planting-production",
+        productId: "corn",
+        cultivarId: "jingke-968",
+        periodKey: "2026-W31",
+        dataCutoff: "2026-07-31T17:00:00+08:00",
+        dataLayer: "official",
+        releaseVersion: "METRIC-2026-W31-V3",
+        riskState: "all",
+        selectedMetricId: "production.total-output",
+      },
+      selection: { type: "work-item", id: "PROD-W31-002" },
+    };
+
+    expect(readFormalLocation(writeFormalLocation(location), authorization)).toEqual({
+      location,
+      issues: [],
+    });
   });
 });
 
@@ -149,7 +184,7 @@ describe("formal enterprise sample data", () => {
     );
   });
 
-  it("contains the six ordinary-user entries and a consolidated duty report", () => {
+  it("contains the six ordinary-user entries and typed reporting navigation", () => {
     expect(
       formalApplicationDefinitions.map((application) => application.key),
     ).toEqual([
@@ -161,7 +196,7 @@ describe("formal enterprise sample data", () => {
       "reporting",
     ]);
     expect(reportingNavigation.flatMap((group) => group.items)).toContainEqual(
-      expect.objectContaining({ key: "duty-reports" }),
+      expect.objectContaining({ key: "review-distribution" }),
     );
   });
 });

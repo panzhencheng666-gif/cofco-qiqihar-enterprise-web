@@ -1,43 +1,186 @@
-export const formalApplications = [
-  "work",
-  "overview",
-  "production",
-  "market",
-  "supply",
-  "reporting",
-] as const;
+import type { BusinessClassification } from "./core/businessClassification";
+import type { EnterpriseRegionId } from "./enterpriseRegions";
 
 export const formalSectionsByApplication = {
-  work: ["inbox", "reporting", "review", "exception", "completed"],
-  overview: ["overview"],
-  production: ["overview", "objects", "collection", "review", "reports"],
-  market: ["overview", "objects", "collection", "review", "reports"],
-  supply: ["statement", "versions"],
-  reporting: [
-    "business-reports",
-    "duty-reports",
-    "review",
-    "distribution",
-    "versions",
-  ],
+  work: ["tasks"],
+  overview: ["operations", "risks", "duty", "releases"],
+  production: ["tasks", "objects", "analysis"],
+  market: ["tasks", "objects", "analysis"],
+  supply: ["calculation", "comparison", "versions"],
+  reporting: ["compose", "review-distribution", "ledger"],
 } as const;
 
-export type FormalApplication = (typeof formalApplications)[number];
-export type WorkSection = (typeof formalSectionsByApplication.work)[number];
-export type OverviewSection =
-  (typeof formalSectionsByApplication.overview)[number];
-export type ProductionSection =
-  (typeof formalSectionsByApplication.production)[number];
-export type MarketSection = (typeof formalSectionsByApplication.market)[number];
-export type SupplySection = (typeof formalSectionsByApplication.supply)[number];
-export type ReportingSection =
-  (typeof formalSectionsByApplication.reporting)[number];
-export type FormalSection =
-  (typeof formalSectionsByApplication)[keyof typeof formalSectionsByApplication][number];
+export const formalApplications = Object.keys(
+  formalSectionsByApplication,
+) as readonly (keyof typeof formalSectionsByApplication)[];
 
-export interface FormalRoute {
-  application: FormalApplication;
-  section: FormalSection;
+export type FormalApplication = keyof typeof formalSectionsByApplication;
+export type SectionFor<A extends FormalApplication> =
+  (typeof formalSectionsByApplication)[A][number];
+export type FormalRoute = {
+  [A in FormalApplication]: { application: A; section: SectionFor<A> };
+}[FormalApplication];
+
+export function createFormalRoute<A extends FormalApplication>(
+  application: A,
+  section: SectionFor<A>,
+): Extract<FormalRoute, { application: A }> {
+  return { application, section } as Extract<FormalRoute, { application: A }>;
+}
+
+export type WorkSection = SectionFor<"work">;
+export type OverviewSection = SectionFor<"overview">;
+export type ProductionSection = SectionFor<"production">;
+export type MarketSection = SectionFor<"market">;
+export type SupplySection = SectionFor<"supply"> | "statement";
+export type ReportingSection = SectionFor<"reporting">;
+export type FormalSection = SectionFor<FormalApplication>;
+
+export interface FormalSelection {
+  type:
+    | "work-item"
+    | "object"
+    | "document"
+    | "exception"
+    | "report"
+    | "release-version";
+  id: string;
+}
+
+export interface BusinessCoordinates {
+  regionId: string;
+  regionLevel?: "city" | "county" | "township" | "village" | "custom";
+  businessDomainId?: string;
+  businessSubtypeId?: string;
+  productId?: string;
+  cultivarId?: string;
+  periodKey?: string;
+  dataCutoff?: string;
+  dataLayer?: "preliminary" | "official";
+  releaseVersion?: string;
+  riskState?: "all" | "warning" | "blocking";
+  selectedMetricId?: string;
+}
+
+export interface FormalLocation {
+  route: FormalRoute;
+  coordinates: BusinessCoordinates;
+  selection?: FormalSelection;
+  savedViewId?: string;
+}
+
+export interface FormalLocationAuthorization {
+  authorizedRegionIds: readonly EnterpriseRegionId[];
+  authorizedBusinessClassificationIds: readonly BusinessClassification["id"][];
+  authorizedProductIds: readonly string[];
+  authorizedCultivarIds: readonly string[];
+  authorizedReleaseVersionIds: readonly string[];
+  permissionKeys: readonly string[];
+}
+
+export interface FormalLocationReadResult {
+  location: FormalLocation;
+  issues: readonly string[];
+}
+
+function isFormalApplication(value: string | null): value is FormalApplication {
+  return value !== null && value in formalSectionsByApplication;
+}
+
+export function isSectionForApplication<A extends FormalApplication>(
+  application: A,
+  value: string | null,
+): value is SectionFor<A> {
+  return (formalSectionsByApplication[application] as readonly string[]).some(
+    (section) => section === value,
+  );
+}
+
+export function getDefaultFormalSection<A extends FormalApplication>(
+  application: A,
+): SectionFor<A> {
+  return formalSectionsByApplication[application][0];
+}
+
+export function readFormalRoute(search: string): FormalRoute {
+  const parameters = new URLSearchParams(search);
+  const applicationValue = parameters.get("page");
+  const application = isFormalApplication(applicationValue)
+    ? applicationValue
+    : "work";
+  const sectionValue = parameters.get("section");
+  return createFormalRoute(
+    application,
+    isSectionForApplication(application, sectionValue)
+      ? sectionValue
+      : getDefaultFormalSection(application),
+  );
+}
+
+export function writeFormalRoute(route: FormalRoute): string {
+  const parameters = new URLSearchParams();
+  parameters.set("page", route.application);
+  if (route.section !== getDefaultFormalSection(route.application)) {
+    parameters.set("section", route.section);
+  }
+  return parameters.toString();
+}
+
+const locationCoordinateParameters: readonly [keyof BusinessCoordinates, string][] = [
+  ["regionId", "region"],
+  ["regionLevel", "regionLevel"],
+  ["businessDomainId", "businessDomain"],
+  ["businessSubtypeId", "businessSubtype"],
+  ["productId", "product"],
+  ["cultivarId", "cultivar"],
+  ["periodKey", "period"],
+  ["dataCutoff", "dataCutoff"],
+  ["dataLayer", "dataLayer"],
+  ["releaseVersion", "releaseVersion"],
+  ["riskState", "riskState"],
+  ["selectedMetricId", "selectedMetric"],
+];
+
+export function writeFormalLocation(location: FormalLocation): string {
+  const parameters = new URLSearchParams(writeFormalRoute(location.route));
+  for (const [coordinate, parameter] of locationCoordinateParameters) {
+    const value = location.coordinates[coordinate];
+    if (value) parameters.set(parameter, value);
+  }
+  if (location.selection) {
+    parameters.set("selectionType", location.selection.type);
+    parameters.set("selectionId", location.selection.id);
+  }
+  if (location.savedViewId) parameters.set("savedView", location.savedViewId);
+  return parameters.toString();
+}
+
+export function readFormalLocation(
+  search: string,
+  _authorization: FormalLocationAuthorization,
+): FormalLocationReadResult {
+  const parameters = new URLSearchParams(search);
+  const coordinates = { regionId: parameters.get("region") ?? "authorized-all" } as BusinessCoordinates;
+  for (const [coordinate, parameter] of locationCoordinateParameters.slice(1)) {
+    const value = parameters.get(parameter);
+    if (value) Object.assign(coordinates, { [coordinate]: value });
+  }
+  const selectionType = parameters.get("selectionType");
+  const selectionId = parameters.get("selectionId");
+  const selection =
+    selectionType && selectionId
+      ? { type: selectionType as FormalSelection["type"], id: selectionId }
+      : undefined;
+  const savedViewId = parameters.get("savedView") ?? undefined;
+  return {
+    location: {
+      route: readFormalRoute(search),
+      coordinates,
+      ...(selection ? { selection } : {}),
+      ...(savedViewId ? { savedViewId } : {}),
+    },
+    issues: [],
+  };
 }
 
 export type WeeklyTaskStatus =
@@ -57,93 +200,22 @@ export interface WeeklyTaskAuthorization {
 }
 
 export type DutySnapshotStatus =
-  "按时完成" | "逾期补填" | "截止未提交" | "免报";
-
-export interface DutySnapshot {
-  status: DutySnapshotStatus;
-}
-
+  | "按时完成"
+  | "逾期补填"
+  | "截止未提交"
+  | "免报";
+export interface DutySnapshot { status: DutySnapshotStatus; }
 export interface DutyMonthSummary {
-  expected: number;
-  onTime: number;
-  overdue: number;
-  missing: number;
-  exempt: number;
-  onTimeRate: number;
+  expected: number; onTime: number; overdue: number; missing: number; exempt: number; onTimeRate: number;
 }
-
-function isFormalApplication(value: string | null): value is FormalApplication {
-  return formalApplications.some((application) => application === value);
+export function canFillWeeklyTask(task: WeeklyTaskAuthorization, userId: string): boolean {
+  return task.responsibleUserId === userId && task.status !== "审核通过" && task.status !== "免报";
 }
-
-export function isSectionForApplication(
-  application: FormalApplication,
-  value: string | null,
-): value is FormalSection {
-  return (formalSectionsByApplication[application] as readonly string[]).some(
-    (section) => section === value,
-  );
-}
-
-export function getDefaultFormalSection(
-  application: FormalApplication,
-): FormalSection {
-  return formalSectionsByApplication[application][0];
-}
-
-export function readFormalRoute(search: string): FormalRoute {
-  const parameters = new URLSearchParams(search);
-  const applicationValue = parameters.get("page");
-  const sectionValue = parameters.get("section");
-  const application = isFormalApplication(applicationValue)
-    ? applicationValue
-    : "work";
-
-  return {
-    application,
-    section: isSectionForApplication(application, sectionValue)
-      ? sectionValue
-      : getDefaultFormalSection(application),
-  };
-}
-
-export function writeFormalRoute(route: FormalRoute): string {
-  const parameters = new URLSearchParams();
-  parameters.set("page", route.application);
-  if (route.section !== getDefaultFormalSection(route.application)) {
-    parameters.set("section", route.section);
-  }
-  return parameters.toString();
-}
-
-export function canFillWeeklyTask(
-  task: WeeklyTaskAuthorization,
-  userId: string,
-): boolean {
-  if (task.responsibleUserId !== userId) return false;
-  return task.status !== "审核通过" && task.status !== "免报";
-}
-
-export function summarizeDutyMonth(
-  snapshots: readonly DutySnapshot[],
-): DutyMonthSummary {
+export function summarizeDutyMonth(snapshots: readonly DutySnapshot[]): DutyMonthSummary {
   const exempt = snapshots.filter(({ status }) => status === "免报").length;
   const expected = snapshots.length - exempt;
   const onTime = snapshots.filter(({ status }) => status === "按时完成").length;
-  const overdue = snapshots.filter(
-    ({ status }) => status === "逾期补填",
-  ).length;
-  const missing = snapshots.filter(
-    ({ status }) => status === "截止未提交",
-  ).length;
-
-  return {
-    expected,
-    onTime,
-    overdue,
-    missing,
-    exempt,
-    onTimeRate:
-      expected === 0 ? 0 : Number(((onTime / expected) * 100).toFixed(1)),
-  };
+  const overdue = snapshots.filter(({ status }) => status === "逾期补填").length;
+  const missing = snapshots.filter(({ status }) => status === "截止未提交").length;
+  return { expected, onTime, overdue, missing, exempt, onTimeRate: expected === 0 ? 0 : Number(((onTime / expected) * 100).toFixed(1)) };
 }

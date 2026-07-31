@@ -3,6 +3,7 @@ import {
   enterpriseRegionGroups,
   getEnterpriseRegion,
   getEnterpriseRegionOptions,
+  isStatisticalEnterpriseRegionId,
 } from "./enterpriseRegions";
 
 describe("enterprise region catalog", () => {
@@ -58,5 +59,10 @@ describe("enterprise region catalog", () => {
         region.label.includes("自然村"),
       ),
     ).toBe(false);
+  });
+
+  it("keeps the authorized-all scope separate from statistical regions", () => {
+    expect(isStatisticalEnterpriseRegionId("authorized-all")).toBe(false);
+    expect(isStatisticalEnterpriseRegionId("qiqihar-nehe")).toBe(true);
   });
 });

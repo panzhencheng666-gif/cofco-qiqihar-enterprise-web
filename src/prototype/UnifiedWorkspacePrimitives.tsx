@@ -85,6 +85,23 @@ export function BusinessContextBar({
   );
 }
 
+export function WorkspaceScopeBar({
+  items,
+}: {
+  items: readonly (readonly [label: string, value: ReactNode])[];
+}) {
+  return (
+    <section aria-label="工作区范围" className="unified-context-bar">
+      {items.map(([label, value]) => (
+        <div key={label}>
+          <small>{label}</small>
+          {typeof value === "string" ? <strong>{value}</strong> : value}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export function WorkspaceStatus({
   children,
   tone = "normal",

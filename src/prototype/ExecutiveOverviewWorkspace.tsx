@@ -1,6 +1,6 @@
 import type { FormalApplication, FormalSection } from "./formalEnterpriseModel";
 import {
-  BusinessContextBar,
+  WorkspaceScopeBar,
   WorkspaceHeader,
   WorkspaceStatus,
   WorkspaceInlineStats,
@@ -13,7 +13,7 @@ export function ExecutiveOverviewWorkspace({
 }: {
   onOpenApplication: (
     application: FormalApplication,
-    section: FormalSection,
+    section: FormalSection | "overview",
   ) => void;
 }) {
   return (
@@ -28,14 +28,13 @@ export function ExecutiveOverviewWorkspace({
           </button>
         }
       />
-      <BusinessContextBar
+      <WorkspaceScopeBar
         items={[
           ["组织", "齐齐哈尔经营部"],
           ["业务区域", "三大区域 · 当前授权范围"],
           ["经营期间", "2026 年第 31 周"],
           ["数据截止", "7 月 31 日 17:00"],
         ]}
-        state="正式与初步数据已区分"
       />
       <WorkspaceInlineStats
         label="经营核心摘要"

@@ -13,7 +13,7 @@ import {
 } from "./formalEnterpriseData";
 import type { ReportingSection } from "./formalEnterpriseModel";
 import {
-  BusinessContextBar,
+  WorkspaceScopeBar,
   WorkspaceFilterBar,
   WorkspaceHeader,
   WorkspaceInlineStats,
@@ -114,21 +114,18 @@ function toneFor(value: string): WorkspaceTone {
 }
 
 function ReportContext({
-  state,
   context,
 }: {
-  state: string;
   context: BusinessReportContext;
 }) {
   return (
-    <BusinessContextBar
+    <WorkspaceScopeBar
       items={[
         ["所选业务", context.applicationLabel],
         ["地区与产品", `${context.region} · ${context.product}`],
         ["报告期间", context.period],
         ["采用版本", context.dataVersion],
       ]}
-      state={state}
     />
   );
 }
@@ -575,7 +572,7 @@ function ReviewWorkspace() {
         summary="复核报告结论、引用数据版本、地区产品口径和敏感信息。"
         title="报告复核"
       />
-      <ReportContext context={context} state="4 份报告等待复核" />
+      <ReportContext context={context} />
       <WorkspaceTableToolbar
         note="复核不修改原始业务值；数据问题退回所属业务重新审核。"
         title="待复核报告"
@@ -640,7 +637,7 @@ function DistributionWorkspace() {
         summary="统一控制报告发布范围、接收对象、发布时间和替代关系。"
         title="发布与分发"
       />
-      <ReportContext context={context} state="发布渠道正常" />
+      <ReportContext context={context} />
       <WorkspaceTableToolbar
         note="仅已复核的正式报告可以进入发布计划。"
         title="报告分发任务"
@@ -711,7 +708,7 @@ function VersionWorkspace() {
         summary="查询报告生成、复核、发布和替代全过程，正式版本不可覆盖。"
         title="报告历史版本"
       />
-      <ReportContext context={context} state="版本链完整" />
+      <ReportContext context={context} />
       <WorkspaceTableToolbar
         note="同一报告的修订版通过替代关系关联，原发布版继续留痕。"
         title="正式报告版本"
@@ -762,12 +759,18 @@ export function ReportCenterWorkspace({
   section,
   onComposeReport,
 }: {
-  section: ReportingSection;
+  section:
+    | ReportingSection
+    | "business-reports"
+    | "duty-reports"
+    | "review"
+    | "distribution"
+    | "versions";
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
   if (section === "duty-reports") return <DutyReports />;
-  if (section === "review") return <ReviewWorkspace />;
+  if (section === "review" || section === "review-distribution") return <ReviewWorkspace />;
   if (section === "distribution") return <DistributionWorkspace />;
-  if (section === "versions") return <VersionWorkspace />;
+  if (section === "versions" || section === "ledger") return <VersionWorkspace />;
   return <BusinessReports onComposeReport={onComposeReport} />;
 }

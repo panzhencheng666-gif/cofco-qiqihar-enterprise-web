@@ -7,6 +7,7 @@ import {
   WorkspaceFilterBar,
   WorkspaceSummaryStrip,
   WorkspaceStatus,
+  WorkspaceScopeBar,
   WorkspaceTableToolbar,
   WorkspaceTabs,
 } from "./UnifiedWorkspacePrimitives";
@@ -14,6 +15,22 @@ import {
 afterEach(cleanup);
 
 describe("unified workspace primitives", () => {
+  it("renders operational scope without a generic responsibility status", () => {
+    render(
+      <WorkspaceScopeBar
+        items={[
+          ["范围", "已授权范围"],
+          ["期间", "当前期间"],
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: "工作区范围" })).toHaveTextContent(
+      "范围已授权范围期间当前期间",
+    );
+    expect(screen.queryByText("当前状态")).not.toBeInTheDocument();
+  });
+
   it("renders one compact business context coordinate", () => {
     render(
       <BusinessContextBar

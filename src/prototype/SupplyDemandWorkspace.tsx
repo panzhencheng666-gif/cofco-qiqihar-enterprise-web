@@ -15,7 +15,7 @@ import {
 } from "./UnifiedWorkspacePrimitives";
 
 export interface SupplyDemandWorkspaceProps {
-  section: SupplySection;
+  section: SupplySection | "statement";
   onComposeReport: (context: BusinessReportContext) => void;
 }
 

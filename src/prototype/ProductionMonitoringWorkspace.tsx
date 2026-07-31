@@ -16,7 +16,7 @@ import {
   type ProductionObjectType,
 } from "./productionMonitoringModel";
 import {
-  BusinessContextBar,
+  WorkspaceScopeBar,
   CollectionModeSwitch,
   type CollectionMode,
   WorkspaceFilterBar,
@@ -31,8 +31,8 @@ import {
 } from "./UnifiedWorkspacePrimitives";
 
 export interface ProductionMonitoringWorkspaceProps {
-  section: ProductionSection;
-  onSectionChange?: (section: ProductionSection) => void;
+  section: ProductionSection | "overview" | "collection" | "review" | "reports";
+  onSectionChange?: (section: ProductionSection | "collection") => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }
 
@@ -92,25 +92,17 @@ function statusTone(value: string): WorkspaceTone {
 
 function ProductionContext({
   object,
-  state,
-  tone,
 }: {
   object: string;
-  state: string;
-  tone?: WorkspaceTone;
 }) {
-  const { regionId } = useEnterpriseRegion();
-  const region = getEnterpriseRegion(regionId);
   return (
-    <BusinessContextBar
+    <WorkspaceScopeBar
       items={[
         ["监测区域", <WorkspaceRegionSelect key="production-region" />],
         ["业务对象", object],
         ["监测期间", "2026 年第 31 周 · 灌浆期"],
         ["截止时间", "7 月 31 日 17:00"],
       ]}
-      state={`${region.label} · ${state}`}
-      tone={tone}
     />
   );
 }
@@ -118,7 +110,7 @@ function ProductionContext({
 function ProductionOverview({
   onSectionChange,
 }: {
-  onSectionChange?: (section: ProductionSection) => void;
+  onSectionChange?: (section: ProductionSection | "collection") => void;
 }) {
   const [crop, setCrop] = useState<ProductionCrop>("corn");
   const profile = productionCropProfiles.find((item) => item.key === crop)!;
@@ -292,7 +284,7 @@ function ProductionObjects() {
           </>
         }
       />
-      <ProductionContext object="全部授权产情监测对象" state="对象名录有效" />
+      <ProductionContext object="全部授权产情监测对象" />
       <WorkspaceInlineStats
         label="产情对象摘要"
         items={[
@@ -731,7 +723,6 @@ function ProductionCollection() {
       />
       <ProductionContext
         object="玉米 · 家庭农场产情与余粮调查"
-        state="责任人本人可写"
       />
       <WorkspaceTableToolbar
         title="选择当前任务的数据进入方式"
@@ -769,8 +760,6 @@ function ProductionReview() {
       />
       <ProductionContext
         object="全部授权产情调查单据"
-        state="5 项质量阻断"
-        tone="danger"
       />
       <WorkspaceInlineStats
         label="产情审核摘要"
@@ -866,7 +855,6 @@ function ProductionReports({
       />
       <ProductionContext
         object={`${product} · 正式产情指标`}
-        state="第 30 周正式版本可用"
       />
       <WorkspaceFilterBar label="产情报告范围">
         <label>
@@ -960,9 +948,9 @@ export function ProductionMonitoringWorkspace({
   onComposeReport,
 }: ProductionMonitoringWorkspaceProps) {
   if (section === "objects") return <ProductionObjects />;
-  if (section === "collection") return <ProductionCollection />;
+  if (section === "collection" || section === "tasks") return <ProductionCollection />;
   if (section === "review") return <ProductionReview />;
-  if (section === "reports") {
+  if (section === "reports" || section === "analysis") {
     return <ProductionReports onComposeReport={onComposeReport} />;
   }
   return <ProductionOverview onSectionChange={onSectionChange} />;

@@ -22,7 +22,7 @@ import type { MarketSection } from "./formalEnterpriseModel";
 import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import { getEnterpriseRegion } from "./enterpriseRegions";
 import {
-  BusinessContextBar,
+  WorkspaceScopeBar,
   WorkspaceFilterBar,
   WorkspaceHeader,
   WorkspaceInlineStats,
@@ -35,8 +35,8 @@ import {
 } from "./UnifiedWorkspacePrimitives";
 
 export interface MarketMonitoringWorkspaceProps {
-  section: MarketSection;
-  onSectionChange?: (section: MarketSection) => void;
+  section: MarketSection | "overview" | "collection" | "review" | "reports";
+  onSectionChange?: (section: MarketSection | "collection") => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }
 
@@ -100,23 +100,17 @@ function MarketPageHeader({
 
 function MarketContextStrip({
   object = "玉米 · 市场主体与物流节点",
-  state = "本期采集进行中",
 }: {
   object?: string;
-  state?: string;
 }) {
-  const { regionId } = useEnterpriseRegion();
-  const region = getEnterpriseRegion(regionId);
   return (
-    <BusinessContextBar
+    <WorkspaceScopeBar
       items={[
         ["监测区域", <WorkspaceRegionSelect key="market-region" />],
         ["业务对象", object],
         ["监测期间", "2026 年第 31 周"],
         ["截止时间", "7 月 31 日 17:00"],
       ]}
-      state={`${region.label} · ${state}`}
-      tone={state.includes("待") || state.includes("采集") ? "warning" : "good"}
     />
   );
 }
@@ -395,7 +389,7 @@ function MarketObjectRegistry() {
           </button>
         }
       />
-      <MarketContextStrip object="市场主体与物流节点" state="对象名录有效" />
+      <MarketContextStrip object="市场主体与物流节点" />
       <WorkspaceTableToolbar
         title="市场对象业务能力清单"
         note="贸易、加工、仓储、消费与物流节点"
@@ -1130,7 +1124,7 @@ function MarketReviewWorkspace() {
         title="市场数据审核与发布"
         summary="集中核对价格条件、数量口径、异常解释和发布资格。"
       />
-      <MarketContextStrip object="待审核市场数据" state="7项待审核" />
+      <MarketContextStrip object="待审核市场数据" />
       <section
         aria-label="市场数据发布与供需采用关系"
         className="market-lineage"
@@ -1233,7 +1227,6 @@ function MarketReportWorkspace({
       />
       <MarketContextStrip
         object={`${productLabel} · ${reportScope}`}
-        state="报告数据可用"
       />
       <section aria-label="报告业务选择" className="market-report-scope">
         <div>
@@ -1291,10 +1284,10 @@ export function MarketMonitoringWorkspace({
   onSectionChange,
   onComposeReport,
 }: MarketMonitoringWorkspaceProps) {
-  if (section === "collection") return <MarketCollectionWorkspace />;
+  if (section === "collection" || section === "tasks") return <MarketCollectionWorkspace />;
   if (section === "objects") return <MarketObjectRegistry />;
   if (section === "review") return <MarketReviewWorkspace />;
-  if (section === "reports") {
+  if (section === "reports" || section === "analysis") {
     return <MarketReportWorkspace onComposeReport={onComposeReport} />;
   }
   return (

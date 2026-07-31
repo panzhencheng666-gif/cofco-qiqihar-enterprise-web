@@ -1,4 +1,7 @@
+export const authorizedScopeRegionId = "authorized-all" as const;
+
 export type EnterpriseRegionId =
+  | typeof authorizedScopeRegionId
   | "qiqihar-all"
   | "qiqihar-longsha"
   | "qiqihar-jianhua"
@@ -145,6 +148,14 @@ export const enterpriseRegionGroups: readonly EnterpriseRegionGroup[] = [
 
 export function getEnterpriseRegionOptions(): readonly EnterpriseRegion[] {
   return enterpriseRegionGroups.flatMap((group) => group.regions);
+}
+
+export function isStatisticalEnterpriseRegionId(
+  id: string,
+): id is Exclude<EnterpriseRegionId, typeof authorizedScopeRegionId> {
+  return id !== authorizedScopeRegionId && getEnterpriseRegionOptions().some(
+    (region) => region.id === id,
+  );
 }
 
 export function getEnterpriseRegion(

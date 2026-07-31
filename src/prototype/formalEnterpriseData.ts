@@ -152,13 +152,7 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       label: "我的工作",
       shortLabel: "工作",
       note: "统一处理本人待填报、待审核、逾期和发布事项",
-      navigation: [
-        { key: "inbox", label: "待我处理" },
-        { key: "reporting", label: "待我填报" },
-        { key: "review", label: "待我审核" },
-        { key: "exception", label: "异常与逾期" },
-        { key: "completed", label: "已办跟踪" },
-      ],
+      navigation: [{ key: "tasks", label: "我的任务" }],
     },
     {
       key: "overview",
@@ -166,7 +160,12 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       label: "经营总览",
       shortLabel: "总览",
       note: "查看已授权正式指标、业务风险和最新发布结果",
-      navigation: [{ key: "overview", label: "经营总览" }],
+      navigation: [
+        { key: "operations", label: "经营运行" },
+        { key: "risks", label: "风险关注" },
+        { key: "duty", label: "履责情况" },
+        { key: "releases", label: "结果发布" },
+      ],
     },
     {
       key: "production",
@@ -175,11 +174,9 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       shortLabel: "产情",
       note: "管理调查对象、产情采集、质量审核和结果发布",
       navigation: [
-        { key: "overview", label: "监测总览" },
+        { key: "tasks", label: "业务任务" },
         { key: "objects", label: "监测对象" },
-        { key: "collection", label: "数据采集" },
-        { key: "review", label: "审核与发布" },
-        { key: "reports", label: "分析与报告" },
+        { key: "analysis", label: "监测分析" },
       ],
     },
     {
@@ -189,11 +186,9 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       shortLabel: "市场",
       note: "管理市场主体、行情、库存、加工和物流信息",
       navigation: [
-        { key: "overview", label: "监测总览" },
+        { key: "tasks", label: "业务任务" },
         { key: "objects", label: "监测对象" },
-        { key: "collection", label: "数据采集" },
-        { key: "review", label: "审核与发布" },
-        { key: "reports", label: "分析与报告" },
+        { key: "analysis", label: "监测分析" },
       ],
     },
     {
@@ -203,7 +198,8 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       shortLabel: "供需",
       note: "按地区、产品和年度核对供给、使用与期末库存",
       navigation: [
-        { key: "statement", label: "供需平衡表" },
+        { key: "calculation", label: "供需测算" },
+        { key: "comparison", label: "差异比对" },
         { key: "versions", label: "版本记录" },
       ],
     },
@@ -214,11 +210,9 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       shortLabel: "报表",
       note: "统一管理业务报告、履责报告、复核发布和历史版本",
       navigation: [
-        { key: "business-reports", label: "业务报告" },
-        { key: "duty-reports", label: "履责报告" },
-        { key: "review", label: "报告复核" },
-        { key: "distribution", label: "发布与分发" },
-        { key: "versions", label: "历史版本" },
+        { key: "compose", label: "报告编制" },
+        { key: "review-distribution", label: "复核与分发" },
+        { key: "ledger", label: "报告台账" },
       ],
     },
   ];
@@ -227,16 +221,14 @@ export const reportingNavigation: readonly ReportingNavigationGroup[] = [
   {
     label: "报告工作",
     items: [
-      { key: "business-reports", label: "业务报告" },
-      { key: "duty-reports", label: "履责报告", badge: "3" },
+      { key: "compose", label: "报告编制" },
     ],
   },
   {
     label: "发布管理",
     items: [
-      { key: "review", label: "报告复核", badge: "4" },
-      { key: "distribution", label: "发布与分发" },
-      { key: "versions", label: "历史版本" },
+      { key: "review-distribution", label: "复核与分发" },
+      { key: "ledger", label: "报告台账" },
     ],
   },
 ];

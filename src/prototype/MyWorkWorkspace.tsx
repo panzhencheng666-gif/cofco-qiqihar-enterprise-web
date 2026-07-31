@@ -106,17 +106,18 @@ export function MyWorkWorkspace({
   section,
   onOpenBusiness,
 }: {
-  section: WorkSection;
+  section: WorkSection | "inbox" | "reporting" | "review" | "exception" | "completed";
   onOpenBusiness: (
     application: BusinessDestination[0],
     section: BusinessDestination[1],
   ) => void;
 }) {
-  const selectedGroup = section === "inbox" ? null : section;
+  const selectedGroup = section === "tasks" || section === "inbox" ? null : section;
   const visibleTasks = selectedGroup
     ? personalTasks.filter((task) => task.group === selectedGroup)
     : personalTasks.filter((task) => task.group !== "completed");
-  const titles: Record<WorkSection, [string, string]> = {
+  const titles: Record<string, [string, string]> = {
+    tasks: ["我的任务", "按截止时间和风险统一安排本人工作"],
     inbox: ["待我处理", "按截止时间和风险统一安排本人工作"],
     reporting: ["待我填报", "从任务直接进入产情或市场原始业务单据"],
     review: ["待我审核", "审核人员只能审核、退回和填写审核意见"],
