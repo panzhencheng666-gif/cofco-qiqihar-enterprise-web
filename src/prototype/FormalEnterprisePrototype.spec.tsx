@@ -85,4 +85,40 @@ describe("formal enterprise shell", () => {
     expect(screen.getByRole("button", { name: "导出责任月报" })).toBeVisible();
     expect(screen.getByText("逾期后补填不消除逾期记录")).toBeVisible();
   });
+
+  it("opens report composition from the selected market workspace", async () => {
+    const user = userEvent.setup();
+    render(<FormalEnterprisePrototype initialSearch="?page=market" />);
+
+    await user.click(screen.getByRole("button", { name: "编制业务报告" }));
+
+    expect(screen.getByRole("dialog", { name: "编制业务报告" })).toBeVisible();
+    expect(screen.getByText("市场监测 · 玉米")).toBeVisible();
+    expect(screen.getByText("市场监测第 31 周审核版")).toBeVisible();
+  });
+
+  it("shows city consolidation and allows county drill-down", async () => {
+    const user = userEvent.setup();
+    render(<FormalEnterprisePrototype initialSearch="?page=supply" />);
+
+    const scope = screen.getByRole("region", {
+      name: "供需平衡地区范围",
+    });
+    expect(
+      within(scope).getByText("齐齐哈尔市全域", { selector: "strong" }),
+    ).toBeVisible();
+    expect(within(scope).getByText("市级合并")).toBeVisible();
+    expect(within(scope).getByText("内部流转抵销 42.6 万吨")).toBeVisible();
+
+    await user.click(within(scope).getByRole("button", { name: "讷河市" }));
+
+    expect(within(scope).getByText("县级账户")).toBeVisible();
+    expect(within(scope).getByText("12 / 14 项已核定")).toBeVisible();
+    expect(screen.getByText("121.8")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "编制业务报告" }));
+    expect(screen.getByRole("dialog", { name: "编制业务报告" })).toBeVisible();
+    const dialog = screen.getByRole("dialog", { name: "编制业务报告" });
+    expect(within(dialog).getByText("讷河市")).toBeVisible();
+  });
 });

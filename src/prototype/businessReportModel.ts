@@ -51,12 +51,9 @@ interface BusinessReportCopy {
 const reportCopy: Record<ReportableApplication, BusinessReportCopy> = {
   production: {
     summary: {
-      日报:
-        "截至 7 月 31 日，齐齐哈尔市玉米长势总体处于正常区间。讷河市 4 个农技站的观测资料尚未补齐，拜泉县单产预测较上期上调 8.6%，两项内容在审核完成前不纳入正式发布。",
-      周报:
-        "本周齐齐哈尔市玉米监测面积为 1,284.6 万亩，预计单产 468.2 公斤/亩。有效样本 554 个，覆盖 16 个县区；讷河市长势观测缺报和拜泉县单产调整依据仍需复核。",
-      月报:
-        "7 月玉米生产监测覆盖齐齐哈尔市 16 个县区，监测面积 1,284.6 万亩。月内长势总体正常，北部县区降水差异对单产预期形成影响，当前预计单产为 468.2 公斤/亩。",
+      日报: "截至 7 月 31 日，齐齐哈尔市玉米长势总体处于正常区间。讷河市 4 个农技站的观测资料尚未补齐，拜泉县单产预测较上期上调 8.6%，两项内容在审核完成前不纳入正式发布。",
+      周报: "本周齐齐哈尔市玉米监测面积为 1,284.6 万亩，预计单产 468.2 公斤/亩。有效样本 554 个，覆盖 16 个县区；讷河市长势观测缺报和拜泉县单产调整依据仍需复核。",
+      月报: "7 月玉米生产监测覆盖齐齐哈尔市 16 个县区，监测面积 1,284.6 万亩。月内长势总体正常，北部县区降水差异对单产预期形成影响，当前预计单产为 468.2 公斤/亩。",
     },
     chapters: [
       {
@@ -81,12 +78,9 @@ const reportCopy: Record<ReportableApplication, BusinessReportCopy> = {
   },
   market: {
     summary: {
-      日报:
-        "7 月 31 日齐齐哈尔市玉米主流收购价为 2,346 元/吨，较前一监测日上涨 8 元/吨。北部县区报价差异仍然较大，讷河、克山两地需要继续核实企业到货量和运输成本变化。",
-      周报:
-        "本周齐齐哈尔市玉米主流收购价为 2,346 元/吨，较上周上涨 0.8%。北部县区最高与最低报价相差 96 元/吨，价差已超过本月预警线，主要涉及讷河、克山两地。",
-      月报:
-        "7 月齐齐哈尔市玉米收购价格先稳后升，月末主流价格为 2,346 元/吨。重点企业库存为 103.9 万吨，较月初下降 2.4%；北部县区价差扩大和铁路外运回落是下月需要持续跟踪的事项。",
+      日报: "7 月 31 日齐齐哈尔市玉米主流收购价为 2,346 元/吨，较前一监测日上涨 8 元/吨。北部县区报价差异仍然较大，讷河、克山两地需要继续核实企业到货量和运输成本变化。",
+      周报: "本周齐齐哈尔市玉米主流收购价为 2,346 元/吨，较上周上涨 0.8%。北部县区最高与最低报价相差 96 元/吨，价差已超过本月预警线，主要涉及讷河、克山两地。",
+      月报: "7 月齐齐哈尔市玉米收购价格先稳后升，月末主流价格为 2,346 元/吨。重点企业库存为 103.9 万吨，较月初下降 2.4%；北部县区价差扩大和铁路外运回落是下月需要持续跟踪的事项。",
     },
     chapters: [
       {
@@ -111,12 +105,9 @@ const reportCopy: Record<ReportableApplication, BusinessReportCopy> = {
   },
   supply: {
     summary: {
-      日报:
-        "当前账户采用已核定的产情、库存和流向数据。总供给为 763.1 万吨，总使用与外流为 659.2 万吨，采用后期末库存为 103.9 万吨，平衡差额 1.7 万吨仍待解释。",
-      周报:
-        "本周供需账户总供给为 763.1 万吨，总使用与外流为 659.2 万吨，采用后期末库存为 103.9 万吨。平衡差额为 1.7 万吨，主要受区域流向资料尚未完成审核影响。",
-      月报:
-        "本月供需账户采用已核定的产量、库存、加工和流向数据。总供给 763.1 万吨，总使用与外流 659.2 万吨，期末库存 103.9 万吨；平衡差额 1.7 万吨，需在下次发布前完成说明。",
+      日报: "当前账户采用已核定的产情、库存和流向数据。总供给为 763.1 万吨，总使用与外流为 659.2 万吨，采用后期末库存为 103.9 万吨，平衡差额 1.7 万吨仍待解释。",
+      周报: "本周供需账户总供给为 763.1 万吨，总使用与外流为 659.2 万吨，采用后期末库存为 103.9 万吨。平衡差额为 1.7 万吨，主要受区域流向资料尚未完成审核影响。",
+      月报: "本月供需账户采用已核定的产量、库存、加工和流向数据。总供给 763.1 万吨，总使用与外流 659.2 万吨，期末库存 103.9 万吨；平衡差额 1.7 万吨，需在下次发布前完成说明。",
     },
     chapters: [
       {
@@ -134,7 +125,11 @@ const reportCopy: Record<ReportableApplication, BusinessReportCopy> = {
     ],
     indicators: [
       { label: "总供给", value: "763.1 万吨", note: "期初库存、产量和净调入" },
-      { label: "总使用与外流", value: "659.2 万吨", note: "消费、加工和净调出" },
+      {
+        label: "总使用与外流",
+        value: "659.2 万吨",
+        note: "消费、加工和净调出",
+      },
       { label: "期末库存", value: "103.9 万吨", note: "下一期初库存来源" },
       { label: "平衡差额", value: "1.7 万吨", note: "发布前需要完成说明" },
     ],
@@ -168,7 +163,7 @@ function reportHtml(draft: BusinessReportDraft) {
         `<section><h2>${escapeHtml(chapter.title)}</h2><p>${escapeHtml(chapter.body)}</p></section>`,
     )
     .join("");
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escapeHtml(draft.title)}</title><style>body{max-width:900px;margin:40px auto;color:#183746;font:16px/1.8 "Microsoft YaHei",sans-serif}h1{text-align:center;font-size:28px}h2{margin-top:28px;font-size:20px}table{width:100%;border-collapse:collapse}th,td{padding:10px;border:1px solid #ccd7dc;text-align:left}.meta{color:#526d7a;font-size:13px}.summary{padding:18px;border-left:4px solid #17847d;background:#f1f7f6}@media print{body{margin:18mm}.no-print{display:none}}</style></head><body><h1>${escapeHtml(draft.title)}</h1><p class="meta">报告编号：${escapeHtml(draft.reportNumber)}　数据截止：${escapeHtml(draft.dataCutoff)}　采用数据：${escapeHtml(draft.dataVersion)}</p><p class="summary">${escapeHtml(draft.summary)}</p><table><thead><tr><th>指标</th><th>本期值</th><th>说明</th></tr></thead><tbody>${indicators}</tbody></table>${chapters}<p class="meta">编制：${escapeHtml(draft.author)}　审核：${escapeHtml(draft.reviewer)}</p></body></html>`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escapeHtml(draft.title)}</title><style>body{max-width:900px;margin:40px auto;color:#183746;font:16px/1.8 "Microsoft YaHei",sans-serif}h1{text-align:center;font-size:28px}h2{margin-top:28px;font-size:20px}table{width:100%;border-collapse:collapse}th,td{padding:10px;border:1px solid #ccd7dc;text-align:left}.meta{color:#526d7a;font-size:13px}.summary{padding:18px;border-left:4px solid #17847d;background:#f1f7f6}@media print{body{margin:18mm}.no-print{display:none}}</style></head><body><h1>${escapeHtml(draft.title)}</h1><p class="meta">报告编号：${escapeHtml(draft.reportNumber)} · 数据截止：${escapeHtml(draft.dataCutoff)} · 采用数据：${escapeHtml(draft.dataVersion)}</p><p class="summary">${escapeHtml(draft.summary)}</p><table><thead><tr><th>指标</th><th>本期值</th><th>说明</th></tr></thead><tbody>${indicators}</tbody></table>${chapters}<p class="meta">编制：${escapeHtml(draft.author)} · 审核：${escapeHtml(draft.reviewer)}</p></body></html>`;
 }
 
 function reportCsv(draft: BusinessReportDraft) {

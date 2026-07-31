@@ -798,6 +798,130 @@
   color: #795a1c;
 }
 
+.formal-balance-scope {
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: 184px minmax(390px, 0.9fr) minmax(460px, 1.25fr);
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--formal-shadow);
+}
+
+.formal-balance-scope__heading {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 17px;
+  color: #eaf3f5;
+  background: var(--formal-navy);
+}
+
+.formal-balance-scope__heading small {
+  color: #89a6b3;
+  font-size: 11px;
+}
+
+.formal-balance-scope__heading strong {
+  font-size: 15px;
+}
+
+.formal-balance-scope__heading span {
+  color: #b9d1d8;
+  font-size: 11px;
+}
+
+.formal-balance-scope__switch {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  padding: 9px;
+  border-right: 1px solid var(--formal-line);
+}
+
+.formal-balance-scope__switch button {
+  min-width: 0;
+  padding: 6px 8px;
+  overflow: hidden;
+  border: 0;
+  border-left: 1px solid var(--formal-line);
+  color: var(--formal-muted);
+  background: transparent;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.formal-balance-scope__switch button:first-child {
+  border-left: 0;
+}
+
+.formal-balance-scope__switch button.is-active {
+  border-radius: 5px;
+  color: #fff;
+  background: var(--formal-teal);
+  font-weight: 650;
+}
+
+.formal-balance-scope__switch button.is-active + button {
+  border-left-color: transparent;
+}
+
+.formal-balance-scope__details {
+  display: grid;
+  grid-template-columns: 0.82fr 1.25fr 1fr auto;
+  align-items: center;
+  padding: 10px 14px;
+}
+
+.formal-balance-scope__details > div {
+  min-width: 0;
+  padding: 2px 12px;
+}
+
+.formal-balance-scope__details > div + div {
+  border-left: 1px solid var(--formal-line);
+}
+
+.formal-balance-scope__details small,
+.formal-balance-scope__details strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.formal-balance-scope__details small {
+  color: var(--formal-muted-light);
+  font-size: 10px;
+}
+
+.formal-balance-scope__details strong {
+  margin-top: 5px;
+  color: var(--formal-text-soft);
+  font-size: 12px;
+}
+
+.formal-balance-scope__details > span {
+  padding: 4px 7px;
+  border: 1px solid #bcd9d4;
+  border-radius: 4px;
+  color: var(--formal-teal-deep);
+  background: #edf7f5;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.formal-balance-scope.is-pending .formal-balance-scope__details > span {
+  border-color: #e5cc9a;
+  color: #85631f;
+  background: #fff8e8;
+}
+
 .formal-business-scope {
   min-height: 88px;
   display: grid;

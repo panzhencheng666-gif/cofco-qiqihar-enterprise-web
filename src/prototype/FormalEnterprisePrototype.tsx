@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { BusinessReportComposer } from "./BusinessReportComposer";
+import type { BusinessReportContext } from "./businessReportModel";
 import {
   businessReportRows,
   dutyMonthlyRows,
@@ -21,6 +23,12 @@ import {
   type FormalRoute,
   type ReportingSection,
 } from "./formalEnterpriseModel";
+import {
+  getSupplyBalanceMetrics,
+  getSupplyBalanceScope,
+  supplyBalanceScopes,
+  type SupplyBalanceScopeKey,
+} from "./supplyBalanceScope";
 
 interface FormalEnterprisePrototypeProps {
   initialSearch?: string;
@@ -347,12 +355,14 @@ function PageHeader({
   summary,
   primaryAction,
   secondaryActions,
+  onAction,
 }: {
   eyebrow: string;
   title: string;
   summary: string;
   primaryAction?: string;
   secondaryActions?: readonly string[];
+  onAction?: (action: string) => void;
 }) {
   return (
     <div className="formal-page-header">
@@ -363,13 +373,17 @@ function PageHeader({
       </div>
       <div className="formal-page-actions">
         {secondaryActions?.map((action) => (
-          <button key={action} type="button">
+          <button key={action} type="button" onClick={() => onAction?.(action)}>
             {action.includes("导出") && <FormalIcon name="download" />}
             {action}
           </button>
         ))}
         {primaryAction && (
-          <button className="is-primary" type="button">
+          <button
+            className="is-primary"
+            type="button"
+            onClick={() => onAction?.(primaryAction)}
+          >
             {primaryAction.includes("新建") && <FormalIcon name="plus" />}
             {primaryAction}
           </button>
@@ -462,6 +476,60 @@ function BusinessScopeBand({ scope }: { scope: FormalBusinessScope }) {
             <strong>{actor.value}</strong>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function SupplyBalanceScopeBand({
+  selectedKey,
+  onSelect,
+}: {
+  selectedKey: SupplyBalanceScopeKey;
+  onSelect: (key: SupplyBalanceScopeKey) => void;
+}) {
+  const selected = getSupplyBalanceScope(selectedKey);
+  return (
+    <section
+      aria-label="供需平衡地区范围"
+      className={`formal-balance-scope is-${selected.status === "已核定" ? "approved" : "pending"}`}
+    >
+      <div className="formal-balance-scope__heading">
+        <small>当前平衡范围</small>
+        <strong>{selected.label}</strong>
+        <span>{selected.level}</span>
+      </div>
+      <div className="formal-balance-scope__switch">
+        {supplyBalanceScopes.map((scope) => (
+          <button
+            aria-pressed={scope.key === selected.key}
+            className={scope.key === selected.key ? "is-active" : undefined}
+            key={scope.key}
+            type="button"
+            onClick={() => onSelect(scope.key)}
+          >
+            {scope.label}
+          </button>
+        ))}
+      </div>
+      <div className="formal-balance-scope__details">
+        <div>
+          <small>数据覆盖</small>
+          <strong>{selected.coverage}</strong>
+        </div>
+        <div>
+          <small>合并处理</small>
+          <strong>
+            {selected.level === "市级合并"
+              ? `内部流转抵销 ${selected.internalFlowElimination}`
+              : "县区流入流出分别列示"}
+          </strong>
+        </div>
+        <div>
+          <small>账户版本</small>
+          <strong>{selected.version}</strong>
+        </div>
+        <span>{selected.status}</span>
       </div>
     </section>
   );
@@ -612,10 +680,51 @@ function FormalTable({
 
 function GeneralWorkspace({
   application,
+  onComposeReport,
 }: {
   application: Exclude<FormalApplication, "reporting">;
+  onComposeReport: (context: BusinessReportContext) => void;
 }) {
   const workspace = formalWorkspaceByApplication[application];
+  const [supplyScopeKey, setSupplyScopeKey] =
+    useState<SupplyBalanceScopeKey>("qiqihar");
+  const supplyScope = getSupplyBalanceScope(supplyScopeKey);
+  const isSupply = application === "supply";
+  const reportable = application !== "work";
+  const product =
+    workspace.businessScope?.products.find((item) => item.active)?.name ??
+    "玉米";
+  const objectLabel = isSupply
+    ? `${product} · ${supplyScope.label}`
+    : workspace.objectLabel;
+  const metrics = isSupply
+    ? getSupplyBalanceMetrics(supplyScopeKey)
+    : workspace.metrics;
+
+  function handlePageAction(action: string) {
+    if (action !== "编制业务报告" || !reportable) return;
+    const dataVersion = isSupply
+      ? supplyScope.version
+      : application === "production"
+        ? "产情监测第 31 周审核版"
+        : "市场监测第 31 周审核版";
+    onComposeReport({
+      application,
+      applicationLabel:
+        formalApplicationDefinitions.find(
+          (definition) => definition.key === application,
+        )?.label ?? workspace.title,
+      product,
+      region: isSupply ? supplyScope.label : "齐齐哈尔市全域",
+      regionLevel: isSupply ? supplyScope.level : "市级监测",
+      period: workspace.period,
+      dataCutoff: workspace.deadline,
+      dataVersion,
+      author: "王洋",
+      reviewer: "赵晨",
+    });
+  }
+
   return (
     <>
       <PageHeader
@@ -624,16 +733,23 @@ function GeneralWorkspace({
         secondaryActions={workspace.secondaryActions}
         summary={workspace.summary}
         title={workspace.title}
+        onAction={handlePageAction}
       />
       <ContextBand
         deadline={workspace.deadline}
-        objectLabel={workspace.objectLabel}
+        objectLabel={objectLabel}
         period={workspace.period}
       />
+      {isSupply && (
+        <SupplyBalanceScopeBand
+          selectedKey={supplyScopeKey}
+          onSelect={setSupplyScopeKey}
+        />
+      )}
       {workspace.businessScope && (
         <BusinessScopeBand scope={workspace.businessScope} />
       )}
-      <MetricGrid metrics={workspace.metrics} />
+      <MetricGrid metrics={metrics} />
       <div className="formal-focus-grid">
         <LifecyclePanel stages={workspace.stages} />
         <RiskPanel risks={workspace.risks} />
@@ -1303,9 +1419,12 @@ export function FormalEnterprisePrototype({
   const [route, setRoute] = useState<FormalRoute>(() =>
     readFormalRoute(initialSearch ?? window.location.search),
   );
+  const [reportContext, setReportContext] =
+    useState<BusinessReportContext | null>(null);
   const reportMeta = reportPageMeta[route.reportingSection];
 
   function changeRoute(nextRoute: FormalRoute) {
+    setReportContext(null);
     setRoute(nextRoute);
     if (initialSearch === undefined) {
       const url = new URL(window.location.href);
@@ -1360,10 +1479,19 @@ export function FormalEnterprisePrototype({
               <ReportingWorkspace section={route.reportingSection} />
             </>
           ) : (
-            <GeneralWorkspace application={route.application} />
+            <GeneralWorkspace
+              application={route.application}
+              onComposeReport={setReportContext}
+            />
           )}
         </main>
       </div>
+      {reportContext && (
+        <BusinessReportComposer
+          context={reportContext}
+          onClose={() => setReportContext(null)}
+        />
+      )}
     </div>
   );
 }
