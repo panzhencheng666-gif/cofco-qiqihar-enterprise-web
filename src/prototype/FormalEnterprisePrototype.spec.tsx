@@ -46,10 +46,19 @@ describe("formal enterprise shell", () => {
       screen.getByRole("button", { name: /玉米.*1,284\.6 万亩/ }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
+      screen.getByRole("button", { name: /玉米.*德美亚3号.*京科968/ }),
+    ).toBeVisible();
+    expect(
       screen.getByRole("button", { name: /大豆.*480\.2 万亩/ }),
     ).toBeVisible();
     expect(
+      screen.getByRole("button", { name: /大豆.*黑农84.*东生22/ }),
+    ).toBeVisible();
+    expect(
       screen.getByRole("button", { name: /稻谷.*274\.8 万亩/ }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /稻谷.*龙粳31.*绥粳18/ }),
     ).toBeVisible();
     expect(within(businessScope).getByText("农户样本")).toBeVisible();
     expect(within(businessScope).getByText("家庭农场")).toBeVisible();

@@ -332,11 +332,15 @@ export const formalWorkspaceByApplication: Record<
     objectLabel: "玉米 · 齐齐哈尔全域",
     businessScope: {
       title: "品种与调查对象",
-      note: "按品种查看面积、长势、产量和调查对象",
+      note: "农户、家庭农场和合作社填报原始品种名称，按作物归集面积、长势和产量",
       products: [
-        { name: "玉米", detail: "1,284.6 万亩", active: true },
-        { name: "大豆", detail: "480.2 万亩" },
-        { name: "稻谷", detail: "274.8 万亩" },
+        {
+          name: "玉米",
+          detail: "德美亚3号、京科968 · 1,284.6 万亩",
+          active: true,
+        },
+        { name: "大豆", detail: "黑农84、东生22 · 480.2 万亩" },
+        { name: "稻谷", detail: "龙粳31、绥粳18 · 274.8 万亩" },
       ],
       actors: [
         { label: "农户样本", value: "386 户" },
