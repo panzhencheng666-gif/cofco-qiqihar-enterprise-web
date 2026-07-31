@@ -18,12 +18,22 @@ export const reportingSections = [
   "versions",
 ] as const;
 
+export const marketSections = [
+  "overview",
+  "objects",
+  "collection",
+  "review",
+  "reports",
+] as const;
+
 export type FormalApplication = (typeof formalApplications)[number];
 export type ReportingSection = (typeof reportingSections)[number];
+export type MarketSection = (typeof marketSections)[number];
 
 export interface FormalRoute {
   application: FormalApplication;
   reportingSection: ReportingSection;
+  marketSection: MarketSection;
 }
 
 export type WeeklyTaskStatus =
@@ -66,6 +76,10 @@ function isReportingSection(value: string | null): value is ReportingSection {
   return reportingSections.some((section) => section === value);
 }
 
+function isMarketSection(value: string | null): value is MarketSection {
+  return marketSections.some((section) => section === value);
+}
+
 export function readFormalRoute(search: string): FormalRoute {
   const parameters = new URLSearchParams(search);
   const applicationValue = parameters.get("page");
@@ -80,6 +94,10 @@ export function readFormalRoute(search: string): FormalRoute {
       application === "reporting" && isReportingSection(sectionValue)
         ? sectionValue
         : "overview",
+    marketSection:
+      application === "market" && isMarketSection(sectionValue)
+        ? sectionValue
+        : "overview",
   };
 }
 
@@ -91,6 +109,9 @@ export function writeFormalRoute(route: FormalRoute): string {
     route.reportingSection !== "overview"
   ) {
     parameters.set("section", route.reportingSection);
+  }
+  if (route.application === "market" && route.marketSection !== "overview") {
+    parameters.set("section", route.marketSection);
   }
   return parameters.toString();
 }

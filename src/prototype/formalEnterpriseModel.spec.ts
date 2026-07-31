@@ -19,11 +19,25 @@ describe("formal enterprise route model", () => {
     expect(readFormalRoute("?page=reporting&section=responsibility")).toEqual({
       application: "reporting",
       reportingSection: "responsibility",
+      marketSection: "overview",
     });
 
     expect(readFormalRoute("?page=unknown&section=unknown")).toEqual({
       application: "work",
       reportingSection: "overview",
+      marketSection: "overview",
+    });
+
+    expect(readFormalRoute("?page=market&section=collection")).toEqual({
+      application: "market",
+      reportingSection: "overview",
+      marketSection: "collection",
+    });
+
+    expect(readFormalRoute("?page=market&section=unknown")).toEqual({
+      application: "market",
+      reportingSection: "overview",
+      marketSection: "overview",
     });
   });
 
@@ -32,6 +46,7 @@ describe("formal enterprise route model", () => {
       writeFormalRoute({
         application: "reporting",
         reportingSection: "duty-monthly",
+        marketSection: "overview",
       }),
     ).toBe("page=reporting&section=duty-monthly");
 
@@ -39,8 +54,17 @@ describe("formal enterprise route model", () => {
       writeFormalRoute({
         application: "market",
         reportingSection: "overview",
+        marketSection: "overview",
       }),
     ).toBe("page=market");
+
+    expect(
+      writeFormalRoute({
+        application: "market",
+        reportingSection: "overview",
+        marketSection: "collection",
+      }),
+    ).toBe("page=market&section=collection");
   });
 });
 
