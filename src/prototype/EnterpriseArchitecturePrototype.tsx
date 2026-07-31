@@ -3,6 +3,7 @@
  * with ?variant=A|B|C, across four representative pages selected by ?page=.
  */
 import { useEffect, useMemo, useState } from "react";
+import { FormalEnterprisePrototype } from "./FormalEnterprisePrototype";
 
 const variants = ["A", "B", "C"] as const;
 const pageKeys = ["work", "production", "market", "supply"] as const;
@@ -1490,31 +1491,36 @@ function VariantA({
   page: PrototypePage;
   onSelectPage: (page: PrototypePage) => void;
 }) {
-  const content = contentByPage[page];
-  const meta = fusionMetaByPage[page];
+  const showLegacyFusion =
+    new URLSearchParams(window.location.search).get("legacy") === "1";
+  if (showLegacyFusion) {
+    const content = contentByPage[page];
+    const meta = fusionMetaByPage[page];
 
-  return (
-    <div className="prototype-a prototype-fusion">
-      <FusionGlobalHeader page={page} onSelectPage={onSelectPage} />
-      <div className="prototype-fusion-shell">
-        <FusionSidebar page={page} onSelectPage={onSelectPage} />
-        <main className="prototype-fusion-main">
-          <FusionPageHeader meta={meta} />
-          <FusionContextBand content={content} page={page} />
-          <FusionTabs meta={meta} />
-          <MetricStrip metrics={content.metrics} />
-          <div className="prototype-fusion-focus-grid">
-            <FusionLifecyclePanel content={content} meta={meta} page={page} />
-            <FusionAttentionPanel content={content} />
-          </div>
-          <section className="prototype-fusion-panel prototype-fusion-table-panel">
-            <FusionFilterBar meta={meta} page={page} />
-            <BusinessTable content={content} />
-          </section>
-        </main>
+    return (
+      <div className="prototype-a prototype-fusion">
+        <FusionGlobalHeader page={page} onSelectPage={onSelectPage} />
+        <div className="prototype-fusion-shell">
+          <FusionSidebar page={page} onSelectPage={onSelectPage} />
+          <main className="prototype-fusion-main">
+            <FusionPageHeader meta={meta} />
+            <FusionContextBand content={content} page={page} />
+            <FusionTabs meta={meta} />
+            <MetricStrip metrics={content.metrics} />
+            <div className="prototype-fusion-focus-grid">
+              <FusionLifecyclePanel content={content} meta={meta} page={page} />
+              <FusionAttentionPanel content={content} />
+            </div>
+            <section className="prototype-fusion-panel prototype-fusion-table-panel">
+              <FusionFilterBar meta={meta} page={page} />
+              <BusinessTable content={content} />
+            </section>
+          </main>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+  return <FormalEnterprisePrototype />;
 }
 
 function VariantB({
@@ -1862,7 +1868,7 @@ export function EnterpriseArchitecturePrototype() {
         page={page}
         onSelectPage={(nextPage) => changeLocation(variant, nextPage)}
       />
-      {showPrototypeSwitcher && (
+      {showPrototypeSwitcher && variant !== "A" && (
         <PrototypeSwitcher
           page={page}
           variant={variant}

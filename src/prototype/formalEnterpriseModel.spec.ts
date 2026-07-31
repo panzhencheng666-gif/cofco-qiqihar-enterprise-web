@@ -1,0 +1,121 @@
+import { describe, expect, it } from "vitest";
+import {
+  canFillWeeklyTask,
+  readFormalRoute,
+  summarizeDutyMonth,
+  writeFormalRoute,
+  type DutySnapshot,
+  type WeeklyTaskAuthorization,
+} from "./formalEnterpriseModel";
+import {
+  formalApplicationDefinitions,
+  reportingNavigation,
+  responsibilityAssignments,
+  weeklyTasks,
+} from "./formalEnterpriseData";
+
+describe("formal enterprise route model", () => {
+  it("reads reporting sections and falls back to the formal workbench", () => {
+    expect(readFormalRoute("?page=reporting&section=responsibility")).toEqual({
+      application: "reporting",
+      reportingSection: "responsibility",
+    });
+
+    expect(readFormalRoute("?page=unknown&section=unknown")).toEqual({
+      application: "work",
+      reportingSection: "overview",
+    });
+  });
+
+  it("writes stable application and reporting section query parameters", () => {
+    expect(
+      writeFormalRoute({
+        application: "reporting",
+        reportingSection: "duty-monthly",
+      }),
+    ).toBe("page=reporting&section=duty-monthly");
+
+    expect(
+      writeFormalRoute({
+        application: "market",
+        reportingSection: "overview",
+      }),
+    ).toBe("page=market");
+  });
+});
+
+describe("weekly responsibility control", () => {
+  const task: WeeklyTaskAuthorization = {
+    responsibleUserId: "user-qqhr",
+    status: "填写中",
+  };
+
+  it("allows only the locked responsible person to fill", () => {
+    expect(canFillWeeklyTask(task, "user-qqhr")).toBe(true);
+    expect(canFillWeeklyTask(task, "regional-admin")).toBe(false);
+    expect(canFillWeeklyTask(task, "regional-reviewer")).toBe(false);
+  });
+
+  it("prevents editing after an obligation is approved or exempted", () => {
+    expect(
+      canFillWeeklyTask(
+        { responsibleUserId: "user-qqhr", status: "审核通过" },
+        "user-qqhr",
+      ),
+    ).toBe(false);
+    expect(
+      canFillWeeklyTask(
+        { responsibleUserId: "user-qqhr", status: "免报" },
+        "user-qqhr",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("monthly duty summary", () => {
+  it("aggregates immutable weekly deadline snapshots", () => {
+    const snapshots: DutySnapshot[] = [
+      { status: "按时完成" },
+      { status: "按时完成" },
+      { status: "逾期补填" },
+      { status: "截止未提交" },
+      { status: "免报" },
+    ];
+
+    expect(summarizeDutyMonth(snapshots)).toEqual({
+      expected: 4,
+      onTime: 2,
+      overdue: 1,
+      missing: 1,
+      exempt: 1,
+      onTimeRate: 50,
+    });
+  });
+});
+
+describe("formal enterprise sample data", () => {
+  it("keeps one active responsibility for every region and business item", () => {
+    const responsibilityKeys = responsibilityAssignments.map(
+      (item) => `${item.region}:${item.businessItem}:${item.effectivePeriod}`,
+    );
+
+    expect(new Set(responsibilityKeys).size).toBe(
+      responsibilityAssignments.length,
+    );
+  });
+
+  it("provides a responsible person for every weekly obligation", () => {
+    expect(weeklyTasks.every((task) => task.responsibleUserId.length > 0)).toBe(
+      true,
+    );
+  });
+
+  it("contains the integrated report application and monthly duty report", () => {
+    expect(
+      formalApplicationDefinitions.map((application) => application.key),
+    ).toContain("reporting");
+    expect(reportingNavigation.flatMap((group) => group.items)).toContainEqual(
+      expect.objectContaining({ key: "duty-monthly" }),
+    );
+  });
+});

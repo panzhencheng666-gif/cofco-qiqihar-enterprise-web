@@ -1,0 +1,918 @@
+import type {
+  FormalApplication,
+  ReportingSection,
+  WeeklyTaskStatus,
+} from "./formalEnterpriseModel";
+
+export interface FormalNavigationItem {
+  key: string;
+  label: string;
+}
+
+export interface FormalApplicationDefinition {
+  key: FormalApplication;
+  code: string;
+  label: string;
+  shortLabel: string;
+  note: string;
+  navigation: readonly FormalNavigationItem[];
+}
+
+export interface ReportingNavigationGroup {
+  label: string;
+  items: readonly {
+    key: ReportingSection;
+    label: string;
+    badge?: string;
+  }[];
+}
+
+export type FormalTone = "normal" | "good" | "warning" | "danger";
+
+export interface FormalMetric {
+  label: string;
+  value: string;
+  unit?: string;
+  note: string;
+  tone?: FormalTone;
+}
+
+export interface FormalStage {
+  label: string;
+  detail: string;
+  state: "done" | "current" | "warning" | "open";
+}
+
+export interface FormalRisk {
+  level: string;
+  title: string;
+  detail: string;
+  tone: Exclude<FormalTone, "normal">;
+}
+
+export interface FormalBusinessScope {
+  title: string;
+  note: string;
+  products: readonly {
+    name: string;
+    detail: string;
+    active?: boolean;
+  }[];
+  actors: readonly {
+    label: string;
+    value: string;
+  }[];
+}
+
+export interface FormalWorkspace {
+  eyebrow: string;
+  title: string;
+  summary: string;
+  primaryAction: string;
+  secondaryActions: readonly string[];
+  period: string;
+  deadline: string;
+  objectLabel: string;
+  businessScope?: FormalBusinessScope;
+  metrics: readonly FormalMetric[];
+  stages: readonly FormalStage[];
+  risks: readonly FormalRisk[];
+  tableTitle: string;
+  tableNote: string;
+  columns: readonly string[];
+  rows: readonly (readonly string[])[];
+}
+
+export interface ResponsibilityAssignment {
+  id: string;
+  region: string;
+  businessItem: string;
+  frequency: "每周一次";
+  responsibleUserId: string;
+  responsiblePerson: string;
+  responsiblePost: string;
+  reviewer: string;
+  deadlineRule: string;
+  effectivePeriod: string;
+  status: "已生效" | "下周生效";
+}
+
+export interface WeeklyTask {
+  id: string;
+  region: string;
+  businessItem: string;
+  responsibleUserId: string;
+  responsiblePerson: string;
+  deadline: string;
+  submittedAt: string;
+  status: WeeklyTaskStatus;
+  reviewer: string;
+  snapshot: string;
+}
+
+export interface DutyWeeklyRow {
+  person: string;
+  region: string;
+  item: string;
+  deadline: string;
+  firstQualifiedSubmission: string;
+  status: string;
+  overdueDuration: string;
+  review: string;
+}
+
+export interface DutyMonthlyRow {
+  person: string;
+  region: string;
+  expected: string;
+  onTime: string;
+  overdue: string;
+  missing: string;
+  returned: string;
+  onTimeRate: string;
+  trend: string;
+}
+
+export interface BusinessReportRow {
+  name: string;
+  frequency: "日报" | "周报" | "月报";
+  scope: string;
+  period: string;
+  dataVersion: string;
+  status: string;
+  owner: string;
+  publishedAt: string;
+}
+
+export const formalApplicationDefinitions: readonly FormalApplicationDefinition[] =
+  [
+    {
+      key: "work",
+      code: "01",
+      label: "我的工作",
+      shortLabel: "工作",
+      note: "统一处理本人待填报、待审核、逾期和发布事项",
+      navigation: [
+        { key: "inbox", label: "待我处理" },
+        { key: "reporting", label: "待我填报" },
+        { key: "review", label: "待我审核" },
+        { key: "exception", label: "异常与逾期" },
+        { key: "completed", label: "已办跟踪" },
+      ],
+    },
+    {
+      key: "production",
+      code: "02",
+      label: "产情监测",
+      shortLabel: "产情",
+      note: "治理调查对象、生产事实、质量审核和正式发布",
+      navigation: [
+        { key: "overview", label: "监测总览" },
+        { key: "planting", label: "种植生产" },
+        { key: "stock", label: "农户余粮" },
+        { key: "sales", label: "农户销售" },
+        { key: "intention", label: "种植意愿" },
+        { key: "quality", label: "质量与发布" },
+      ],
+    },
+    {
+      key: "market",
+      code: "03",
+      label: "市场监测",
+      shortLabel: "市场",
+      note: "治理市场主体、行情交易、库存加工和物流事实",
+      navigation: [
+        { key: "overview", label: "监测总览" },
+        { key: "subjects", label: "市场主体" },
+        { key: "trading", label: "行情与交易" },
+        { key: "inventory", label: "库存与仓储" },
+        { key: "processing", label: "加工与转化" },
+        { key: "logistics", label: "物流流向" },
+      ],
+    },
+    {
+      key: "supply",
+      code: "04",
+      label: "供需与态势",
+      shortLabel: "供需",
+      note: "引用正式指标完成产品账户、勾稽解释和版本发布",
+      navigation: [
+        { key: "overview", label: "供需总览" },
+        { key: "accounts", label: "产品账户" },
+        { key: "adoption", label: "指标采用" },
+        { key: "balance", label: "账户勾稽" },
+        { key: "situation", label: "态势与地图" },
+        { key: "lineage", label: "版本与血缘" },
+      ],
+    },
+    {
+      key: "reporting",
+      code: "05",
+      label: "报送与报告",
+      shortLabel: "报送",
+      note: "集中管理每周填报责任、逾期监督和正式报告",
+      navigation: [],
+    },
+  ];
+
+export const reportingNavigation: readonly ReportingNavigationGroup[] = [
+  {
+    label: "报送工作",
+    items: [
+      { key: "overview", label: "报送总览" },
+      { key: "weekly", label: "本周填报", badge: "9" },
+      { key: "records", label: "填报记录" },
+      { key: "overdue", label: "逾期记录", badge: "3" },
+    ],
+  },
+  {
+    label: "责任管理",
+    items: [
+      { key: "responsibility", label: "填报责任" },
+      { key: "duty-weekly", label: "责任周报" },
+      { key: "duty-monthly", label: "责任月报" },
+    ],
+  },
+  {
+    label: "报告管理",
+    items: [
+      { key: "business-reports", label: "业务报告" },
+      { key: "versions", label: "报告版本" },
+    ],
+  },
+];
+
+export const formalWorkspaceByApplication: Record<
+  Exclude<FormalApplication, "reporting">,
+  FormalWorkspace
+> = {
+  work: {
+    eyebrow: "经营门户 / 我的工作",
+    title: "我的经营工作台",
+    summary: "聚合本人必须完成的填报、审核、异常解释和发布事项。",
+    primaryAction: "进入本周填报",
+    secondaryActions: ["批量领取", "查看责任"],
+    period: "2026 年第 31 周",
+    deadline: "本周五 17:00",
+    objectLabel: "王洋 · 齐齐哈尔区域责任",
+    metrics: [
+      {
+        label: "待我填报",
+        value: "3",
+        unit: "项",
+        note: "仅本人具有填写权限",
+        tone: "warning",
+      },
+      {
+        label: "待我审核",
+        value: "7",
+        unit: "项",
+        note: "最早截止今日 14:00",
+      },
+      {
+        label: "逾期事项",
+        value: "1",
+        unit: "项",
+        note: "补填不消除逾期",
+        tone: "danger",
+      },
+      {
+        label: "本月按时率",
+        value: "96.8",
+        unit: "%",
+        note: "固定周截止快照",
+        tone: "good",
+      },
+    ],
+    stages: [
+      { label: "责任锁定", detail: "本人 3 项", state: "done" },
+      { label: "本周填写", detail: "2 项进行中", state: "current" },
+      { label: "规则校验", detail: "1 项待修改", state: "warning" },
+      { label: "业务审核", detail: "7 项待办", state: "open" },
+      { label: "正式归档", detail: "周五 18:00", state: "open" },
+    ],
+    risks: [
+      {
+        level: "逾期",
+        title: "甘南县市场库存周报尚未提交",
+        detail: "截止快照已记录，责任人补填后仍保留逾期",
+        tone: "danger",
+      },
+      {
+        level: "退回",
+        title: "讷河市玉米单产依据待补充",
+        detail: "仅原填报责任人可以修改并再次提交",
+        tone: "warning",
+      },
+      {
+        level: "提醒",
+        title: "本周责任周报将在周五生成",
+        detail: "所有区域责任状态将按截止快照汇总",
+        tone: "good",
+      },
+    ],
+    tableTitle: "本人责任事项",
+    tableNote: "任务只作为统一业务入口，不复制填报记录。",
+    columns: ["责任事项", "所属业务", "责任区域", "当前状态", "截止时间"],
+    rows: [
+      ["玉米市场库存周填报", "市场监测", "齐齐哈尔市", "填写中", "周五 17:00"],
+      [
+        "玉米产情长势周填报",
+        "产情监测",
+        "齐齐哈尔市",
+        "退回后待修改",
+        "今日 16:00",
+      ],
+      ["玉米供需账户解释", "供需与态势", "齐齐哈尔市", "待审核", "明日 10:00"],
+      ["第 30 周责任周报复核", "报送与报告", "东北区域", "审核通过", "已完成"],
+    ],
+  },
+  production: {
+    eyebrow: "产情运营 / 监测总览",
+    title: "种植生产运营工作区",
+    summary: "围绕样本对象完成每周调查、生产事实治理、审核和正式发布。",
+    primaryAction: "新建调查任务",
+    secondaryActions: ["导入调查结果", "导出当前视图"],
+    period: "2026 年第 31 周 · 灌浆期",
+    deadline: "7 月 31 日 17:00",
+    objectLabel: "玉米 · 齐齐哈尔全域",
+    businessScope: {
+      title: "品种与调查对象",
+      note: "同一生产事实模型，按品种切换",
+      products: [
+        { name: "玉米", detail: "1,284.6 万亩", active: true },
+        { name: "大豆", detail: "480.2 万亩" },
+        { name: "稻谷", detail: "274.8 万亩" },
+      ],
+      actors: [
+        { label: "农户样本", value: "386 户" },
+        { label: "家庭农场", value: "96 家" },
+        { label: "合作社", value: "42 家" },
+        { label: "农技站", value: "30 个" },
+      ],
+    },
+    metrics: [
+      {
+        label: "玉米监测面积",
+        value: "1,284.6",
+        unit: "万亩",
+        note: "正式口径第 3 版",
+      },
+      {
+        label: "预计单产",
+        value: "468.2",
+        unit: "公斤/亩",
+        note: "统一指标版本",
+        tone: "good",
+      },
+      {
+        label: "有效样本",
+        value: "554",
+        unit: "个",
+        note: "覆盖 16 个县区",
+      },
+      {
+        label: "质量阻断",
+        value: "5",
+        unit: "项",
+        note: "未关闭不得发布",
+        tone: "danger",
+      },
+    ],
+    stages: [
+      { label: "任务下达", detail: "428 份", state: "done" },
+      { label: "调查采集", detail: "395 已提交", state: "done" },
+      { label: "规则校验", detail: "5 项阻断", state: "warning" },
+      { label: "分级审核", detail: "37 项待办", state: "current" },
+      { label: "事实发布", detail: "尚未发布", state: "open" },
+    ],
+    risks: [
+      {
+        level: "阻断",
+        title: "讷河市长势观测缺报",
+        detail: "4 个农技站超过规定截止时间",
+        tone: "danger",
+      },
+      {
+        level: "复核",
+        title: "拜泉县单产上调幅度较大",
+        detail: "环比变化 8.6%，需补充田间依据",
+        tone: "warning",
+      },
+      {
+        level: "提醒",
+        title: "农户样本替换接近阈值",
+        detail: "本期已替换 7.4%，阈值为 8%",
+        tone: "good",
+      },
+    ],
+    tableTitle: "样本对象与调查任务",
+    tableNote: "同一对象进入调查、质量、审核和版本历史，不重复建档。",
+    columns: ["监测对象", "对象类型", "行政区划", "本周任务", "质量状态"],
+    rows: [
+      [
+        "讷河市同义镇样本片区",
+        "村级样本点",
+        "讷河市",
+        "秋粮测产调查",
+        "待补充依据",
+      ],
+      [
+        "拜泉县长春镇调查片",
+        "农技站样本",
+        "拜泉县",
+        "长势与灾情调查",
+        "复核中",
+      ],
+      [
+        "龙江县杏山镇样本户",
+        "农户样本",
+        "龙江县",
+        "余粮与售粮调查",
+        "校验通过",
+      ],
+      ["泰来县和平镇监测点", "田间样方", "泰来县", "单产预测调查", "审核通过"],
+    ],
+  },
+  market: {
+    eyebrow: "市场运营 / 监测总览",
+    title: "市场运行监测工作区",
+    summary: "统一管理主体报送、价格交易、库存加工和物流事实。",
+    primaryAction: "新建采集任务",
+    secondaryActions: ["导入主体报送", "导出当前视图"],
+    period: "2026 年第 31 周",
+    deadline: "7 月 31 日 17:00",
+    objectLabel: "玉米市场 · 齐齐哈尔全域",
+    businessScope: {
+      title: "品种与市场主体",
+      note: "主体只建档一次，按品种形成事实",
+      products: [
+        { name: "玉米", detail: "86 家主体", active: true },
+        { name: "大豆", detail: "42 家主体" },
+        { name: "稻谷", detail: "35 家主体" },
+      ],
+      actors: [
+        { label: "收储企业", value: "86 家" },
+        { label: "加工企业", value: "32 家" },
+        { label: "贸易企业", value: "51 家" },
+        { label: "价格监测点", value: "64 个" },
+      ],
+    },
+    metrics: [
+      {
+        label: "玉米主流价",
+        value: "2,346",
+        unit: "元/吨",
+        note: "周环比 +0.8%",
+        tone: "good",
+      },
+      {
+        label: "有效报价主体",
+        value: "86",
+        unit: "家",
+        note: "覆盖 12 个县区",
+      },
+      {
+        label: "企业库存",
+        value: "103.9",
+        unit: "万吨",
+        note: "同口径环比 -2.4%",
+      },
+      {
+        label: "异常待解释",
+        value: "7",
+        unit: "项",
+        note: "3 项影响周报发布",
+        tone: "danger",
+      },
+    ],
+    stages: [
+      { label: "任务下达", detail: "86 家", state: "done" },
+      { label: "主体报送", detail: "79 家已报", state: "done" },
+      { label: "事实匹配", detail: "3 项待解释", state: "warning" },
+      { label: "业务审核", detail: "7 项待办", state: "current" },
+      { label: "指标发布", detail: "本周未发布", state: "open" },
+    ],
+    risks: [
+      {
+        level: "价格",
+        title: "北部县区玉米价差扩大",
+        detail: "最大价差 96 元/吨，超过预警线",
+        tone: "danger",
+      },
+      {
+        level: "库存",
+        title: "3 家企业库存变化异常",
+        detail: "环比降幅超过 20%，等待补充解释",
+        tone: "warning",
+      },
+      {
+        level: "物流",
+        title: "铁路外运量连续两周回落",
+        detail: "本周较四周均值低 12.3%",
+        tone: "good",
+      },
+    ],
+    tableTitle: "市场主体与本周报送",
+    tableNote: "主体、设施和市场事实分层管理，共用统一每周报送责任。",
+    columns: ["市场主体", "主体类型", "责任区域", "本周报送", "事实资格"],
+    rows: [
+      [
+        "齐齐哈尔北方粮贸有限公司",
+        "贸易企业",
+        "建华区",
+        "已按时提交",
+        "审核通过",
+      ],
+      ["龙江丰源仓储有限公司", "仓储企业", "龙江县", "填写中", "待校验"],
+      ["讷河市恒泰加工厂", "加工企业", "讷河市", "逾期补填", "保留逾期"],
+      [
+        "泰来县区域价格采集点",
+        "价格监测点",
+        "泰来县",
+        "已按时提交",
+        "指标可用",
+      ],
+    ],
+  },
+  supply: {
+    eyebrow: "决策分析 / 产品账户",
+    title: "玉米供需账户工作区",
+    summary: "引用已发布事实和指标完成账户测算、勾稽解释与版本发布。",
+    primaryAction: "新建测算草案",
+    secondaryActions: ["比较版本", "查看采用口径"],
+    period: "2026/27 年度 · 第 4 版",
+    deadline: "报告周五 18:00",
+    objectLabel: "玉米原粮账户",
+    businessScope: {
+      title: "产品账户与来源对象",
+      note: "三类账户共用正式产情和市场指标",
+      products: [
+        { name: "玉米", detail: "2026/27 · 第 4 版", active: true },
+        { name: "大豆", detail: "2026/27 · 第 2 版" },
+        { name: "稻谷", detail: "2026/27 · 第 3 版" },
+      ],
+      actors: [
+        { label: "农户产量样本", value: "554 个" },
+        { label: "涉粮企业", value: "169 家" },
+        { label: "仓储设施", value: "128 座" },
+        { label: "正式指标", value: "36 项" },
+      ],
+    },
+    metrics: [
+      {
+        label: "总供给",
+        value: "763.1",
+        unit: "万吨",
+        note: "期初库存＋产量＋净调入",
+      },
+      {
+        label: "总使用与外流",
+        value: "659.2",
+        unit: "万吨",
+        note: "使用＋加工＋损耗＋净调出",
+      },
+      {
+        label: "采用后期末库存",
+        value: "103.9",
+        unit: "万吨",
+        note: "下一期正式期初来源",
+        tone: "good",
+      },
+      {
+        label: "库存平衡差额",
+        value: "1.7",
+        unit: "万吨",
+        note: "超过 0.5 万吨阈值",
+        tone: "danger",
+      },
+    ],
+    stages: [
+      { label: "版本创建", detail: "第 4 版", state: "done" },
+      { label: "指标采用", detail: "1 项待审核", state: "warning" },
+      { label: "账户计算", detail: "统一结果完成", state: "done" },
+      { label: "差额解释", detail: "差额 1.7 万吨", state: "current" },
+      { label: "审核发布", detail: "尚未发布", state: "open" },
+    ],
+    risks: [
+      {
+        level: "勾稽",
+        title: "账户差额 1.7 万吨",
+        detail: "主要来自区域流向周报尚未审核",
+        tone: "danger",
+      },
+      {
+        level: "血缘",
+        title: "1 个采用指标不是正式版",
+        detail: "区域流向第 30 周启动等待发布",
+        tone: "warning",
+      },
+      {
+        level: "版本",
+        title: "第 3 版仍有两份报告引用",
+        detail: "第 4 版发布前需完成影响确认",
+        tone: "good",
+      },
+    ],
+    tableTitle: "账户项与采用版本",
+    tableNote: "所有结果只读、可勾稽、可追溯，业务页面不能直接修改。",
+    columns: ["账户项", "正式采用值", "引用版本", "勾稽状态", "责任岗位"],
+    rows: [
+      ["期初库存", "91.6 万吨", "库存正式版 2026-07", "通过", "供需分析岗"],
+      ["本期产量", "621.8 万吨", "产情指标第 7 版", "通过", "产情发布岗"],
+      ["区域净调入", "49.7 万吨", "市场流向第 3 版", "待解释", "市场审核岗"],
+      [
+        "采用后期末库存",
+        "103.9 万吨",
+        "账户结果第 4 版草案",
+        "待审核",
+        "供需发布岗",
+      ],
+    ],
+  },
+};
+
+export const responsibilityAssignments: readonly ResponsibilityAssignment[] = [
+  {
+    id: "resp-qqhr-market",
+    region: "齐齐哈尔市本级",
+    businessItem: "玉米市场运行周填报",
+    frequency: "每周一次",
+    responsibleUserId: "user-wang-yang",
+    responsiblePerson: "王洋",
+    responsiblePost: "市级市场填报岗",
+    reviewer: "赵晨",
+    deadlineRule: "每周五 17:00",
+    effectivePeriod: "2026-01-01 至 2026-12-31",
+    status: "已生效",
+  },
+  {
+    id: "resp-nehe-market",
+    region: "讷河市",
+    businessItem: "玉米市场运行周填报",
+    frequency: "每周一次",
+    responsibleUserId: "user-liu-min",
+    responsiblePerson: "刘敏",
+    responsiblePost: "县域市场填报岗",
+    reviewer: "王洋",
+    deadlineRule: "每周五 17:00",
+    effectivePeriod: "2026-01-01 至 2026-12-31",
+    status: "已生效",
+  },
+  {
+    id: "resp-gannan-market",
+    region: "甘南县",
+    businessItem: "玉米市场运行周填报",
+    frequency: "每周一次",
+    responsibleUserId: "user-sun-mei",
+    responsiblePerson: "孙梅",
+    responsiblePost: "县域市场填报岗",
+    reviewer: "王洋",
+    deadlineRule: "每周五 17:00",
+    effectivePeriod: "2026-01-01 至 2026-12-31",
+    status: "已生效",
+  },
+  {
+    id: "resp-baiquan-production",
+    region: "拜泉县",
+    businessItem: "玉米产情调查周填报",
+    frequency: "每周一次",
+    responsibleUserId: "user-zhou-li",
+    responsiblePerson: "周立",
+    responsiblePost: "县域产情填报岗",
+    reviewer: "赵晨",
+    deadlineRule: "每周五 16:00",
+    effectivePeriod: "2026-01-01 至 2026-12-31",
+    status: "已生效",
+  },
+  {
+    id: "resp-longjiang-production",
+    region: "龙江县",
+    businessItem: "玉米产情调查周填报",
+    frequency: "每周一次",
+    responsibleUserId: "user-chen-xue",
+    responsiblePerson: "陈雪",
+    responsiblePost: "县域产情填报岗",
+    reviewer: "赵晨",
+    deadlineRule: "每周五 16:00",
+    effectivePeriod: "2026-08-03 至 2026-12-31",
+    status: "下周生效",
+  },
+];
+
+export const weeklyTasks: readonly WeeklyTask[] = [
+  {
+    id: "task-31-qqhr",
+    region: "齐齐哈尔市本级",
+    businessItem: "玉米市场运行周填报",
+    responsibleUserId: "user-wang-yang",
+    responsiblePerson: "王洋",
+    deadline: "7 月 31 日 17:00",
+    submittedAt: "尚未提交",
+    status: "填写中",
+    reviewer: "赵晨",
+    snapshot: "截止前可由本人填写",
+  },
+  {
+    id: "task-31-nehe",
+    region: "讷河市",
+    businessItem: "玉米市场运行周填报",
+    responsibleUserId: "user-liu-min",
+    responsiblePerson: "刘敏",
+    deadline: "7 月 31 日 17:00",
+    submittedAt: "7 月 31 日 15:42",
+    status: "已按时提交",
+    reviewer: "王洋",
+    snapshot: "首次合格提交已固定",
+  },
+  {
+    id: "task-31-gannan",
+    region: "甘南县",
+    businessItem: "玉米市场运行周填报",
+    responsibleUserId: "user-sun-mei",
+    responsiblePerson: "孙梅",
+    deadline: "7 月 31 日 17:00",
+    submittedAt: "尚未提交",
+    status: "截止未提交",
+    reviewer: "王洋",
+    snapshot: "逾期记录已固定",
+  },
+  {
+    id: "task-31-baiquan",
+    region: "拜泉县",
+    businessItem: "玉米产情调查周填报",
+    responsibleUserId: "user-zhou-li",
+    responsiblePerson: "周立",
+    deadline: "7 月 31 日 16:00",
+    submittedAt: "7 月 31 日 16:36",
+    status: "逾期补填",
+    reviewer: "赵晨",
+    snapshot: "补填不消除逾期",
+  },
+  {
+    id: "task-31-tailai",
+    region: "泰来县",
+    businessItem: "玉米产情调查周填报",
+    responsibleUserId: "user-gao-ning",
+    responsiblePerson: "高宁",
+    deadline: "7 月 31 日 16:00",
+    submittedAt: "7 月 31 日 14:18",
+    status: "审核通过",
+    reviewer: "赵晨",
+    snapshot: "正式记录已归档",
+  },
+];
+
+export const dutyWeeklyRows: readonly DutyWeeklyRow[] = [
+  {
+    person: "王洋",
+    region: "齐齐哈尔市本级",
+    item: "玉米市场运行周填报",
+    deadline: "周五 17:00",
+    firstQualifiedSubmission: "填写中",
+    status: "截止前",
+    overdueDuration: "—",
+    review: "尚未提交",
+  },
+  {
+    person: "刘敏",
+    region: "讷河市",
+    item: "玉米市场运行周填报",
+    deadline: "周五 17:00",
+    firstQualifiedSubmission: "周五 15:42",
+    status: "按时完成",
+    overdueDuration: "—",
+    review: "待审核",
+  },
+  {
+    person: "孙梅",
+    region: "甘南县",
+    item: "玉米市场运行周填报",
+    deadline: "周五 17:00",
+    firstQualifiedSubmission: "未提交",
+    status: "截止未提交",
+    overdueDuration: "2 小时 18 分",
+    review: "逾期已记录",
+  },
+  {
+    person: "周立",
+    region: "拜泉县",
+    item: "玉米产情调查周填报",
+    deadline: "周五 16:00",
+    firstQualifiedSubmission: "周五 16:36",
+    status: "逾期补填",
+    overdueDuration: "36 分钟",
+    review: "复核中",
+  },
+  {
+    person: "高宁",
+    region: "泰来县",
+    item: "玉米产情调查周填报",
+    deadline: "周五 16:00",
+    firstQualifiedSubmission: "周五 14:18",
+    status: "按时完成",
+    overdueDuration: "—",
+    review: "审核通过",
+  },
+];
+
+export const dutyMonthlyRows: readonly DutyMonthlyRow[] = [
+  {
+    person: "王洋",
+    region: "齐齐哈尔市本级",
+    expected: "4",
+    onTime: "4",
+    overdue: "0",
+    missing: "0",
+    returned: "1",
+    onTimeRate: "100%",
+    trend: "连续 4 周按时",
+  },
+  {
+    person: "刘敏",
+    region: "讷河市",
+    expected: "4",
+    onTime: "3",
+    overdue: "1",
+    missing: "0",
+    returned: "0",
+    onTimeRate: "75%",
+    trend: "较上月下降 25%",
+  },
+  {
+    person: "孙梅",
+    region: "甘南县",
+    expected: "4",
+    onTime: "2",
+    overdue: "1",
+    missing: "1",
+    returned: "1",
+    onTimeRate: "50%",
+    trend: "连续 2 周异常",
+  },
+  {
+    person: "周立",
+    region: "拜泉县",
+    expected: "4",
+    onTime: "3",
+    overdue: "1",
+    missing: "0",
+    returned: "2",
+    onTimeRate: "75%",
+    trend: "本周逾期补填",
+  },
+  {
+    person: "高宁",
+    region: "泰来县",
+    expected: "4",
+    onTime: "4",
+    overdue: "0",
+    missing: "0",
+    returned: "0",
+    onTimeRate: "100%",
+    trend: "履责稳定",
+  },
+];
+
+export const businessReportRows: readonly BusinessReportRow[] = [
+  {
+    name: "齐齐哈尔玉米市场运行日报",
+    frequency: "日报",
+    scope: "齐齐哈尔市全域",
+    period: "2026-07-31",
+    dataVersion: "市场指标第 18 版",
+    status: "等待复核",
+    owner: "市场分析岗",
+    publishedAt: "计划今日 18:30",
+  },
+  {
+    name: "齐齐哈尔玉米产情监测周报",
+    frequency: "周报",
+    scope: "16 个县区",
+    period: "2026 年第 31 周",
+    dataVersion: "产情指标第 7 版",
+    status: "生成中",
+    owner: "产情分析岗",
+    publishedAt: "计划今日 19:00",
+  },
+  {
+    name: "齐齐哈尔粮食商情月报",
+    frequency: "月报",
+    scope: "东北区域经营中心",
+    period: "2026 年 7 月",
+    dataVersion: "正式版本集合 2026-07",
+    status: "第 2 版已发布",
+    owner: "报告发布岗",
+    publishedAt: "7 月 30 日 17:20",
+  },
+  {
+    name: "玉米供需账户分析月报",
+    frequency: "月报",
+    scope: "玉米原粮账户",
+    period: "2026/27 年度 · 7 月",
+    dataVersion: "供需结果第 3 版",
+    status: "等待替代确认",
+    owner: "供需分析岗",
+    publishedAt: "第 4 版发布后替代",
+  },
+];
