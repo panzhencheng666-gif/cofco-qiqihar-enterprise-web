@@ -24,6 +24,25 @@
   min-height: 64px;
 }
 
+.formal-global-header .formal-launcher,
+.formal-global-header .formal-brand,
+.formal-global-header .formal-user {
+  height: 64px;
+}
+
+.formal-environment {
+  flex: 0 0 auto;
+  margin-left: 10px;
+  padding: 5px 9px;
+  border: 1px solid #8e722b;
+  border-radius: 14px;
+  color: #f0d98f;
+  background: rgb(141 106 26 / 16%);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .formal-shell {
   min-height: calc(100vh - 64px);
   grid-template-columns: 176px minmax(0, 1fr);
@@ -1031,6 +1050,12 @@
 .supply-region-band > div > span:not(.unified-status) {
   color: var(--workspace-muted);
   font-size: 9px;
+}
+
+.supply-region-band em {
+  color: var(--workspace-muted);
+  font-size: 9px;
+  font-style: normal;
 }
 
 .supply-region-switch {

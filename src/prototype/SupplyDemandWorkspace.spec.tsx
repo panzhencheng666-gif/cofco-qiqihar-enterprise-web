@@ -59,6 +59,8 @@ describe("supply demand workspace", () => {
     });
     expect(within(region).getByText("2026/27 年度讷河账户")).toBeVisible();
     expect(within(region).getByText("县级账户")).toBeVisible();
-    expect(screen.getByText("12 / 14 项已核定")).toBeVisible();
+    expect(
+      within(region).getByText("12 / 14 项已核定"),
+    ).toBeVisible();
   });
 });

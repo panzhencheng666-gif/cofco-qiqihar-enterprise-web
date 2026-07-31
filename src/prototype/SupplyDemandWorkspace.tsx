@@ -144,6 +144,7 @@ function RegionSwitch({
       <div>
         <small>采用账户</small>
         <strong>{scope.version}</strong>
+        <em>{scope.coverage}</em>
         <WorkspaceStatus tone={toneFor(scope.status)}>
           {scope.status}
         </WorkspaceStatus>

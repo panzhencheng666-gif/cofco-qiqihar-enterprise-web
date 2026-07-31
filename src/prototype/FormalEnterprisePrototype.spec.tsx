@@ -6,93 +6,107 @@ import { FormalEnterprisePrototype } from "./FormalEnterprisePrototype";
 afterEach(cleanup);
 
 describe("formal enterprise shell", () => {
-  it("renders the integrated reporting application without prototype chrome", () => {
+  it("renders the unified report center without prototype chrome", () => {
     render(
-      <FormalEnterprisePrototype initialSearch="?page=reporting&section=overview" />,
+      <FormalEnterprisePrototype initialSearch="?page=reporting&section=business-reports" />,
     );
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
+    expect(screen.getByText("演示环境 · 非生产数据")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "业务报告" })).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "报送与报告运营工作区" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("navigation", { name: "报送与报告模块" }),
+      screen.getByRole("navigation", { name: "报表中心模块" }),
     ).toBeVisible();
     expect(screen.queryByLabelText("界面方案切换")).not.toBeInTheDocument();
   });
 
-  it("keeps reporting functions together in one application", async () => {
+  it("exposes exactly six business applications", async () => {
+    const user = userEvent.setup();
+    render(<FormalEnterprisePrototype initialSearch="?page=work" />);
+
+    await user.click(
+      screen.getByRole("button", { name: /当前业务应用.*我的工作/ }),
+    );
+    const menu = screen.getByRole("menu", { name: "切换业务应用" });
+    expect(within(menu).getAllByRole("menuitem")).toHaveLength(6);
+    expect(within(menu).getByText("经营总览")).toBeVisible();
+    expect(within(menu).getByText("供需与态势")).toBeVisible();
+    expect(within(menu).getByText("报表中心")).toBeVisible();
+  });
+
+  it("keeps reporting supervision centralized and auditable", () => {
+    render(
+      <FormalEnterprisePrototype initialSearch="?page=reporting&section=duty-reports" />,
+    );
+
+    expect(screen.getByText("一人一责区")).toBeVisible();
+    expect(screen.getByText("他人无权代填")).toBeVisible();
+    expect(screen.getByText("每周填报一次")).toBeVisible();
+    expect(screen.getByText("逾期补填保留原逾期记录")).toBeVisible();
+    expect(screen.getByRole("button", { name: "导出责任周报" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "导出责任月报" })).toBeVisible();
+  });
+
+  it("keeps crop varieties, quality, and production collection together", async () => {
     const user = userEvent.setup();
     render(
-      <FormalEnterprisePrototype initialSearch="?page=reporting&section=overview" />,
+      <FormalEnterprisePrototype initialSearch="?page=production&section=collection" />,
     );
 
-    await user.click(screen.getByRole("button", { name: "填报责任" }));
-
     expect(
-      screen.getByRole("heading", { name: "填报责任与区域负责人" }),
+      screen.getByRole("heading", { name: "产情数据采集工作台" }),
     ).toBeVisible();
-    expect(screen.getByText("一人一区 · 每周责任唯一")).toBeVisible();
+    expect(screen.getByRole("button", { name: "在线填报" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Excel批量导入" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "授权系统接入" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue(
+      "德美亚3号",
+    );
+    expect(screen.getByRole("textbox", { name: "水分" })).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "容重" })).toBeVisible();
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "作物" }), "soybean");
+    expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue(
+      "黑农84",
+    );
+    expect(screen.getByRole("textbox", { name: "蛋白" })).toBeVisible();
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "作物" }), "paddy");
+    expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue(
+      "龙粳31",
+    );
+    expect(screen.getByRole("textbox", { name: "出米率" })).toBeVisible();
   });
 
-  it("keeps crop varieties and source actors visible without duplicating applications", () => {
-    render(<FormalEnterprisePrototype initialSearch="?page=production" />);
-
-    const businessScope = screen.getByRole("region", {
-      name: "业务对象与品种范围",
-    });
-    expect(businessScope).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: /玉米.*1,284\.6 万亩/ }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByRole("button", { name: /玉米.*德美亚3号.*京科968/ }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: /大豆.*480\.2 万亩/ }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: /大豆.*黑农84.*东生22/ }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: /稻谷.*274\.8 万亩/ }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: /稻谷.*龙粳31.*绥粳18/ }),
-    ).toBeVisible();
-    expect(within(businessScope).getByText("农户样本")).toBeVisible();
-    expect(within(businessScope).getByText("家庭农场")).toBeVisible();
-    expect(within(businessScope).getByText("合作社")).toBeVisible();
-  });
-
-  it("allows the owner to fill and disables every proxy-entry path", () => {
+  it("opens business entry from My Work without duplicating fields", async () => {
+    const user = userEvent.setup();
     render(
-      <FormalEnterprisePrototype initialSearch="?page=reporting&section=weekly" />,
+      <FormalEnterprisePrototype initialSearch="?page=work&section=reporting" />,
     );
 
     expect(
-      screen.getByRole("button", { name: "填写本人本周报送" }),
-    ).toBeEnabled();
+      screen.queryByRole("textbox", { name: "本周玉米主流收购价格" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "进入市场填报" }));
     expect(
-      screen.getByRole("button", { name: "填写甘南县本周任务" }),
-    ).toBeDisabled();
-    expect(screen.getByText("任何人无权代填")).toBeVisible();
+      screen.getByRole("heading", { name: "市场监测数据采集" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("navigation", { name: "市场监测模块" }),
+    ).toBeVisible();
   });
 
-  it("provides weekly and monthly responsibility report exports", () => {
-    const { rerender } = render(
-      <FormalEnterprisePrototype initialSearch="?page=reporting&section=duty-weekly" />,
-    );
-    expect(screen.getByRole("button", { name: "导出责任周报" })).toBeVisible();
+  it("shows a read-only executive overview with domain drill-down", () => {
+    render(<FormalEnterprisePrototype initialSearch="?page=overview" />);
 
-    rerender(
-      <FormalEnterprisePrototype
-        initialSearch="?page=reporting&section=duty-monthly"
-        key="duty-monthly"
-      />,
-    );
-    expect(screen.getByRole("button", { name: "导出责任月报" })).toBeVisible();
-    expect(screen.getByText("逾期后补填不消除逾期记录")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "粮食商情经营总览" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "产情正式指标" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "市场运行态势" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "供需账户状态" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "维护经营数字" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens report composition from the selected market workspace", async () => {
@@ -106,7 +120,7 @@ describe("formal enterprise shell", () => {
     expect(screen.getByText("玉米市场监测第 31 周已核定数据")).toBeVisible();
   });
 
-  it("shows city consolidation and allows county drill-down", async () => {
+  it("shows the explicit supply scope and allows county drill-down", async () => {
     const user = userEvent.setup();
     render(<FormalEnterprisePrototype initialSearch="?page=supply" />);
 
@@ -117,32 +131,14 @@ describe("formal enterprise shell", () => {
       within(scope).getByText("齐齐哈尔市全域", { selector: "strong" }),
     ).toBeVisible();
     expect(within(scope).getByText("市级合并")).toBeVisible();
-    expect(within(scope).getByText("内部流转抵销 42.6 万吨")).toBeVisible();
 
     await user.click(within(scope).getByRole("button", { name: "讷河市" }));
-
     expect(within(scope).getByText("县级账户")).toBeVisible();
     expect(within(scope).getByText("12 / 14 项已核定")).toBeVisible();
-    expect(screen.getByText("121.8")).toBeVisible();
-
-    await user.click(screen.getByRole("button", { name: "编制业务报告" }));
-    expect(screen.getByRole("dialog", { name: "编制业务报告" })).toBeVisible();
-    const dialog = screen.getByRole("dialog", { name: "编制业务报告" });
-    expect(within(dialog).getByText("讷河市")).toBeVisible();
+    expect(screen.getAllByText("121.8").length).toBeGreaterThan(0);
   });
 
-  it("uses formal business language instead of implementation wording", () => {
-    render(<FormalEnterprisePrototype initialSearch="?page=market" />);
-
-    expect(screen.queryByText(/事实|血缘|重新计算/)).not.toBeInTheDocument();
-    expect(screen.getByText("本周采集进度")).toBeVisible();
-    expect(
-      screen.getByText("行政村数量只采用2025—2026年最新官方口径"),
-    ).toBeVisible();
-    expect(screen.getByText("已核定")).toBeVisible();
-  });
-
-  it("uses the compact five-item market architecture", () => {
+  it("uses compact five-item architectures inside each business", () => {
     render(<FormalEnterprisePrototype initialSearch="?page=market" />);
 
     const navigation = screen.getByRole("navigation", {

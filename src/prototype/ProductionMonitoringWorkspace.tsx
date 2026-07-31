@@ -470,7 +470,10 @@ function ProductionOnlineEntry() {
                 <div className="production-inline-fields">
                   <label>
                     <span>具体品种</span>
-                    <input defaultValue={profile.varieties[0].name} />
+                    <input
+                      key={`variety-${crop}`}
+                      defaultValue={profile.varieties[0].name}
+                    />
                   </label>
                   <label>
                     <span>品种状态</span>
