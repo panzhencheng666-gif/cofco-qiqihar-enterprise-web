@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { BusinessReportComposer } from "./BusinessReportComposer";
 import type { BusinessReportContext } from "./businessReportModel";
+import { MarketMonitoringWorkspace } from "./MarketMonitoringWorkspace";
 import {
   businessReportRows,
   dutyMonthlyRows,
@@ -21,6 +22,7 @@ import {
   writeFormalRoute,
   type FormalApplication,
   type FormalRoute,
+  type MarketSection,
   type ReportingSection,
 } from "./formalEnterpriseModel";
 import {
@@ -277,9 +279,11 @@ function FormalGlobalHeader({
 function FormalSidebar({
   route,
   onReportingSectionChange,
+  onMarketSectionChange,
 }: {
   route: FormalRoute;
   onReportingSectionChange: (section: ReportingSection) => void;
+  onMarketSectionChange: (section: MarketSection) => void;
 }) {
   const application =
     formalApplicationDefinitions.find(
@@ -327,9 +331,22 @@ function FormalSidebar({
             <span>业务工作区</span>
             {application.navigation.map((item, index) => (
               <button
-                className={index === 0 ? "is-active" : ""}
+                className={
+                  route.application === "market"
+                    ? item.key === route.marketSection
+                      ? "is-active"
+                      : ""
+                    : index === 0
+                      ? "is-active"
+                      : ""
+                }
                 key={item.key}
                 type="button"
+                onClick={() => {
+                  if (route.application === "market") {
+                    onMarketSectionChange(item.key as MarketSection);
+                  }
+                }}
               >
                 <i aria-hidden="true" />
                 <b>{item.label}</b>
@@ -1462,14 +1479,29 @@ export function FormalEnterprisePrototype({
       <FormalGlobalHeader
         route={route}
         onApplicationChange={(application) =>
-          changeRoute({ application, reportingSection: "overview" })
+          changeRoute({
+            application,
+            reportingSection: "overview",
+            marketSection: "overview",
+          })
         }
       />
       <div className="formal-shell">
         <FormalSidebar
           route={route}
           onReportingSectionChange={(reportingSection) =>
-            changeRoute({ application: "reporting", reportingSection })
+            changeRoute({
+              application: "reporting",
+              reportingSection,
+              marketSection: "overview",
+            })
+          }
+          onMarketSectionChange={(marketSection) =>
+            changeRoute({
+              application: "market",
+              reportingSection: "overview",
+              marketSection,
+            })
           }
         />
         <main className="formal-main">
@@ -1478,6 +1510,18 @@ export function FormalEnterprisePrototype({
               {pageHeader}
               <ReportingWorkspace section={route.reportingSection} />
             </>
+          ) : route.application === "market" ? (
+            <MarketMonitoringWorkspace
+              section={route.marketSection}
+              onComposeReport={setReportContext}
+              onSectionChange={(marketSection) =>
+                changeRoute({
+                  application: "market",
+                  reportingSection: "overview",
+                  marketSection,
+                })
+              }
+            />
           ) : (
             <GeneralWorkspace
               application={route.application}

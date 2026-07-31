@@ -126,8 +126,10 @@ describe("formal enterprise shell", () => {
     render(<FormalEnterprisePrototype initialSearch="?page=market" />);
 
     expect(screen.queryByText(/事实|血缘|重新计算/)).not.toBeInTheDocument();
-    expect(screen.getByText("业务台账")).toBeVisible();
-    expect(screen.getByText("本期数据已核定")).toBeVisible();
-    expect(screen.getByText("修订留痕 · 原记录保留")).toBeVisible();
+    expect(screen.getByText("本周采集进度")).toBeVisible();
+    expect(
+      screen.getByText("行政村数量只采用2025—2026年最新官方口径"),
+    ).toBeVisible();
+    expect(screen.getByText("已核定")).toBeVisible();
   });
 });

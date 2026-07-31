@@ -182,12 +182,11 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       shortLabel: "市场",
       note: "管理市场主体、行情、库存、加工和物流信息",
       navigation: [
-        { key: "overview", label: "监测总览" },
-        { key: "subjects", label: "市场主体" },
-        { key: "trading", label: "行情与交易" },
-        { key: "inventory", label: "库存与仓储" },
-        { key: "processing", label: "加工与转化" },
-        { key: "logistics", label: "物流流向" },
+        { key: "overview", label: "市场总览" },
+        { key: "objects", label: "监测对象" },
+        { key: "collection", label: "数据采集" },
+        { key: "review", label: "审核发布" },
+        { key: "reports", label: "分析与报告" },
       ],
     },
     {
