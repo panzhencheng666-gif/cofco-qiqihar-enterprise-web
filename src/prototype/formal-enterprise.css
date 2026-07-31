@@ -1633,6 +1633,384 @@
   cursor: not-allowed;
 }
 
+.formal-report-composer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgb(9 31 43 / 52%);
+}
+
+.formal-report-composer {
+  width: min(1100px, calc(100vw - 56px));
+  max-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #bdcbd2;
+  border-radius: 9px;
+  background: #f4f7f8;
+  box-shadow: 0 24px 70px rgb(7 28 39 / 28%);
+}
+
+.formal-report-composer__header {
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--formal-line-strong);
+  background: #fff;
+}
+
+.formal-report-composer__header span {
+  color: var(--formal-teal-deep);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.formal-report-composer__header h1 {
+  margin: 3px 0 2px;
+  color: var(--formal-text);
+  font-size: 23px;
+}
+
+.formal-report-composer__header p {
+  margin: 0;
+  color: var(--formal-muted-light);
+  font-size: 12px;
+}
+
+.formal-report-composer__close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 5px;
+  color: var(--formal-muted);
+  background: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.formal-report-composer__context {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr 1fr;
+  border-bottom: 1px solid var(--formal-line-strong);
+  background: #fff;
+}
+
+.formal-report-composer__context > div {
+  min-width: 0;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 18px;
+}
+
+.formal-report-composer__context > div + div {
+  border-left: 1px solid var(--formal-line);
+}
+
+.formal-report-composer__context small,
+.formal-report-version small {
+  color: var(--formal-muted-light);
+  font-size: 11px;
+}
+
+.formal-report-composer__context strong,
+.formal-report-version strong {
+  overflow: hidden;
+  color: var(--formal-text-soft);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.formal-report-composer__context span {
+  color: var(--formal-teal-deep);
+  font-size: 11px;
+}
+
+.formal-report-composer__toolbar {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--formal-line-strong);
+  background: #f8fafb;
+}
+
+.formal-frequency-switch {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.formal-frequency-switch button {
+  min-width: 72px;
+  height: 34px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--formal-muted);
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.formal-frequency-switch button.is-active {
+  color: #fff;
+  background: var(--formal-teal);
+  font-weight: 650;
+}
+
+.formal-report-version {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: right;
+}
+
+.formal-report-composer__body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  gap: 14px;
+  padding: 14px;
+  overflow: auto;
+}
+
+.formal-report-document,
+.formal-report-review {
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.formal-report-document {
+  padding: 22px;
+}
+
+.formal-report-document__title {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--formal-line);
+  text-align: center;
+}
+
+.formal-report-document__title > span {
+  color: var(--formal-muted-light);
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.formal-report-document__title h2 {
+  margin: 7px 0 5px;
+  color: var(--formal-text);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 22px;
+}
+
+.formal-report-document__title p {
+  margin: 0;
+  color: var(--formal-muted-light);
+  font-size: 11px;
+}
+
+.formal-report-summary {
+  display: block;
+  margin-top: 16px;
+}
+
+.formal-report-summary > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--formal-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.formal-report-summary textarea {
+  width: 100%;
+  min-height: 82px;
+  padding: 12px;
+  resize: vertical;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 5px;
+  color: var(--formal-text-soft);
+  background: #fbfcfc;
+  font: 13px/1.7 inherit;
+}
+
+.formal-report-indicators {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 16px;
+  border: 1px solid var(--formal-line);
+  border-radius: 5px;
+}
+
+.formal-report-indicators > div {
+  min-width: 0;
+  padding: 12px;
+}
+
+.formal-report-indicators > div + div {
+  border-left: 1px solid var(--formal-line);
+}
+
+.formal-report-indicators small,
+.formal-report-indicators strong,
+.formal-report-indicators span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.formal-report-indicators small {
+  color: var(--formal-muted-light);
+  font-size: 10px;
+}
+
+.formal-report-indicators strong {
+  margin-top: 5px;
+  color: var(--formal-text);
+  font-size: 15px;
+}
+
+.formal-report-indicators span {
+  margin-top: 4px;
+  color: var(--formal-muted-light);
+  font-size: 10px;
+}
+
+.formal-report-chapters {
+  margin-top: 16px;
+}
+
+.formal-report-chapters > section {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--formal-line);
+}
+
+.formal-report-chapters > section > span {
+  color: var(--formal-teal);
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.formal-report-chapters h3 {
+  margin: 0;
+  color: var(--formal-text-soft);
+  font-size: 13px;
+}
+
+.formal-report-chapters p {
+  margin: 3px 0 0;
+  color: var(--formal-muted-light);
+  font-size: 11px;
+}
+
+.formal-report-review {
+  align-self: start;
+  padding: 17px;
+}
+
+.formal-report-review h2 {
+  margin: 0 0 12px;
+  color: var(--formal-text);
+  font-size: 15px;
+}
+
+.formal-report-review dl {
+  margin: 0;
+}
+
+.formal-report-review dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--formal-line);
+  font-size: 12px;
+}
+
+.formal-report-review dt {
+  color: var(--formal-muted-light);
+}
+
+.formal-report-review dd {
+  margin: 0;
+  color: var(--formal-text-soft);
+  font-weight: 650;
+}
+
+.formal-report-review p {
+  margin: 14px 0 0;
+  padding: 11px;
+  border-left: 3px solid var(--formal-gold);
+  color: #745c2b;
+  background: #fffbf1;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.formal-report-composer__footer {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--formal-line-strong);
+  background: #fff;
+}
+
+.formal-report-composer__footer > div {
+  display: flex;
+  gap: 8px;
+}
+
+.formal-report-composer__footer button {
+  min-height: 38px;
+  padding: 0 15px;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 5px;
+  color: var(--formal-text-soft);
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.formal-report-composer__footer button.is-primary {
+  border-color: var(--formal-teal);
+  color: #fff;
+  background: var(--formal-teal);
+}
+
+.formal-report-composer button:focus-visible,
+.formal-report-composer textarea:focus-visible {
+  outline: 2px solid #3d918c;
+  outline-offset: 2px;
+}
+
 @media (max-width: 1380px) {
   .formal-brand {
     width: 238px;
