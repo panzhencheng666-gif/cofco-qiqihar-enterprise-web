@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getSupplyBalanceEquation,
   getSupplyBalanceMetrics,
   getSupplyBalanceScope,
   supplyBalanceScopes,
@@ -37,5 +38,17 @@ describe("supply balance scope", () => {
 
   it("falls back to the city account for an unknown route value", () => {
     expect(getSupplyBalanceScope("unknown").key).toBe("qiqihar");
+  });
+
+  it("separates book ending inventory from the inventory balance difference", () => {
+    expect(getSupplyBalanceEquation("qiqihar")).toEqual(
+      expect.objectContaining({
+        totalSupply: "763.1",
+        totalUse: "659.2",
+        bookEnding: "103.9",
+        surveyEnding: "105.6",
+        inventoryDifference: "1.7",
+      }),
+    );
   });
 });

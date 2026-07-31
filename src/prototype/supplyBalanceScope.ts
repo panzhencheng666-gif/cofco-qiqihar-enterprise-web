@@ -20,6 +20,16 @@ export interface SupplyBalanceMetric {
   tone?: "normal" | "good" | "warning" | "danger";
 }
 
+export interface SupplyBalanceEquation {
+  totalSupply: string;
+  totalUse: string;
+  bookEnding: string;
+  approvedAdjustment: string;
+  adoptedEnding: string;
+  surveyEnding: string;
+  inventoryDifference: string;
+}
+
 export const supplyBalanceScopes: readonly SupplyBalanceScope[] = [
   {
     key: "qiqihar",
@@ -215,4 +225,59 @@ export function getSupplyBalanceScope(key: string | null | undefined) {
 
 export function getSupplyBalanceMetrics(key: string | null | undefined) {
   return getSupplyBalanceScope(key).metrics;
+}
+
+const supplyBalanceEquations: Record<
+  SupplyBalanceScopeKey,
+  SupplyBalanceEquation
+> = {
+  qiqihar: {
+    totalSupply: "763.1",
+    totalUse: "659.2",
+    bookEnding: "103.9",
+    approvedAdjustment: "0.0",
+    adoptedEnding: "103.9",
+    surveyEnding: "105.6",
+    inventoryDifference: "1.7",
+  },
+  nehe: {
+    totalSupply: "121.8",
+    totalUse: "104.6",
+    bookEnding: "17.2",
+    approvedAdjustment: "0.0",
+    adoptedEnding: "17.2",
+    surveyEnding: "17.6",
+    inventoryDifference: "0.4",
+  },
+  longjiang: {
+    totalSupply: "98.4",
+    totalUse: "87.7",
+    bookEnding: "10.7",
+    approvedAdjustment: "0.0",
+    adoptedEnding: "10.7",
+    surveyEnding: "10.9",
+    inventoryDifference: "0.2",
+  },
+  gannan: {
+    totalSupply: "74.9",
+    totalUse: "66.3",
+    bookEnding: "8.6",
+    approvedAdjustment: "0.0",
+    adoptedEnding: "8.6",
+    surveyEnding: "9.5",
+    inventoryDifference: "0.9",
+  },
+  tailai: {
+    totalSupply: "69.7",
+    totalUse: "61.8",
+    bookEnding: "7.9",
+    approvedAdjustment: "0.0",
+    adoptedEnding: "7.9",
+    surveyEnding: "8.2",
+    inventoryDifference: "0.3",
+  },
+};
+
+export function getSupplyBalanceEquation(key: string | null | undefined) {
+  return supplyBalanceEquations[getSupplyBalanceScope(key).key];
 }
