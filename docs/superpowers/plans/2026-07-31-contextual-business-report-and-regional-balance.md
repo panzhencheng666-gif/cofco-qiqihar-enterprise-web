@@ -24,10 +24,12 @@
 ### Task 1: Pure business-report definition and export model
 
 **Files:**
+
 - Create: `src/prototype/businessReportModel.ts`
 - Create: `src/prototype/businessReportModel.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `FormalApplication` from `src/prototype/formalEnterpriseModel.ts`.
 - Produces:
   - `ReportableApplication`
@@ -166,10 +168,12 @@ git commit -m "feat: add contextual business report model"
 ### Task 2: Regional supply-balance scope model
 
 **Files:**
+
 - Create: `src/prototype/supplyBalanceScope.ts`
 - Create: `src/prototype/supplyBalanceScope.spec.ts`
 
 **Interfaces:**
+
 - Produces:
   - `SupplyBalanceScope`
   - `supplyBalanceScopes`
@@ -264,11 +268,13 @@ git commit -m "feat: model regional supply balance scopes"
 ### Task 3: Business report composer
 
 **Files:**
+
 - Create: `src/prototype/BusinessReportComposer.tsx`
 - Create: `src/prototype/BusinessReportComposer.spec.tsx`
 - Modify: `src/prototype/formal-enterprise.css`
 
 **Interfaces:**
+
 - Consumes `BusinessReportContext`, `BusinessReportFrequency`, `BusinessReportFormat`, `createBusinessReportDraft`, and `createBusinessReportArtifact`.
 - Produces `BusinessReportComposer` with:
 
@@ -378,12 +384,14 @@ git commit -m "feat: add business report composer"
 ### Task 4: Integrate report composition and regional supply accounts
 
 **Files:**
+
 - Modify: `src/prototype/FormalEnterprisePrototype.tsx`
 - Modify: `src/prototype/FormalEnterprisePrototype.spec.tsx`
 - Modify: `src/prototype/formalEnterpriseData.ts`
 - Modify: `src/prototype/formal-enterprise.css`
 
 **Interfaces:**
+
 - Consumes `BusinessReportComposer`, report context types, and supply-scope functions.
 - `GeneralWorkspace` adds `onComposeReport(context)` and maintains selected supply scope.
 
@@ -471,12 +479,14 @@ git commit -m "feat: integrate reports and regional supply balance"
 ### Task 5: Formal copy and 192px enterprise shell
 
 **Files:**
+
 - Modify: `src/prototype/formalEnterpriseData.ts`
 - Modify: `src/prototype/FormalEnterprisePrototype.tsx`
 - Modify: `src/prototype/formal-enterprise.css`
 - Modify: `src/prototype/FormalEnterprisePrototype.spec.tsx`
 
 **Interfaces:**
+
 - No new public interface.
 
 - [ ] **Step 1: Add copy and layout assertions**
@@ -484,7 +494,9 @@ git commit -m "feat: integrate reports and regional supply balance"
 Assert:
 
 ```tsx
-expect(screen.queryByText(/事实|血缘|运行实例|重新计算/)).not.toBeInTheDocument();
+expect(
+  screen.queryByText(/事实|血缘|运行实例|重新计算/),
+).not.toBeInTheDocument();
 expect(screen.getByText("业务台账")).toBeVisible();
 expect(screen.getByText("本期数据已核定")).toBeVisible();
 ```
@@ -583,9 +595,11 @@ git commit -m "refactor: refine formal enterprise shell and copy"
 ### Task 6: Browser verification, screenshots, and full quality gate
 
 **Files:**
+
 - Verify only; do not stage unrelated workspace files.
 
 **Interfaces:**
+
 - No new public interface.
 
 - [ ] **Step 1: Run full automated verification**

@@ -25,11 +25,13 @@
 ### Task 1: Unified Application and Section Routing
 
 **Files:**
+
 - Modify: `src/prototype/formalEnterpriseModel.ts`
 - Modify: `src/prototype/formalEnterpriseModel.spec.ts`
 - Modify: `src/prototype/formalEnterpriseData.ts`
 
 **Interfaces:**
+
 - Produces: `FormalApplication`, `FormalSection`, `FormalRoute`, `formalSectionsByApplication`, `readFormalRoute(search)`, `writeFormalRoute(route)`.
 - Consumes: existing responsibility helpers without changing their signatures.
 
@@ -105,12 +107,14 @@ git commit -m "feat: unify enterprise workspace routing"
 ### Task 2: Shared Compact Workspace Primitives
 
 **Files:**
+
 - Create: `src/prototype/UnifiedWorkspacePrimitives.tsx`
 - Create: `src/prototype/unified-workspaces.css`
 - Create: `src/prototype/UnifiedWorkspacePrimitives.spec.tsx`
 - Modify: `src/prototype/main.tsx`
 
 **Interfaces:**
+
 - Produces: `WorkspaceHeader`, `BusinessContextBar`, `WorkspaceStatus`, `CompactMetricStrip`, `WorkspacePanel`, `WorkspaceTable`, `CollectionModeSwitch`.
 - Consumes: React children and plain business labels only.
 
@@ -182,11 +186,13 @@ git commit -m "feat: add unified enterprise workspace primitives"
 ### Task 3: My Work and Executive Overview
 
 **Files:**
+
 - Create: `src/prototype/MyWorkWorkspace.tsx`
 - Create: `src/prototype/ExecutiveOverviewWorkspace.tsx`
 - Create: `src/prototype/PortalWorkspaces.spec.tsx`
 
 **Interfaces:**
+
 - Produces: `MyWorkWorkspace({ section, onOpenBusiness })`, `ExecutiveOverviewWorkspace({ onOpenApplication })`.
 - Consumes: `weeklyTasks`, shared workspace primitives, and route callbacks.
 
@@ -200,7 +206,9 @@ expect(openBusiness).toHaveBeenCalledWith("market", "collection");
 render(<ExecutiveOverviewWorkspace onOpenApplication={openApplication} />);
 expect(screen.getByText("产情正式指标")).toBeVisible();
 expect(screen.getByText("市场运行态势")).toBeVisible();
-expect(screen.queryByRole("button", { name: "维护经营数字" })).not.toBeInTheDocument();
+expect(
+  screen.queryByRole("button", { name: "维护经营数字" }),
+).not.toBeInTheDocument();
 ```
 
 - [ ] **Step 2: Run the tests and verify failure**
@@ -233,12 +241,14 @@ git commit -m "feat: add work and executive portal workspaces"
 ### Task 4: Complete Production Monitoring Workspace
 
 **Files:**
+
 - Create: `src/prototype/productionMonitoringModel.ts`
 - Create: `src/prototype/productionMonitoringData.ts`
 - Create: `src/prototype/ProductionMonitoringWorkspace.tsx`
 - Create: `src/prototype/ProductionMonitoringWorkspace.spec.tsx`
 
 **Interfaces:**
+
 - Produces: `ProductionMonitoringWorkspace({ section, onSectionChange, onComposeReport })`, `getProductionFieldGroups(objectType, crop)`.
 - Consumes: `BusinessReportContext`, shared primitives, and route section callbacks.
 
@@ -300,12 +310,14 @@ git commit -m "feat: complete production monitoring workspace"
 ### Task 5: Explainable Supply-Demand Workspace
 
 **Files:**
+
 - Modify: `src/prototype/supplyBalanceScope.ts`
 - Modify: `src/prototype/supplyBalanceScope.spec.ts`
 - Create: `src/prototype/SupplyDemandWorkspace.tsx`
 - Create: `src/prototype/SupplyDemandWorkspace.spec.tsx`
 
 **Interfaces:**
+
 - Produces: `SupplyDemandWorkspace({ section, onComposeReport })`, `getSupplyBalanceEquation(scopeKey)`.
 - Consumes: `supplyBalanceScopes`, shared primitives, and `BusinessReportContext`.
 
@@ -325,10 +337,7 @@ expect(getSupplyBalanceEquation("qiqihar")).toEqual(
 
 ```tsx
 render(
-  <SupplyDemandWorkspace
-    section="overview"
-    onComposeReport={composeReport}
-  />,
+  <SupplyDemandWorkspace section="overview" onComposeReport={composeReport} />,
 );
 expect(screen.getByText("调整前账面期末")).toBeVisible();
 expect(screen.getByText("库存平衡差额")).toBeVisible();
@@ -365,12 +374,14 @@ git commit -m "feat: add explainable supply demand workspace"
 ### Task 6: Consolidated Report Center and Market Deduplication
 
 **Files:**
+
 - Create: `src/prototype/ReportCenterWorkspace.tsx`
 - Create: `src/prototype/ReportCenterWorkspace.spec.tsx`
 - Modify: `src/prototype/MarketMonitoringWorkspace.tsx`
 - Modify: `src/prototype/MarketMonitoringWorkspace.spec.tsx`
 
 **Interfaces:**
+
 - Produces: `ReportCenterWorkspace({ section, onComposeReport })`.
 - Consumes: `businessReportRows`, responsibility assignments, duty snapshots, report composer, and shared primitives.
 
@@ -420,11 +431,13 @@ git commit -m "feat: consolidate enterprise report center"
 ### Task 7: Integrate the Six Workspaces into One Shell
 
 **Files:**
+
 - Modify: `src/prototype/FormalEnterprisePrototype.tsx`
 - Modify: `src/prototype/FormalEnterprisePrototype.spec.tsx`
 - Modify: `src/prototype/formal-enterprise.css`
 
 **Interfaces:**
+
 - Consumes: all workspace components and unified route callbacks.
 - Produces: one shell whose sidebar and URL route every visible menu item.
 
@@ -441,13 +454,9 @@ expect(
 render(
   <FormalEnterprisePrototype initialSearch="?page=supply&section=lineage" />,
 );
-expect(
-  screen.getByRole("heading", { name: "指标与来源追溯" }),
-).toBeVisible();
+expect(screen.getByRole("heading", { name: "指标与来源追溯" })).toBeVisible();
 
-render(
-  <FormalEnterprisePrototype initialSearch="?page=overview" />,
-);
+render(<FormalEnterprisePrototype initialSearch="?page=overview" />);
 expect(screen.getByText("演示环境·非生产数据")).toBeVisible();
 ```
 
@@ -481,10 +490,12 @@ git commit -m "feat: integrate unified enterprise workspace shell"
 ### Task 8: Full Verification and Visual Acceptance
 
 **Files:**
+
 - Create: `docs/superpowers/verification/2026-07-31-unified-enterprise-workspaces.md`
 - Create screenshots under: `artifacts/`
 
 **Interfaces:**
+
 - Consumes: the completed prototype.
 - Produces: verification evidence and six primary acceptance screenshots.
 

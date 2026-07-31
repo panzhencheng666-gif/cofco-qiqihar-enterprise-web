@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { BusinessReportComposer } from "./BusinessReportComposer";
 import type { BusinessReportContext } from "./businessReportModel";
-import {
-  EnterpriseIcon,
-  type EnterpriseIconName,
-} from "./EnterpriseIcon";
+import { EnterpriseIcon, type EnterpriseIconName } from "./EnterpriseIcon";
 import { ExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { formalApplicationDefinitions } from "./formalEnterpriseData";
 import {
@@ -59,11 +56,7 @@ function FormalGlobalHeader({
 }) {
   return (
     <header className="formal-header formal-global-header">
-      <button
-        aria-label="应用菜单"
-        className="formal-launcher"
-        type="button"
-      >
+      <button aria-label="应用菜单" className="formal-launcher" type="button">
         <EnterpriseIcon name="apps" />
       </button>
       <div className="formal-brand">
@@ -82,9 +75,7 @@ function FormalGlobalHeader({
       <nav aria-label="业务应用" className="formal-application-nav">
         {formalApplicationDefinitions.map((item) => (
           <button
-            aria-current={
-              item.key === route.application ? "page" : undefined
-            }
+            aria-current={item.key === route.application ? "page" : undefined}
             className={item.key === route.application ? "is-active" : ""}
             key={item.key}
             type="button"

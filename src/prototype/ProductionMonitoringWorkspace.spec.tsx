@@ -28,9 +28,7 @@ describe("production monitoring workspace", () => {
     expect(
       screen.getByRole("table", { name: "样本结果与区域估计" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("table", { name: "产情调查任务" }),
-    ).toBeVisible();
+    expect(screen.getByRole("table", { name: "产情调查任务" })).toBeVisible();
     expect(container.querySelector(".production-estimate-grid")).toBeNull();
     expect(container.querySelector(".unified-two-column")).toBeNull();
   });

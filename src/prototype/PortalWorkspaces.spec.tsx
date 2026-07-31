@@ -11,10 +11,7 @@ describe("enterprise portal workspaces", () => {
     const user = userEvent.setup();
     const onOpenBusiness = vi.fn();
     render(
-      <MyWorkWorkspace
-        section="reporting"
-        onOpenBusiness={onOpenBusiness}
-      />,
+      <MyWorkWorkspace section="reporting" onOpenBusiness={onOpenBusiness} />,
     );
 
     await user.click(screen.getByRole("button", { name: "进入市场填报" }));
@@ -50,12 +47,8 @@ describe("enterprise portal workspaces", () => {
       <MyWorkWorkspace section="inbox" onOpenBusiness={vi.fn()} />,
     );
 
-    expect(
-      screen.getByRole("table", { name: "本人责任任务" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("table", { name: "今日重点事项" }),
-    ).toBeVisible();
+    expect(screen.getByRole("table", { name: "本人责任任务" })).toBeVisible();
+    expect(screen.getByRole("table", { name: "今日重点事项" })).toBeVisible();
     expect(container.querySelector(".unified-two-column")).toBeNull();
     expect(container.querySelector(".unified-attention-panel")).toBeNull();
   });
@@ -66,12 +59,8 @@ describe("enterprise portal workspaces", () => {
     );
 
     expect(screen.getByLabelText("经营核心摘要").children).toHaveLength(4);
-    expect(
-      screen.getByRole("table", { name: "业务运行摘要" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("table", { name: "经营风险清单" }),
-    ).toBeVisible();
+    expect(screen.getByRole("table", { name: "业务运行摘要" })).toBeVisible();
+    expect(screen.getByRole("table", { name: "经营风险清单" })).toBeVisible();
     expect(container.querySelector(".unified-three-column")).toBeNull();
   });
 });

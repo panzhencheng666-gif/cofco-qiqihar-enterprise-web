@@ -12,9 +12,7 @@ describe("formal enterprise shell", () => {
     );
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
-    expect(
-      screen.queryByText("演示环境 · 非生产数据"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("演示环境 · 非生产数据")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "业务报告" })).toBeVisible();
     expect(
       screen.getByRole("navigation", { name: "报表中心模块" }),
@@ -35,7 +33,9 @@ describe("formal enterprise shell", () => {
       within(applications).getByRole("button", { name: "市场监测" }),
     ).toHaveAttribute("aria-current", "page");
     expect(screen.queryByText("当前业务应用")).not.toBeInTheDocument();
-    expect(screen.queryByText("统一业务与数据运营平台")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("统一业务与数据运营平台"),
+    ).not.toBeInTheDocument();
     expect(container.querySelector(".formal-sidebar-description")).toBeNull();
     expect(container.querySelector(".formal-enterprise-shell")).not.toBeNull();
   });
@@ -52,6 +52,15 @@ describe("formal enterprise shell", () => {
     expect(within(applications).getByText("报表中心")).toBeVisible();
   });
 
+  it("labels every icon-only shell tool", () => {
+    render(<FormalEnterprisePrototype initialSearch="?page=market" />);
+
+    expect(screen.getByRole("button", { name: /任务中心/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /通知/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: "帮助" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "收起左侧导航" })).toBeVisible();
+  });
+
   it("collapses the sidebar without hiding business names from assistive technology", async () => {
     const user = userEvent.setup();
     const { container } = render(
@@ -65,9 +74,7 @@ describe("formal enterprise shell", () => {
     expect(
       screen.getByRole("navigation", { name: "产情监测模块" }),
     ).toHaveTextContent("数据采集");
-    expect(
-      screen.getByRole("button", { name: "展开左侧导航" }),
-    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "展开左侧导航" })).toBeVisible();
   });
 
   it("keeps reporting supervision centralized and auditable", () => {
@@ -101,13 +108,19 @@ describe("formal enterprise shell", () => {
     expect(screen.getByRole("textbox", { name: "水分" })).toBeVisible();
     expect(screen.getByRole("textbox", { name: "容重" })).toBeVisible();
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "作物" }), "soybean");
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "作物" }),
+      "soybean",
+    );
     expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue(
       "黑农84",
     );
     expect(screen.getByRole("textbox", { name: "蛋白" })).toBeVisible();
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "作物" }), "paddy");
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "作物" }),
+      "paddy",
+    );
     expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue(
       "龙粳31",
     );
@@ -136,7 +149,9 @@ describe("formal enterprise shell", () => {
   it("shows a read-only executive overview with domain drill-down", () => {
     render(<FormalEnterprisePrototype initialSearch="?page=overview" />);
 
-    expect(screen.getByRole("heading", { name: "粮食商情经营总览" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "粮食商情经营总览" }),
+    ).toBeVisible();
     const businessSummary = screen.getByRole("table", {
       name: "业务运行摘要",
     });

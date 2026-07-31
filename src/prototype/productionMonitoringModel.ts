@@ -94,7 +94,6 @@ const objectFields: Record<
 
 export function getProductionFieldGroups(
   objectType: ProductionObjectType,
-  _crop: ProductionCrop,
 ): ProductionFieldGroup[] {
   return objectFields[objectType].map((key) => ({
     key,

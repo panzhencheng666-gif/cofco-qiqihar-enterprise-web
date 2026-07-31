@@ -97,11 +97,7 @@ describe("unified workspace primitives", () => {
     await user.click(screen.getByRole("tab", { name: "逾期记录" }));
     expect(onTabChange).toHaveBeenCalledWith("overdue");
     expect(screen.getByRole("region", { name: "任务筛选" })).toBeVisible();
-    expect(screen.getByLabelText("业务状态摘要")).toHaveTextContent(
-      "应报428",
-    );
-    expect(
-      screen.getByRole("toolbar", { name: "报送任务清单" }),
-    ).toBeVisible();
+    expect(screen.getByLabelText("业务状态摘要")).toHaveTextContent("应报428");
+    expect(screen.getByRole("toolbar", { name: "报送任务清单" })).toBeVisible();
   });
 });

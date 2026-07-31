@@ -85,11 +85,7 @@ function MarketContextStrip({
         ["截止时间", "7 月 31 日 17:00"],
       ]}
       state={state}
-      tone={
-        state.includes("待") || state.includes("采集")
-          ? "warning"
-          : "good"
-      }
+      tone={state.includes("待") || state.includes("采集") ? "warning" : "good"}
     />
   );
 }
@@ -317,7 +313,14 @@ function MarketOverview({
         note="行政村数量只采用 2025—2026 年最新官方口径"
       />
       <WorkspaceTable
-        columns={["监测区域", "覆盖范围", "乡镇覆盖", "行政村", "来源状态", "来源说明"]}
+        columns={[
+          "监测区域",
+          "覆盖范围",
+          "乡镇覆盖",
+          "行政村",
+          "来源状态",
+          "来源说明",
+        ]}
         label="监测区域与行政来源"
         rows={marketRegionCoverage.map((region) => [
           region.label,
@@ -398,10 +401,7 @@ function MarketObjectRegistry() {
             "加工与消费",
             "玉米深加工 · 大豆压榨 / 蛋白加工 · 食品调味 · 米厂 · 饲料 · 养殖",
           ],
-          [
-            "专题与节点",
-            "种子 · 农药 · 化肥经销商 · 铁路站点 · 公路物流节点",
-          ],
+          ["专题与节点", "种子 · 农药 · 化肥经销商 · 铁路站点 · 公路物流节点"],
         ]}
       />
       <WorkspaceTableToolbar
@@ -409,20 +409,20 @@ function MarketObjectRegistry() {
         note="主体角色可以多选，但主体档案不重复建立"
         actions={
           <>
-          <button
-            className={target === "subject" ? "is-active" : undefined}
-            type="button"
-            onClick={() => setTarget("subject")}
-          >
-            市场主体
-          </button>
-          <button
-            className={target === "logistics" ? "is-active" : undefined}
-            type="button"
-            onClick={() => setTarget("logistics")}
-          >
-            物流节点
-          </button>
+            <button
+              className={target === "subject" ? "is-active" : undefined}
+              type="button"
+              onClick={() => setTarget("subject")}
+            >
+              市场主体
+            </button>
+            <button
+              className={target === "logistics" ? "is-active" : undefined}
+              type="button"
+              onClick={() => setTarget("logistics")}
+            >
+              物流节点
+            </button>
           </>
         }
       />
@@ -447,7 +447,9 @@ function MarketObjectRegistry() {
             row.qualityScope,
             row.region,
             row.owner,
-            <MarketStatus key={`${row.name}-status`}>{row.status}</MarketStatus>,
+            <MarketStatus key={`${row.name}-status`}>
+              {row.status}
+            </MarketStatus>,
           ])}
         />
       ) : (
@@ -467,7 +469,9 @@ function MarketObjectRegistry() {
             row.coverage,
             row.monitoring,
             row.owner,
-            <MarketStatus key={`${row.name}-status`}>{row.status}</MarketStatus>,
+            <MarketStatus key={`${row.name}-status`}>
+              {row.status}
+            </MarketStatus>,
           ])}
         />
       )}

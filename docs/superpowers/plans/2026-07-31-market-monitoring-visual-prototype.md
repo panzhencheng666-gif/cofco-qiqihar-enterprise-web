@@ -25,10 +25,12 @@
 ### Task 1: Market Route State
 
 **Files:**
+
 - Modify: `src/prototype/formalEnterpriseModel.ts`
 - Modify: `src/prototype/formalEnterpriseModel.spec.ts`
 
 **Interfaces:**
+
 - Produces: `MarketSection`, `marketSections`, `FormalRoute.marketSection`.
 - Produces: `readFormalRoute(search)` and `writeFormalRoute(route)` support `?page=market&section=collection`.
 - Consumes: existing `FormalApplication`, `ReportingSection`, and route behavior.
@@ -136,11 +138,13 @@ git commit -m "feat: add market workspace routing"
 ### Task 2: Typed Market Presentation Model
 
 **Files:**
+
 - Create: `src/prototype/marketMonitoringModel.ts`
 - Create: `src/prototype/marketMonitoringModel.spec.ts`
 - Create: `src/prototype/marketMonitoringData.ts`
 
 **Interfaces:**
+
 - Produces: `MarketCollectionTarget`, `MarketCollectionMode`, `MarketRole`, `GrainKind`, `MarketTask`, `MarketFieldGroup`, `MarketRegionCoverage`.
 - Produces: `getApplicableFieldGroups(role, grain)` and `getMarketCompletion(task)`.
 - Consumes: no React and no browser APIs.
@@ -299,10 +303,7 @@ export function getMarketCompletion(task: MarketTask): number {
 Create `marketMonitoringData.ts` exporting:
 
 ```ts
-import type {
-  MarketRegionCoverage,
-  MarketTask,
-} from "./marketMonitoringModel";
+import type { MarketRegionCoverage, MarketTask } from "./marketMonitoringModel";
 
 export const marketRegionCoverage: readonly MarketRegionCoverage[] = [
   {
@@ -375,6 +376,7 @@ git commit -m "feat: model unified market collection"
 ### Task 3: Market Navigation and Overview
 
 **Files:**
+
 - Create: `src/prototype/MarketMonitoringWorkspace.tsx`
 - Create: `src/prototype/MarketMonitoringWorkspace.spec.tsx`
 - Modify: `src/prototype/formalEnterpriseData.ts`
@@ -382,6 +384,7 @@ git commit -m "feat: model unified market collection"
 - Modify: `src/prototype/FormalEnterprisePrototype.spec.tsx`
 
 **Interfaces:**
+
 - Consumes: `MarketSection`, `marketRegionCoverage`, `marketTasks`.
 - Produces: `<MarketMonitoringWorkspace section onSectionChange onComposeReport />`.
 - Preserves: `<GeneralWorkspace>` for work, production, and supply.
@@ -502,24 +505,26 @@ changeRoute({
 In the main content branch:
 
 ```tsx
-{route.application === "market" ? (
-  <MarketMonitoringWorkspace
-    section={route.marketSection}
-    onSectionChange={(marketSection) =>
-      changeRoute({
-        application: "market",
-        reportingSection: "overview",
-        marketSection,
-      })
-    }
-    onComposeReport={setReportContext}
-  />
-) : (
-  <GeneralWorkspace
-    application={route.application}
-    onComposeReport={setReportContext}
-  />
-)}
+{
+  route.application === "market" ? (
+    <MarketMonitoringWorkspace
+      section={route.marketSection}
+      onSectionChange={(marketSection) =>
+        changeRoute({
+          application: "market",
+          reportingSection: "overview",
+          marketSection,
+        })
+      }
+      onComposeReport={setReportContext}
+    />
+  ) : (
+    <GeneralWorkspace
+      application={route.application}
+      onComposeReport={setReportContext}
+    />
+  );
+}
 ```
 
 Every constructed `FormalRoute` must include `marketSection: "overview"`.
@@ -544,10 +549,12 @@ git commit -m "feat: add market monitoring overview"
 ### Task 4: Unified Collection Workbench
 
 **Files:**
+
 - Modify: `src/prototype/MarketMonitoringWorkspace.tsx`
 - Modify: `src/prototype/MarketMonitoringWorkspace.spec.tsx`
 
 **Interfaces:**
+
 - Consumes: `marketTasks`, `getApplicableFieldGroups`.
 - Produces: target tabs `市场主体填报` and `物流节点填报`.
 - Produces: mode tabs `在线填报`, `Excel批量导入`, and `系统接入记录`.
@@ -587,7 +594,9 @@ it("supports Excel precheck without creating a second workflow", async () => {
   );
   await user.click(screen.getByRole("button", { name: "Excel批量导入" }));
   expect(screen.getByText("上传后先预检，不直接提交")).toBeVisible();
-  expect(screen.getByRole("button", { name: "下载当前任务模板" })).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "下载当前任务模板" }),
+  ).toBeVisible();
   expect(screen.getByText("错误定位到工作表、行和列")).toBeVisible();
 });
 ```
@@ -609,7 +618,8 @@ Use local state:
 ```ts
 const [target, setTarget] = useState<MarketCollectionTarget>("subject");
 const [mode, setMode] = useState<MarketCollectionMode>("online");
-const task = marketTasks.find((item) => item.target === target) ?? marketTasks[0];
+const task =
+  marketTasks.find((item) => item.target === target) ?? marketTasks[0];
 const groups = getApplicableFieldGroups(task.role, task.grain);
 ```
 
@@ -617,7 +627,9 @@ The online layout is:
 
 ```tsx
 <div className="market-collection-layout">
-  <aside className="market-task-list">{/* task identity and completion */}</aside>
+  <aside className="market-task-list">
+    {/* task identity and completion */}
+  </aside>
   <section className="market-entry-panel">
     {/* rice-mill or logistics field groups; visible labels, units and data status */}
   </section>
@@ -634,7 +646,9 @@ The fixed footer contains exactly:
   <span>当前任务仅责任人王洋可编辑</span>
   <button type="button">保存草稿</button>
   <button type="button">检查数据</button>
-  <button className="is-primary" type="button">提交审核</button>
+  <button className="is-primary" type="button">
+    提交审核
+  </button>
 </footer>
 ```
 
@@ -660,12 +674,14 @@ git commit -m "feat: add unified market collection workbench"
 ### Task 5: Enterprise Visual System, Verification, and Captures
 
 **Files:**
+
 - Create: `src/prototype/market-monitoring.css`
 - Modify: `src/prototype/main.tsx`
 - Modify: `src/prototype/formal-enterprise.css`
 - Modify: `src/prototype/FormalEnterprisePrototype.spec.tsx`
 
 **Interfaces:**
+
 - Consumes: semantic class names from `MarketMonitoringWorkspace.tsx`.
 - Produces: desktop layout at 1920×1080 and usable compact layout at 1440×900.
 - Preserves: existing formal shell and other application pages.

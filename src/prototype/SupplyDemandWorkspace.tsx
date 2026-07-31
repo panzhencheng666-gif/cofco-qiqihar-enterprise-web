@@ -180,11 +180,7 @@ function SupplyContext({
   );
 }
 
-function EquationWorkspace({
-  scopeKey,
-}: {
-  scopeKey: SupplyBalanceScopeKey;
-}) {
+function EquationWorkspace({ scopeKey }: { scopeKey: SupplyBalanceScopeKey }) {
   const equation = getSupplyBalanceEquation(scopeKey);
   return (
     <>
@@ -299,8 +295,7 @@ function SupplyOverview({
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
   const [product, setProduct] = useState<SupplyProduct>("corn");
-  const [scopeKey, setScopeKey] =
-    useState<SupplyBalanceScopeKey>("qiqihar");
+  const [scopeKey, setScopeKey] = useState<SupplyBalanceScopeKey>("qiqihar");
   const scope = getSupplyBalanceScope(scopeKey);
   const equation = getSupplyBalanceEquation(scopeKey);
   const productItem = supplyProducts.find((item) => item.key === product)!;
@@ -396,14 +391,7 @@ function ProductAccounts() {
         note="一个规范事实最多进入一个可加总角色。"
       />
       <WorkspaceTable
-        columns={[
-          "账户项目",
-          "角色",
-          "采用值",
-          "来源",
-          "质量状态",
-          "采用版本",
-        ]}
+        columns={["账户项目", "角色", "采用值", "来源", "质量状态", "采用版本"]}
         label="产品账户项目"
         rows={[
           [
@@ -453,8 +441,7 @@ function ProductAccounts() {
 }
 
 function RegionalBalance() {
-  const [scopeKey, setScopeKey] =
-    useState<SupplyBalanceScopeKey>("qiqihar");
+  const [scopeKey, setScopeKey] = useState<SupplyBalanceScopeKey>("qiqihar");
   const scope = getSupplyBalanceScope(scopeKey);
   return (
     <div className="unified-workspace supply-workspace">
@@ -525,11 +512,7 @@ function IndicatorLineage() {
         title="指标与来源追溯"
         summary="查看每个账户值采用的正式指标、来源数据、截止时间、质量和审核版本。"
       />
-      <SupplyContext
-        product="corn"
-        scopeKey="qiqihar"
-        state="来源可追溯"
-      />
+      <SupplyContext product="corn" scopeKey="qiqihar" state="来源可追溯" />
       <WorkspaceTableToolbar
         title="玉米原粮账户采用指标"
         note="供需页面不重新填写来源值。"
@@ -658,9 +641,8 @@ function SituationAnalysis() {
         note="正式发布前仍需完成来源和质量复核。"
       />
       <section aria-label="本期账户变化说明" className="supply-narrative">
-          玉米账面期末库存预计为 103.9
-          万吨；调查汇总期末高于账面推算，形成 1.7
-          万吨库存平衡差额。当前差额仅作为解释和风险展示，未经批准不得直接覆盖账面期末。
+        玉米账面期末库存预计为 103.9 万吨；调查汇总期末高于账面推算，形成 1.7
+        万吨库存平衡差额。当前差额仅作为解释和风险展示，未经批准不得直接覆盖账面期末。
       </section>
     </div>
   );

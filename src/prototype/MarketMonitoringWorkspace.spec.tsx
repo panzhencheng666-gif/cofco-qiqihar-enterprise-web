@@ -33,12 +33,8 @@ describe("market monitoring workspace", () => {
       screen.getByRole("region", { name: "价格对应质量条件" }),
     ).toHaveTextContent("毒素");
     expect(screen.getByLabelText("市场业务摘要")).toBeVisible();
-    expect(
-      screen.getByRole("table", { name: "市场运行事实" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("table", { name: "市场报送任务" }),
-    ).toBeVisible();
+    expect(screen.getByRole("table", { name: "市场运行事实" })).toBeVisible();
+    expect(screen.getByRole("table", { name: "市场报送任务" })).toBeVisible();
     expect(container.querySelector(".market-metric-strip")).toBeNull();
     expect(container.querySelector(".market-overview-grid")).toBeNull();
   });

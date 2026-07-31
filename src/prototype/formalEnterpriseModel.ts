@@ -28,19 +28,12 @@ export type OverviewSection =
   (typeof formalSectionsByApplication.overview)[number];
 export type ProductionSection =
   (typeof formalSectionsByApplication.production)[number];
-export type MarketSection =
-  (typeof formalSectionsByApplication.market)[number];
-export type SupplySection =
-  (typeof formalSectionsByApplication.supply)[number];
+export type MarketSection = (typeof formalSectionsByApplication.market)[number];
+export type SupplySection = (typeof formalSectionsByApplication.supply)[number];
 export type ReportingSection =
   (typeof formalSectionsByApplication.reporting)[number];
 export type FormalSection =
-  | WorkSection
-  | OverviewSection
-  | ProductionSection
-  | MarketSection
-  | SupplySection
-  | ReportingSection;
+  (typeof formalSectionsByApplication)[keyof typeof formalSectionsByApplication][number];
 
 export interface FormalRoute {
   application: FormalApplication;

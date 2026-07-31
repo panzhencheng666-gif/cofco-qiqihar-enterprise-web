@@ -86,11 +86,13 @@
 ### Task 0: Preserve the Verified Report-Selector Baseline
 
 **Files:**
+
 - Modify already present: `src/prototype/ReportCenterWorkspace.tsx`
 - Modify already present: `src/prototype/ReportCenterWorkspace.spec.tsx`
 - Modify already present: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Preserves: explicit business, region, product/topic, period, and version selectors
 - Preserves: explicit duty business, region, period, and state selectors
 - Produces: a clean baseline commit before shell CSS changes begin
@@ -129,6 +131,7 @@ git commit -m "feat: add explicit enterprise report filters"
 ### Task 1: Build the Single-Row Enterprise Shell
 
 **Files:**
+
 - Create: `src/prototype/EnterpriseIcon.tsx`
 - Modify: `src/prototype/FormalEnterprisePrototype.tsx`
 - Modify: `src/prototype/formalEnterpriseData.ts`
@@ -137,6 +140,7 @@ git commit -m "feat: add explicit enterprise report filters"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Produces: `EnterpriseIconName`
 - Produces: `EnterpriseIcon({ name, className? }: { name: EnterpriseIconName; className?: string })`
 - Consumes: `formalApplicationDefinitions`, `FormalApplication`, `FormalSection`
@@ -179,9 +183,7 @@ it("collapses the 152px sidebar without hiding business names from assistive tec
   expect(
     screen.getByRole("navigation", { name: "产情监测模块" }),
   ).toHaveTextContent("数据采集");
-  expect(
-    screen.getByRole("button", { name: "展开左侧导航" }),
-  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "展开左侧导航" })).toBeVisible();
 });
 ```
 
@@ -228,27 +230,64 @@ export type EnterpriseIconName =
   | "plus";
 
 const paths: Record<EnterpriseIconName, readonly string[]> = {
-  apps: ["M5 5h3v3H5z", "M10.5 5h3v3h-3z", "M16 5h3v3h-3z", "M5 10.5h3v3H5z", "M10.5 10.5h3v3h-3z", "M16 10.5h3v3h-3z", "M5 16h3v3H5z", "M10.5 16h3v3h-3z", "M16 16h3v3h-3z"],
+  apps: [
+    "M5 5h3v3H5z",
+    "M10.5 5h3v3h-3z",
+    "M16 5h3v3h-3z",
+    "M5 10.5h3v3H5z",
+    "M10.5 10.5h3v3h-3z",
+    "M16 10.5h3v3h-3z",
+    "M5 16h3v3H5z",
+    "M10.5 16h3v3h-3z",
+    "M16 16h3v3h-3z",
+  ],
   home: ["M3 21h18", "M5 21V8l7-5 7 5v13", "M9 21v-6h6v6"],
   work: ["M5 4h14v16H5z", "m8 11 2 2 5-5"],
   overview: ["M4 19V9", "M10 19V5", "M16 19v-7", "M2 19h20"],
-  production: ["M12 21V9", "M12 14c-5 0-7-3-7-7 5 0 7 3 7 7Z", "M12 12c5 0 7-3 7-7-5 0-7 3-7 7Z"],
+  production: [
+    "M12 21V9",
+    "M12 14c-5 0-7-3-7-7 5 0 7 3 7 7Z",
+    "M12 12c5 0 7-3 7-7-5 0-7 3-7 7Z",
+  ],
   market: ["M4 19V8h16v11", "M7 8V5h10v3", "M8 12h8"],
   supply: ["M4 7h16", "M4 12h16", "M4 17h16", "m17 4 3 3-3 3"],
   report: ["M6 3h9l3 3v15H6z", "M9 10h6", "M9 14h6", "M9 18h4"],
   search: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z", "m20 20-4-4"],
   task: ["M6 4h12v16H6z", "M9 9h6", "M9 13h6", "M9 17h4"],
   bell: ["M5 17h14l-2-3v-4a5 5 0 0 0-10 0v4Z", "M10 20h4"],
-  help: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z", "M10 9a2.4 2.4 0 1 1 3.5 2.1c-1 .6-1.5 1.1-1.5 2.2", "M12 17h.01"],
+  help: [
+    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z",
+    "M10 9a2.4 2.4 0 1 1 3.5 2.1c-1 .6-1.5 1.1-1.5 2.2",
+    "M12 17h.01",
+  ],
   collapse: ["m14 6-6 6 6 6", "M20 4v16"],
   expand: ["m10 6 6 6-6 6", "M4 4v16"],
-  list: ["M8 6h12", "M8 12h12", "M8 18h12", "M4 6h.01", "M4 12h.01", "M4 18h.01"],
+  list: [
+    "M8 6h12",
+    "M8 12h12",
+    "M8 18h12",
+    "M4 6h.01",
+    "M4 12h.01",
+    "M4 18h.01",
+  ],
   entry: ["M5 4h14v16H5z", "M8 8h8", "M8 12h8", "M8 16h5"],
   review: ["m5 12 4 4L19 6", "M4 21h16"],
   exception: ["M12 3 2 15h-4Z", "M12 21h.01"],
   history: ["M4 12a8 8 0 1 0 2-5.3", "M4 4v5h5", "M12 8v5l3 2"],
-  refresh: ["M20 6v5h-5", "M4 18v-5h5", "M18 9a7 7 0 0 0-12-2L4 11", "M6 15a7 7 0 0 0 12 2l2-4"],
-  columns: ["M4 6h16", "M4 12h16", "M4 18h16", "M8 4v4", "M15 10v4", "M11 16v4"],
+  refresh: [
+    "M20 6v5h-5",
+    "M4 18v-5h5",
+    "M18 9a7 7 0 0 0-12-2L4 11",
+    "M6 15a7 7 0 0 0 12 2l2-4",
+  ],
+  columns: [
+    "M4 6h16",
+    "M4 12h16",
+    "M4 18h16",
+    "M8 4v4",
+    "M15 10v4",
+    "M11 16v4",
+  ],
   density: ["M4 7h16", "M4 12h16", "M4 17h16"],
   download: ["M12 3v12", "m7 10 5 5 5-5", "M4 20h16"],
   upload: ["M12 15V3", "m7 8 5-5 5 5", "M4 20h16"],
@@ -426,11 +465,13 @@ git commit -m "feat: add compact enterprise application shell"
 ### Task 2: Add Flat Workbench Primitives
 
 **Files:**
+
 - Modify: `src/prototype/UnifiedWorkspacePrimitives.tsx`
 - Modify: `src/prototype/UnifiedWorkspacePrimitives.spec.tsx`
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Produces: `WorkspaceTab`
 - Produces: `WorkspaceTabs({ label, tabs, active, onChange })`
 - Produces: `WorkspaceFilterBar({ label, children, actions? })`
@@ -464,7 +505,9 @@ it("renders one continuous table workbench sequence", async () => {
       >
         <label>
           地区
-          <select aria-label="地区"><option>齐齐哈尔市</option></select>
+          <select aria-label="地区">
+            <option>齐齐哈尔市</option>
+          </select>
         </label>
       </WorkspaceFilterBar>
       <WorkspaceSummaryStrip
@@ -614,10 +657,14 @@ export function WorkspacePagination({
   return (
     <nav aria-label="表格分页" className="workspace-pagination">
       <span>{`共 ${total} 条 · 当前 ${start}–${end}`}</span>
-      <button aria-label="上一页" disabled={page === 1} type="button">‹</button>
+      <button aria-label="上一页" disabled={page === 1} type="button">
+        ‹
+      </button>
       <strong>{page}</strong>
       <span>/ {pages}</span>
-      <button aria-label="下一页" disabled={page === pages} type="button">›</button>
+      <button aria-label="下一页" disabled={page === pages} type="button">
+        ›
+      </button>
     </nav>
   );
 }
@@ -699,6 +746,7 @@ git commit -m "feat: add flat enterprise workbench primitives"
 ### Task 3: Convert My Work and Executive Overview
 
 **Files:**
+
 - Modify: `src/prototype/MyWorkWorkspace.tsx`
 - Modify: `src/prototype/ExecutiveOverviewWorkspace.tsx`
 - Modify: `src/prototype/PortalWorkspaces.spec.tsx`
@@ -706,6 +754,7 @@ git commit -m "feat: add flat enterprise workbench primitives"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Consumes: workbench primitives from Task 2
 - Preserves: `onOpenBusiness(application, section)`
 - Preserves: `onOpenApplication(application, section)`
@@ -855,7 +904,7 @@ In `ExecutiveOverviewWorkspace.tsx`:
 The domain table columns are:
 
 ```tsx
-["业务", "核心结果", "地区与期间", "数据状态", "风险或缺口", "操作"]
+["业务", "核心结果", "地区与期间", "数据状态", "风险或缺口", "操作"];
 ```
 
 - [ ] **Step 5: Run portal tests**
@@ -880,11 +929,13 @@ git commit -m "feat: convert enterprise portals to table workbenches"
 ### Task 4: Convert Production Monitoring Without Losing Varieties or Quality
 
 **Files:**
+
 - Modify: `src/prototype/ProductionMonitoringWorkspace.tsx`
 - Modify: `src/prototype/ProductionMonitoringWorkspace.spec.tsx`
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Consumes: `WorkspaceSummaryStrip`, `WorkspaceTableToolbar`, `WorkspaceFilterBar`, `WorkspacePagination`
 - Preserves: `ProductionMonitoringWorkspaceProps`
 - Preserves: online, Excel, and system collection modes
@@ -906,7 +957,9 @@ it("uses a continuous production workbench with one summary and table-led detail
 
   expect(screen.getByLabelText("产情业务摘要")).toBeVisible();
   expect(screen.getByRole("table", { name: "产情调查任务" })).toBeVisible();
-  expect(screen.getByRole("table", { name: "样本结果与区域估计" })).toBeVisible();
+  expect(
+    screen.getByRole("table", { name: "样本结果与区域估计" }),
+  ).toBeVisible();
   expect(container.querySelector(".production-estimate-grid")).toBeNull();
   expect(container.querySelector(".unified-two-column")).toBeNull();
 });
@@ -921,14 +974,26 @@ it("keeps crop-specific variety and quality fields in one collection document", 
     />,
   );
 
-  expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue("德美亚3号");
+  expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue(
+    "德美亚3号",
+  );
   expect(screen.getByRole("textbox", { name: "水分" })).toBeVisible();
   expect(screen.getByRole("textbox", { name: "容重" })).toBeVisible();
-  await user.selectOptions(screen.getByRole("combobox", { name: "作物" }), "soybean");
-  expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue("黑农84");
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "作物" }),
+    "soybean",
+  );
+  expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue(
+    "黑农84",
+  );
   expect(screen.getByRole("textbox", { name: "蛋白" })).toBeVisible();
-  await user.selectOptions(screen.getByRole("combobox", { name: "作物" }), "paddy");
-  expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue("龙粳31");
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "作物" }),
+    "paddy",
+  );
+  expect(screen.getByRole("textbox", { name: "具体品种" })).toHaveValue(
+    "龙粳31",
+  );
   expect(screen.getByRole("textbox", { name: "出米率" })).toBeVisible();
 });
 ```
@@ -961,8 +1026,20 @@ Use:
   columns={["口径", "结果", "样本或权重", "质量状态", "用途"]}
   label="样本结果与区域估计"
   rows={[
-    ["样本结果", profile.sampleResult, "554 个有效样本", <WorkspaceStatus>调查观测</WorkspaceStatus>, "支持区域估计"],
-    ["区域估计", profile.regionalEstimate, "分层权重第 7 版", <WorkspaceStatus tone="good">正式估计</WorkspaceStatus>, "正式发布候选"],
+    [
+      "样本结果",
+      profile.sampleResult,
+      "554 个有效样本",
+      <WorkspaceStatus>调查观测</WorkspaceStatus>,
+      "支持区域估计",
+    ],
+    [
+      "区域估计",
+      profile.regionalEstimate,
+      "分层权重第 7 版",
+      <WorkspaceStatus tone="good">正式估计</WorkspaceStatus>,
+      "正式发布候选",
+    ],
   ]}
 />
 ```
@@ -1002,12 +1079,14 @@ git commit -m "feat: convert production monitoring to table workflow"
 ### Task 5: Convert Market Monitoring and Preserve the Full Business Fact
 
 **Files:**
+
 - Modify: `src/prototype/MarketMonitoringWorkspace.tsx`
 - Modify: `src/prototype/MarketMonitoringWorkspace.spec.tsx`
 - Modify: `src/prototype/market-monitoring.css`
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Preserves: `MarketMonitoringWorkspaceProps`
 - Preserves: `MarketTask`, `MarketCollectionTarget`, grain and quality models
 - Preserves: subject and logistics collection in one workbench
@@ -1032,7 +1111,10 @@ it("shows market facts in one table-led overview instead of metric cards", () =>
 
 it("keeps price quality quantity inventory processing and logistics connected", () => {
   render(
-    <MarketMonitoringWorkspace section="collection" onComposeReport={vi.fn()} />,
+    <MarketMonitoringWorkspace
+      section="collection"
+      onComposeReport={vi.fn()}
+    />,
   );
 
   expect(screen.getByText("收购与价格")).toBeVisible();
@@ -1059,19 +1141,28 @@ Keep the corn, soybean, and paddy selector as a compact in-page switch. Replace 
 ```tsx
 <WorkspaceSummaryStrip
   label="市场业务摘要"
-  items={grainMetrics[grain].slice(0, 4).map(([label, value, unit, note, tone]) => ({
-    label,
-    value: `${value}${unit}`,
-    note,
-    tone: tone as WorkspaceTone,
-  }))}
+  items={grainMetrics[grain]
+    .slice(0, 4)
+    .map(([label, value, unit, note, tone]) => ({
+      label,
+      value: `${value}${unit}`,
+      note,
+      tone: tone as WorkspaceTone,
+    }))}
 />
 ```
 
 Create `市场运行事实` with columns:
 
 ```tsx
-["业务事实", "当前结果", "品种或商品形态", "对应质量", "数量或库存", "数据状态"]
+[
+  "业务事实",
+  "当前结果",
+  "品种或商品形态",
+  "对应质量",
+  "数量或库存",
+  "数据状态",
+];
 ```
 
 Create `市场报送任务` from the current `marketTasks` rows. The table must make business object, region, crop/variety, current task, quality state, responsibility, and operation visible together.
@@ -1117,11 +1208,13 @@ git commit -m "feat: convert market monitoring to fact-led tables"
 ### Task 6: Convert Supply and Situation to One Equation and Traceable Tables
 
 **Files:**
+
 - Modify: `src/prototype/SupplyDemandWorkspace.tsx`
 - Modify: `src/prototype/SupplyDemandWorkspace.spec.tsx`
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Preserves: `SupplyDemandWorkspace({ section, onComposeReport })`
 - Preserves: `getSupplyBalanceScope`, `getSupplyBalanceEquation`
 - Preserves: city and county drill-down
@@ -1162,11 +1255,17 @@ Expected: FAIL because the current overview repeats the equation values in a met
 
 ```tsx
 <section aria-label="供需核心等式" className="supply-equation-line">
-  <span>总供给 <strong>{equation.totalSupply}</strong> 万吨</span>
+  <span>
+    总供给 <strong>{equation.totalSupply}</strong> 万吨
+  </span>
   <b>−</b>
-  <span>总使用 <strong>{equation.totalUse}</strong> 万吨</span>
+  <span>
+    总使用 <strong>{equation.totalUse}</strong> 万吨
+  </span>
   <b>=</b>
-  <span>账面期末 <strong>{equation.bookEnding}</strong> 万吨</span>
+  <span>
+    账面期末 <strong>{equation.bookEnding}</strong> 万吨
+  </span>
 </section>
 ```
 
@@ -1203,6 +1302,7 @@ git commit -m "feat: simplify supply accounts into equation and tables"
 ### Task 7: Convert Report Center and Responsibility Supervision
 
 **Files:**
+
 - Modify: `src/prototype/ReportCenterWorkspace.tsx`
 - Modify: `src/prototype/ReportCenterWorkspace.spec.tsx`
 - Modify: `src/prototype/BusinessReportComposer.tsx`
@@ -1210,6 +1310,7 @@ git commit -m "feat: simplify supply accounts into equation and tables"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Preserves: `ReportCenterWorkspace({ section, onComposeReport })`
 - Preserves: `BusinessReportComposer({ context, onClose })`
 - Preserves: `buildReportContext`
@@ -1229,11 +1330,21 @@ it("uses one filter row and one report ledger without metric cards", () => {
   );
 
   const filters = screen.getByRole("region", { name: "业务报告生成条件" });
-  expect(within(filters).getByRole("combobox", { name: "业务类型" })).toBeVisible();
-  expect(within(filters).getByRole("combobox", { name: "报告地区" })).toBeVisible();
-  expect(within(filters).getByRole("combobox", { name: "产品或专题" })).toBeVisible();
-  expect(within(filters).getByRole("combobox", { name: "报告期间" })).toBeVisible();
-  expect(within(filters).getByRole("combobox", { name: "采用数据版本" })).toBeVisible();
+  expect(
+    within(filters).getByRole("combobox", { name: "业务类型" }),
+  ).toBeVisible();
+  expect(
+    within(filters).getByRole("combobox", { name: "报告地区" }),
+  ).toBeVisible();
+  expect(
+    within(filters).getByRole("combobox", { name: "产品或专题" }),
+  ).toBeVisible();
+  expect(
+    within(filters).getByRole("combobox", { name: "报告期间" }),
+  ).toBeVisible();
+  expect(
+    within(filters).getByRole("combobox", { name: "采用数据版本" }),
+  ).toBeVisible();
   expect(screen.getByRole("table", { name: "业务报告清单" })).toBeVisible();
   expect(container.querySelector(".unified-metric-strip")).toBeNull();
 });
@@ -1311,11 +1422,13 @@ git commit -m "feat: convert reports and duty supervision to ledgers"
 ### Task 8: Promote the Formal System as the Only Prototype Entry
 
 **Files:**
+
 - Modify: `src/prototype/main.tsx`
 - Modify: `prototype.html`
 - Create: `src/prototype/FormalPrototypeEntry.spec.ts`
 
 **Interfaces:**
+
 - Produces: one formal prototype entry
 - Removes from runtime: variant A/B/C switching and prototype comparison chrome
 
@@ -1410,12 +1523,14 @@ git commit -m "feat: promote formal enterprise system entry"
 ### Task 9: Responsive, Accessibility, Copy, and Full-System Verification
 
 **Files:**
+
 - Modify: `src/prototype/formal-enterprise.css`
 - Modify: `src/prototype/unified-workspaces.css`
 - Modify: `src/prototype/market-monitoring.css`
 - Modify: relevant `src/prototype/*.tsx` only when a verification failure identifies a missing accessible name or inappropriate interface copy
 
 **Interfaces:**
+
 - Verifies all earlier tasks
 - Does not create a new business workflow
 

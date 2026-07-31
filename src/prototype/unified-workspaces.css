@@ -1071,7 +1071,10 @@
 
 .supply-region-band {
   display: grid;
-  grid-template-columns: minmax(190px, 0.8fr) minmax(420px, 1.4fr) minmax(260px, 1fr);
+  grid-template-columns: minmax(190px, 0.8fr) minmax(420px, 1.4fr) minmax(
+      260px,
+      1fr
+    );
   margin-bottom: 12px;
   overflow: hidden;
   border: 1px solid var(--workspace-line);

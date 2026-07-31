@@ -50,10 +50,7 @@ const paths: Record<EnterpriseIconName, readonly string[]> = {
   report: ["M6 3h9l3 3v15H6z", "M9 10h6", "M9 14h6", "M9 18h4"],
   search: ["M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z", "m20 20-4-4"],
   task: ["M6 4h12v16H6z", "M9 9h6", "M9 13h6", "M9 17h4"],
-  bell: [
-    "M5 17h14l-2-3v-4a5 5 0 0 0-10 0v4Z",
-    "M10 20h4",
-  ],
+  bell: ["M5 17h14l-2-3v-4a5 5 0 0 0-10 0v4Z", "M10 20h4"],
   help: [
     "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z",
     "M10 9a2.4 2.4 0 1 1 3.5 2.1c-1 .6-1.5 1.1-1.5 2.2",

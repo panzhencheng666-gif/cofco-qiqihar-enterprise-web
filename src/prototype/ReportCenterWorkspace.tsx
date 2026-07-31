@@ -151,8 +151,7 @@ function BusinessReports({
   const [region, setRegion] = useState<string>("齐齐哈尔市全域");
   const [product, setProduct] = useState<string>("玉米");
   const [period, setPeriod] = useState<string>("2026 年第 31 周");
-  const [dataVersion, setDataVersion] =
-    useState<string>("第 31 周已核定数据");
+  const [dataVersion, setDataVersion] = useState<string>("第 31 周已核定数据");
   const context = buildReportContext({
     application,
     product,
@@ -374,10 +373,7 @@ function DutyReports() {
         summary="监督责任人是否按时完成所属区域任务；不在这里重复填写产情或市场业务值。"
         title="填报履责监督"
       />
-      <ReportContext
-        context={dutyContext}
-        state="第 31 周责任快照已固定"
-      />
+      <ReportContext context={dutyContext} state="第 31 周责任快照已固定" />
       <WorkspaceFilterBar label="履责报告筛选条件">
         <label>
           <span>业务类型</span>
@@ -415,7 +411,7 @@ function DutyReports() {
         </label>
       </WorkspaceFilterBar>
       <p className="report-workspace-note">
-          本页监督是否按时完成；业务日报、周报、月报请在“业务报告”中生成。
+        本页监督是否按时完成；业务日报、周报、月报请在“业务报告”中生成。
       </p>
       <WorkspaceTableToolbar
         title="填报责任规则"
@@ -425,21 +421,13 @@ function DutyReports() {
         columns={["规则事项", "执行规则", "说明"]}
         label="填报责任规则"
         rows={[
-          [
-            "责任归属",
-            "一人一责区",
-            "责任配置按人员、区域、业务和有效期生效",
-          ],
+          ["责任归属", "一人一责区", "责任配置按人员、区域、业务和有效期生效"],
           [
             "填写权限",
             "他人无权代填",
             "管理员可以催办和重派未来任务，不能代替责任人填写",
           ],
-          [
-            "任务频率",
-            "每周填报一次",
-            "按周生成任务并固定截止时间",
-          ],
+          ["任务频率", "每周填报一次", "按周生成任务并固定截止时间"],
           [
             "逾期规则",
             "逾期补填保留原逾期记录",
@@ -617,44 +605,44 @@ function ReviewWorkspace() {
         title="待复核报告"
       />
       <WorkspaceTable
-          columns={[
-            "报告",
-            "业务",
-            "数据版本",
-            "结论校核",
-            "口径校核",
-            "责任岗位",
-            "操作",
-          ]}
-          label="待复核报告"
-          rows={[
-            [
-              "齐齐哈尔玉米市场运行日报",
-              "市场监测",
-              "7 月 31 日已核定数据",
-              <WorkspaceStatus key="review-status-1" tone="warning">
-                待复核
-              </WorkspaceStatus>,
-              "通过",
-              "市场分析岗",
-              <button className="unified-table-action" key="review-action-1">
-                开始复核
-              </button>,
-            ],
-            [
-              "齐齐哈尔玉米产情监测周报",
-              "产情监测",
-              "第 31 周已核定数据",
-              "通过",
-              <WorkspaceStatus key="review-status-2" tone="warning">
-                1 项待说明
-              </WorkspaceStatus>,
-              "产情分析岗",
-              <button className="unified-table-action" key="review-action-2">
-                开始复核
-              </button>,
-            ],
-          ]}
+        columns={[
+          "报告",
+          "业务",
+          "数据版本",
+          "结论校核",
+          "口径校核",
+          "责任岗位",
+          "操作",
+        ]}
+        label="待复核报告"
+        rows={[
+          [
+            "齐齐哈尔玉米市场运行日报",
+            "市场监测",
+            "7 月 31 日已核定数据",
+            <WorkspaceStatus key="review-status-1" tone="warning">
+              待复核
+            </WorkspaceStatus>,
+            "通过",
+            "市场分析岗",
+            <button className="unified-table-action" key="review-action-1">
+              开始复核
+            </button>,
+          ],
+          [
+            "齐齐哈尔玉米产情监测周报",
+            "产情监测",
+            "第 31 周已核定数据",
+            "通过",
+            <WorkspaceStatus key="review-status-2" tone="warning">
+              1 项待说明
+            </WorkspaceStatus>,
+            "产情分析岗",
+            <button className="unified-table-action" key="review-action-2">
+              开始复核
+            </button>,
+          ],
+        ]}
       />
     </div>
   );
@@ -682,50 +670,50 @@ function DistributionWorkspace() {
         title="报告分发任务"
       />
       <WorkspaceTable
-          columns={[
-            "报告",
-            "发布范围",
-            "接收对象",
-            "发布时间",
-            "替代版本",
-            "状态",
-            "操作",
-          ]}
-          label="报告分发任务"
-          rows={[
-            [
-              "齐齐哈尔粮食商情月报",
-              "东北区域经营中心",
-              "经营管理层、区域业务岗",
-              "7 月 30 日 17:20",
-              "2026 年 6 月版",
-              <WorkspaceStatus key="distribution-status-1" tone="good">
-                已发布
-              </WorkspaceStatus>,
-              <button
-                className="unified-table-action"
-                key="distribution-action-1"
-              >
-                查看回执
-              </button>,
-            ],
-            [
-              "齐齐哈尔玉米市场运行日报",
-              "齐齐哈尔授权范围",
-              "经营管理层、市场业务岗",
-              "计划今日 18:30",
-              "—",
-              <WorkspaceStatus key="distribution-status-2" tone="warning">
-                等待复核
-              </WorkspaceStatus>,
-              <button
-                className="unified-table-action"
-                key="distribution-action-2"
-              >
-                查看计划
-              </button>,
-            ],
-          ]}
+        columns={[
+          "报告",
+          "发布范围",
+          "接收对象",
+          "发布时间",
+          "替代版本",
+          "状态",
+          "操作",
+        ]}
+        label="报告分发任务"
+        rows={[
+          [
+            "齐齐哈尔粮食商情月报",
+            "东北区域经营中心",
+            "经营管理层、区域业务岗",
+            "7 月 30 日 17:20",
+            "2026 年 6 月版",
+            <WorkspaceStatus key="distribution-status-1" tone="good">
+              已发布
+            </WorkspaceStatus>,
+            <button
+              className="unified-table-action"
+              key="distribution-action-1"
+            >
+              查看回执
+            </button>,
+          ],
+          [
+            "齐齐哈尔玉米市场运行日报",
+            "齐齐哈尔授权范围",
+            "经营管理层、市场业务岗",
+            "计划今日 18:30",
+            "—",
+            <WorkspaceStatus key="distribution-status-2" tone="warning">
+              等待复核
+            </WorkspaceStatus>,
+            <button
+              className="unified-table-action"
+              key="distribution-action-2"
+            >
+              查看计划
+            </button>,
+          ],
+        ]}
       />
     </div>
   );
@@ -753,44 +741,42 @@ function VersionWorkspace() {
         title="正式报告版本"
       />
       <WorkspaceTable
-          columns={[
-            "报告",
-            "版本",
-            "生成时间",
-            "复核时间",
-            "发布时间",
-            "当前效力",
-            "操作",
-          ]}
-          label="报告历史版本"
-          rows={[
-            [
-              "齐齐哈尔粮食商情月报",
-              "2026-07 · 正式版",
-              "7 月 30 日 15:10",
-              "7 月 30 日 16:48",
-              "7 月 30 日 17:20",
-              <WorkspaceStatus key="version-status-1" tone="good">
-                当前有效
-              </WorkspaceStatus>,
-              <button className="unified-table-action" key="version-action-1">
-                查看版本
-              </button>,
-            ],
-            [
-              "齐齐哈尔粮食商情月报",
-              "2026-06 · 正式版",
-              "6 月 30 日 15:04",
-              "6 月 30 日 16:30",
-              "6 月 30 日 17:00",
-              <WorkspaceStatus key="version-status-2">
-                已被替代
-              </WorkspaceStatus>,
-              <button className="unified-table-action" key="version-action-2">
-                查看版本
-              </button>,
-            ],
-          ]}
+        columns={[
+          "报告",
+          "版本",
+          "生成时间",
+          "复核时间",
+          "发布时间",
+          "当前效力",
+          "操作",
+        ]}
+        label="报告历史版本"
+        rows={[
+          [
+            "齐齐哈尔粮食商情月报",
+            "2026-07 · 正式版",
+            "7 月 30 日 15:10",
+            "7 月 30 日 16:48",
+            "7 月 30 日 17:20",
+            <WorkspaceStatus key="version-status-1" tone="good">
+              当前有效
+            </WorkspaceStatus>,
+            <button className="unified-table-action" key="version-action-1">
+              查看版本
+            </button>,
+          ],
+          [
+            "齐齐哈尔粮食商情月报",
+            "2026-06 · 正式版",
+            "6 月 30 日 15:04",
+            "6 月 30 日 16:30",
+            "6 月 30 日 17:00",
+            <WorkspaceStatus key="version-status-2">已被替代</WorkspaceStatus>,
+            <button className="unified-table-action" key="version-action-2">
+              查看版本
+            </button>,
+          ],
+        ]}
       />
     </div>
   );

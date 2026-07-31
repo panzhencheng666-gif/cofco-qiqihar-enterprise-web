@@ -198,10 +198,7 @@ export function MyWorkWorkspace({
           </div>,
           task.region,
           task.deadline,
-          <WorkspaceStatus
-            key={`${task.title}-duty`}
-            tone={toneFor(task.duty)}
-          >
+          <WorkspaceStatus key={`${task.title}-duty`} tone={toneFor(task.duty)}>
             {task.duty}
           </WorkspaceStatus>,
           <WorkspaceStatus

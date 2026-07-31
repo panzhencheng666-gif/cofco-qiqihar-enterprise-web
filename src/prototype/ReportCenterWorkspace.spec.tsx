@@ -49,9 +49,7 @@ describe("ReportCenterWorkspace", () => {
         region: "讷河市",
       }),
     );
-    expect(
-      screen.getByRole("table", { name: "业务报告台账" }),
-    ).toBeVisible();
+    expect(screen.getByRole("table", { name: "业务报告台账" })).toBeVisible();
     expect(container.querySelector(".unified-metric-strip")).toBeNull();
   });
 
@@ -67,18 +65,14 @@ describe("ReportCenterWorkspace", () => {
     expect(screen.getByText("一人一责区")).toBeVisible();
     expect(screen.getByText("他人无权代填")).toBeVisible();
     expect(screen.getByText("逾期补填保留原逾期记录")).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "导出责任周报" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "导出责任月报" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("combobox", { name: "履责业务类型" }),
-    ).toHaveValue("all");
-    expect(
-      screen.getByRole("combobox", { name: "履责责任区域" }),
-    ).toHaveValue("all");
+    expect(screen.getByRole("button", { name: "导出责任周报" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "导出责任月报" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "履责业务类型" })).toHaveValue(
+      "all",
+    );
+    expect(screen.getByRole("combobox", { name: "履责责任区域" })).toHaveValue(
+      "all",
+    );
     expect(
       screen.getByText(/业务日报、周报、月报请在“业务报告”中生成/),
     ).toBeVisible();
@@ -89,9 +83,7 @@ describe("ReportCenterWorkspace", () => {
     expect(container.querySelector(".unified-metric-strip")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "月度履责" }));
-    expect(
-      screen.getByRole("table", { name: "月度履责记录" }),
-    ).toBeVisible();
+    expect(screen.getByRole("table", { name: "月度履责记录" })).toBeVisible();
     expect(screen.getByText("连续 2 周异常")).toBeVisible();
   });
 });

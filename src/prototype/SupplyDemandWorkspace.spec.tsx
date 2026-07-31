@@ -8,41 +8,27 @@ afterEach(cleanup);
 describe("supply demand workspace", () => {
   it("explains ending inventory and the inventory balance difference", () => {
     const { container } = render(
-      <SupplyDemandWorkspace
-        section="overview"
-        onComposeReport={vi.fn()}
-      />,
+      <SupplyDemandWorkspace section="overview" onComposeReport={vi.fn()} />,
     );
 
     expect(screen.getAllByText("调整前账面期末").length).toBeGreaterThan(0);
     expect(screen.getAllByText("库存平衡差额").length).toBeGreaterThan(0);
-    expect(
-      screen.getByText("调查汇总期末 − 调整前账面期末"),
-    ).toBeVisible();
+    expect(screen.getByText("调查汇总期末 − 调整前账面期末")).toBeVisible();
     expect(
       screen.getAllByText("103.9", { selector: "strong" }).length,
     ).toBeGreaterThan(0);
     expect(
       screen.getAllByText("1.7", { selector: "strong" }).length,
     ).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("region", { name: "供需核心等式" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("table", { name: "供需账户构成" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("table", { name: "库存差异解释" }),
-    ).toBeVisible();
+    expect(screen.getByRole("region", { name: "供需核心等式" })).toBeVisible();
+    expect(screen.getByRole("table", { name: "供需账户构成" })).toBeVisible();
+    expect(screen.getByRole("table", { name: "库存差异解释" })).toBeVisible();
     expect(container.querySelector(".unified-metric-strip")).toBeNull();
   });
 
   it("shows region, product, period and adopted input version together", () => {
     render(
-      <SupplyDemandWorkspace
-        section="lineage"
-        onComposeReport={vi.fn()}
-      />,
+      <SupplyDemandWorkspace section="lineage" onComposeReport={vi.fn()} />,
     );
 
     expect(
@@ -57,10 +43,7 @@ describe("supply demand workspace", () => {
   it("drills from city consolidation to a county account", async () => {
     const user = userEvent.setup();
     render(
-      <SupplyDemandWorkspace
-        section="regional"
-        onComposeReport={vi.fn()}
-      />,
+      <SupplyDemandWorkspace section="regional" onComposeReport={vi.fn()} />,
     );
 
     await user.click(screen.getByRole("button", { name: "讷河市" }));
@@ -69,8 +52,6 @@ describe("supply demand workspace", () => {
     });
     expect(within(region).getByText("2026/27 年度讷河账户")).toBeVisible();
     expect(within(region).getByText("县级账户")).toBeVisible();
-    expect(
-      within(region).getByText("12 / 14 项已核定"),
-    ).toBeVisible();
+    expect(within(region).getByText("12 / 14 项已核定")).toBeVisible();
   });
 });

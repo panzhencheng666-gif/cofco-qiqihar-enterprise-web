@@ -98,10 +98,7 @@ function ProductionScope({
 }) {
   const profile = productionCropProfiles.find((item) => item.key === crop)!;
   return (
-    <section
-      aria-label="品种与质量监测范围"
-      className="production-scope-panel"
-    >
+    <section aria-label="品种与质量监测范围" className="production-scope-panel">
       <WorkspaceTableToolbar
         title="品种与质量监测范围"
         note="保留填报原始品种名称；待映射品种不覆盖原值"
@@ -232,9 +229,7 @@ function ProductionOverview({
             "样本结果",
             profile.sampleResult,
             "554 个有效样本 · 样本响应率 92.4%",
-            <WorkspaceStatus key="sample-result">
-              调查观测
-            </WorkspaceStatus>,
+            <WorkspaceStatus key="sample-result">调查观测</WorkspaceStatus>,
           ],
           [
             "区域估计",
@@ -267,13 +262,7 @@ function ProductionOverview({
         note="行政台账、农技站观察和农户样本分别展示"
       />
       <WorkspaceTable
-        columns={[
-          "监测对象",
-          "来源通道",
-          "行政区划",
-          "作物与品种",
-          "当前状态",
-        ]}
+        columns={["监测对象", "来源通道", "行政区划", "作物与品种", "当前状态"]}
         label="产情调查任务"
         rows={productionObjectRows.slice(0, 4).map((item) => [
           item.name,
@@ -376,7 +365,7 @@ function ProductionOnlineEntry() {
     useState<ProductionObjectType>("family-farm");
   const [crop, setCrop] = useState<ProductionCrop>("corn");
   const profile = productionCropProfiles.find((item) => item.key === crop)!;
-  const fieldGroups = getProductionFieldGroups(objectType, crop);
+  const fieldGroups = getProductionFieldGroups(objectType);
   return (
     <div className="production-entry-layout">
       <aside className="production-entry-aside">
@@ -455,7 +444,10 @@ function ProductionOnlineEntry() {
                   </label>
                   <label>
                     <span>品种状态</span>
-                    <input defaultValue={profile.varieties[0].status} readOnly />
+                    <input
+                      defaultValue={profile.varieties[0].status}
+                      readOnly
+                    />
                   </label>
                 </div>
               )}
@@ -822,17 +814,13 @@ function ProductionReports({
         object={`${product} · 正式产情指标`}
         state="第 30 周正式版本可用"
       />
-      <WorkspaceFilterBar
-        label="产情报告范围"
-      >
+      <WorkspaceFilterBar label="产情报告范围">
         <label>
           <span>报告作物</span>
           <select
             aria-label="报告作物"
             value={crop}
-            onChange={(event) =>
-              setCrop(event.target.value as ProductionCrop)
-            }
+            onChange={(event) => setCrop(event.target.value as ProductionCrop)}
           >
             {productionCropProfiles.map((item) => (
               <option key={item.key} value={item.key}>

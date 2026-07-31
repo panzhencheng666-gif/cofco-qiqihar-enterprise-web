@@ -187,11 +187,7 @@ export function WorkspaceTableToolbar({
   actions?: ReactNode;
 }) {
   return (
-    <div
-      aria-label={title}
-      className="workspace-table-toolbar"
-      role="toolbar"
-    >
+    <div aria-label={title} className="workspace-table-toolbar" role="toolbar">
       <strong>{title}</strong>
       {note && <span>{note}</span>}
       {actions && <div>{actions}</div>}

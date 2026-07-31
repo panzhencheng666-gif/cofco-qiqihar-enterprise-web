@@ -1,7 +1,4 @@
-import type {
-  FormalApplication,
-  FormalSection,
-} from "./formalEnterpriseModel";
+import type { FormalApplication, FormalSection } from "./formalEnterpriseModel";
 import {
   BusinessContextBar,
   WorkspaceHeader,
