@@ -49,6 +49,26 @@ const productionReportContext: BusinessReportContext = {
   reviewer: "赵晨",
 };
 
+const productionCostFields = [
+  ["土地租金", "480 元/亩", "4,680 亩"],
+  ["种子费用", "74 元/亩", "4,680 亩"],
+  ["化肥费用", "196 元/亩", "4,680 亩"],
+  ["农药费用", "48 元/亩", "4,680 亩"],
+  ["灌溉费用", "32 元/亩", "2,160 亩"],
+  ["人工费用", "86 元/亩", "4,680 亩"],
+  ["机械作业费用", "214 元/亩", "4,590 亩"],
+  ["其他生产支出", "18 元/亩", "4,680 亩"],
+] as const;
+
+const productionProtectionFields = [
+  ["保费总额", "187,200 元"],
+  ["财政保费补贴", "149,760 元"],
+  ["农户自缴保费", "37,440 元"],
+  ["保险赔款", "0 元"],
+  ["种植补贴应收", "177,840 元"],
+  ["种植补贴实收", "177,840 元"],
+] as const;
+
 function statusTone(value: string): WorkspaceTone {
   if (value.includes("缺失") || value.includes("逾期")) return "danger";
   if (
@@ -398,7 +418,7 @@ function ProductionOnlineEntry() {
               ))}
             </select>
           </label>
-          <p>授权范围内唯一可写；审核人和管理员不能代填。</p>
+          <p>当前表单由责任人王洋填写。</p>
         </div>
         <div className="production-form-sections">
           {fieldGroups.map((group) => (
@@ -524,19 +544,75 @@ function ProductionOnlineEntry() {
                 </div>
               )}
               {group.key === "cost-support" && (
-                <div className="production-inline-fields">
-                  <label>
-                    <span>现金投入</span>
-                    <input defaultValue="682 元/亩" />
-                  </label>
-                  <label>
-                    <span>政策支持</span>
-                    <input defaultValue="38 元/亩" />
-                  </label>
-                  <label>
-                    <span>保险赔付</span>
-                    <input defaultValue="0 元/亩" />
-                  </label>
+                <div className="production-cost-ledger">
+                  <div className="production-cost-grid">
+                    {productionCostFields.map(([label, value, area]) => (
+                      <div className="production-cost-row" key={label}>
+                        <label>
+                          <span>{label}</span>
+                          <input defaultValue={value} />
+                        </label>
+                        <label>
+                          <span>{label}适用面积</span>
+                          <input defaultValue={area} />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="production-inline-fields production-protection-fields">
+                    {productionProtectionFields.map(([label, value]) => (
+                      <label key={label}>
+                        <span>{label}</span>
+                        <input defaultValue={value} />
+                      </label>
+                    ))}
+                  </div>
+                  <div className="unified-table-scroll">
+                    <table
+                      aria-label="成本与保障汇总"
+                      className="unified-table production-cost-summary"
+                    >
+                      <thead>
+                        <tr>
+                          <th scope="col">汇总指标</th>
+                          <th scope="col">本期金额</th>
+                          <th scope="col">计量口径</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          [
+                            "生产经济成本",
+                            "5,051,280 元",
+                            "各项费用按各自适用面积汇总",
+                          ],
+                          ["农户现金投入", "2,988,000 元", "本期实际现金支出"],
+                          [
+                            "政策支持",
+                            "327,600 元",
+                            "财政保费补贴与已收种植补贴",
+                          ],
+                          ["保险赔付", "0 元", "本期实际到账赔款"],
+                          [
+                            "补贴后现金负担",
+                            "2,660,400 元",
+                            "现金投入扣减已到账政策支持",
+                          ],
+                          [
+                            "赔付后净现金负担",
+                            "2,660,400 元",
+                            "补贴后现金负担扣减保险赔款",
+                          ],
+                        ].map(([label, value, basis]) => (
+                          <tr key={label}>
+                            <td>{label}</td>
+                            <td>{value}</td>
+                            <td>{basis}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
               {group.key === "evidence" && (
@@ -548,7 +624,7 @@ function ProductionOnlineEntry() {
           ))}
         </div>
         <footer className="production-form-footer">
-          <small>保存和提交均记录本人账号、时间、设备和单据修订版本。</small>
+          <small>最近保存：2026-07-31 14:26</small>
           <button type="button">保存草稿</button>
           <button className="is-primary" type="button">
             校验并提交
@@ -650,7 +726,7 @@ function ProductionCollection() {
       <WorkspaceHeader
         eyebrow="产情监测 / 数据采集"
         title="产情数据采集工作台"
-        summary="在线填报、Excel批量导入和授权系统接入共用一份任务、表单、责任和审核记录。"
+        summary="选择在线填报、Excel批量导入或授权系统接入完成本期采集。"
         actions={<button type="button">查看填报说明</button>}
       />
       <ProductionContext
@@ -659,7 +735,7 @@ function ProductionCollection() {
       />
       <WorkspaceTableToolbar
         title="选择当前任务的数据进入方式"
-        note="切换方式不会新建第二份业务单据。"
+        note="当前任务：梅里斯丰源家庭农场"
         actions={<CollectionModeSwitch mode={mode} onChange={setMode} />}
       />
       <section className="production-collection-workbench">

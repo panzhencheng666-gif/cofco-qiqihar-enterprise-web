@@ -62,6 +62,61 @@ describe("market monitoring workspace", () => {
     expect(screen.getByText("种子 · 农药 · 化肥")).toBeVisible();
   });
 
+  it("keeps every approved market role and its capability in one object registry", () => {
+    render(
+      <MarketMonitoringWorkspace section="objects" onComposeReport={vi.fn()} />,
+    );
+
+    const registry = screen.getByRole("table", {
+      name: "市场对象业务能力清单",
+    });
+    for (const role of [
+      "贸易商",
+      "玉米深加工企业",
+      "大豆压榨企业",
+      "大豆蛋白加工企业",
+      "食品和调味品企业",
+      "米厂",
+      "饲料企业",
+      "养殖企业",
+      "承储企业 / 储备库",
+      "批发市场",
+      "农资经销商",
+      "铁路站点",
+      "公路物流节点",
+    ]) {
+      expect(registry).toHaveTextContent(role);
+    }
+    expect(registry).toHaveTextContent("报价与成交");
+    expect(registry).toHaveTextContent("货权、库点、批次");
+    expect(registry).toHaveTextContent("投入、产出、副产品、损耗");
+    expect(registry).toHaveTextContent("包粮 / 散粮到达与发运");
+  });
+
+  it("binds prices and inventory to complete market facts in online collection", () => {
+    render(
+      <MarketMonitoringWorkspace
+        section="collection"
+        onComposeReport={vi.fn()}
+      />,
+    );
+
+    for (const field of [
+      "报价",
+      "实际成交价",
+      "成交数量",
+      "包装形态",
+      "交货方式",
+      "结算条件",
+      "货权人",
+      "保管库点",
+      "库存批次",
+      "库存性质",
+    ]) {
+      expect(screen.getByRole("textbox", { name: field })).toBeVisible();
+    }
+  });
+
   it("enters collection from the primary action", async () => {
     const user = userEvent.setup();
     const onSectionChange = vi.fn();

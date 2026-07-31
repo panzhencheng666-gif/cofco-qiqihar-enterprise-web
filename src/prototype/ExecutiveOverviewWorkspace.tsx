@@ -30,7 +30,7 @@ export function ExecutiveOverviewWorkspace({
       />
       <BusinessContextBar
         items={[
-          ["组织", "东北区域经营中心"],
+          ["组织", "齐齐哈尔经营部"],
           ["业务区域", "三大区域 · 当前授权范围"],
           ["经营期间", "2026 年第 31 周"],
           ["数据截止", "7 月 31 日 17:00"],

@@ -23,18 +23,22 @@
 ### Task 1: Enterprise shell organization and account entry
 
 **Files:**
+
 - Modify: `src/prototype/FormalEnterprisePrototype.spec.tsx`
 - Modify: `src/prototype/FormalEnterprisePrototype.tsx`
 - Modify: `src/prototype/formal-enterprise.css`
 
 **Interfaces:**
+
 - Consumes: existing `FormalGlobalHeader` route handling.
 - Produces: labeled current-work-unit button and a fixed personal account button.
 
 - [ ] **Step 1: Write the failing shell test**
 
 ```tsx
-expect(screen.getByRole("button", { name: /当前工作单位.*经营部本部/ })).toBeVisible();
+expect(
+  screen.getByRole("button", { name: /当前工作单位.*经营部本部/ }),
+).toBeVisible();
 expect(screen.getByRole("button", { name: /个人账户.*王洋/ })).toBeVisible();
 expect(screen.queryByText("东北区域经营中心")).not.toBeInTheDocument();
 ```
@@ -58,19 +62,35 @@ Expected: PASS.
 ### Task 2: Complete production cost and protection data
 
 **Files:**
+
 - Modify: `src/prototype/ProductionMonitoringWorkspace.spec.tsx`
 - Modify: `src/prototype/productionMonitoringModel.ts`
 - Modify: `src/prototype/ProductionMonitoringWorkspace.tsx`
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Consumes: selected production object and existing crop-specific field groups.
 - Produces: one visible `成本与保障` field group with the approved expense, insurance, and subsidy rows.
 
 - [ ] **Step 1: Write failing production field tests**
 
 ```tsx
-for (const field of ["土地租金", "种子费用", "化肥费用", "农药费用", "灌溉费用", "人工费用", "机械作业费用", "保费总额", "财政保费补贴", "农户自缴保费", "保险赔款", "种植补贴应收", "种植补贴实收"]) {
+for (const field of [
+  "土地租金",
+  "种子费用",
+  "化肥费用",
+  "农药费用",
+  "灌溉费用",
+  "人工费用",
+  "机械作业费用",
+  "保费总额",
+  "财政保费补贴",
+  "农户自缴保费",
+  "保险赔款",
+  "种植补贴应收",
+  "种植补贴实收",
+]) {
   expect(screen.getByRole("textbox", { name: field })).toBeVisible();
 }
 ```
@@ -94,12 +114,14 @@ Expected: PASS.
 ### Task 3: Make market object capabilities complete and explicit
 
 **Files:**
+
 - Modify: `src/prototype/MarketMonitoringWorkspace.spec.tsx`
 - Modify: `src/prototype/marketMonitoringModel.ts`
 - Modify: `src/prototype/marketMonitoringData.ts`
 - Modify: `src/prototype/MarketMonitoringWorkspace.tsx`
 
 **Interfaces:**
+
 - Consumes: `MarketRole`, `MarketCapability`, selected task and grain.
 - Produces: capability coverage table and role-appropriate entry fields without separate role pages.
 
@@ -126,6 +148,7 @@ Expected: PASS.
 ### Task 4: Replace repeated supply pages with the canonical balance statement
 
 **Files:**
+
 - Modify: `src/prototype/formalEnterpriseModel.spec.ts`
 - Modify: `src/prototype/formalEnterpriseModel.ts`
 - Modify: `src/prototype/formalEnterpriseData.ts`
@@ -135,6 +158,7 @@ Expected: PASS.
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Consumes: shared enterprise region context and selected product account/year/version.
 - Produces: `statement` and `versions` supply routes, a full balance-row model, and row-level source actions.
 
@@ -161,10 +185,12 @@ Expected: PASS.
 ### Task 5: Regression, build, and visual verification
 
 **Files:**
+
 - Modify as required by verified regressions only.
 - Create: `artifacts/final-enterprise-prototype/business-clarity-*.png`
 
 **Interfaces:**
+
 - Consumes: all completed workspace slices.
 - Produces: reproducible tests, builds, and screenshots for user review.
 

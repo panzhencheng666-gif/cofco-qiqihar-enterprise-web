@@ -39,10 +39,7 @@ const sectionIcons: Partial<Record<FormalSection, EnterpriseIconName>> = {
   objects: "list",
   collection: "entry",
   reports: "report",
-  accounts: "list",
-  regional: "overview",
-  lineage: "history",
-  situation: "overview",
+  statement: "list",
   "business-reports": "report",
   "duty-reports": "list",
   distribution: "upload",
@@ -56,6 +53,18 @@ function FormalGlobalHeader({
   route: FormalRoute;
   onApplicationChange: (application: FormalApplication) => void;
 }) {
+  const [currentUnit, setCurrentUnit] = useState("经营部本部");
+  const [organizationMenuOpen, setOrganizationMenuOpen] = useState(false);
+  const [personalMenuOpen, setPersonalMenuOpen] = useState(false);
+  const businessUnits = [
+    "经营部本部",
+    "讷河库",
+    "克山库",
+    "克东库",
+    "龙镇库",
+    "成吉思汗库",
+  ] as const;
+
   return (
     <header className="formal-header formal-global-header">
       <div className="formal-header-primary">
@@ -66,15 +75,55 @@ function FormalGlobalHeader({
           <span>齐</span>
           <strong>齐齐哈尔粮食商情企业平台</strong>
         </div>
-        <button
-          aria-label="切换组织，当前为东北区域经营中心"
-          className="formal-org-selector"
-          type="button"
-        >
-          <EnterpriseIcon name="home" />
-          <strong>东北区域经营中心</strong>
-          <span aria-hidden="true">⌄</span>
-        </button>
+        <div className="formal-org-switcher">
+          <button
+            aria-expanded={organizationMenuOpen}
+            aria-label={`当前工作单位：齐齐哈尔经营部，${currentUnit}`}
+            className="formal-org-selector"
+            type="button"
+            onClick={() => {
+              setOrganizationMenuOpen((value) => !value);
+              setPersonalMenuOpen(false);
+            }}
+          >
+            <EnterpriseIcon name="home" />
+            <span>
+              <small>齐齐哈尔经营部</small>
+              <strong>{currentUnit}</strong>
+            </span>
+            <span aria-hidden="true">⌄</span>
+          </button>
+          {organizationMenuOpen && (
+            <div
+              aria-label="工作单位选择"
+              className="formal-org-menu"
+              role="menu"
+            >
+              <header>
+                <strong>齐齐哈尔经营部</strong>
+                <small>经营部本部统一管理五家粮库</small>
+              </header>
+              {businessUnits.map((unit, index) => (
+                <button
+                  aria-current={unit === currentUnit ? "true" : undefined}
+                  aria-label={unit}
+                  className={unit === currentUnit ? "is-active" : undefined}
+                  key={unit}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => {
+                    setCurrentUnit(unit);
+                    setOrganizationMenuOpen(false);
+                  }}
+                >
+                  <span>{index === 0 ? "本部" : "粮库"}</span>
+                  <strong>{unit}</strong>
+                  {unit === currentUnit && <small>当前</small>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <label className="formal-global-search">
           <EnterpriseIcon name="search" />
           <input
@@ -102,10 +151,45 @@ function FormalGlobalHeader({
         <button aria-label="帮助" className="formal-header-tool" type="button">
           <EnterpriseIcon name="help" />
         </button>
-        <div className="formal-user">
+        <button
+          aria-expanded={personalMenuOpen}
+          aria-label="个人账户：王洋"
+          className="formal-user"
+          type="button"
+          onClick={() => {
+            setPersonalMenuOpen((value) => !value);
+            setOrganizationMenuOpen(false);
+          }}
+        >
           <span>王</span>
           <strong>王洋</strong>
-        </div>
+        </button>
+        {personalMenuOpen && (
+          <div
+            aria-label="个人账户菜单"
+            className="formal-personal-menu"
+            role="menu"
+          >
+            <header>
+              <span>王</span>
+              <div>
+                <strong>王洋</strong>
+                <small>所属单位：{currentUnit}</small>
+              </div>
+            </header>
+            {[
+              "个人资料",
+              "岗位与数据权限",
+              "账号安全",
+              "操作与登录记录",
+              "退出登录",
+            ].map((label) => (
+              <button key={label} role="menuitem" type="button">
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <nav aria-label="业务应用" className="formal-application-nav">
         {formalApplicationDefinitions.map((item) => (

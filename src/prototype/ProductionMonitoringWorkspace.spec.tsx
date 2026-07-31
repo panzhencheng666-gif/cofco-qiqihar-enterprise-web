@@ -66,6 +66,42 @@ describe("production monitoring workspace", () => {
     expect(screen.getByText("进入同一校验与审核流程")).toBeVisible();
   });
 
+  it("keeps the complete cost, insurance and subsidy ledger in the production task", () => {
+    render(
+      <ProductionMonitoringWorkspace
+        section="collection"
+        onComposeReport={vi.fn()}
+        onSectionChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("成本与保障")).toBeVisible();
+    for (const field of [
+      "土地租金",
+      "种子费用",
+      "化肥费用",
+      "农药费用",
+      "灌溉费用",
+      "人工费用",
+      "机械作业费用",
+      "其他生产支出",
+      "保费总额",
+      "财政保费补贴",
+      "农户自缴保费",
+      "保险赔款",
+      "种植补贴应收",
+      "种植补贴实收",
+    ]) {
+      expect(screen.getByRole("textbox", { name: field })).toBeVisible();
+    }
+    expect(
+      screen.getByRole("table", { name: "成本与保障汇总" }),
+    ).toHaveTextContent("生产经济成本");
+    expect(
+      screen.getByRole("table", { name: "成本与保障汇总" }),
+    ).toHaveTextContent("赔付后净现金负担");
+  });
+
   it("builds a report from approved production data", async () => {
     const user = userEvent.setup();
     const onComposeReport = vi.fn();

@@ -41,9 +41,14 @@ describe("formal enterprise route model", () => {
       section: "collection",
     });
 
-    expect(readFormalRoute("?page=supply&section=lineage")).toEqual({
+    expect(readFormalRoute("?page=supply&section=versions")).toEqual({
       application: "supply",
-      section: "lineage",
+      section: "versions",
+    });
+
+    expect(readFormalRoute("?page=supply&section=regional")).toEqual({
+      application: "supply",
+      section: "statement",
     });
   });
 

@@ -102,6 +102,79 @@ describe("formal enterprise shell", () => {
     expect(screen.getByRole("button", { name: "收起左侧导航" })).toBeVisible();
   });
 
+  it("uses the real Qiqihar business-unit hierarchy and keeps the personal account at the far right", () => {
+    const { container } = render(
+      <FormalEnterprisePrototype initialSearch="?page=market" />,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: /当前工作单位.*齐齐哈尔经营部.*经营部本部/,
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /个人账户.*王洋/ }),
+    ).toBeVisible();
+    expect(screen.queryByText("东北区域经营中心")).not.toBeInTheDocument();
+    expect(
+      container.querySelector(".formal-header-primary")?.lastElementChild,
+    ).toHaveClass("formal-user");
+  });
+
+  it("opens the authorized work-unit hierarchy and personal account menu", async () => {
+    const user = userEvent.setup();
+    render(<FormalEnterprisePrototype initialSearch="?page=market" />);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /当前工作单位.*齐齐哈尔经营部.*经营部本部/,
+      }),
+    );
+    const organizationMenu = screen.getByRole("menu", {
+      name: "工作单位选择",
+    });
+    for (const unit of [
+      "经营部本部",
+      "讷河库",
+      "克山库",
+      "克东库",
+      "龙镇库",
+      "成吉思汗库",
+    ]) {
+      expect(
+        within(organizationMenu).getByRole("menuitem", { name: unit }),
+      ).toBeVisible();
+    }
+
+    await user.click(screen.getByRole("button", { name: /个人账户.*王洋/ }));
+    expect(
+      screen.getByRole("menu", { name: "个人账户菜单" }),
+    ).toHaveTextContent("所属单位：经营部本部");
+    expect(
+      screen.getByRole("menu", { name: "个人账户菜单" }),
+    ).toHaveTextContent("账号安全");
+  });
+
+  it("shows only the canonical balance statement and version history in supply navigation", () => {
+    render(<FormalEnterprisePrototype initialSearch="?page=supply" />);
+
+    const navigation = screen.getByRole("navigation", {
+      name: "供需与态势模块",
+    });
+    expect(within(navigation).getAllByRole("button")).toHaveLength(2);
+    expect(within(navigation).getByText("供需平衡表")).toBeVisible();
+    expect(within(navigation).getByText("版本记录")).toBeVisible();
+    for (const oldLabel of [
+      "供需总览",
+      "产品账户",
+      "区域平衡",
+      "指标与来源",
+      "态势分析",
+    ]) {
+      expect(within(navigation).queryByText(oldLabel)).not.toBeInTheDocument();
+    }
+  });
+
   it("collapses the sidebar without hiding business names from assistive technology", async () => {
     const user = userEvent.setup();
     const { container } = render(
@@ -222,7 +295,7 @@ describe("formal enterprise shell", () => {
     render(<FormalEnterprisePrototype initialSearch="?page=supply" />);
 
     const scope = screen.getByRole("region", {
-      name: "供需账户查询条件",
+      name: "供需平衡查询条件",
     });
     const region = within(scope).getByRole("combobox", {
       name: "业务地区",
@@ -230,9 +303,11 @@ describe("formal enterprise shell", () => {
     expect(region).toHaveValue("qiqihar-all");
 
     await user.selectOptions(region, "qiqihar-nehe");
-    expect(screen.getByText("县级账户")).toBeVisible();
-    expect(screen.getByText("12 / 14 项已核定")).toBeVisible();
-    expect(screen.getAllByText("121.8 万吨").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("讷河市 · 玉米原粮").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("table", { name: "区域粮食供需平衡表数据" }),
+    ).toBeVisible();
+    expect(screen.getAllByText("126.4 万吨").length).toBeGreaterThan(0);
   });
 
   it("uses compact five-item architectures inside each business", () => {

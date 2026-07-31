@@ -201,13 +201,10 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       code: "05",
       label: "供需与态势",
       shortLabel: "供需",
-      note: "查看产品账户、区域平衡、指标来源和态势分析",
+      note: "按地区、产品和年度核对供给、使用与期末库存",
       navigation: [
-        { key: "overview", label: "供需总览" },
-        { key: "accounts", label: "产品账户" },
-        { key: "regional", label: "区域平衡" },
-        { key: "lineage", label: "指标与来源" },
-        { key: "situation", label: "态势分析" },
+        { key: "statement", label: "供需平衡表" },
+        { key: "versions", label: "版本记录" },
       ],
     },
     {
@@ -898,7 +895,7 @@ export const businessReportRows: readonly BusinessReportRow[] = [
   {
     name: "齐齐哈尔粮食商情月报",
     frequency: "月报",
-    scope: "东北区域经营中心",
+    scope: "齐齐哈尔经营部",
     period: "2026 年 7 月",
     dataVersion: "2026 年 7 月已核定数据",
     status: "已发布",

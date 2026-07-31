@@ -836,7 +836,7 @@ function FusionGlobalHeader({
         <FusionIcon name="home" />
         <span>
           <small>当前组织</small>
-          <strong>东北区域经营中心</strong>
+          <strong>齐齐哈尔经营部</strong>
         </span>
         <FusionIcon name="chevron" />
       </button>
@@ -1058,7 +1058,7 @@ function FusionContextBand({
         ? "按任务跟踪"
         : "本期未发布";
   const contextItems = [
-    ["组织", "东北区域经营中心"],
+    ["组织", "齐齐哈尔经营部"],
     ["责任区域", "齐齐哈尔 · 全域"],
     ["业务期间", content.period],
     ["业务对象", objectLabel],
@@ -1147,7 +1147,7 @@ function FusionLifecyclePanel({
       <div className="prototype-fusion-lifecycle-facts">
         <div>
           <small>当前责任组织</small>
-          <strong>东北区域经营中心</strong>
+          <strong>齐齐哈尔经营部</strong>
         </div>
         <div>
           <small>工作版本</small>
@@ -1456,7 +1456,7 @@ function PrototypeHeader({ compact = false }: { compact?: boolean }) {
         <div className="prototype-global-context">
           <span>
             <small>当前组织</small>
-            <strong>东北区域经营中心</strong>
+            <strong>齐齐哈尔经营部</strong>
           </span>
           <span>
             <small>当前责任区</small>
@@ -1577,7 +1577,7 @@ function VariantB({
             </div>
           </div>
           <div className="prototype-document-rule">
-            <span>责任组织：东北区域经营中心</span>
+            <span>责任组织：齐齐哈尔经营部</span>
             <span>责任岗位：区域数据管理员</span>
             <span>数据截止：{content.cutoff}</span>
           </div>
@@ -1620,7 +1620,7 @@ function VariantB({
           </div>
           <div className="prototype-vertical-rail">
             {[
-              ["责任已确认", "东北区域经营中心", "done"],
+              ["责任已确认", "齐齐哈尔经营部", "done"],
               ["数据已截止", content.cutoff, "done"],
               ["质量有条件通过", "3 项待解释", "warning"],
               ["业务审核中", "审核人：赵晨", "current"],
@@ -1679,7 +1679,7 @@ function VariantC({
           <span className="prototype-brand__mark">齐</span>
           <span>
             <strong>粮情经营指挥台</strong>
-            <small>东北区域经营中心</small>
+            <small>齐齐哈尔经营部</small>
           </span>
         </div>
         <PageNavigation mode="horizontal" page={page} onSelect={onSelectPage} />

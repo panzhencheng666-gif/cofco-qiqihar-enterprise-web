@@ -53,6 +53,30 @@ const marketReportContext: BusinessReportContext = {
   reviewer: "赵晨",
 };
 
+const marketCapabilityRows = [
+  ["贸易商", "玉米、大豆、稻谷", "收购、报价与成交、质量、库存、销售、物流"],
+  [
+    "玉米深加工企业",
+    "玉米",
+    "收购、质量、库存、投入、产出、副产品、损耗、生产线与开机率",
+  ],
+  ["大豆压榨企业", "大豆", "收购、质量、库存、压榨投入、豆粕豆油产出与损耗"],
+  ["大豆蛋白加工企业", "大豆", "收购、质量、库存、蛋白加工投入、产出与损耗"],
+  ["食品和调味品企业", "大豆及适用产品", "收购、质量、库存、加工投入与产出"],
+  ["米厂", "稻谷、大米", "收购、稻谷质量、加工、大米产出、库存、报价与成交"],
+  ["饲料企业", "玉米", "采购、质量、库存、加工投入与饲料产出"],
+  ["养殖企业", "玉米", "采购、质量、库存、直接饲用"],
+  [
+    "承储企业 / 储备库",
+    "玉米、大豆、稻谷",
+    "实物库存、货权、库点、批次、保管责任与粮权性质",
+  ],
+  ["批发市场", "适用粮食品种", "销售报价、实际成交价、质量与成交数量"],
+  ["农资经销商", "种子、农药、化肥", "商品品种或规格、价格、库存与销售量"],
+  ["铁路站点", "玉米、大豆、稻谷", "包粮 / 散粮到达与发运、即期报价与成交"],
+  ["公路物流节点", "玉米、大豆、稻谷", "包粮 / 散粮流入与流出、运单与过磅"],
+] as const;
+
 function MarketPageHeader({
   eyebrow,
   title,
@@ -364,7 +388,7 @@ function MarketObjectRegistry() {
       <MarketPageHeader
         eyebrow="市场监测 / 监测对象"
         title="市场监测对象"
-        summary="一个经营主体只建一份档案，可同时承担贸易、加工、仓储、消费等多个角色。"
+        summary="维护齐齐哈尔、黑河和呼伦贝尔指定区域的市场主体与物流节点。"
         actions={
           <button className="is-primary" type="button">
             新增监测对象
@@ -373,24 +397,17 @@ function MarketObjectRegistry() {
       />
       <MarketContextStrip object="市场主体与物流节点" state="对象名录有效" />
       <WorkspaceTableToolbar
-        title="市场对象业务范围"
-        note="同一主体可承担多个角色，但只建立一份主体档案"
+        title="市场对象业务能力清单"
+        note="贸易、加工、仓储、消费与物流节点"
       />
       <WorkspaceTable
-        columns={["业务分组", "纳入对象"]}
-        label="市场对象业务范围"
-        rows={[
-          ["购销与仓储", "贸易商 · 承储企业 / 储备库 · 批发市场"],
-          [
-            "加工与消费",
-            "玉米深加工 · 大豆压榨 / 蛋白加工 · 食品调味 · 米厂 · 饲料 · 养殖",
-          ],
-          ["专题与节点", "种子 · 农药 · 化肥经销商 · 铁路站点 · 公路物流节点"],
-        ]}
+        columns={["对象类型", "适用品类", "业务能力"]}
+        label="市场对象业务能力清单"
+        rows={marketCapabilityRows}
       />
       <WorkspaceTableToolbar
         title={target === "subject" ? "市场主体名录" : "物流节点名录"}
-        note="主体角色可以多选，但主体档案不重复建立"
+        note="按区域、角色和经营品类查看监测对象"
         actions={
           <>
             <button
@@ -570,26 +587,40 @@ function getMarketFieldRows(
   const rows: Record<MarketFieldGroupKey, readonly MarketFieldRow[]> = {
     purchase: [
       {
-        label: task.target === "logistics" ? "即期报价" : "收购价格",
+        label: task.target === "logistics" ? "即期报价" : "报价",
         value: grain.price,
         unit: "元/吨",
-        note: task.target === "logistics" ? "站点报价 · 含税" : "到厂价 · 含税",
+        note: task.target === "logistics" ? "站点即期报价" : "到厂收购报价",
       },
       {
-        label: task.target === "logistics" ? "即期成交价" : "本期收购量",
-        value: task.target === "logistics" ? "2,332" : grain.quantity,
-        unit: task.target === "logistics" ? "元/吨" : "吨",
+        label: task.target === "logistics" ? "即期成交价" : "实际成交价",
+        value: task.target === "logistics" ? "2,332" : grain.price,
+        unit: "元/吨",
       },
+      { label: "成交数量", value: grain.quantity, unit: "吨" },
+      {
+        label: "包装形态",
+        value: grain.form.includes("袋装") ? "包粮" : "散粮",
+      },
+      {
+        label: "交货方式",
+        value: task.target === "logistics" ? "站台交付" : "到厂交货",
+      },
+      { label: "结算条件", value: "含税现款 · 过磅结算" },
       { label: "商品形态", value: grain.form },
       { label: "品种名称", value: grain.variety },
       { label: "作物年度", value: "2025年产" },
     ],
     quality: grain.quality,
     processing: [
-      { label: "日加工量", value: "420", unit: "吨/日" },
+      { label: "日加工投入量", value: "420", unit: "吨/日" },
       { label: "运行生产线", value: "2 / 3", unit: "条" },
       { label: "设计日产能", value: "600", unit: "吨/日" },
       { label: "开机率", value: "70.0", unit: "%", note: "自动计算" },
+      { label: "主产品产出量", value: "298", unit: "吨/日" },
+      { label: "副产品产出量", value: "112", unit: "吨/日" },
+      { label: "加工损耗", value: "10", unit: "吨/日" },
+      { label: "停机原因", value: "1号线计划检修" },
     ],
     inventory:
       task.role === "agri-dealer"
@@ -599,7 +630,13 @@ function getMarketFieldRows(
             { label: "化肥库存", value: "286", unit: "吨" },
             { label: "统计时点", value: "7月31日 08:00" },
           ]
-        : grain.inventory,
+        : [
+            ...grain.inventory,
+            { label: "货权人", value: task.targetName },
+            { label: "保管库点", value: `${task.region}一号库区` },
+            { label: "库存批次", value: "2025-C-0731-01" },
+            { label: "保管责任方", value: task.targetName },
+          ],
     sales:
       task.role === "agri-dealer"
         ? [

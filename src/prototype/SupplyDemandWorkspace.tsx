@@ -1,18 +1,9 @@
 import { useState } from "react";
 import type { BusinessReportContext } from "./businessReportModel";
 import { useEnterpriseRegion } from "./EnterpriseRegionContext";
-import {
-  getEnterpriseRegion,
-  type EnterpriseRegionId,
-} from "./enterpriseRegions";
+import { getEnterpriseRegion } from "./enterpriseRegions";
 import type { SupplySection } from "./formalEnterpriseModel";
 import {
-  getSupplyBalanceEquation,
-  getSupplyBalanceScopeForRegion,
-  type SupplyBalanceScopeKey,
-} from "./supplyBalanceScope";
-import {
-  BusinessContextBar,
   WorkspaceFilterBar,
   WorkspaceHeader,
   WorkspaceInlineStats,
@@ -23,551 +14,488 @@ import {
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
-type SupplyProduct = "corn" | "soybean" | "paddy" | "rice";
+export interface SupplyDemandWorkspaceProps {
+  section: SupplySection;
+  onComposeReport: (context: BusinessReportContext) => void;
+}
 
-const supplyProducts: readonly {
-  key: SupplyProduct;
-  label: string;
-  account: string;
-}[] = [
+type SupplyProduct =
+  "corn" | "soybean" | "soymeal" | "soyoil" | "soy-protein" | "paddy" | "rice";
+
+type BalanceGroup = "供给" | "使用与外流" | "期末与核对";
+
+interface BalanceRow {
+  group: BalanceGroup;
+  item: string;
+  current: number;
+  previous: number;
+  sourceBusiness: string;
+  sourceVersion: string;
+  status: string;
+  tone: WorkspaceTone;
+  total?: boolean;
+}
+
+const productLabels: Record<SupplyProduct, string> = {
+  corn: "玉米原粮",
+  soybean: "大豆原粮",
+  soymeal: "豆粕",
+  soyoil: "豆油",
+  "soy-protein": "大豆蛋白产品",
+  paddy: "稻谷原粮",
+  rice: "大米产品",
+};
+
+const cornBalanceRows: readonly BalanceRow[] = [
   {
-    key: "corn",
-    label: "玉米",
-    account: "玉米原粮",
+    group: "供给",
+    item: "期初库存",
+    current: 126.4,
+    previous: 121.8,
+    sourceBusiness: "上期供需平衡",
+    sourceVersion: "2025/26年度正式期末版本",
+    status: "已采用",
+    tone: "good",
   },
   {
-    key: "soybean",
-    label: "大豆",
-    account: "大豆原粮",
+    group: "供给",
+    item: "本地生产",
+    current: 512.8,
+    previous: 498.6,
+    sourceBusiness: "产情监测",
+    sourceVersion: "2026年第30周正式产量版本",
+    status: "已采用",
+    tone: "good",
   },
   {
-    key: "paddy",
-    label: "稻谷",
-    account: "稻谷原粮",
+    group: "供给",
+    item: "区域外流入",
+    current: 118.7,
+    previous: 114.3,
+    sourceBusiness: "市场监测 · 物流",
+    sourceVersion: "2026年第31周边界流入版本",
+    status: "已采用",
+    tone: "good",
   },
   {
-    key: "rice",
-    label: "大米",
-    account: "大米产品",
+    group: "供给",
+    item: "国际进口",
+    current: 5.2,
+    previous: 4.9,
+    sourceBusiness: "市场监测 · 进口",
+    sourceVersion: "2026年第31周进口核定版本",
+    status: "已采用",
+    tone: "good",
+  },
+  {
+    group: "供给",
+    item: "其他供给",
+    current: 0,
+    previous: 0,
+    sourceBusiness: "供需调整",
+    sourceVersion: "2026/27年度第3版",
+    status: "已核定",
+    tone: "normal",
+  },
+  {
+    group: "供给",
+    item: "总供给",
+    current: 763.1,
+    previous: 739.6,
+    sourceBusiness: "供需平衡",
+    sourceVersion: "2026/27年度第3版",
+    status: "已计算",
+    tone: "good",
+    total: true,
+  },
+  {
+    group: "使用与外流",
+    item: "口粮消费",
+    current: 32.4,
+    previous: 33.1,
+    sourceBusiness: "消费采用值",
+    sourceVersion: "2026/27年度消费采用版本",
+    status: "已采用",
+    tone: "good",
+  },
+  {
+    group: "使用与外流",
+    item: "饲用消费",
+    current: 176.8,
+    previous: 170.4,
+    sourceBusiness: "市场监测 · 饲料养殖",
+    sourceVersion: "2026年第31周饲用核定版本",
+    status: "已采用",
+    tone: "good",
+  },
+  {
+    group: "使用与外流",
+    item: "种用消费",
+    current: 7.6,
+    previous: 7.3,
+    sourceBusiness: "产情监测 · 用种",
+    sourceVersion: "2026年播种用种正式版本",
+    status: "已采用",
+    tone: "good",
+  },
+  {
+    group: "使用与外流",
+    item: "加工投入",
+    current: 321.7,
+    previous: 308.9,
+    sourceBusiness: "市场监测 · 加工",
+    sourceVersion: "2026年第31周加工投入版本",
+    status: "已采用",
+    tone: "good",
+  },
+  {
+    group: "使用与外流",
+    item: "损耗",
+    current: 18.6,
+    previous: 17.9,
+    sourceBusiness: "产情与市场监测",
+    sourceVersion: "2026/27年度损耗采用版本",
+    status: "已采用",
+    tone: "good",
+  },
+  {
+    group: "使用与外流",
+    item: "区域外流出",
+    current: 95.1,
+    previous: 91.7,
+    sourceBusiness: "市场监测 · 物流",
+    sourceVersion: "2026年第31周边界流出版本",
+    status: "已采用",
+    tone: "good",
+  },
+  {
+    group: "使用与外流",
+    item: "国际出口",
+    current: 6,
+    previous: 5.7,
+    sourceBusiness: "市场监测 · 出口",
+    sourceVersion: "2026年第31周出口核定版本",
+    status: "已采用",
+    tone: "good",
+  },
+  {
+    group: "使用与外流",
+    item: "其他使用",
+    current: 1,
+    previous: 0.8,
+    sourceBusiness: "供需调整",
+    sourceVersion: "2026/27年度第3版",
+    status: "已核定",
+    tone: "normal",
+  },
+  {
+    group: "使用与外流",
+    item: "总使用与外流",
+    current: 659.2,
+    previous: 635.8,
+    sourceBusiness: "供需平衡",
+    sourceVersion: "2026/27年度第3版",
+    status: "已计算",
+    tone: "good",
+    total: true,
+  },
+  {
+    group: "期末与核对",
+    item: "调整前账面期末",
+    current: 103.9,
+    previous: 103.8,
+    sourceBusiness: "供需平衡",
+    sourceVersion: "2026/27年度第3版",
+    status: "已计算",
+    tone: "good",
+    total: true,
+  },
+  {
+    group: "期末与核对",
+    item: "批准库存调整",
+    current: 0,
+    previous: 0,
+    sourceBusiness: "库存调整审批",
+    sourceVersion: "2026/27年度第3版",
+    status: "无调整",
+    tone: "normal",
+  },
+  {
+    group: "期末与核对",
+    item: "采用后账面期末",
+    current: 103.9,
+    previous: 103.8,
+    sourceBusiness: "供需平衡",
+    sourceVersion: "2026/27年度第3版",
+    status: "候选期初",
+    tone: "good",
+    total: true,
+  },
+  {
+    group: "期末与核对",
+    item: "调查汇总期末",
+    current: 105.6,
+    previous: 104.2,
+    sourceBusiness: "市场与产情库存调查",
+    sourceVersion: "2026年第31周库存调查版本",
+    status: "待核对",
+    tone: "warning",
+  },
+  {
+    group: "期末与核对",
+    item: "库存平衡差额",
+    current: 1.7,
+    previous: 0.4,
+    sourceBusiness: "供需平衡",
+    sourceVersion: "2026/27年度第3版",
+    status: "待解释",
+    tone: "warning",
+    total: true,
   },
 ];
 
-const countyAccountRows = [
-  ["龙沙区", "尚未建立可发布账户", "—", "缺少完整产品账户", "待准备"],
-  ["建华区", "尚未建立可发布账户", "—", "缺少完整产品账户", "待准备"],
-  ["铁锋区", "尚未建立可发布账户", "—", "缺少完整产品账户", "待准备"],
-  ["昂昂溪区", "尚未建立可发布账户", "—", "缺少完整产品账户", "待准备"],
-  ["富拉尔基区", "尚未建立可发布账户", "—", "缺少完整产品账户", "待准备"],
-  ["碾子山区", "尚未建立可发布账户", "—", "缺少完整产品账户", "待准备"],
-  ["梅里斯达斡尔族区", "账户准备中", "9 / 14", "库存资料待核", "待补数据"],
-  ["讷河市", "2026/27 年度讷河账户", "12 / 14", "两项流向资料待补", "待补数据"],
-  ["龙江县", "2026/27 年度龙江账户", "14 / 14", "输入资料完整", "已核定"],
-  ["依安县", "账户准备中", "10 / 14", "加工与流向待核", "待补数据"],
-  ["泰来县", "2026/27 年度泰来账户", "14 / 14", "输入资料完整", "已核定"],
-  ["甘南县", "2026/27 年度甘南账户", "11 / 14", "加工量和库存待核", "待补数据"],
-  ["富裕县", "账户准备中", "8 / 14", "企业库存待补", "待补数据"],
-  ["克山县", "账户准备中", "10 / 14", "区域流向待核", "待补数据"],
-  ["克东县", "账户准备中", "9 / 14", "消费使用资料待补", "待补数据"],
-  ["拜泉县", "账户准备中", "11 / 14", "加工使用待核", "待补数据"],
-] as const;
-
-const countyAccountRegionIds: readonly EnterpriseRegionId[] = [
-  "qiqihar-longsha",
-  "qiqihar-jianhua",
-  "qiqihar-tiefeng",
-  "qiqihar-angangxi",
-  "qiqihar-fularji",
-  "qiqihar-nianzishan",
-  "qiqihar-meilisi",
-  "qiqihar-nehe",
-  "qiqihar-longjiang",
-  "qiqihar-yian",
-  "qiqihar-tailai",
-  "qiqihar-gannan",
-  "qiqihar-fuyu",
-  "qiqihar-keshan",
-  "qiqihar-kedong",
-  "qiqihar-baiquan",
-];
-
-function toneFor(value: string): WorkspaceTone {
-  if (value.includes("阻断") || value.includes("超过")) return "danger";
-  if (
-    value.includes("待") ||
-    value.includes("准备") ||
-    value.includes("暂估")
-  ) {
-    return "warning";
-  }
-  if (value.includes("核定") || value.includes("正式")) return "good";
-  return "normal";
+function amount(value: number): string {
+  return `${value.toFixed(1)} 万吨`;
 }
 
-function SupplyFilterBar({
-  product,
-  onProductChange,
-}: {
-  product: SupplyProduct;
-  onProductChange: (product: SupplyProduct) => void;
-}) {
-  return (
-    <WorkspaceFilterBar
-      label="供需账户查询条件"
-      actions={
-        <>
-          <button className="is-primary" type="button">
-            查询
-          </button>
-          <button type="button">重置</button>
-        </>
-      }
-    >
-      <label>
-        <span>地区</span>
-        <WorkspaceRegionSelect />
-      </label>
-      <label>
-        <span>产品</span>
-        <select
-          aria-label="供需产品"
-          value={product}
-          onChange={(event) =>
-            onProductChange(event.target.value as SupplyProduct)
-          }
-        >
-          {supplyProducts.map((item) => (
-            <option key={item.key} value={item.key}>
-              {item.label} · {item.account}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>账户期间</span>
-        <select aria-label="供需账户期间" defaultValue="2026-27">
-          <option value="2026-27">2026/27 营销年度</option>
-        </select>
-      </label>
-      <label>
-        <span>账户状态</span>
-        <select aria-label="供需账户状态" defaultValue="all">
-          <option value="all">全部状态</option>
-          <option value="verified">已核定</option>
-          <option value="preparing">待准备</option>
-        </select>
-      </label>
-    </WorkspaceFilterBar>
-  );
+function change(current: number, previous: number): string {
+  const difference = Number((current - previous).toFixed(1));
+  if (difference === 0) return "持平";
+  return `${difference > 0 ? "+" : ""}${difference.toFixed(1)} 万吨`;
 }
 
-function SupplyContext({
-  product,
-  state,
-  tone,
-}: {
-  product: SupplyProduct;
-  state: string;
-  tone?: WorkspaceTone;
-}) {
-  const { regionId } = useEnterpriseRegion();
-  const productItem = supplyProducts.find((item) => item.key === product)!;
-  const region = getEnterpriseRegion(regionId);
-  const scope = getSupplyBalanceScopeForRegion(regionId);
-  const version = scope ? scope.version : "尚未建立正式账户";
-  return (
-    <BusinessContextBar
-      items={[
-        ["统计区域", region.label],
-        ["产品账户", productItem.account],
-        ["账户期间", "2026/27 营销年度"],
-        ["采用版本", version],
-      ]}
-      state={state}
-      tone={tone}
-    />
-  );
-}
-
-function UnavailableAccount({ product }: { product: SupplyProduct }) {
-  const { regionId } = useEnterpriseRegion();
-  const region = getEnterpriseRegion(regionId);
-  const productItem = supplyProducts.find((item) => item.key === product)!;
-  return (
-    <>
-      <WorkspaceInlineStats
-        label="供需账户状态"
-        items={[
-          {
-            label: "当前地区",
-            value: region.label,
-          },
-          {
-            label: "账户状态",
-            value: "尚未建立正式供需账户",
-            tone: "warning",
-          },
-          {
-            label: "行政底册",
-            value: region.sourceStatus,
-            note: region.sourceNote,
-            tone: region.sourceStatus === "已核定" ? "good" : "warning",
-          },
-        ]}
-      />
-      <WorkspaceTableToolbar
-        title="供需账户准备状态"
-        note="未取得正式输入时不以零值或示例值代替。"
-      />
-      <WorkspaceTable
-        columns={["地区", "产品账户", "账户期间", "当前状态", "下一项工作"]}
-        label="供需账户准备状态"
-        rows={[
-          [
-            region.label,
-            productItem.account,
-            "2026/27 营销年度",
-            <WorkspaceStatus key="unavailable" tone="warning">
-              尚未建立正式供需账户
-            </WorkspaceStatus>,
-            "核定来源、库存、生产、使用与跨区流向后建账",
-          ],
-        ]}
-      />
-    </>
-  );
-}
-
-function BalanceStatement({ scopeKey }: { scopeKey: SupplyBalanceScopeKey }) {
-  const equation = getSupplyBalanceEquation(scopeKey);
-  return (
-    <>
-      <WorkspaceTableToolbar
-        title="区域粮食供需平衡表"
-        note="单位：万吨；账面结果、调查对照和批准调整在同一张表内连续核对"
-      />
-      <WorkspaceTable
-        columns={[
-          "业务环节",
-          "账户项目",
-          "本期结果",
-          "计算或数据来源",
-          "数据性质",
-          "当前状态",
-        ]}
-        label="区域粮食供需平衡表"
-        rows={[
-          [
-            "供给",
-            "总供给",
-            `${equation.totalSupply} 万吨`,
-            "期初库存＋本期生产＋区域外流入＋其他供给",
-            "账户采用值",
-            <WorkspaceStatus key="total-supply" tone="good">
-              已核定
-            </WorkspaceStatus>,
-          ],
-          [
-            "使用",
-            "总使用",
-            `${equation.totalUse} 万吨`,
-            "消费＋加工＋损耗＋区域外流出＋其他使用",
-            "账户采用值",
-            <WorkspaceStatus key="total-use" tone="good">
-              已核定
-            </WorkspaceStatus>,
-          ],
-          [
-            "账面库存",
-            "调整前账面期末",
-            `${equation.bookEnding} 万吨`,
-            "总供给 − 总使用",
-            "公式结果",
-            <WorkspaceStatus key="book-ending" tone="good">
-              已计算
-            </WorkspaceStatus>,
-          ],
-          [
-            "调查对照",
-            "调查汇总期末",
-            `${equation.surveyEnding} 万吨`,
-            "企业与农户库存调查汇总",
-            "独立调查值",
-            <WorkspaceStatus key="survey-ending" tone="warning">
-              待核对
-            </WorkspaceStatus>,
-          ],
-          [
-            "调整",
-            "批准库存调整",
-            `${equation.approvedAdjustment} 万吨`,
-            "仅采用已完成审核批准的调整值",
-            "审核采用值",
-            <WorkspaceStatus key="approved-adjustment">
-              当前无调整
-            </WorkspaceStatus>,
-          ],
-          [
-            "正式结果",
-            "采用后账面期末",
-            `${equation.adoptedEnding} 万吨`,
-            "调整前账面期末＋批准库存调整",
-            "正式账户结果",
-            <WorkspaceStatus key="adopted-ending" tone="good">
-              候选下期期初
-            </WorkspaceStatus>,
-          ],
-          [
-            "差异检查",
-            "库存平衡差额",
-            `${equation.inventoryDifference} 万吨`,
-            "调查汇总期末 − 调整前账面期末",
-            "质量检查值",
-            <WorkspaceStatus key="difference-status" tone="warning">
-              待解释
-            </WorkspaceStatus>,
-          ],
-        ]}
-      />
-    </>
-  );
-}
-
-function SupplyOverview({
+function SupplyStatement({
   onComposeReport,
 }: {
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
-  const [product, setProduct] = useState<SupplyProduct>("corn");
   const { regionId } = useEnterpriseRegion();
-  const scope = getSupplyBalanceScopeForRegion(regionId);
-  const scopeKey = scope?.key ?? null;
   const region = getEnterpriseRegion(regionId);
-  const productItem = supplyProducts.find((item) => item.key === product)!;
+  const [product, setProduct] = useState<SupplyProduct>("corn");
+  const [selectedSource, setSelectedSource] = useState<BalanceRow | null>(null);
+  const hasFormalAccount = product === "corn" && region.parentId === "qiqihar";
+
   const reportContext: BusinessReportContext = {
     application: "supply",
     applicationLabel: "供需与态势",
-    product: productItem.account,
+    product: productLabels[product],
     region: region.label,
-    regionLevel: scope?.level ?? region.level,
+    regionLevel: region.level,
     period: "2026/27 营销年度",
     dataCutoff: "7 月 31 日 17:00",
-    dataVersion: scope?.version ?? "尚未建立正式账户",
+    dataVersion: "2026/27年度供需账户第3版",
     author: "王洋",
     reviewer: "赵晨",
   };
+
   return (
     <div className="unified-workspace supply-workspace">
       <WorkspaceHeader
-        eyebrow="供需与态势 / 供需总览"
-        title="区域粮食供需账户"
-        summary="先确认产品、地区、期间和采用版本，再解释供给来源、使用去向、期末库存与调查差额。"
+        actions={
+          <button
+            className="is-primary"
+            type="button"
+            onClick={() => onComposeReport(reportContext)}
+          >
+            编制供需报告
+          </button>
+        }
+        eyebrow="供需与态势 / 供需平衡表"
+        summary="按地区、产品、营销年度和采用版本查看正式供需账户。"
+        title="区域粮食供需平衡表"
+      />
+      <WorkspaceFilterBar
         actions={
           <>
-            <button type="button">查看历史账户</button>
-            <button
-              className="is-primary"
-              type="button"
-              onClick={() => onComposeReport(reportContext)}
-            >
-              编制供需报告
+            <button className="is-primary" type="button">
+              查询
             </button>
+            <button type="button">重置</button>
           </>
         }
+        label="供需平衡查询条件"
+      >
+        <label>
+          <span>业务地区</span>
+          <WorkspaceRegionSelect />
+        </label>
+        <label>
+          <span>产品账户</span>
+          <select
+            aria-label="产品账户"
+            value={product}
+            onChange={(event) => {
+              setProduct(event.target.value as SupplyProduct);
+              setSelectedSource(null);
+            }}
+          >
+            {Object.entries(productLabels).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>营销年度</span>
+          <select aria-label="营销年度" defaultValue="2026-27">
+            <option value="2026-27">2026/27 营销年度</option>
+            <option value="2025-26">2025/26 营销年度</option>
+          </select>
+        </label>
+        <label>
+          <span>采用版本</span>
+          <select aria-label="采用版本" defaultValue="v3">
+            <option value="v3">第3版 · 当前采用</option>
+            <option value="v2">第2版 · 已替代</option>
+          </select>
+        </label>
+      </WorkspaceFilterBar>
+      <WorkspaceInlineStats
+        label="当前供需账户"
+        items={[
+          {
+            label: "当前账户",
+            value: `${region.label} · ${productLabels[product]}`,
+          },
+          { label: "统计单位", value: "万吨" },
+          {
+            label: "账户状态",
+            value: hasFormalAccount ? "正式账户已核定" : "尚未形成正式账户版本",
+            tone: hasFormalAccount ? "good" : "warning",
+          },
+          { label: "数据截止", value: "2026-07-31 17:00" },
+        ]}
       />
-      <SupplyFilterBar product={product} onProductChange={setProduct} />
-      {scope && scopeKey && product === "corn" ? (
-        <>
-          <WorkspaceInlineStats
-            label="当前供需账户"
-            items={[
-              {
-                label: "账户层级",
-                value: scope.level,
-              },
-              {
-                label: "数据覆盖",
-                value: scope.coverage,
-                tone: toneFor(scope.status),
-              },
-              {
-                label: "采用版本",
-                value: scope.version,
-              },
-              {
-                label: "账户状态",
-                value: scope.status,
-                tone: toneFor(scope.status),
-              },
-            ]}
-          />
-          <BalanceStatement scopeKey={scopeKey} />
-        </>
-      ) : (
-        <UnavailableAccount product={product} />
-      )}
-    </div>
-  );
-}
 
-function ProductAccounts() {
-  const [product, setProduct] = useState<SupplyProduct>("corn");
-  const { regionId } = useEnterpriseRegion();
-  const productItem = supplyProducts.find((item) => item.key === product)!;
-  const hasDetailedAccount = regionId === "qiqihar-all" && product === "corn";
-  return (
-    <div className="unified-workspace supply-workspace">
-      <WorkspaceHeader
-        eyebrow="供需与态势 / 产品账户"
-        title="产品账户与构成项目"
-        summary="玉米、大豆、稻谷和大米分别建账；加工转换在上下游账户成对记录。"
-      />
-      <SupplyFilterBar product={product} onProductChange={setProduct} />
-      {hasDetailedAccount ? (
+      {hasFormalAccount ? (
         <>
           <WorkspaceTableToolbar
-            title={`${productItem.account}账户项目`}
-            note="一个规范事实最多进入一个可加总角色。"
+            note="单位：万吨"
+            title={`${region.label} · ${productLabels[product]}`}
           />
+          <div className="unified-table-scroll supply-statement-scroll">
+            <table
+              aria-label="区域粮食供需平衡表数据"
+              className="unified-table supply-statement-table"
+            >
+              <thead>
+                <tr>
+                  <th scope="col">业务段</th>
+                  <th scope="col">平衡表项目</th>
+                  <th scope="col">本期数</th>
+                  <th scope="col">上期数</th>
+                  <th scope="col">变化</th>
+                  <th scope="col">来源业务</th>
+                  <th scope="col">来源版本</th>
+                  <th scope="col">状态</th>
+                  <th scope="col">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cornBalanceRows.map((row, index) => {
+                  const showGroup =
+                    index === 0 ||
+                    cornBalanceRows[index - 1]?.group !== row.group;
+                  const groupSize = cornBalanceRows.filter(
+                    (candidate) => candidate.group === row.group,
+                  ).length;
+                  return (
+                    <tr
+                      className={row.total ? "is-total" : undefined}
+                      key={row.item}
+                    >
+                      {showGroup && (
+                        <th rowSpan={groupSize} scope="rowgroup">
+                          {row.group}
+                        </th>
+                      )}
+                      <th scope="row">{row.item}</th>
+                      <td>{amount(row.current)}</td>
+                      <td>{amount(row.previous)}</td>
+                      <td>{change(row.current, row.previous)}</td>
+                      <td>{row.sourceBusiness}</td>
+                      <td>{row.sourceVersion}</td>
+                      <td>
+                        <WorkspaceStatus tone={row.tone}>
+                          {row.status}
+                        </WorkspaceStatus>
+                      </td>
+                      <td>
+                        <button
+                          aria-label={`查看${row.item}来源`}
+                          className="unified-table-action"
+                          type="button"
+                          onClick={() => setSelectedSource(row)}
+                        >
+                          查看来源
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {selectedSource && (
+            <section
+              aria-label={`${selectedSource.item}来源详情`}
+              className="supply-source-detail"
+            >
+              <header>
+                <strong>{selectedSource.item}来源详情</strong>
+                <button type="button" onClick={() => setSelectedSource(null)}>
+                  关闭
+                </button>
+              </header>
+              <dl>
+                <div>
+                  <dt>来源业务</dt>
+                  <dd>{selectedSource.sourceBusiness}</dd>
+                </div>
+                <div>
+                  <dt>来源版本</dt>
+                  <dd>{selectedSource.sourceVersion}</dd>
+                </div>
+                <div>
+                  <dt>统计地区</dt>
+                  <dd>{region.label}</dd>
+                </div>
+                <div>
+                  <dt>采用数值</dt>
+                  <dd>{amount(selectedSource.current)}</dd>
+                </div>
+                <div>
+                  <dt>数据状态</dt>
+                  <dd>{selectedSource.status}</dd>
+                </div>
+              </dl>
+            </section>
+          )}
+        </>
+      ) : (
+        <>
+          <WorkspaceTableToolbar title="供需账户准备状态" />
           <WorkspaceTable
-            columns={[
-              "账户项目",
-              "角色",
-              "采用值",
-              "来源",
-              "质量状态",
-              "采用版本",
-            ]}
-            label="产品账户项目"
+            columns={["地区", "产品账户", "账户版本", "数据状态", "处理入口"]}
+            label="供需账户准备状态"
             rows={[
               [
-                "期初库存",
-                "供给",
-                "91.6 万吨",
-                "上一年度采用后账面期末",
-                <WorkspaceStatus key="opening" tone="good">
-                  通过
-                </WorkspaceStatus>,
-                "2025/26 发布版",
-              ],
-              [
-                "本期生产",
-                "供给",
-                "621.8 万吨",
-                "产情正式区域估计",
-                <WorkspaceStatus key="production" tone="good">
-                  通过
-                </WorkspaceStatus>,
-                "产情第 30 周正式版",
-              ],
-              [
-                "区域外净流入",
-                "供给",
-                "49.7 万吨",
-                "去重物流边界事实",
-                <WorkspaceStatus key="inflow" tone="warning">
-                  两项待核
-                </WorkspaceStatus>,
-                "市场第 31 周候选版",
-              ],
-              [
-                "加工使用",
-                "使用",
-                "184.2 万吨",
-                "加工投入规范事实",
-                <WorkspaceStatus key="processing" tone="good">
-                  通过
-                </WorkspaceStatus>,
-                "市场第 30 周正式版",
-              ],
-            ]}
-          />
-        </>
-      ) : (
-        <UnavailableAccount product={product} />
-      )}
-    </div>
-  );
-}
-
-function RegionalBalance() {
-  const [product, setProduct] = useState<SupplyProduct>("corn");
-  const { regionId, setRegionId } = useEnterpriseRegion();
-  const region = getEnterpriseRegion(regionId);
-  const isQiqihar = region.parentId === "qiqihar";
-  const comparisonRegionIds: readonly EnterpriseRegionId[] =
-    regionId === "qiqihar-all"
-      ? ["qiqihar-all", ...countyAccountRegionIds]
-      : ["qiqihar-all", regionId];
-  return (
-    <div className="unified-workspace supply-workspace">
-      <WorkspaceHeader
-        eyebrow="供需与态势 / 区域平衡"
-        title="市县供需账户对比"
-        summary="比较市级合并账户与县区账户的供给、使用、期末库存、差异和数据完整度，并进入单一地区明细。"
-      />
-      <SupplyFilterBar product={product} onProductChange={setProduct} />
-      {!isQiqihar || product !== "corn" ? (
-        <UnavailableAccount product={product} />
-      ) : (
-        <>
-          <WorkspaceTableToolbar
-            title="市县供需账户对比"
-            note={
-              regionId === "qiqihar-all"
-                ? "市级合并账户抵销市内流转；县区账户分别列示流入和流出"
-                : `当前对比：齐齐哈尔市全域与${region.label}`
-            }
-          />
-          <WorkspaceTable
-            columns={[
-              "地区",
-              "账户层级",
-              "账户版本",
-              "总供给",
-              "总使用",
-              "采用后期末",
-              "库存差额",
-              "输入覆盖",
-              "待办或质量问题",
-              "状态",
-              "操作",
-            ]}
-            label="市县供需账户对比"
-            rows={comparisonRegionIds.map((rowRegionId) => {
-              const rowScope = getSupplyBalanceScopeForRegion(rowRegionId);
-              const rowEquation = rowScope
-                ? getSupplyBalanceEquation(rowScope.key)
-                : null;
-              const countyIndex = countyAccountRegionIds.indexOf(rowRegionId);
-              const countyRow =
-                countyIndex >= 0 ? countyAccountRows[countyIndex] : null;
-              const rowStatus = rowScope?.status ?? countyRow?.[4] ?? "待准备";
-              return [
-                getEnterpriseRegion(rowRegionId).label,
-                rowScope?.level ?? "县级账户",
-                rowScope?.version ?? countyRow?.[1] ?? "尚未建立可发布账户",
-                rowEquation ? `${rowEquation.totalSupply} 万吨` : "—",
-                rowEquation ? `${rowEquation.totalUse} 万吨` : "—",
-                rowEquation ? `${rowEquation.adoptedEnding} 万吨` : "—",
-                rowEquation ? `${rowEquation.inventoryDifference} 万吨` : "—",
-                rowScope?.coverage ?? countyRow?.[2] ?? "—",
-                countyRow?.[3] ?? "市内县区流转已抵销",
-                <WorkspaceStatus
-                  key={`${rowRegionId}-status`}
-                  tone={toneFor(rowStatus)}
-                >
-                  {rowStatus}
+                region.label,
+                productLabels[product],
+                "尚未形成正式账户版本",
+                <WorkspaceStatus key="missing" tone="warning">
+                  缺失
                 </WorkspaceStatus>,
                 <button
                   className="unified-table-action"
-                  key={`${rowRegionId}-action`}
+                  key="prepare"
                   type="button"
-                  onClick={() => setRegionId(rowRegionId)}
                 >
-                  {regionId === rowRegionId ? "当前" : "查看"}
+                  查看数据准备
                 </button>,
-              ];
-            })}
+              ],
+            ]}
           />
         </>
       )}
@@ -575,142 +503,98 @@ function RegionalBalance() {
   );
 }
 
-function IndicatorLineage() {
+function SupplyVersionHistory() {
   return (
     <div className="unified-workspace supply-workspace">
       <WorkspaceHeader
-        eyebrow="供需与态势 / 指标与来源"
-        title="指标与来源追溯"
-        summary="查看每个账户值采用的正式指标、来源数据、截止时间、质量和审核版本。"
+        eyebrow="供需与态势 / 版本记录"
+        summary="查询供需账户的编制、审核、发布和替代记录。"
+        title="供需版本记录"
       />
-      <SupplyContext product="corn" state="来源可追溯" />
-      <WorkspaceTableToolbar
-        title="玉米原粮账户采用指标"
-        note="供需页面不重新填写来源值。"
-      />
+      <WorkspaceFilterBar
+        actions={
+          <button className="is-primary" type="button">
+            查询
+          </button>
+        }
+        label="供需版本查询条件"
+      >
+        <label>
+          <span>业务地区</span>
+          <WorkspaceRegionSelect />
+        </label>
+        <label>
+          <span>产品账户</span>
+          <select aria-label="产品账户" defaultValue="corn">
+            {Object.entries(productLabels).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>营销年度</span>
+          <select aria-label="营销年度" defaultValue="2026-27">
+            <option value="2026-27">2026/27 营销年度</option>
+            <option value="2025-26">2025/26 营销年度</option>
+          </select>
+        </label>
+      </WorkspaceFilterBar>
+      <WorkspaceTableToolbar title="供需版本记录" />
       <WorkspaceTable
         columns={[
-          "账户项目",
-          "采用值",
-          "业务来源",
-          "数据截止",
-          "质量与审核",
-          "采用版本",
+          "版本",
+          "地区",
+          "产品账户",
+          "状态",
+          "编制人",
+          "审核人",
+          "发布时间",
+          "操作",
         ]}
-        label="供需指标来源"
+        label="供需版本记录"
         rows={[
           [
-            "期初库存",
-            "91.6 万吨",
-            "上一年度供需发布结果",
-            "2026-06-30",
-            <WorkspaceStatus key="opening" tone="good">
-              已发布
+            "第3版",
+            "齐齐哈尔市全域",
+            "玉米原粮",
+            <WorkspaceStatus key="active" tone="good">
+              当前采用
             </WorkspaceStatus>,
-            "2025/26 供需结果发布版",
+            "王洋",
+            "赵晨",
+            "2026-07-31 16:20",
+            <button className="unified-table-action" key="view-3" type="button">
+              查看
+            </button>,
           ],
           [
-            "本期生产",
-            "621.8 万吨",
-            "产情监测 · 区域正式估计",
-            "2026-07-24 17:00",
-            <WorkspaceStatus key="production" tone="good">
-              质量通过
-            </WorkspaceStatus>,
-            "产情第 30 周正式指标版本",
+            "第2版",
+            "齐齐哈尔市全域",
+            "玉米原粮",
+            <WorkspaceStatus key="replaced">已替代</WorkspaceStatus>,
+            "王洋",
+            "赵晨",
+            "2026-07-24 16:10",
+            <button className="unified-table-action" key="view-2" type="button">
+              查看
+            </button>,
           ],
           [
-            "区域外净流入",
-            "49.7 万吨",
-            "市场监测 · 边界物流事实",
-            "2026-07-31 17:00",
-            <WorkspaceStatus key="inflow" tone="warning">
-              两项待核
-            </WorkspaceStatus>,
-            "第 31 周市场正式指标版本",
-          ],
-          [
-            "加工使用",
-            "184.2 万吨",
-            "市场监测 · 加工投入",
-            "2026-07-24 17:00",
-            <WorkspaceStatus key="processing" tone="good">
-              审核通过
-            </WorkspaceStatus>,
-            "第 30 周市场正式指标版本",
+            "第1版",
+            "齐齐哈尔市全域",
+            "玉米原粮",
+            <WorkspaceStatus key="history">历史版本</WorkspaceStatus>,
+            "王洋",
+            "赵晨",
+            "2026-07-17 15:50",
+            <button className="unified-table-action" key="view-1" type="button">
+              查看
+            </button>,
           ],
         ]}
       />
-      <div className="supply-lineage-flow" aria-label="供需指标追溯链路">
-        {[
-          "供需结果",
-          "供需计算运行",
-          "账户规范与公式",
-          "正式指标",
-          "规范业务数据",
-          "原始单据与证据",
-        ].map((item, index) => (
-          <div key={item}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <strong>{item}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SituationAnalysis() {
-  return (
-    <div className="unified-workspace supply-workspace">
-      <WorkspaceHeader
-        eyebrow="供需与态势 / 态势分析"
-        title="供需态势与影响因素"
-        summary="价格、质量、成本和种植意愿用于解释账户变化，不作为可相加供需数量。"
-      />
-      <SupplyContext product="corn" state="初步态势与正式账户已区分" />
-      <WorkspaceTableToolbar
-        title="供需态势解释指标"
-        note="解释指标用于说明变化，不进入可相加供需数量"
-      />
-      <WorkspaceTable
-        columns={["影响因素", "本期结果", "解释", "数据性质"]}
-        label="供需态势解释指标"
-        rows={[
-          [
-            "价格",
-            "玉米主流收购价 2,346 元/吨",
-            "周环比 +0.8%，北部县区价差扩大。",
-            <WorkspaceStatus key="price-situation" tone="warning">
-              解释指标
-            </WorkspaceStatus>,
-          ],
-          [
-            "加工",
-            "重点企业开机率 72.6%",
-            "深加工日耗较四周均值增加 3.1%。",
-            <WorkspaceStatus key="processing-situation" tone="warning">
-              解释指标
-            </WorkspaceStatus>,
-          ],
-          [
-            "物流",
-            "铁路发运量环比 -6.4%",
-            "仅用于解释区域外流出变化，当前仍为初步数据。",
-            <WorkspaceStatus key="logistics-situation" tone="warning">
-              解释指标
-            </WorkspaceStatus>,
-          ],
-        ]}
-      />
-      <WorkspaceTableToolbar
-        title="本期账户变化说明"
-        note="正式发布前仍需完成来源和质量复核。"
-      />
-      <section aria-label="本期账户变化说明" className="supply-narrative">
-        玉米账面期末库存预计为 103.9 万吨；调查汇总期末高于账面推算，形成 1.7
-        万吨库存平衡差额。当前差额仅作为解释和风险展示，未经批准不得直接覆盖账面期末。
-      </section>
     </div>
   );
 }
@@ -718,13 +602,7 @@ function SituationAnalysis() {
 export function SupplyDemandWorkspace({
   section,
   onComposeReport,
-}: {
-  section: SupplySection;
-  onComposeReport: (context: BusinessReportContext) => void;
-}) {
-  if (section === "accounts") return <ProductAccounts />;
-  if (section === "regional") return <RegionalBalance />;
-  if (section === "lineage") return <IndicatorLineage />;
-  if (section === "situation") return <SituationAnalysis />;
-  return <SupplyOverview onComposeReport={onComposeReport} />;
+}: SupplyDemandWorkspaceProps) {
+  if (section === "versions") return <SupplyVersionHistory />;
+  return <SupplyStatement onComposeReport={onComposeReport} />;
 }

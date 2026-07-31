@@ -18,7 +18,7 @@ describe("unified workspace primitives", () => {
     render(
       <BusinessContextBar
         items={[
-          ["组织", "东北区域经营中心"],
+          ["组织", "齐齐哈尔经营部"],
           ["地区", "齐齐哈尔指定范围"],
           ["期间", "2026 年第 31 周"],
         ]}
@@ -26,7 +26,7 @@ describe("unified workspace primitives", () => {
       />,
     );
 
-    expect(screen.getByText("东北区域经营中心")).toBeVisible();
+    expect(screen.getByText("齐齐哈尔经营部")).toBeVisible();
     expect(screen.getByText("齐齐哈尔指定范围")).toBeVisible();
     expect(screen.getByText("2026 年第 31 周")).toBeVisible();
     expect(screen.getByText("本期采集中")).toBeVisible();

@@ -47,7 +47,7 @@ const fieldLabels: Record<
   quality: "质量与检验依据",
   "stock-sale": "余粮、销售、自用与损耗",
   intention: "下年度种植意愿",
-  "cost-support": "投入、政策支持与保险",
+  "cost-support": "成本与保障",
   evidence: "照片、检验单与调查依据",
 };
 
@@ -85,6 +85,7 @@ const objectFields: Record<
     "quality",
     "stock-sale",
     "intention",
+    "cost-support",
     "evidence",
   ],
   "agri-station": ["growth", "yield", "quality", "evidence"],

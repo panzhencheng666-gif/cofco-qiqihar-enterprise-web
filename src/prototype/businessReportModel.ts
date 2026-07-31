@@ -210,7 +210,7 @@ export function createBusinessReportArtifact(
   format: BusinessReportFormat,
 ): BusinessReportArtifact {
   const period = draft.period.replaceAll(/\s+/g, "");
-  const baseName = `东北区域经营中心-${draft.applicationLabel}-${draft.product}-${draft.frequency}-${period}-V1.0`;
+  const baseName = `齐齐哈尔经营部-${draft.applicationLabel}-${draft.product}-${draft.frequency}-${period}-V1.0`;
   if (format === "PDF") {
     return {
       filename: `${baseName}.pdf`,

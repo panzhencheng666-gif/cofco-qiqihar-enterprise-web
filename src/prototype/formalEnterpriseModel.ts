@@ -12,7 +12,7 @@ export const formalSectionsByApplication = {
   overview: ["overview"],
   production: ["overview", "objects", "collection", "review", "reports"],
   market: ["overview", "objects", "collection", "review", "reports"],
-  supply: ["overview", "accounts", "regional", "lineage", "situation"],
+  supply: ["statement", "versions"],
   reporting: [
     "business-reports",
     "duty-reports",
