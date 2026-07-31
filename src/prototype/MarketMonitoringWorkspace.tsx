@@ -19,6 +19,15 @@ import {
   type MarketProductKind,
 } from "./marketMonitoringModel";
 import type { MarketSection } from "./formalEnterpriseModel";
+import {
+  BusinessContextBar,
+  WorkspaceHeader,
+  WorkspaceStatus,
+  WorkspaceSummaryStrip,
+  WorkspaceTable,
+  WorkspaceTableToolbar,
+  type WorkspaceTone,
+} from "./UnifiedWorkspacePrimitives";
 
 export interface MarketMonitoringWorkspaceProps {
   section: MarketSection;
@@ -51,14 +60,12 @@ function MarketPageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="market-page-header">
-      <div>
-        <span>{eyebrow}</span>
-        <h1>{title}</h1>
-        <p>{summary}</p>
-      </div>
-      {actions && <div className="market-page-actions">{actions}</div>}
-    </header>
+    <WorkspaceHeader
+      actions={actions}
+      eyebrow={eyebrow}
+      summary={summary}
+      title={title}
+    />
   );
 }
 
@@ -70,34 +77,25 @@ function MarketContextStrip({
   state?: string;
 }) {
   return (
-    <section aria-label="当前市场监测上下文" className="market-context-strip">
-      <div className="is-current">
-        <span />
-        <small>当前责任</small>
-        <strong>东北区域经营中心</strong>
-      </div>
-      <div>
-        <small>监测区域</small>
-        <strong>三大区域 · 当前授权范围</strong>
-      </div>
-      <div>
-        <small>业务对象</small>
-        <strong>{object}</strong>
-      </div>
-      <div>
-        <small>监测期间</small>
-        <strong>2026 年第 31 周</strong>
-      </div>
-      <div>
-        <small>截止与状态</small>
-        <strong>7 月 31 日 17:00 · {state}</strong>
-      </div>
-    </section>
+    <BusinessContextBar
+      items={[
+        ["监测区域", "三大区域 · 当前授权范围"],
+        ["业务对象", object],
+        ["监测期间", "2026 年第 31 周"],
+        ["截止时间", "7 月 31 日 17:00"],
+      ]}
+      state={state}
+      tone={
+        state.includes("待") || state.includes("采集")
+          ? "warning"
+          : "good"
+      }
+    />
   );
 }
 
 function MarketStatus({ children }: { children: string }) {
-  const tone =
+  const tone: WorkspaceTone =
     children.includes("待") || children.includes("退回")
       ? "warning"
       : children.includes("逾期") || children.includes("异常")
@@ -107,7 +105,7 @@ function MarketStatus({ children }: { children: string }) {
             children.includes("已核定")
           ? "good"
           : "normal";
-  return <span className={`market-status is-${tone}`}>{children}</span>;
+  return <WorkspaceStatus tone={tone}>{children}</WorkspaceStatus>;
 }
 
 function MarketOverview({
@@ -188,7 +186,6 @@ function MarketOverview({
       { label: "出米率", value: "68.1%" },
     ],
   };
-  const tasks = marketTasks.slice(0, 3);
   const selectedReportContext: BusinessReportContext = {
     ...marketReportContext,
     product: grainLabels[grain],
@@ -262,191 +259,113 @@ function MarketOverview({
         <small>质量与每条报价绑定；切换品类自动切换采集项</small>
       </section>
 
-      <section aria-label="市场监测核心指标" className="market-metric-strip">
-        {grainMetrics[grain].map(([label, value, unit, note, tone]) => (
-          <article className={`is-${tone}`} key={label}>
-            <span>{label}</span>
-            <strong>
-              {value}
-              <small>{unit}</small>
-            </strong>
-            <p>{note}</p>
-          </article>
-        ))}
-      </section>
-
-      <div className="market-overview-grid">
-        <section className="market-panel market-trend-panel">
-          <div className="market-panel-heading">
-            <div>
-              <span>价格与到货</span>
-              <h2>{grainLabels[grain]}主流价格与样本响应</h2>
-            </div>
-            <div className="market-panel-tools">
-              <button type="button">近 30 天</button>
-              <button type="button">全部区域</button>
-            </div>
-          </div>
-          <div className="market-chart">
-            <div className="market-chart-axis">
-              <span>2,380</span>
-              <span>2,340</span>
-              <span>2,300</span>
-              <span>2,260</span>
-            </div>
-            <svg aria-label="近30天价格趋势" role="img" viewBox="0 0 760 210">
-              <defs>
-                <linearGradient id="marketArea" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#2b938a" stopOpacity="0.22" />
-                  <stop offset="100%" stopColor="#2b938a" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M0 158 C74 150 92 126 154 132 S252 144 310 119 S410 78 468 96 S575 70 628 58 S702 64 760 42 L760 210 L0 210 Z"
-                fill="url(#marketArea)"
-              />
-              <path
-                d="M0 158 C74 150 92 126 154 132 S252 144 310 119 S410 78 468 96 S575 70 628 58 S702 64 760 42"
-                fill="none"
-                stroke="#167c74"
-                strokeWidth="4"
-              />
-              <circle cx="760" cy="42" fill="#167c74" r="6" />
-            </svg>
-            <div className="market-chart-foot">
-              <span>7月2日</span>
-              <span>7月9日</span>
-              <span>7月16日</span>
-              <span>7月23日</span>
-              <span>7月31日</span>
-            </div>
-          </div>
-          <footer className="market-trend-summary">
-            <div>
-              <small>样本报价中位数</small>
-              <strong>2,342 元/吨</strong>
-            </div>
-            <div>
-              <small>区域最大价差</small>
-              <strong>96 元/吨</strong>
-            </div>
-            <div>
-              <small>本周有效响应</small>
-              <strong>79 / 86 家</strong>
-            </div>
-          </footer>
-        </section>
-
-        <aside className="market-panel market-task-rail">
-          <div className="market-panel-heading">
-            <div>
-              <span>本人工作</span>
-              <h2>需要处理</h2>
-            </div>
-            <button type="button" onClick={onCollect}>
-              全部任务
-            </button>
-          </div>
-          <div className="market-task-cards">
-            {tasks.map((task) => (
-              <button key={task.id} type="button" onClick={onCollect}>
-                <span>{task.id}</span>
-                <strong>{task.targetName}</strong>
-                <small>
-                  {marketRoleLabels[task.role]} · {grainLabels[task.grain]}
-                </small>
-                <div>
-                  <MarketStatus>{task.status}</MarketStatus>
-                  <em>{getMarketCompletion(task)}%</em>
-                </div>
-              </button>
-            ))}
-          </div>
-          <footer>
-            <span>3 项影响本周发布</span>
-            <strong>最早截止：今天 17:00</strong>
-          </footer>
-        </aside>
-      </div>
-
-      <section className="market-panel market-region-panel">
-        <div className="market-panel-heading">
-          <div>
-            <span>样本网络覆盖</span>
-            <h2>三大监测区域</h2>
-          </div>
-          <small>行政村数量只采用2025—2026年最新官方口径</small>
-        </div>
-        <div className="market-region-grid">
-          {marketRegionCoverage.map((region) => (
-            <article key={region.label}>
-              <div>
-                <strong>{region.label}</strong>
-                <span>{region.detail}</span>
-              </div>
-              <p>
-                <small>乡镇覆盖</small>
-                <strong>{region.townshipCount}</strong>
-              </p>
-              <p>
-                <small>行政村</small>
-                <strong>{region.villageCount}</strong>
-              </p>
-              <div className="market-region-source">
-                <MarketStatus>{region.sourceState}</MarketStatus>
-                <small>{region.sourceNote}</small>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="market-panel market-table-panel">
-        <div className="market-panel-heading">
-          <div>
-            <span>监测对象与任务</span>
-            <h2>本周采集进度</h2>
-          </div>
-          <div className="market-panel-tools">
+      <WorkspaceSummaryStrip
+        label="市场业务摘要"
+        items={[
+          {
+            label: `${grainLabels[grain]}监测主体`,
+            value: `${grainRegistry[grain].subjects} 家`,
+            note: `${grainRegistry[grain].varietyCount} 个已登记品种`,
+          },
+          {
+            label: "本期已报",
+            value: grainMetrics[grain][1][3].replace("本周", ""),
+            note: "按固定任务口径统计",
+            tone: "good",
+          },
+          {
+            label: "区域来源",
+            value: "3 个区域",
+            note: "行政村采用最新官方口径",
+          },
+          {
+            label: "影响发布异常",
+            value: `${grainMetrics[grain][4][1]} 项`,
+            note: grainMetrics[grain][4][3],
+            tone: grainMetrics[grain][4][4] as WorkspaceTone,
+          },
+        ]}
+      />
+      <WorkspaceTableToolbar
+        title="市场运行事实"
+        note={`${grainLabels[grain]}价格、库存、加工与物流采用同一监测期间`}
+        actions={
+          <>
+            <button type="button">近 30 天</button>
+            <button type="button">全部区域</button>
+          </>
+        }
+      />
+      <WorkspaceTable
+        columns={["监测事项", "本期结果", "变化或说明", "数据状态"]}
+        label="市场运行事实"
+        rows={grainMetrics[grain].map(([label, value, unit, note, tone]) => [
+          label,
+          `${value} ${unit}`,
+          note,
+          <WorkspaceStatus key={label} tone={tone as WorkspaceTone}>
+            {tone === "danger"
+              ? "需处置"
+              : tone === "warning"
+                ? "待核实"
+                : "本期有效"}
+          </WorkspaceStatus>,
+        ])}
+      />
+      <WorkspaceTableToolbar
+        title="三大监测区域"
+        note="行政村数量只采用 2025—2026 年最新官方口径"
+      />
+      <WorkspaceTable
+        columns={["监测区域", "覆盖范围", "乡镇覆盖", "行政村", "来源状态", "来源说明"]}
+        label="监测区域与行政来源"
+        rows={marketRegionCoverage.map((region) => [
+          region.label,
+          region.detail,
+          region.townshipCount,
+          region.villageCount,
+          <MarketStatus key={`${region.label}-state`}>
+            {region.sourceState}
+          </MarketStatus>,
+          region.sourceNote,
+        ])}
+      />
+      <WorkspaceTableToolbar
+        title="市场报送任务"
+        note="一项任务对应一名责任人和一份业务单据"
+        actions={
+          <>
             <button type="button">全部对象</button>
             <button type="button">全部状态</button>
-          </div>
-        </div>
-        <div className="market-table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>任务编号</th>
-                <th>监测对象</th>
-                <th>对象角色</th>
-                <th>地区</th>
-                <th>粮食品类</th>
-                <th>责任人</th>
-                <th>完成度</th>
-                <th>状态</th>
-              </tr>
-            </thead>
-            <tbody>
-              {marketTasks.map((task) => (
-                <tr key={task.id}>
-                  <td>{task.id}</td>
-                  <td>
-                    <strong>{task.targetName}</strong>
-                  </td>
-                  <td>{marketRoleLabels[task.role]}</td>
-                  <td>{task.region}</td>
-                  <td>{grainLabels[task.grain]}</td>
-                  <td>{task.owner}</td>
-                  <td>{getMarketCompletion(task)}%</td>
-                  <td>
-                    <MarketStatus>{task.status}</MarketStatus>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+            <button type="button" onClick={onCollect}>
+              进入任务
+            </button>
+          </>
+        }
+      />
+      <WorkspaceTable
+        columns={[
+          "任务编号",
+          "监测对象",
+          "对象角色",
+          "地区",
+          "粮食品类",
+          "责任人",
+          "完成度",
+          "状态",
+        ]}
+        label="市场报送任务"
+        rows={marketTasks.map((task) => [
+          task.id,
+          <strong key={`${task.id}-name`}>{task.targetName}</strong>,
+          marketRoleLabels[task.role],
+          task.region,
+          grainLabels[task.grain],
+          task.owner,
+          `${getMarketCompletion(task)}%`,
+          <MarketStatus key={`${task.id}-status`}>{task.status}</MarketStatus>,
+        ])}
+      />
     </div>
   );
 }
@@ -466,24 +385,30 @@ function MarketObjectRegistry() {
         }
       />
       <MarketContextStrip object="市场主体与物流节点" state="对象名录有效" />
-      <section aria-label="市场监测对象分类" className="market-object-coverage">
-        <article>
-          <span>购销与仓储</span>
-          <strong>贸易商 · 承储企业 / 储备库 · 批发市场</strong>
-        </article>
-        <article>
-          <span>加工与消费</span>
-          <strong>
-            玉米深加工 · 大豆压榨 / 蛋白加工 · 食品调味 · 米厂 · 饲料 · 养殖
-          </strong>
-        </article>
-        <article>
-          <span>专题与节点</span>
-          <strong>种子 / 农药 / 化肥经销商 · 铁路站点 · 公路物流节点</strong>
-        </article>
-      </section>
-      <section className="market-panel market-registry-panel">
-        <div className="market-target-tabs">
+      <WorkspaceTableToolbar
+        title="市场对象业务范围"
+        note="同一主体可承担多个角色，但只建立一份主体档案"
+      />
+      <WorkspaceTable
+        columns={["业务分组", "纳入对象"]}
+        label="市场对象业务范围"
+        rows={[
+          ["购销与仓储", "贸易商 · 承储企业 / 储备库 · 批发市场"],
+          [
+            "加工与消费",
+            "玉米深加工 · 大豆压榨 / 蛋白加工 · 食品调味 · 米厂 · 饲料 · 养殖",
+          ],
+          [
+            "专题与节点",
+            "种子 · 农药 · 化肥经销商 · 铁路站点 · 公路物流节点",
+          ],
+        ]}
+      />
+      <WorkspaceTableToolbar
+        title={target === "subject" ? "市场主体名录" : "物流节点名录"}
+        note="主体角色可以多选，但主体档案不重复建立"
+        actions={
+          <>
           <button
             className={target === "subject" ? "is-active" : undefined}
             type="button"
@@ -498,69 +423,54 @@ function MarketObjectRegistry() {
           >
             物流节点
           </button>
-          <span>主体角色可以多选，但主体档案不重复建立</span>
-        </div>
-        <div className="market-table-scroll">
-          <table>
-            <thead>
-              {target === "subject" ? (
-                <tr>
-                  <th>主体名称</th>
-                  <th>业务角色</th>
-                  <th>经营品类</th>
-                  <th>当前监测品种</th>
-                  <th>质量采集范围</th>
-                  <th>所属地区</th>
-                  <th>责任人</th>
-                  <th>监测状态</th>
-                </tr>
-              ) : (
-                <tr>
-                  <th>节点名称</th>
-                  <th>节点类型</th>
-                  <th>覆盖范围</th>
-                  <th>采集范围</th>
-                  <th>责任人</th>
-                  <th>监测状态</th>
-                </tr>
-              )}
-            </thead>
-            <tbody>
-              {target === "subject"
-                ? marketSubjectRows.map((row) => (
-                    <tr key={row.name}>
-                      <td>
-                        <strong>{row.name}</strong>
-                      </td>
-                      <td>{row.roles}</td>
-                      <td>{row.grain}</td>
-                      <td>{row.varieties}</td>
-                      <td>{row.qualityScope}</td>
-                      <td>{row.region}</td>
-                      <td>{row.owner}</td>
-                      <td>
-                        <MarketStatus>{row.status}</MarketStatus>
-                      </td>
-                    </tr>
-                  ))
-                : marketLogisticsRows.map((row) => (
-                    <tr key={row.name}>
-                      <td>
-                        <strong>{row.name}</strong>
-                      </td>
-                      <td>{row.type}</td>
-                      <td>{row.coverage}</td>
-                      <td>{row.monitoring}</td>
-                      <td>{row.owner}</td>
-                      <td>
-                        <MarketStatus>{row.status}</MarketStatus>
-                      </td>
-                    </tr>
-                  ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+          </>
+        }
+      />
+      {target === "subject" ? (
+        <WorkspaceTable
+          columns={[
+            "主体名称",
+            "业务角色",
+            "经营品类",
+            "当前监测品种",
+            "质量采集范围",
+            "所属地区",
+            "责任人",
+            "监测状态",
+          ]}
+          label="市场主体名录"
+          rows={marketSubjectRows.map((row) => [
+            <strong key={`${row.name}-name`}>{row.name}</strong>,
+            row.roles,
+            row.grain,
+            row.varieties,
+            row.qualityScope,
+            row.region,
+            row.owner,
+            <MarketStatus key={`${row.name}-status`}>{row.status}</MarketStatus>,
+          ])}
+        />
+      ) : (
+        <WorkspaceTable
+          columns={[
+            "节点名称",
+            "节点类型",
+            "覆盖范围",
+            "采集范围",
+            "责任人",
+            "监测状态",
+          ]}
+          label="物流节点名录"
+          rows={marketLogisticsRows.map((row) => [
+            <strong key={`${row.name}-name`}>{row.name}</strong>,
+            row.type,
+            row.coverage,
+            row.monitoring,
+            row.owner,
+            <MarketStatus key={`${row.name}-status`}>{row.status}</MarketStatus>,
+          ])}
+        />
+      )}
     </div>
   );
 }
@@ -1227,31 +1137,34 @@ function MarketReviewWorkspace() {
           </li>
         </ol>
       </section>
-      <section className="market-panel market-table-panel">
-        <div className="market-panel-heading">
-          <div>
-            <span>审核队列</span>
-            <h2>待审核与退回事项</h2>
-          </div>
-        </div>
-        <div className="market-review-cards">
-          <article>
-            <strong>龙江北方粮贸有限公司</strong>
-            <p>玉米收购价与质量条件 · 第31周</p>
-            <MarketStatus>待审核</MarketStatus>
-          </article>
-          <article>
-            <strong>北安大豆蛋白有限公司</strong>
-            <p>蛋白豆收购与日加工量 · 质量依据待补</p>
-            <MarketStatus>已退回</MarketStatus>
-          </article>
-          <article>
-            <strong>齐齐哈尔铁路货运站</strong>
-            <p>本周发运量 · 运单匹配待确认</p>
-            <MarketStatus>待审核</MarketStatus>
-          </article>
-        </div>
-      </section>
+      <WorkspaceTableToolbar
+        title="待审核与退回事项"
+        note="审核人只能核定、退回和填写审核意见，不能代改填报值"
+      />
+      <WorkspaceTable
+        columns={["监测对象", "审核内容", "期间", "当前状态"]}
+        label="市场审核队列"
+        rows={[
+          [
+            "龙江北方粮贸有限公司",
+            "玉米收购价与质量条件",
+            "2026 年第 31 周",
+            <MarketStatus key="market-review-1">待审核</MarketStatus>,
+          ],
+          [
+            "北安大豆蛋白有限公司",
+            "蛋白豆收购与日加工量 · 质量依据待补",
+            "2026 年第 31 周",
+            <MarketStatus key="market-review-2">已退回</MarketStatus>,
+          ],
+          [
+            "齐齐哈尔铁路货运站",
+            "本周发运量 · 运单匹配待确认",
+            "2026 年第 31 周",
+            <MarketStatus key="market-review-3">待审核</MarketStatus>,
+          ],
+        ]}
+      />
     </div>
   );
 }
@@ -1321,25 +1234,29 @@ function MarketReportWorkspace({
           <strong>仅采用已审核数据 · 截止 7 月 31 日 17:00</strong>
         </p>
       </section>
-      <section className="market-panel market-report-grid">
-        {["日报", "周报", "月报"].map((frequency) => (
-          <article key={frequency}>
-            <span>{frequency}</span>
-            <strong>
-              {productLabel}
-              {product === "agri-input" ? "市场专题" : "市场监测"}
-              {frequency}
-            </strong>
-            <p>{reportSource}</p>
-            <button
-              type="button"
-              onClick={() => onComposeReport(reportContext)}
-            >
-              生成{frequency}
-            </button>
-          </article>
-        ))}
-      </section>
+      <WorkspaceTableToolbar
+        title="市场业务报告"
+        note="日报、周报和月报采用同一已审核数据版本"
+      />
+      <WorkspaceTable
+        columns={["报告频率", "报告名称", "数据来源与采用口径", "操作"]}
+        label="市场业务报告"
+        rows={["日报", "周报", "月报"].map((frequency) => [
+          frequency,
+          `${productLabel}${
+            product === "agri-input" ? "市场专题" : "市场监测"
+          }${frequency}`,
+          reportSource,
+          <button
+            className="unified-table-action"
+            key={frequency}
+            type="button"
+            onClick={() => onComposeReport(reportContext)}
+          >
+            生成{frequency}
+          </button>,
+        ])}
+      />
     </div>
   );
 }

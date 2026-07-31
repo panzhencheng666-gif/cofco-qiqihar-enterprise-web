@@ -7,7 +7,7 @@ afterEach(cleanup);
 
 describe("market monitoring workspace", () => {
   it("shows a clear overview and current administrative-source state", () => {
-    render(
+    const { container } = render(
       <MarketMonitoringWorkspace
         section="overview"
         onComposeReport={vi.fn()}
@@ -32,6 +32,15 @@ describe("market monitoring workspace", () => {
     expect(
       screen.getByRole("region", { name: "价格对应质量条件" }),
     ).toHaveTextContent("毒素");
+    expect(screen.getByLabelText("市场业务摘要")).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "市场运行事实" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("table", { name: "市场报送任务" }),
+    ).toBeVisible();
+    expect(container.querySelector(".market-metric-strip")).toBeNull();
+    expect(container.querySelector(".market-overview-grid")).toBeNull();
   });
 
   it("shows registered varieties in the monitoring-object registry", () => {
