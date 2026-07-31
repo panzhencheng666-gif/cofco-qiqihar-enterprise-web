@@ -74,6 +74,19 @@ export interface CompactMetric {
   tone?: WorkspaceTone;
 }
 
+export interface WorkspaceTab {
+  key: string;
+  label: string;
+  count?: string;
+}
+
+export interface WorkspaceSummaryItem {
+  label: string;
+  value: string;
+  note?: string;
+  tone?: WorkspaceTone;
+}
+
 export function CompactMetricStrip({
   metrics,
   label = "核心业务指标",
@@ -84,16 +97,133 @@ export function CompactMetricStrip({
   return (
     <section aria-label={label} className="unified-metric-strip">
       {metrics.map((metric) => (
-        <article className={`is-${metric.tone ?? "normal"}`} key={metric.label}>
+        <span className={`is-${metric.tone ?? "normal"}`} key={metric.label}>
           <small>{metric.label}</small>
           <strong>
             {metric.value}
             {metric.unit && <span>{metric.unit}</span>}
           </strong>
           <p>{metric.note}</p>
-        </article>
+        </span>
       ))}
     </section>
+  );
+}
+
+export function WorkspaceTabs({
+  label,
+  tabs,
+  active,
+  onChange,
+}: {
+  label: string;
+  tabs: readonly WorkspaceTab[];
+  active: string;
+  onChange: (key: string) => void;
+}) {
+  return (
+    <div aria-label={label} className="workspace-tabs" role="tablist">
+      {tabs.map((tab) => (
+        <button
+          aria-selected={active === tab.key}
+          className={active === tab.key ? "is-active" : undefined}
+          key={tab.key}
+          role="tab"
+          type="button"
+          onClick={() => onChange(tab.key)}
+        >
+          {tab.label}
+          {tab.count && <span>{tab.count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function WorkspaceFilterBar({
+  label,
+  children,
+  actions,
+}: {
+  label: string;
+  children: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <section aria-label={label} className="workspace-filter-bar">
+      <div className="workspace-filter-fields">{children}</div>
+      {actions && <div className="workspace-filter-actions">{actions}</div>}
+    </section>
+  );
+}
+
+export function WorkspaceSummaryStrip({
+  items,
+  label = "业务状态摘要",
+}: {
+  items: readonly WorkspaceSummaryItem[];
+  label?: string;
+}) {
+  return (
+    <div aria-label={label} className="workspace-summary-strip">
+      {items.map((item) => (
+        <span className={`is-${item.tone ?? "normal"}`} key={item.label}>
+          {item.label}
+          <strong>{item.value}</strong>
+          {item.note && <small>{item.note}</small>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function WorkspaceTableToolbar({
+  title,
+  note,
+  actions,
+}: {
+  title: string;
+  note?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div
+      aria-label={title}
+      className="workspace-table-toolbar"
+      role="toolbar"
+    >
+      <strong>{title}</strong>
+      {note && <span>{note}</span>}
+      {actions && <div>{actions}</div>}
+    </div>
+  );
+}
+
+export function WorkspacePagination({
+  total,
+  start,
+  end,
+  page,
+  pages,
+}: {
+  total: number;
+  start: number;
+  end: number;
+  page: number;
+  pages: number;
+}) {
+  return (
+    <nav aria-label="表格分页" className="workspace-pagination">
+      <span>{`共 ${String(total)} 条 · 当前 ${String(start)}–${String(end)}`}</span>
+      <button aria-label="上一页" disabled={page === 1} type="button">
+        ‹
+      </button>
+      <strong>{page}</strong>
+      <span>/ {pages}</span>
+      <button aria-label="下一页" disabled={page === pages} type="button">
+        ›
+      </button>
+    </nav>
   );
 }
 
