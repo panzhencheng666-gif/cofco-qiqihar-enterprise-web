@@ -448,6 +448,44 @@
   line-height: 1.5;
 }
 
+.unified-table td p {
+  margin: 3px 0 0;
+  color: var(--workspace-muted);
+  font-size: 10px;
+}
+
+.unified-table-action {
+  padding: 0;
+  border: 0;
+  color: var(--workspace-teal-deep);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.unified-domain-summary {
+  min-height: 118px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 16px;
+}
+
+.unified-domain-summary > strong {
+  color: var(--workspace-text);
+  font-size: 15px;
+}
+
+.unified-domain-summary > p {
+  margin: 0;
+  color: var(--workspace-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 @media (max-width: 1280px) {
   .formal-shell {
     grid-template-columns: 64px minmax(0, 1fr);
