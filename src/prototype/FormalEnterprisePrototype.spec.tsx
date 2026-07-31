@@ -94,7 +94,7 @@ describe("formal enterprise shell", () => {
 
     expect(screen.getByRole("dialog", { name: "编制业务报告" })).toBeVisible();
     expect(screen.getByText("市场监测 · 玉米")).toBeVisible();
-    expect(screen.getByText("市场监测第 31 周已核定数据")).toBeVisible();
+    expect(screen.getByText("玉米市场监测第 31 周已核定数据")).toBeVisible();
   });
 
   it("shows city consolidation and allows county drill-down", async () => {
@@ -131,5 +131,17 @@ describe("formal enterprise shell", () => {
       screen.getByText("行政村数量只采用2025—2026年最新官方口径"),
     ).toBeVisible();
     expect(screen.getByText("已核定")).toBeVisible();
+  });
+
+  it("uses the compact five-item market architecture", () => {
+    render(<FormalEnterprisePrototype initialSearch="?page=market" />);
+
+    const navigation = screen.getByRole("navigation", {
+      name: "市场监测模块",
+    });
+    expect(within(navigation).getAllByRole("button")).toHaveLength(5);
+    expect(within(navigation).getByText("市场总览")).toBeVisible();
+    expect(within(navigation).getByText("数据采集")).toBeVisible();
+    expect(screen.queryByText("业务生命周期")).not.toBeInTheDocument();
   });
 });

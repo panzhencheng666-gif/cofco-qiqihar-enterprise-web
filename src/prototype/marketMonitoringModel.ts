@@ -1,6 +1,7 @@
 export type MarketCollectionTarget = "subject" | "logistics";
 export type MarketCollectionMode = "online" | "excel" | "system";
 export type GrainKind = "corn" | "soybean" | "paddy";
+export type MarketProductKind = GrainKind | "agri-input";
 export type MarketRole =
   | "trader"
   | "corn-processor"
@@ -35,17 +36,11 @@ export interface MarketTask {
   target: MarketCollectionTarget;
   targetName: string;
   role: MarketRole;
-  grain: GrainKind;
+  grain: MarketProductKind;
   region: string;
   owner: string;
   deadline: string;
-  status:
-    | "待填写"
-    | "填写中"
-    | "待审核"
-    | "已退回"
-    | "审核通过"
-    | "逾期";
+  status: "待填写" | "填写中" | "待审核" | "已退回" | "审核通过" | "逾期";
   completedFields: number;
   applicableFields: number;
 }
@@ -59,10 +54,11 @@ export interface MarketRegionCoverage {
   sourceState: "已核定" | "部分核定" | "待核定";
 }
 
-export const grainLabels: Record<GrainKind, string> = {
+export const grainLabels: Record<MarketProductKind, string> = {
   corn: "玉米",
   soybean: "大豆",
   paddy: "稻谷",
+  "agri-input": "农资",
 };
 
 export const marketRoleLabels: Record<MarketRole, string> = {
@@ -109,9 +105,10 @@ const roleFieldGroups: Record<MarketRole, readonly MarketFieldGroupKey[]> = {
 
 export function getApplicableFieldGroups(
   role: MarketRole,
-  _grain: GrainKind,
+  product: MarketProductKind,
 ): MarketFieldGroup[] {
-  return roleFieldGroups[role].map((key) => ({
+  const templateRole = product === "agri-input" ? "agri-dealer" : role;
+  return roleFieldGroups[templateRole].map((key) => ({
     key,
     label: fieldGroupLabels[key],
   }));

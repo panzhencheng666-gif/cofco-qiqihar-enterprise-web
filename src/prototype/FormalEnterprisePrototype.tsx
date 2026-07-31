@@ -1328,9 +1328,7 @@ function BusinessReportsWorkspace({
       <ContextBand
         reporting
         deadline={versions ? "历史报告不可覆盖" : "数据截止时间已确认"}
-        objectLabel={
-          versions ? "已发布报告与替代记录" : "业务报告编制与归档"
-        }
+        objectLabel={versions ? "已发布报告与替代记录" : "业务报告编制与归档"}
         period="2026 年 7 月"
       />
       <section className="formal-policy-banner">

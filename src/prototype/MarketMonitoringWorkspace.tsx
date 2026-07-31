@@ -16,6 +16,7 @@ import {
   type MarketFieldGroupKey,
   type MarketTask,
   type GrainKind,
+  type MarketProductKind,
 } from "./marketMonitoringModel";
 import type { MarketSection } from "./formalEnterpriseModel";
 
@@ -96,15 +97,16 @@ function MarketContextStrip({
 }
 
 function MarketStatus({ children }: { children: string }) {
-  const tone = children.includes("待") || children.includes("退回")
-    ? "warning"
-    : children.includes("逾期") || children.includes("异常")
-      ? "danger"
-      : children.includes("通过") ||
-          children.includes("正常") ||
-          children.includes("已核定")
-        ? "good"
-        : "normal";
+  const tone =
+    children.includes("待") || children.includes("退回")
+      ? "warning"
+      : children.includes("逾期") || children.includes("异常")
+        ? "danger"
+        : children.includes("通过") ||
+            children.includes("正常") ||
+            children.includes("已核定")
+          ? "good"
+          : "normal";
   return <span className={`market-status is-${tone}`}>{children}</span>;
 }
 
@@ -116,6 +118,23 @@ function MarketOverview({
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
   const [grain, setGrain] = useState<GrainKind>("corn");
+  const grainRegistry = {
+    corn: {
+      subjects: 86,
+      varietyCount: 12,
+      examples: "德美亚3号、京科968",
+    },
+    soybean: {
+      subjects: 42,
+      varietyCount: 9,
+      examples: "黑农84、东生22",
+    },
+    paddy: {
+      subjects: 35,
+      varietyCount: 8,
+      examples: "龙粳31、绥粳18",
+    },
+  } as const;
   const grainMetrics: Record<
     GrainKind,
     readonly [string, string, string, string, string][]
@@ -142,7 +161,39 @@ function MarketOverview({
       ["影响发布异常", "1", "项", "质量依据待补", "warning"],
     ],
   };
+  const qualityBasis: Record<
+    GrainKind,
+    readonly { label: string; value: string }[]
+  > = {
+    corn: [
+      { label: "水分", value: "14.6%" },
+      { label: "容重", value: "716 克/升" },
+      { label: "杂质", value: "0.9%" },
+      { label: "不完善粒", value: "3.2%" },
+      { label: "霉变粒", value: "0.5%" },
+      { label: "毒素", value: "合格" },
+    ],
+    soybean: [
+      { label: "类别", value: "蛋白豆" },
+      { label: "蛋白", value: "39.6%" },
+      { label: "水分", value: "12.8%" },
+      { label: "杂质", value: "0.7%" },
+      { label: "不完善粒", value: "1.9%" },
+    ],
+    paddy: [
+      { label: "水分", value: "15.2%" },
+      { label: "杂质", value: "0.8%" },
+      { label: "不完善粒", value: "2.1%" },
+      { label: "出糙率", value: "78.4%" },
+      { label: "出米率", value: "68.1%" },
+    ],
+  };
   const tasks = marketTasks.slice(0, 3);
+  const selectedReportContext: BusinessReportContext = {
+    ...marketReportContext,
+    product: grainLabels[grain],
+    dataVersion: `${grainLabels[grain]}市场监测第 31 周已核定数据`,
+  };
 
   return (
     <div className="market-workspace market-overview">
@@ -152,7 +203,10 @@ function MarketOverview({
         summary="在一个工作区掌握价格、库存、加工、物流、填报履责和待处理异常。"
         actions={
           <>
-            <button type="button" onClick={() => onComposeReport(marketReportContext)}>
+            <button
+              type="button"
+              onClick={() => onComposeReport(selectedReportContext)}
+            >
               编制业务报告
             </button>
             <button className="is-primary" type="button" onClick={onCollect}>
@@ -179,15 +233,33 @@ function MarketOverview({
           >
             <strong>{grainLabels[item]}</strong>
             <small>
-              {item === "corn"
-                ? "86家主体"
-                : item === "soybean"
-                  ? "42家主体"
-                  : "35家主体"}
+              {grainRegistry[item].subjects}家主体 ·{" "}
+              {grainRegistry[item].varietyCount}个品种
             </small>
           </button>
         ))}
-        <span>品种名称可选标准项，也可保留企业原始填报名称</span>
+        <span>
+          当前已登记：{grainRegistry[grain].examples}
+          <small>保留企业原始品种名称</small>
+        </span>
+      </section>
+
+      <section aria-label="价格对应质量条件" className="market-quality-basis">
+        <header>
+          <small>当前报价对应质量</small>
+          <strong>
+            {grainLabels[grain]} · {grainRegistry[grain].examples}
+          </strong>
+        </header>
+        <div>
+          {qualityBasis[grain].map((item) => (
+            <p key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </p>
+          ))}
+        </div>
+        <small>质量与每条报价绑定；切换品类自动切换采集项</small>
       </section>
 
       <section aria-label="市场监测核心指标" className="market-metric-strip">
@@ -387,9 +459,29 @@ function MarketObjectRegistry() {
         eyebrow="市场监测 / 监测对象"
         title="市场监测对象"
         summary="一个经营主体只建一份档案，可同时承担贸易、加工、仓储、消费等多个角色。"
-        actions={<button className="is-primary" type="button">新增监测对象</button>}
+        actions={
+          <button className="is-primary" type="button">
+            新增监测对象
+          </button>
+        }
       />
       <MarketContextStrip object="市场主体与物流节点" state="对象名录有效" />
+      <section aria-label="市场监测对象分类" className="market-object-coverage">
+        <article>
+          <span>购销与仓储</span>
+          <strong>贸易商 · 承储企业 / 储备库 · 批发市场</strong>
+        </article>
+        <article>
+          <span>加工与消费</span>
+          <strong>
+            玉米深加工 · 大豆压榨 / 蛋白加工 · 食品调味 · 米厂 · 饲料 · 养殖
+          </strong>
+        </article>
+        <article>
+          <span>专题与节点</span>
+          <strong>种子 / 农药 / 化肥经销商 · 铁路站点 · 公路物流节点</strong>
+        </article>
+      </section>
       <section className="market-panel market-registry-panel">
         <div className="market-target-tabs">
           <button
@@ -416,6 +508,8 @@ function MarketObjectRegistry() {
                   <th>主体名称</th>
                   <th>业务角色</th>
                   <th>经营品类</th>
+                  <th>当前监测品种</th>
+                  <th>质量采集范围</th>
                   <th>所属地区</th>
                   <th>责任人</th>
                   <th>监测状态</th>
@@ -425,6 +519,7 @@ function MarketObjectRegistry() {
                   <th>节点名称</th>
                   <th>节点类型</th>
                   <th>覆盖范围</th>
+                  <th>采集范围</th>
                   <th>责任人</th>
                   <th>监测状态</th>
                 </tr>
@@ -434,21 +529,32 @@ function MarketObjectRegistry() {
               {target === "subject"
                 ? marketSubjectRows.map((row) => (
                     <tr key={row.name}>
-                      <td><strong>{row.name}</strong></td>
+                      <td>
+                        <strong>{row.name}</strong>
+                      </td>
                       <td>{row.roles}</td>
                       <td>{row.grain}</td>
+                      <td>{row.varieties}</td>
+                      <td>{row.qualityScope}</td>
                       <td>{row.region}</td>
                       <td>{row.owner}</td>
-                      <td><MarketStatus>{row.status}</MarketStatus></td>
+                      <td>
+                        <MarketStatus>{row.status}</MarketStatus>
+                      </td>
                     </tr>
                   ))
                 : marketLogisticsRows.map((row) => (
                     <tr key={row.name}>
-                      <td><strong>{row.name}</strong></td>
+                      <td>
+                        <strong>{row.name}</strong>
+                      </td>
                       <td>{row.type}</td>
                       <td>{row.coverage}</td>
+                      <td>{row.monitoring}</td>
                       <td>{row.owner}</td>
-                      <td><MarketStatus>{row.status}</MarketStatus></td>
+                      <td>
+                        <MarketStatus>{row.status}</MarketStatus>
+                      </td>
                     </tr>
                   ))}
             </tbody>
@@ -459,67 +565,189 @@ function MarketObjectRegistry() {
   );
 }
 
-const marketFieldRows: Record<
-  MarketFieldGroupKey,
-  readonly { label: string; value: string; unit?: string; note?: string }[]
-> = {
-  purchase: [
-    {
-      label: "收购价格",
-      value: "3,092",
-      unit: "元/吨",
-      note: "到厂价 · 含税",
-    },
-    { label: "本期收购量", value: "1,860", unit: "吨" },
-    { label: "商品形态", value: "散粮 · 潮粮" },
-    { label: "品种名称", value: "龙粳31" },
-    { label: "作物年度", value: "2025年产" },
-  ],
-  quality: [
-    { label: "水分", value: "15.2", unit: "%" },
-    { label: "杂质", value: "0.8", unit: "%" },
-    { label: "不完善粒", value: "2.1", unit: "%" },
-    { label: "出糙率", value: "78.4", unit: "%" },
-    { label: "出米率", value: "68.1", unit: "%" },
-  ],
-  processing: [
-    { label: "日加工量", value: "420", unit: "吨/日" },
-    { label: "运行生产线", value: "2 / 3", unit: "条" },
-    { label: "设计日产能", value: "600", unit: "吨/日" },
-    { label: "开机率", value: "70.0", unit: "%", note: "系统计算" },
-  ],
-  inventory: [
-    { label: "稻谷库存", value: "12,680", unit: "吨" },
-    { label: "成品米库存", value: "3,260", unit: "吨" },
-    { label: "统计时点", value: "7月31日 08:00" },
-    { label: "库存性质", value: "企业商品库存" },
-  ],
-  sales: [
-    { label: "大米销售价", value: "5,126", unit: "元/吨" },
-    { label: "本期销售量", value: "386", unit: "吨" },
-    { label: "交付方式", value: "出厂自提" },
-    { label: "销售质量等级", value: "一级粳米" },
-  ],
-  movement: [
-    { label: "到达量", value: "8,260", unit: "吨" },
-    { label: "发运量", value: "12,580", unit: "吨" },
-    { label: "包装形态", value: "散粮" },
-    { label: "主要起点", value: "讷河市、龙江县" },
-    { label: "主要目的地", value: "辽宁鲅鱼圈" },
-  ],
-  evidence: [
-    { label: "运单批次", value: "3 批" },
-    { label: "已匹配运单", value: "18 / 20", unit: "张" },
-    { label: "过磅凭证", value: "已上传 20 张" },
-    { label: "数据来源", value: "铁路运单与站点台账" },
-  ],
+type MarketFieldRow = {
+  label: string;
+  value: string;
+  unit?: string;
+  note?: string;
 };
 
-function MarketEntryFields({
-  task,
-}: {
-  task: MarketTask;
-}) {
+const grainEntryValues: Record<
+  GrainKind,
+  {
+    price: string;
+    quantity: string;
+    form: string;
+    variety: string;
+    quality: readonly MarketFieldRow[];
+    inventory: readonly MarketFieldRow[];
+    sales: readonly MarketFieldRow[];
+  }
+> = {
+  corn: {
+    price: "2,346",
+    quantity: "2,480",
+    form: "散粮 · 干粮",
+    variety: "德美亚3号",
+    quality: [
+      { label: "水分", value: "14.6", unit: "%" },
+      { label: "容重", value: "716", unit: "克/升" },
+      { label: "霉变粒", value: "0.5", unit: "%" },
+      { label: "杂质", value: "0.9", unit: "%" },
+      { label: "不完善粒", value: "3.2", unit: "%" },
+      { label: "毒素检测", value: "合格" },
+    ],
+    inventory: [
+      { label: "玉米库存", value: "18,420", unit: "吨" },
+      { label: "其中散粮", value: "15,860", unit: "吨" },
+      { label: "统计时点", value: "7月31日 08:00" },
+      { label: "库存性质", value: "企业商品库存" },
+    ],
+    sales: [
+      { label: "车板散粮价", value: "2,382", unit: "元/吨" },
+      { label: "车板包粮价", value: "2,418", unit: "元/吨" },
+      { label: "本期销售量", value: "1,260", unit: "吨" },
+      { label: "交付方式", value: "站台交付" },
+    ],
+  },
+  soybean: {
+    price: "4,286",
+    quantity: "960",
+    form: "袋装 · 筛粮",
+    variety: "黑农84",
+    quality: [
+      { label: "蛋白", value: "39.6", unit: "%" },
+      { label: "水分", value: "12.8", unit: "%" },
+      { label: "杂质", value: "0.7", unit: "%" },
+      { label: "不完善粒", value: "1.9", unit: "%" },
+    ],
+    inventory: [
+      { label: "大豆库存", value: "8,760", unit: "吨" },
+      { label: "其中蛋白豆", value: "5,420", unit: "吨" },
+      { label: "统计时点", value: "7月31日 08:00" },
+      { label: "库存性质", value: "企业商品库存" },
+    ],
+    sales: [
+      { label: "车板筛粮价", value: "4,360", unit: "元/吨" },
+      { label: "车板塔粮价", value: "4,520", unit: "元/吨" },
+      { label: "本期销售量", value: "620", unit: "吨" },
+      { label: "交付方式", value: "车板交付" },
+    ],
+  },
+  paddy: {
+    price: "3,092",
+    quantity: "1,860",
+    form: "散粮 · 粳稻",
+    variety: "龙粳31",
+    quality: [
+      { label: "水分", value: "15.2", unit: "%" },
+      { label: "杂质", value: "0.8", unit: "%" },
+      { label: "不完善粒", value: "2.1", unit: "%" },
+      { label: "出糙率", value: "78.4", unit: "%" },
+      { label: "出米率", value: "68.1", unit: "%" },
+    ],
+    inventory: [
+      { label: "稻谷库存", value: "12,680", unit: "吨" },
+      { label: "成品米库存", value: "3,260", unit: "吨" },
+      { label: "统计时点", value: "7月31日 08:00" },
+      { label: "库存性质", value: "企业商品库存" },
+    ],
+    sales: [
+      { label: "大米销售价", value: "5,126", unit: "元/吨" },
+      { label: "本期销售量", value: "386", unit: "吨" },
+      { label: "交付方式", value: "出厂自提" },
+      { label: "销售质量等级", value: "一级粳米" },
+    ],
+  },
+};
+
+function getMarketFieldRows(
+  task: MarketTask,
+  group: MarketFieldGroupKey,
+): readonly MarketFieldRow[] {
+  const grain =
+    task.grain === "agri-input"
+      ? grainEntryValues.corn
+      : grainEntryValues[task.grain];
+  const rows: Record<MarketFieldGroupKey, readonly MarketFieldRow[]> = {
+    purchase: [
+      {
+        label: task.target === "logistics" ? "即期报价" : "收购价格",
+        value: grain.price,
+        unit: "元/吨",
+        note: task.target === "logistics" ? "站点报价 · 含税" : "到厂价 · 含税",
+      },
+      {
+        label: task.target === "logistics" ? "即期成交价" : "本期收购量",
+        value: task.target === "logistics" ? "2,332" : grain.quantity,
+        unit: task.target === "logistics" ? "元/吨" : "吨",
+      },
+      { label: "商品形态", value: grain.form },
+      { label: "品种名称", value: grain.variety },
+      { label: "作物年度", value: "2025年产" },
+    ],
+    quality: grain.quality,
+    processing: [
+      { label: "日加工量", value: "420", unit: "吨/日" },
+      { label: "运行生产线", value: "2 / 3", unit: "条" },
+      { label: "设计日产能", value: "600", unit: "吨/日" },
+      { label: "开机率", value: "70.0", unit: "%", note: "自动计算" },
+    ],
+    inventory:
+      task.role === "agri-dealer"
+        ? [
+            { label: "种子库存", value: "1,180", unit: "袋" },
+            { label: "农药库存", value: "460", unit: "件" },
+            { label: "化肥库存", value: "286", unit: "吨" },
+            { label: "统计时点", value: "7月31日 08:00" },
+          ]
+        : grain.inventory,
+    sales:
+      task.role === "agri-dealer"
+        ? [
+            { label: "商品类别", value: "种子" },
+            { label: "商品名称 / 品种", value: "德美亚3号" },
+            { label: "销售价格", value: "48", unit: "元/袋" },
+            { label: "本期销售量", value: "326", unit: "袋" },
+            { label: "包装规格", value: "25 公斤/袋" },
+          ]
+        : grain.sales,
+    movement:
+      task.role === "road-node"
+        ? [
+            { label: "公路流入量", value: "5,480", unit: "吨" },
+            { label: "公路流出量", value: "6,920", unit: "吨" },
+            { label: "包装形态", value: "散粮" },
+            { label: "主要起点", value: "扎兰屯市周边" },
+            { label: "主要目的地", value: "黑龙江南部" },
+          ]
+        : [
+            { label: "铁路到达量", value: "8,260", unit: "吨" },
+            { label: "铁路发运量", value: "12,580", unit: "吨" },
+            { label: "包装形态", value: "散粮" },
+            { label: "主要起点", value: "讷河市、龙江县" },
+            { label: "主要目的地", value: "辽宁鲅鱼圈" },
+          ],
+    evidence:
+      task.role === "road-node"
+        ? [
+            { label: "运输批次", value: "12 批" },
+            { label: "已匹配运单", value: "36 / 38", unit: "张" },
+            { label: "过磅凭证", value: "已上传 38 张" },
+            { label: "数据来源", value: "公路运单与过磅记录" },
+          ]
+        : [
+            { label: "运单批次", value: "3 批" },
+            { label: "已匹配运单", value: "18 / 20", unit: "张" },
+            { label: "过磅凭证", value: "已上传 20 张" },
+            { label: "数据来源", value: "铁路运单与站点台账" },
+          ],
+  };
+
+  return rows[group];
+}
+
+function MarketEntryFields({ task }: { task: MarketTask }) {
   const groups = getApplicableFieldGroups(task.role, task.grain);
   return (
     <>
@@ -539,7 +767,9 @@ function MarketEntryFields({
           <section className="market-entry-group" key={group.key}>
             <header>
               <div>
-                <span>{String(groups.indexOf(group) + 1).padStart(2, "0")}</span>
+                <span>
+                  {String(groups.indexOf(group) + 1).padStart(2, "0")}
+                </span>
                 <strong>{group.label}</strong>
               </div>
               <small>
@@ -549,13 +779,20 @@ function MarketEntryFields({
               </small>
             </header>
             <div className="market-entry-fields">
-              {marketFieldRows[group.key].map((field) => (
+              {getMarketFieldRows(task, group.key).map((field) => (
                 <label key={field.label}>
                   <span>
                     {field.label}
-                    {["收购价格", "本期收购量", "到达量", "发运量"].includes(
-                      field.label,
-                    ) && <b>*</b>}
+                    {[
+                      "收购价格",
+                      "本期收购量",
+                      "即期报价",
+                      "即期成交价",
+                      "铁路到达量",
+                      "铁路发运量",
+                      "公路流入量",
+                      "公路流出量",
+                    ].includes(field.label) && <b>*</b>}
                   </span>
                   <div>
                     <input
@@ -585,20 +822,40 @@ function MarketOnlineCollection({
   const [taskId, setTaskId] = useState(tasks[0]?.id ?? "");
   const selectedTask =
     tasks.find((task) => task.id === taskId) ?? tasks[0] ?? marketTasks[0];
+  const selectedGroups = getApplicableFieldGroups(
+    selectedTask.role,
+    selectedTask.grain,
+  );
+  const hasPurchase = selectedGroups.some((group) => group.key === "purchase");
+  const validationTitle =
+    selectedTask.role === "agri-dealer"
+      ? "商品、规格和计量口径"
+      : hasPurchase
+        ? "价格与计价条件"
+        : "流向与数量口径";
+  const validationDetail =
+    selectedTask.role === "agri-dealer"
+      ? "种子品种、农资商品、价格单位和数量已关联"
+      : hasPurchase
+        ? "品种、质量和交付条件已关联"
+        : "起点、终点和运输方向已填写";
+  const canEdit = selectedTask.owner === "王洋";
 
   return (
     <>
       <div className="market-collection-layout">
         <aside className="market-task-list">
           <header>
-            <span>本人任务</span>
+            <span>区域任务</span>
             <strong>{target === "subject" ? "市场主体" : "物流节点"}</strong>
-            <small>{tasks.length} 项 · 仅本人可填写</small>
+            <small>{tasks.length} 项 · 按责任人锁定</small>
           </header>
           <div>
             {tasks.map((task) => (
               <button
-                className={task.id === selectedTask.id ? "is-active" : undefined}
+                className={
+                  task.id === selectedTask.id ? "is-active" : undefined
+                }
                 key={task.id}
                 type="button"
                 onClick={() => setTaskId(task.id)}
@@ -606,7 +863,7 @@ function MarketOnlineCollection({
                 <span>{task.id}</span>
                 <strong>{task.targetName}</strong>
                 <small>
-                  {task.region} · {grainLabels[task.grain]}
+                  {task.region} · {grainLabels[task.grain]} · {task.owner}
                 </small>
                 <div>
                   <MarketStatus>{task.status}</MarketStatus>
@@ -625,13 +882,13 @@ function MarketOnlineCollection({
               </span>
               <h2>{selectedTask.targetName}</h2>
               <p>
-                {selectedTask.region} · {grainLabels[selectedTask.grain]} ·
-                截止 {selectedTask.deadline}
+                {selectedTask.region} · {grainLabels[selectedTask.grain]} · 截止{" "}
+                {selectedTask.deadline}
               </p>
             </div>
             <MarketStatus>{selectedTask.status}</MarketStatus>
           </header>
-          <MarketEntryFields task={selectedTask} />
+          <MarketEntryFields key={selectedTask.id} task={selectedTask} />
         </section>
 
         <aside className="market-validation-panel">
@@ -651,15 +908,18 @@ function MarketOnlineCollection({
             <p className="is-good">
               <b>✓</b>
               <span>
-                <strong>主体、期间和品类</strong>
+                <strong>
+                  {selectedTask.target === "subject" ? "主体" : "节点"}
+                  、期间和品类
+                </strong>
                 <small>任务预置，不允许修改</small>
               </span>
             </p>
             <p className="is-good">
               <b>✓</b>
               <span>
-                <strong>价格与计价条件</strong>
-                <small>含税、交付地点已填写</small>
+                <strong>{validationTitle}</strong>
+                <small>{validationDetail}</small>
               </span>
             </p>
             <p className="is-warning">
@@ -668,8 +928,12 @@ function MarketOnlineCollection({
                 <strong>2项凭证待补充</strong>
                 <small>
                   {target === "subject"
-                    ? "质量检验单尚未上传"
-                    : "2张铁路运单尚未匹配"}
+                    ? selectedTask.role === "agri-dealer"
+                      ? "2项商品规格或进货凭证待补充"
+                      : "质量检验单尚未上传"
+                    : selectedTask.role === "rail-node"
+                      ? "2张铁路运单尚未匹配"
+                      : "2张公路运单尚未匹配"}
                 </small>
               </span>
             </p>
@@ -680,24 +944,30 @@ function MarketOnlineCollection({
               <b>锁</b>
               <span>
                 <strong>{selectedTask.owner}（责任人）</strong>
-                <small>审核人和管理员均不能代填</small>
+                <small>
+                  {selectedTask.region}
+                  授权范围内唯一可写，审核人和管理员不能代填
+                </small>
               </span>
             </p>
           </section>
           <footer>
             <span>最近保存</span>
-            <strong>今天 13:02 · 王洋</strong>
+            <strong>今天 13:02 · {selectedTask.owner}</strong>
           </footer>
         </aside>
       </div>
       <footer className="market-collection-footer">
         <span>
-          当前任务仅责任人 {selectedTask.owner} 可编辑 ·
-          提交后进入统一审核队列
+          当前任务仅责任人 {selectedTask.owner} 可编辑 · 提交后进入统一审核队列
         </span>
-        <button type="button">保存草稿</button>
-        <button type="button">检查数据</button>
-        <button className="is-primary" type="button">
+        <button disabled={!canEdit} type="button">
+          保存草稿
+        </button>
+        <button disabled={!canEdit} type="button">
+          检查数据
+        </button>
+        <button className="is-primary" disabled={!canEdit} type="button">
           提交审核
         </button>
       </footer>
@@ -705,13 +975,14 @@ function MarketOnlineCollection({
   );
 }
 
-function MarketExcelCollection() {
+function MarketExcelCollection({ target }: { target: MarketCollectionTarget }) {
+  const targetLabel = target === "subject" ? "市场主体" : "物流节点";
   return (
     <section className="market-panel market-import-panel">
       <div className="market-import-heading">
         <div>
           <span>Excel批量导入</span>
-          <h2>当前采集任务批量录入</h2>
+          <h2>{targetLabel}任务批量录入</h2>
           <p>上传后先预检，不直接提交</p>
         </div>
         <button type="button">下载当前任务模板</button>
@@ -769,13 +1040,42 @@ function MarketExcelCollection() {
   );
 }
 
-function MarketSystemCollection() {
+function MarketSystemCollection({
+  target,
+}: {
+  target: MarketCollectionTarget;
+}) {
+  const targetLabel = target === "subject" ? "市场主体" : "物流节点";
+  const sourceData =
+    target === "subject"
+      ? {
+          received: "718",
+          accepted: "684",
+          review: "29",
+          failed: "5",
+          latest: "12:48",
+          rows: [
+            ["企业仓储库存台账", "12:48 · 426条", "待审核"],
+            ["米厂生产日报", "11:32 · 292条", "5项异常"],
+          ] as const,
+        }
+      : {
+          received: "568",
+          accepted: "557",
+          review: "9",
+          failed: "2",
+          latest: "13:04",
+          rows: [
+            ["铁路货运运单数据", "13:04 · 438条", "审核通过"],
+            ["公路过磅与运单数据", "12:56 · 130条", "待审核"],
+          ] as const,
+        };
   return (
     <section className="market-panel market-system-panel">
       <div className="market-import-heading">
         <div>
           <span>系统接入记录</span>
-          <h2>稳定来源接入与异常处理</h2>
+          <h2>{targetLabel}稳定来源接入与异常处理</h2>
           <p>系统接入只改变数据来源，不改变责任、校验和审核流程。</p>
         </div>
         <button type="button">查看全部接入记录</button>
@@ -783,49 +1083,52 @@ function MarketSystemCollection() {
       <div className="market-system-summary">
         <article>
           <span>今日接收</span>
-          <strong>1,286<small>条</small></strong>
-          <p>最近接收 13:04</p>
+          <strong>
+            {sourceData.received}
+            <small>条</small>
+          </strong>
+          <p>最近接收 {sourceData.latest}</p>
         </article>
         <article className="is-good">
           <span>自动通过</span>
-          <strong>1,241<small>条</small></strong>
+          <strong>
+            {sourceData.accepted}
+            <small>条</small>
+          </strong>
           <p>进入待审核业务单据</p>
         </article>
         <article className="is-warning">
           <span>需要确认</span>
-          <strong>37<small>条</small></strong>
+          <strong>
+            {sourceData.review}
+            <small>条</small>
+          </strong>
           <p>单位或主体映射待确认</p>
         </article>
         <article className="is-danger">
           <span>接入失败</span>
-          <strong>8<small>条</small></strong>
+          <strong>
+            {sourceData.failed}
+            <small>条</small>
+          </strong>
           <p>不会自动改为零值</p>
         </article>
       </div>
       <div className="market-system-list">
-        <div>
-          <strong>铁路货运运单数据</strong>
-          <span>13:04 · 568条</span>
-          <MarketStatus>审核通过</MarketStatus>
-        </div>
-        <div>
-          <strong>企业仓储库存台账</strong>
-          <span>12:48 · 426条</span>
-          <MarketStatus>待审核</MarketStatus>
-        </div>
-        <div>
-          <strong>米厂生产日报</strong>
-          <span>11:32 · 292条</span>
-          <MarketStatus>8项异常</MarketStatus>
-        </div>
+        {sourceData.rows.map(([name, detail, state]) => (
+          <div key={name}>
+            <strong>{name}</strong>
+            <span>{detail}</span>
+            <MarketStatus>{state}</MarketStatus>
+          </div>
+        ))}
       </div>
     </section>
   );
 }
 
 function MarketCollectionWorkspace() {
-  const [target, setTarget] =
-    useState<MarketCollectionTarget>("subject");
+  const [target, setTarget] = useState<MarketCollectionTarget>("subject");
   const [mode, setMode] = useState<MarketCollectionMode>("online");
 
   return (
@@ -835,7 +1138,7 @@ function MarketCollectionWorkspace() {
         title="市场监测数据采集"
         summary="在同一工作台完成市场主体和物流节点采集，三种录入方式共用校验、责任和审核规则。"
       />
-      <MarketContextStrip object="本人负责的市场采集任务" />
+      <MarketContextStrip object="当前授权范围内市场采集任务" />
       <section className="market-collection-switches">
         <div aria-label="采集对象">
           <button
@@ -876,9 +1179,9 @@ function MarketCollectionWorkspace() {
       {mode === "online" ? (
         <MarketOnlineCollection key={target} target={target} />
       ) : mode === "excel" ? (
-        <MarketExcelCollection />
+        <MarketExcelCollection target={target} />
       ) : (
-        <MarketSystemCollection />
+        <MarketSystemCollection target={target} />
       )}
     </div>
   );
@@ -893,6 +1196,37 @@ function MarketReviewWorkspace() {
         summary="集中核对价格条件、数量口径、异常解释和发布资格。"
       />
       <MarketContextStrip object="待审核市场数据" state="7项待审核" />
+      <section
+        aria-label="市场数据发布与供需采用关系"
+        className="market-lineage"
+      >
+        <header>
+          <span>审核发布与供需采用</span>
+          <strong>只采用已核定数据，不直接改写供需账户</strong>
+        </header>
+        <ol>
+          <li>
+            <span>01</span>
+            <strong>原始填报</strong>
+            <small>责任人、品种、价格和质量留痕</small>
+          </li>
+          <li>
+            <span>02</span>
+            <strong>业务审核</strong>
+            <small>数量、凭证和异常解释核定</small>
+          </li>
+          <li>
+            <span>03</span>
+            <strong>正式发布</strong>
+            <small>形成不可覆盖的市场数据版本</small>
+          </li>
+          <li>
+            <span>04</span>
+            <strong>供需采用</strong>
+            <small>库存、加工和去重物流按版本引用</small>
+          </li>
+        </ol>
+      </section>
       <section className="market-panel market-table-panel">
         <div className="market-panel-heading">
           <div>
@@ -927,6 +1261,22 @@ function MarketReportWorkspace({
 }: {
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
+  const [product, setProduct] = useState<MarketProductKind>("corn");
+  const productLabel = grainLabels[product];
+  const reportContext: BusinessReportContext = {
+    ...marketReportContext,
+    product: productLabel,
+    dataVersion: `${productLabel}市场监测第 31 周已核定数据`,
+  };
+  const reportScope =
+    product === "agri-input"
+      ? "种子、农药、化肥价格、销量和库存"
+      : "价格、质量、库存、加工与物流";
+  const reportSource =
+    product === "agri-input"
+      ? "采用已审核的种子、农药和化肥价格、销量及库存数据；农资专题不进入粮食供需数量。"
+      : "采用已审核的价格、质量、库存、加工和物流数据，不重复填报汇总数。";
+
   return (
     <div className="market-workspace">
       <MarketPageHeader
@@ -937,24 +1287,90 @@ function MarketReportWorkspace({
           <button
             className="is-primary"
             type="button"
-            onClick={() => onComposeReport(marketReportContext)}
+            onClick={() => onComposeReport(reportContext)}
           >
             编制业务报告
           </button>
         }
       />
-      <MarketContextStrip object="玉米 · 价格、库存、加工与物流" state="报告数据可用" />
+      <MarketContextStrip
+        object={`${productLabel} · ${reportScope}`}
+        state="报告数据可用"
+      />
+      <section aria-label="报告业务选择" className="market-report-scope">
+        <div>
+          <span>报告业务</span>
+          {(["corn", "soybean", "paddy", "agri-input"] as const).map((item) => (
+            <button
+              aria-pressed={product === item}
+              className={product === item ? "is-active" : undefined}
+              key={item}
+              type="button"
+              onClick={() => setProduct(item)}
+            >
+              {grainLabels[item]}
+            </button>
+          ))}
+        </div>
+        <p>
+          <small>报告区域</small>
+          <strong>三大区域 · 当前授权范围</strong>
+        </p>
+        <p>
+          <small>采用口径</small>
+          <strong>仅采用已审核数据 · 截止 7 月 31 日 17:00</strong>
+        </p>
+      </section>
       <section className="market-panel market-report-grid">
         {["日报", "周报", "月报"].map((frequency) => (
           <article key={frequency}>
             <span>{frequency}</span>
-            <strong>玉米市场监测{frequency}</strong>
-            <p>采用已审核的价格、质量、库存、加工和物流数据，不重复填报汇总数。</p>
-            <button type="button" onClick={() => onComposeReport(marketReportContext)}>
+            <strong>
+              {productLabel}
+              {product === "agri-input" ? "市场专题" : "市场监测"}
+              {frequency}
+            </strong>
+            <p>{reportSource}</p>
+            <button
+              type="button"
+              onClick={() => onComposeReport(reportContext)}
+            >
               生成{frequency}
             </button>
           </article>
         ))}
+      </section>
+      <section aria-label="填报履责监督报告" className="market-duty-report">
+        <header>
+          <div>
+            <span>填报履责监督</span>
+            <strong>按责任人、区域和任务监督，不允许代填</strong>
+          </div>
+          <button type="button">导出履责周报</button>
+          <button type="button">导出履责月报</button>
+        </header>
+        <div>
+          <p>
+            <small>本周应报</small>
+            <strong>428</strong>
+            <span>项</span>
+          </p>
+          <p>
+            <small>按时提交</small>
+            <strong>395</strong>
+            <span>项</span>
+          </p>
+          <p className="is-warning">
+            <small>逾期记录</small>
+            <strong>33</strong>
+            <span>项</span>
+          </p>
+          <p>
+            <small>逾期后补报</small>
+            <strong>7</strong>
+            <span>项 · 原逾期记录保留</span>
+          </p>
+        </div>
       </section>
     </div>
   );

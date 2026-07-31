@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   getApplicableFieldGroups,
   getMarketCompletion,
+  marketRoleLabels,
+  type MarketRole,
   type MarketTask,
 } from "./marketMonitoringModel";
 
@@ -16,6 +18,28 @@ describe("market collection presentation model", () => {
     expect(
       getApplicableFieldGroups("road-node", "corn").map((group) => group.key),
     ).toEqual(["movement", "evidence"]);
+  });
+
+  it("keeps agricultural-input monitoring outside grain quality and supply fields", () => {
+    expect(
+      getApplicableFieldGroups("agri-dealer", "agri-input").map(
+        (group) => group.key,
+      ),
+    ).toEqual(["sales", "inventory"]);
+  });
+
+  it("keeps every confirmed market role in a usable field template", () => {
+    const roles = Object.keys(marketRoleLabels) as MarketRole[];
+
+    expect(roles).toHaveLength(13);
+    roles.forEach((role) => {
+      expect(
+        getApplicableFieldGroups(
+          role,
+          role === "agri-dealer" ? "agri-input" : "corn",
+        ).length,
+      ).toBeGreaterThan(0);
+    });
   });
 
   it("calculates completion from applicable fields only", () => {
