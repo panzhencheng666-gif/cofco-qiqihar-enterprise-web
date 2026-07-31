@@ -112,11 +112,11 @@ git status --porcelain=v1 | perl -ne '
   next if $_ eq "docs/superpowers/plans/2026-07-31-enterprise-platform-information-architecture-redesign.md";
   print "$_\0" unless $seen{$_}++;
 ' > "$baseline_dir/external-paths.z"
-while IFS= read -r -d '' path; do
-  if [[ -f "$path" ]]; then
-    shasum -a 256 "$path"
+while IFS= read -r -d '' external_file; do
+  if [[ -f "$external_file" ]]; then
+    shasum -a 256 "$external_file"
   else
-    printf 'MISSING  %s\n' "$path"
+    printf 'MISSING  %s\n' "$external_file"
   fi
 done < "$baseline_dir/external-paths.z" > "$baseline_dir/external-sha256.txt"
 ```
