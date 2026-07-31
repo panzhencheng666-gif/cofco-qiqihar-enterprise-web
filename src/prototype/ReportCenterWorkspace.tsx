@@ -12,11 +12,13 @@ import {
 import type { ReportingSection } from "./formalEnterpriseModel";
 import {
   BusinessContextBar,
-  CompactMetricStrip,
+  WorkspaceFilterBar,
   WorkspaceHeader,
-  WorkspacePanel,
+  WorkspacePagination,
   WorkspaceStatus,
+  WorkspaceSummaryStrip,
   WorkspaceTable,
+  WorkspaceTableToolbar,
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
@@ -184,12 +186,24 @@ function BusinessReports({
         title="业务报告"
       />
       <ReportContext context={context} state="报告条件完整" />
-      <section
-        aria-label="业务报告生成条件"
-        className="report-context-composer"
+      <WorkspaceFilterBar
+        label="业务报告生成条件"
+        actions={
+          <>
+            {(["日报", "周报", "月报"] as const).map((frequency) => (
+              <button
+                key={frequency}
+                type="button"
+                onClick={() => onComposeReport(context)}
+              >
+                生成{frequency}
+              </button>
+            ))}
+          </>
+        }
       >
         <label>
-          <small>业务</small>
+          <span>业务</span>
           <select
             aria-label="业务类型"
             value={application}
@@ -205,7 +219,7 @@ function BusinessReports({
           </select>
         </label>
         <label>
-          <small>地区</small>
+          <span>地区</span>
           <select
             aria-label="报告地区"
             value={region}
@@ -217,7 +231,7 @@ function BusinessReports({
           </select>
         </label>
         <label>
-          <small>产品</small>
+          <span>产品</span>
           <select
             aria-label="产品或专题"
             value={product}
@@ -229,7 +243,7 @@ function BusinessReports({
           </select>
         </label>
         <label>
-          <small>期间</small>
+          <span>期间</span>
           <select
             aria-label="报告期间"
             value={period}
@@ -241,7 +255,7 @@ function BusinessReports({
           </select>
         </label>
         <label>
-          <small>数据版本</small>
+          <span>数据版本</span>
           <select
             aria-label="采用数据版本"
             value={dataVersion}
@@ -252,98 +266,85 @@ function BusinessReports({
             ))}
           </select>
         </label>
-        <div className="report-frequency-actions">
-          {(["日报", "周报", "月报"] as const).map((frequency) => (
-            <button
-              key={frequency}
-              type="button"
-              onClick={() => onComposeReport(context)}
-            >
-              生成{frequency}
-            </button>
-          ))}
-        </div>
-      </section>
-      <CompactMetricStrip
-        metrics={[
+      </WorkspaceFilterBar>
+      <WorkspaceSummaryStrip
+        label="业务报告摘要"
+        items={[
           {
             label: "本期报告",
-            value: "24",
-            unit: "份",
+            value: "24 份",
             note: "业务报告统一登记",
           },
           {
             label: "等待复核",
-            value: "4",
-            unit: "份",
+            value: "4 份",
             note: "复核通过后方可发布",
             tone: "warning",
           },
           {
             label: "已发布",
-            value: "18",
-            unit: "份",
+            value: "18 份",
             note: "正式版本可追溯",
             tone: "good",
           },
           {
             label: "等待替代",
-            value: "2",
-            unit: "份",
+            value: "2 份",
             note: "修订版发布后替代旧版",
             tone: "danger",
           },
         ]}
       />
-      <WorkspacePanel
+      <WorkspaceTableToolbar
         actions={
           <>
             <button type="button">导出目录</button>
             <button type="button">筛选</button>
           </>
         }
-        kicker="报告台账"
         note="报告只引用已核定数据版本；发布后形成不可覆盖的正式版本。"
-        title="业务报告清单"
-      >
-        <WorkspaceTable
-          columns={[
-            "报告名称",
-            "周期",
-            "范围",
-            "报告期间",
-            "采用数据",
-            "状态",
-            "责任岗位",
-            "发布时间",
-            "操作",
-          ]}
-          label="业务报告清单"
-          rows={businessReportRows.map((row) => [
-            <strong key={`${row.name}-name`}>{row.name}</strong>,
-            row.frequency,
-            row.scope,
-            row.period,
-            row.dataVersion,
-            <WorkspaceStatus key={`${row.name}-state`} tone={toneFor(row.status)}>
-              {row.status}
-            </WorkspaceStatus>,
-            row.owner,
-            row.publishedAt,
-            <button className="unified-row-action" key={`${row.name}-action`}>
-              查看
-            </button>,
-          ])}
-        />
-        <footer className="unified-table-footer">
-          <span>共 24 份报告 · 当前显示 1–4</span>
-          <div>
-            <button type="button">上一页</button>
-            <strong>1</strong>
-            <button type="button">下一页</button>
-          </div>
-        </footer>
-      </WorkspacePanel>
+        title="业务报告台账"
+      />
+      <WorkspaceTable
+        columns={[
+          "报告名称",
+          "周期",
+          "范围",
+          "报告期间",
+          "采用数据",
+          "状态",
+          "责任岗位",
+          "发布时间",
+          "操作",
+        ]}
+        label="业务报告台账"
+        rows={businessReportRows.map((row) => [
+          <strong key={`${row.name}-name`}>{row.name}</strong>,
+          row.frequency,
+          row.scope,
+          row.period,
+          row.dataVersion,
+          <WorkspaceStatus key={`${row.name}-state`} tone={toneFor(row.status)}>
+            {row.status}
+          </WorkspaceStatus>,
+          row.owner,
+          row.publishedAt,
+          <button
+            className="unified-table-action"
+            key={`${row.name}-action`}
+            type="button"
+          >
+            查看
+          </button>,
+        ])}
+      />
+      <WorkspacePagination
+        end={businessReportRows.length}
+        page={1}
+        pages={6}
+        start={1}
+        total={24}
+      />
     </div>
   );
 }
@@ -377,7 +378,7 @@ function DutyReports() {
         context={dutyContext}
         state="第 31 周责任快照已固定"
       />
-      <section aria-label="履责报告筛选条件" className="report-filter-bar">
+      <WorkspaceFilterBar label="履责报告筛选条件">
         <label>
           <span>业务类型</span>
           <select aria-label="履责业务类型" defaultValue="all">
@@ -412,65 +413,69 @@ function DutyReports() {
             <option>截止未提交</option>
           </select>
         </label>
-        <p>
+      </WorkspaceFilterBar>
+      <p className="report-workspace-note">
           本页监督是否按时完成；业务日报、周报、月报请在“业务报告”中生成。
-        </p>
-      </section>
-      <section aria-label="填报责任规则" className="duty-rule-strip">
-        <article>
-          <small>责任归属</small>
-          <strong>一人一责区</strong>
-          <p>责任配置按人员、区域、业务和有效期生效</p>
-        </article>
-        <article>
-          <small>填写权限</small>
-          <strong>他人无权代填</strong>
-          <p>管理员可以催办和重派未来任务，不能代替责任人填写</p>
-        </article>
-        <article>
-          <small>任务频率</small>
-          <strong>每周填报一次</strong>
-          <p>按周生成任务并固定截止时间</p>
-        </article>
-        <article className="is-warning">
-          <small>逾期规则</small>
-          <strong>逾期补填保留原逾期记录</strong>
-          <p>补报不覆盖截止快照，周报和月报均可追溯</p>
-        </article>
-      </section>
-      <CompactMetricStrip
+      </p>
+      <WorkspaceTableToolbar
+        title="填报责任规则"
+        note="责任、权限、频率和逾期规则统一执行"
+      />
+      <WorkspaceTable
+        columns={["规则事项", "执行规则", "说明"]}
+        label="填报责任规则"
+        rows={[
+          [
+            "责任归属",
+            "一人一责区",
+            "责任配置按人员、区域、业务和有效期生效",
+          ],
+          [
+            "填写权限",
+            "他人无权代填",
+            "管理员可以催办和重派未来任务，不能代替责任人填写",
+          ],
+          [
+            "任务频率",
+            "每周填报一次",
+            "按周生成任务并固定截止时间",
+          ],
+          [
+            "逾期规则",
+            "逾期补填保留原逾期记录",
+            "补报不覆盖截止快照，周报和月报均可追溯",
+          ],
+        ]}
+      />
+      <WorkspaceSummaryStrip
         label="本周履责指标"
-        metrics={[
+        items={[
           {
             label: "本周应报",
-            value: "428",
-            unit: "项",
+            value: "428 项",
             note: "免报任务不计入应报",
           },
           {
             label: "按时完成",
-            value: "395",
-            unit: "项",
+            value: "395 项",
             note: "首次合格提交在截止前",
             tone: "good",
           },
           {
             label: "截止未提交",
-            value: "26",
-            unit: "项",
+            value: "26 项",
             note: "逾期状态已经固定",
             tone: "danger",
           },
           {
             label: "逾期后补填",
-            value: "7",
-            unit: "项",
+            value: "7 项",
             note: "原逾期记录继续保留",
             tone: "warning",
           },
         ]}
       />
-      <WorkspacePanel
+      <WorkspaceTableToolbar
         actions={
           <div className="unified-mode-switch" aria-label="履责统计周期">
             <button
@@ -491,105 +496,101 @@ function DutyReports() {
             </button>
           </div>
         }
-        kicker="责任监督"
         note={
           view === "weekly"
             ? "以任务截止快照为准，显示首次合格提交和补填情况。"
             : "按责任人汇总应报、按时、逾期、缺报和退回次数。"
         }
         title={view === "weekly" ? "第 31 周履责明细" : "2026 年 7 月履责汇总"}
-      >
-        {view === "weekly" ? (
-          <WorkspaceTable
-            columns={[
-              "责任人",
-              "责任区域",
-              "业务事项",
-              "规定截止",
-              "首次合格提交",
-              "履责状态",
-              "逾期时长",
-              "审核结果",
-            ]}
-            label="填报履责记录"
-            rows={dutyWeeklyRows.map((row) => [
-              <strong key={`${row.person}-${row.region}`}>{row.person}</strong>,
-              row.region,
-              row.item,
-              row.deadline,
-              row.firstQualifiedSubmission,
-              <WorkspaceStatus
-                key={`${row.person}-${row.status}`}
-                tone={toneFor(row.status)}
-              >
-                {row.status}
-              </WorkspaceStatus>,
-              row.overdueDuration,
-              row.review,
-            ])}
-          />
-        ) : (
-          <WorkspaceTable
-            columns={[
-              "责任人",
-              "责任区域",
-              "应报",
-              "按时",
-              "逾期",
-              "缺报",
-              "退回",
-              "按时率",
-              "趋势",
-            ]}
-            label="月度履责记录"
-            rows={dutyMonthlyRows.map((row) => [
-              <strong key={`${row.person}-${row.region}`}>{row.person}</strong>,
-              row.region,
-              row.expected,
-              row.onTime,
-              row.overdue,
-              row.missing,
-              row.returned,
-              row.onTimeRate,
-              row.trend,
-            ])}
-          />
-        )}
-      </WorkspacePanel>
-      <WorkspacePanel
-        actions={<button type="button">导出责任配置</button>}
-        kicker="责任配置"
-        note="责任配置决定任务归属和填写权限；历史配置按有效期保留。"
-        title="有效责任关系"
-      >
+      />
+      {view === "weekly" ? (
         <WorkspaceTable
           columns={[
-            "区域",
-            "业务事项",
-            "频率",
             "责任人",
-            "责任岗位",
-            "审核人",
-            "截止规则",
-            "有效期",
-            "状态",
+            "责任区域",
+            "业务事项",
+            "规定截止",
+            "首次合格提交",
+            "履责状态",
+            "逾期时长",
+            "审核结果",
           ]}
-          label="填报责任配置"
-          rows={responsibilityAssignments.map((row) => [
+          label="履责监督台账"
+          rows={dutyWeeklyRows.map((row) => [
+            <strong key={`${row.person}-${row.region}`}>{row.person}</strong>,
             row.region,
-            row.businessItem,
-            row.frequency,
-            <strong key={`${row.id}-person`}>{row.responsiblePerson}</strong>,
-            row.responsiblePost,
-            row.reviewer,
-            row.deadlineRule,
-            row.effectivePeriod,
-            <WorkspaceStatus key={`${row.id}-state`} tone={toneFor(row.status)}>
+            row.item,
+            row.deadline,
+            row.firstQualifiedSubmission,
+            <WorkspaceStatus
+              key={`${row.person}-${row.status}`}
+              tone={toneFor(row.status)}
+            >
               {row.status}
             </WorkspaceStatus>,
+            row.overdueDuration,
+            row.review,
           ])}
         />
-      </WorkspacePanel>
+      ) : (
+        <WorkspaceTable
+          columns={[
+            "责任人",
+            "责任区域",
+            "应报",
+            "按时",
+            "逾期",
+            "缺报",
+            "退回",
+            "按时率",
+            "趋势",
+          ]}
+          label="月度履责记录"
+          rows={dutyMonthlyRows.map((row) => [
+            <strong key={`${row.person}-${row.region}`}>{row.person}</strong>,
+            row.region,
+            row.expected,
+            row.onTime,
+            row.overdue,
+            row.missing,
+            row.returned,
+            row.onTimeRate,
+            row.trend,
+          ])}
+        />
+      )}
+      <WorkspaceTableToolbar
+        actions={<button type="button">导出责任配置</button>}
+        note="责任配置决定任务归属和填写权限；历史配置按有效期保留。"
+        title="有效责任关系"
+      />
+      <WorkspaceTable
+        columns={[
+          "区域",
+          "业务事项",
+          "频率",
+          "责任人",
+          "责任岗位",
+          "审核人",
+          "截止规则",
+          "有效期",
+          "状态",
+        ]}
+        label="填报责任配置"
+        rows={responsibilityAssignments.map((row) => [
+          row.region,
+          row.businessItem,
+          row.frequency,
+          <strong key={`${row.id}-person`}>{row.responsiblePerson}</strong>,
+          row.responsiblePost,
+          row.reviewer,
+          row.deadlineRule,
+          row.effectivePeriod,
+          <WorkspaceStatus key={`${row.id}-state`} tone={toneFor(row.status)}>
+            {row.status}
+          </WorkspaceStatus>,
+        ])}
+      />
     </div>
   );
 }
@@ -611,12 +612,11 @@ function ReviewWorkspace() {
         title="报告复核"
       />
       <ReportContext context={context} state="4 份报告等待复核" />
-      <WorkspacePanel
-        kicker="复核队列"
+      <WorkspaceTableToolbar
         note="复核不修改原始业务值；数据问题退回所属业务重新审核。"
         title="待复核报告"
-      >
-        <WorkspaceTable
+      />
+      <WorkspaceTable
           columns={[
             "报告",
             "业务",
@@ -632,23 +632,30 @@ function ReviewWorkspace() {
               "齐齐哈尔玉米市场运行日报",
               "市场监测",
               "7 月 31 日已核定数据",
-              <WorkspaceStatus tone="warning">待复核</WorkspaceStatus>,
+              <WorkspaceStatus key="review-status-1" tone="warning">
+                待复核
+              </WorkspaceStatus>,
               "通过",
               "市场分析岗",
-              <button className="unified-row-action">开始复核</button>,
+              <button className="unified-table-action" key="review-action-1">
+                开始复核
+              </button>,
             ],
             [
               "齐齐哈尔玉米产情监测周报",
               "产情监测",
               "第 31 周已核定数据",
               "通过",
-              <WorkspaceStatus tone="warning">1 项待说明</WorkspaceStatus>,
+              <WorkspaceStatus key="review-status-2" tone="warning">
+                1 项待说明
+              </WorkspaceStatus>,
               "产情分析岗",
-              <button className="unified-row-action">开始复核</button>,
+              <button className="unified-table-action" key="review-action-2">
+                开始复核
+              </button>,
             ],
           ]}
-        />
-      </WorkspacePanel>
+      />
     </div>
   );
 }
@@ -670,12 +677,11 @@ function DistributionWorkspace() {
         title="发布与分发"
       />
       <ReportContext context={context} state="发布渠道正常" />
-      <WorkspacePanel
-        kicker="发布计划"
+      <WorkspaceTableToolbar
         note="仅已复核的正式报告可以进入发布计划。"
         title="报告分发任务"
-      >
-        <WorkspaceTable
+      />
+      <WorkspaceTable
           columns={[
             "报告",
             "发布范围",
@@ -693,8 +699,15 @@ function DistributionWorkspace() {
               "经营管理层、区域业务岗",
               "7 月 30 日 17:20",
               "2026 年 6 月版",
-              <WorkspaceStatus tone="good">已发布</WorkspaceStatus>,
-              <button className="unified-row-action">查看回执</button>,
+              <WorkspaceStatus key="distribution-status-1" tone="good">
+                已发布
+              </WorkspaceStatus>,
+              <button
+                className="unified-table-action"
+                key="distribution-action-1"
+              >
+                查看回执
+              </button>,
             ],
             [
               "齐齐哈尔玉米市场运行日报",
@@ -702,12 +715,18 @@ function DistributionWorkspace() {
               "经营管理层、市场业务岗",
               "计划今日 18:30",
               "—",
-              <WorkspaceStatus tone="warning">等待复核</WorkspaceStatus>,
-              <button className="unified-row-action">查看计划</button>,
+              <WorkspaceStatus key="distribution-status-2" tone="warning">
+                等待复核
+              </WorkspaceStatus>,
+              <button
+                className="unified-table-action"
+                key="distribution-action-2"
+              >
+                查看计划
+              </button>,
             ],
           ]}
-        />
-      </WorkspacePanel>
+      />
     </div>
   );
 }
@@ -729,12 +748,11 @@ function VersionWorkspace() {
         title="报告历史版本"
       />
       <ReportContext context={context} state="版本链完整" />
-      <WorkspacePanel
-        kicker="版本台账"
+      <WorkspaceTableToolbar
         note="同一报告的修订版通过替代关系关联，原发布版继续留痕。"
         title="正式报告版本"
-      >
-        <WorkspaceTable
+      />
+      <WorkspaceTable
           columns={[
             "报告",
             "版本",
@@ -752,8 +770,12 @@ function VersionWorkspace() {
               "7 月 30 日 15:10",
               "7 月 30 日 16:48",
               "7 月 30 日 17:20",
-              <WorkspaceStatus tone="good">当前有效</WorkspaceStatus>,
-              <button className="unified-row-action">查看版本</button>,
+              <WorkspaceStatus key="version-status-1" tone="good">
+                当前有效
+              </WorkspaceStatus>,
+              <button className="unified-table-action" key="version-action-1">
+                查看版本
+              </button>,
             ],
             [
               "齐齐哈尔粮食商情月报",
@@ -761,12 +783,15 @@ function VersionWorkspace() {
               "6 月 30 日 15:04",
               "6 月 30 日 16:30",
               "6 月 30 日 17:00",
-              <WorkspaceStatus>已被替代</WorkspaceStatus>,
-              <button className="unified-row-action">查看版本</button>,
+              <WorkspaceStatus key="version-status-2">
+                已被替代
+              </WorkspaceStatus>,
+              <button className="unified-table-action" key="version-action-2">
+                查看版本
+              </button>,
             ],
           ]}
-        />
-      </WorkspacePanel>
+      />
     </div>
   );
 }

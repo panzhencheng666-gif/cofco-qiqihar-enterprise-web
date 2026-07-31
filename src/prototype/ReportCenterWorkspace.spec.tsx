@@ -9,7 +9,7 @@ describe("ReportCenterWorkspace", () => {
   it("builds business reports from an explicit business context", async () => {
     const user = userEvent.setup();
     const onComposeReport = vi.fn();
-    render(
+    const { container } = render(
       <ReportCenterWorkspace
         section="business-reports"
         onComposeReport={onComposeReport}
@@ -49,11 +49,15 @@ describe("ReportCenterWorkspace", () => {
         region: "讷河市",
       }),
     );
+    expect(
+      screen.getByRole("table", { name: "业务报告台账" }),
+    ).toBeVisible();
+    expect(container.querySelector(".unified-metric-strip")).toBeNull();
   });
 
   it("keeps responsibility supervision centralized and auditable", async () => {
     const user = userEvent.setup();
-    render(
+    const { container } = render(
       <ReportCenterWorkspace
         section="duty-reports"
         onComposeReport={vi.fn()}
@@ -79,8 +83,10 @@ describe("ReportCenterWorkspace", () => {
       screen.getByText(/业务日报、周报、月报请在“业务报告”中生成/),
     ).toBeVisible();
 
-    const table = screen.getByRole("table", { name: "填报履责记录" });
+    const table = screen.getByRole("table", { name: "履责监督台账" });
     expect(within(table).getByText("截止未提交")).toBeVisible();
+    expect(container.querySelector(".duty-rule-strip")).toBeNull();
+    expect(container.querySelector(".unified-metric-strip")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "月度履责" }));
     expect(
