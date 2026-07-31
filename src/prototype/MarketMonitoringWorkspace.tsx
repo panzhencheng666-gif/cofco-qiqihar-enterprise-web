@@ -1340,38 +1340,6 @@ function MarketReportWorkspace({
           </article>
         ))}
       </section>
-      <section aria-label="填报履责监督报告" className="market-duty-report">
-        <header>
-          <div>
-            <span>填报履责监督</span>
-            <strong>按责任人、区域和任务监督，不允许代填</strong>
-          </div>
-          <button type="button">导出履责周报</button>
-          <button type="button">导出履责月报</button>
-        </header>
-        <div>
-          <p>
-            <small>本周应报</small>
-            <strong>428</strong>
-            <span>项</span>
-          </p>
-          <p>
-            <small>按时提交</small>
-            <strong>395</strong>
-            <span>项</span>
-          </p>
-          <p className="is-warning">
-            <small>逾期记录</small>
-            <strong>33</strong>
-            <span>项</span>
-          </p>
-          <p>
-            <small>逾期后补报</small>
-            <strong>7</strong>
-            <span>项 · 原逾期记录保留</span>
-          </p>
-        </div>
-      </section>
     </div>
   );
 }

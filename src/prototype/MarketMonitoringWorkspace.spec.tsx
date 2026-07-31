@@ -168,7 +168,7 @@ describe("market monitoring workspace", () => {
     expect(screen.queryByText("米厂生产日报")).not.toBeInTheDocument();
   });
 
-  it("shows supply adoption and duty-report controls without duplicate entry", () => {
+  it("shows supply adoption and keeps duty supervision out of market business", () => {
     const { rerender } = render(
       <MarketMonitoringWorkspace section="review" onComposeReport={vi.fn()} />,
     );
@@ -184,9 +184,12 @@ describe("market monitoring workspace", () => {
     expect(screen.getByRole("button", { name: "生成日报" })).toBeVisible();
     expect(screen.getByRole("button", { name: "生成周报" })).toBeVisible();
     expect(screen.getByRole("button", { name: "生成月报" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "导出履责周报" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "导出履责月报" })).toBeVisible();
-    expect(screen.getByText(/原逾期记录保留/)).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "导出履责周报" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "导出履责月报" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "农资" }));
     expect(screen.getByText("农资市场专题日报")).toBeVisible();
