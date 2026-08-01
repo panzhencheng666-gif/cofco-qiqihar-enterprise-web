@@ -30,6 +30,37 @@ const definition: MetricDefinition = {
   anomalyRuleVersionId: "anomaly-v1",
 };
 
+const marketDefinition: MetricDefinition = {
+  ...definition,
+  metricId: "market.purchase-price",
+  label: "采购价",
+  domain: "market",
+  businessSubtype: "market.quote-trade",
+  measureType: "price",
+  formula: "治理样本采购价加权平均",
+  unit: "元/吨",
+  aggregation: "weighted-average",
+  priceStatisticId: "weighted-average-purchase-price",
+};
+
+const supplyDefinition: MetricDefinition = {
+  ...definition,
+  metricId: "supply.total-supply",
+  label: "总供给",
+  domain: "supply",
+  businessSubtype: "supply.supply",
+  formula: "供需账户规范汇总",
+};
+
+const operationsDefinition: MetricDefinition = {
+  ...definition,
+  metricId: "operations.coverage-rate",
+  label: "报送覆盖率",
+  domain: "operations",
+  businessSubtype: "operations.obligation-performance",
+  formula: "已报送义务 / 应报送义务",
+};
+
 function coordinate(year: number): ReleasedMetricCoordinate {
   return {
     metricId: definition.metricId,
@@ -97,12 +128,119 @@ function four(values = ["100", "110", "121", "133.1"]): [
   return values.map((value, index) => point(2023 + index, value)) as ReturnType<typeof four>;
 }
 
+function domainFour(
+  metricDefinition: MetricDefinition,
+  domainDimensions: ReleasedMetricCoordinate["domainDimensions"],
+): ReturnType<typeof four> {
+  return ["100", "110", "121", "133.1"].map((value, index) => {
+    const year = 2023 + index;
+    return point(year, value, {
+      coordinate: {
+        ...coordinate(year),
+        metricId: metricDefinition.metricId,
+        domainDimensions: structuredClone(domainDimensions),
+      },
+      unit: metricDefinition.unit,
+      definitionVersionId: metricDefinition.definitionVersionId,
+    });
+  }) as ReturnType<typeof four>;
+}
+
+function marketFour(): ReturnType<typeof four> {
+  return domainFour(marketDefinition, {
+    domain: "market",
+    statisticId: marketDefinition.priceStatisticId ?? "test-setup-error",
+    currency: "CNY",
+    taxTreatmentId: "tax-included",
+    packagingConditionId: "bulk",
+    settlementConditionId: "spot",
+    logisticsRouteId: "route-a",
+    processingConversionBasisId: "basis-a",
+  });
+}
+
+function supplyFour(): ReturnType<typeof four> {
+  return domainFour(supplyDefinition, {
+    domain: "supply",
+    accountStandardVersionId: "account-standard-v1",
+    consolidationScopeId: "scope-v1",
+    ruleComparabilityVersionId: "rule-comparison-v1",
+    marketingYearStageKey: "final",
+  });
+}
+
+function operationsFour(): ReturnType<typeof four> {
+  return domainFour(operationsDefinition, {
+    domain: "operations",
+    obligationSetVersionId: "obligations-v1",
+    eligiblePopulationId: "eligible-v1",
+  });
+}
+
+function pendingReviewPoint(
+  availablePoint: Extract<PublishedMetricPoint, { availability: "available" }>,
+  metricDefinition: MetricDefinition,
+): PublishedMetricPoint {
+  return {
+    availability: "pending-review",
+    coordinate: availablePoint.coordinate,
+    releaseAttempt: null,
+    value: null,
+    unit: metricDefinition.unit,
+    coverageRate: null,
+    qualityStatus: "blocking",
+    definitionVersionId: metricDefinition.definitionVersionId,
+    conversionVersionId: null,
+    reason: "等待治理审核",
+  };
+}
+
 function build(
   points: ReturnType<typeof four> = four(),
   metricDefinition = definition,
   approvedBridges: readonly ApprovedMetricBridge[] = [],
 ) {
   return buildComparisonSet({ definition: metricDefinition, currentYear: 2026, points, approvedBridges });
+}
+
+function expectNullableCoordinateGovernance(
+  label: string,
+  createPoints: () => ReturnType<typeof four>,
+  metricDefinition: MetricDefinition,
+  setValue: (coordinate: ReleasedMetricCoordinate, value: string | null) => void,
+): void {
+  for (const [blank, unavailable] of [["", false], [" \t ", true]] as const) {
+    const points = createPoints();
+    const changed = structuredClone(points[3]) as Extract<PublishedMetricPoint, { availability: "available" }>;
+    setValue(changed.coordinate, blank);
+    points[3] = unavailable ? pendingReviewPoint(changed, metricDefinition) : changed;
+    expect(() => build(points, metricDefinition), JSON.stringify(blank)).toThrow(`${label}不能为空`);
+  }
+
+  const notApplicable = createPoints();
+  for (let index = 0; index < notApplicable.length; index += 1) {
+    const changed = structuredClone(notApplicable[index]) as Extract<PublishedMetricPoint, { availability: "available" }>;
+    setValue(changed.coordinate, null);
+    notApplicable[index] = changed;
+  }
+  expect(() => build(notApplicable, metricDefinition), `${label}:null`).not.toThrow();
+}
+
+function expectRequiredDomainCoordinateGovernance(
+  label: string,
+  createPoints: () => ReturnType<typeof four>,
+  metricDefinition: MetricDefinition,
+  setValue: (coordinate: ReleasedMetricCoordinate, value: string | null) => void,
+): void {
+  for (const invalid of [" \n ", null] as const) {
+    for (const unavailable of [false, true]) {
+      const points = createPoints();
+      const changed = structuredClone(points[3]) as Extract<PublishedMetricPoint, { availability: "available" }>;
+      setValue(changed.coordinate, invalid);
+      points[3] = unavailable ? pendingReviewPoint(changed, metricDefinition) : changed;
+      expect(() => build(points, metricDefinition), `${label}:${String(invalid)}:${unavailable}`).toThrow(`${label}不能为空`);
+    }
+  }
 }
 
 describe("buildComparisonSet", () => {
@@ -269,6 +407,25 @@ describe("buildComparisonSet", () => {
     ["数据层不一致", (value) => { value.dataLayer = "preliminary"; }],
   ];
 
+  const nullableBaseCoordinates = [
+    ["cropId", "作物"],
+    ["commodityId", "商品"],
+    ["productFormId", "产品形态"],
+    ["productAccountId", "产品账户"],
+    ["cultivarId", "品种"],
+    ["qualityConditionId", "质量条件"],
+    ["priceConditionId", "价格条件"],
+    ["deliveryConditionId", "交付条件"],
+    ["inventoryNatureId", "库存性质"],
+    ["consolidationMatrixVersionId", "合并矩阵版本"],
+  ] as const;
+
+  it.each(nullableBaseCoordinates)("governs nullable base coordinate %s", (key, label) => {
+    expectNullableCoordinateGovernance(label, four, definition, (value, fieldValue) => {
+      Object.assign(value, { [key]: fieldValue });
+    });
+  });
+
   it.each(baseMutations)("detects governed base coordinate mutation: %s", (reason, mutate) => {
     const points = four();
     const changed = structuredClone(points[3]) as Extract<PublishedMetricPoint, { availability: "available" }>;
@@ -292,6 +449,75 @@ describe("buildComparisonSet", () => {
     Object.assign(changed.coordinate.domainDimensions, { [key]: changedValue });
     points[3] = changed;
     expect(build(points).pairs[2]).toMatchObject({ comparable: false, reason });
+  });
+
+  const nullableProductionDimensions = [
+    ["yieldMethodId", "单产方法"],
+    ["growthStageId", "生育阶段"],
+    ["surveyRoundId", "调查轮次"],
+    ["costAllocationRuleId", "成本分摊规则"],
+  ] as const;
+
+  it.each(nullableProductionDimensions)("governs nullable production dimension %s", (key, label) => {
+    expectNullableCoordinateGovernance(label, four, definition, (value, fieldValue) => {
+      if (value.domainDimensions.domain !== "production") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { [key]: fieldValue });
+    });
+  });
+
+  const nullableMarketDimensions = [
+    ["currency", "币种"],
+    ["taxTreatmentId", "税价口径"],
+    ["packagingConditionId", "包装条件"],
+    ["settlementConditionId", "结算条件"],
+    ["logisticsRouteId", "物流路线"],
+    ["processingConversionBasisId", "加工转换口径"],
+  ] as const;
+
+  it.each(nullableMarketDimensions)("governs nullable market dimension %s", (key, label) => {
+    expectNullableCoordinateGovernance(label, marketFour, marketDefinition, (value, fieldValue) => {
+      if (value.domainDimensions.domain !== "market") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { [key]: fieldValue });
+    });
+  });
+
+  const requiredDomainCoordinates = [
+    ["面积口径", four, definition, (value: ReleasedMetricCoordinate, fieldValue: string | null) => {
+      if (value.domainDimensions.domain !== "production") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { areaBasisId: fieldValue });
+    }],
+    ["市场统计量", marketFour, marketDefinition, (value: ReleasedMetricCoordinate, fieldValue: string | null) => {
+      if (value.domainDimensions.domain !== "market") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { statisticId: fieldValue });
+    }],
+    ["账户规范版本", supplyFour, supplyDefinition, (value: ReleasedMetricCoordinate, fieldValue: string | null) => {
+      if (value.domainDimensions.domain !== "supply") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { accountStandardVersionId: fieldValue });
+    }],
+    ["合并范围", supplyFour, supplyDefinition, (value: ReleasedMetricCoordinate, fieldValue: string | null) => {
+      if (value.domainDimensions.domain !== "supply") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { consolidationScopeId: fieldValue });
+    }],
+    ["规则可比版本", supplyFour, supplyDefinition, (value: ReleasedMetricCoordinate, fieldValue: string | null) => {
+      if (value.domainDimensions.domain !== "supply") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { ruleComparabilityVersionId: fieldValue });
+    }],
+    ["营销年度阶段", supplyFour, supplyDefinition, (value: ReleasedMetricCoordinate, fieldValue: string | null) => {
+      if (value.domainDimensions.domain !== "supply") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { marketingYearStageKey: fieldValue });
+    }],
+    ["义务集合版本", operationsFour, operationsDefinition, (value: ReleasedMetricCoordinate, fieldValue: string | null) => {
+      if (value.domainDimensions.domain !== "operations") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { obligationSetVersionId: fieldValue });
+    }],
+    ["应纳入总体", operationsFour, operationsDefinition, (value: ReleasedMetricCoordinate, fieldValue: string | null) => {
+      if (value.domainDimensions.domain !== "operations") throw new Error("test setup");
+      Object.assign(value.domainDimensions, { eligiblePopulationId: fieldValue });
+    }],
+  ] as const;
+
+  it.each(requiredDomainCoordinates)("governs required domain coordinate %s", (label, createPoints, metricDefinition, setValue) => {
+    expectRequiredDomainCoordinateGovernance(label, createPoints, metricDefinition, setValue);
   });
 
   it("compares market, supply, and operations domain-specific governed coordinates", () => {
@@ -339,6 +565,47 @@ describe("buildComparisonSet", () => {
     expect(build(older, definition, [bridge, { ...bridge, fromDefinitionVersionId: "metric-def-v2", toDefinitionVersionId: "metric-def-v1" }]).pairs[0].reason).toBe("指标定义桥接存在循环");
     expect(build(four(), definition, [bridge, { ...bridge, fromDefinitionVersionId: "metric-def-v2", toDefinitionVersionId: "metric-def-v1" }]).pairs[0].reason).toBe("指标定义桥接存在循环");
     expect(build(four(), definition, [{ ...bridge, fromDefinitionVersionId: "metric-def-v2", toDefinitionVersionId: "metric-def-v2" }]).pairs[0].reason).toBe("指标定义桥接存在循环");
+  });
+
+  it("resolves an unavailable point definition before preserving its governed data reason", () => {
+    const points = four();
+    points[1] = {
+      availability: "missing",
+      coordinate: coordinate(2024),
+      releaseAttempt: null,
+      value: null,
+      unit: definition.unit,
+      coverageRate: null,
+      qualityStatus: "blocking",
+      definitionVersionId: "metric-def-v1",
+      conversionVersionId: null,
+      reason: "本年度缺失",
+    };
+
+    const unbridged = build(points);
+    for (const affected of [unbridged.pairs[0], unbridged.pairs[1], unbridged.currentVsBaselines[1]]) {
+      expect(affected).toMatchObject({
+        comparable: false,
+        calculationAvailable: false,
+        reason: "指标定义缺少到当前版本的批准桥接",
+      });
+    }
+
+    const bridge: ApprovedMetricBridge = {
+      metricId: definition.metricId,
+      fromDefinitionVersionId: "metric-def-v1",
+      toDefinitionVersionId: definition.definitionVersionId,
+      conversionVersionId: "conversion-v1-v2",
+    };
+    const bridged = build(points, definition, [bridge]);
+    for (const affected of [bridged.pairs[0], bridged.pairs[1], bridged.currentVsBaselines[1]]) {
+      expect(affected).toMatchObject({
+        comparable: false,
+        calculationAvailable: false,
+        reason: "本年度缺失",
+      });
+    }
+    expect(bridged.points[1]).toMatchObject({ availability: "missing", value: null, reason: "本年度缺失" });
   });
 
   it.each(["metricId", "fromDefinitionVersionId", "toDefinitionVersionId", "conversionVersionId"] as const)(

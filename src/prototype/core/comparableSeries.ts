@@ -130,33 +130,92 @@ export type MetricComparisonQueryResult =
   | { status: "ready"; definition: MetricDefinition; comparison: ComparisonSet }
   | { status: "no-release"; metricId: string; reason: string };
 
-const BASE_COORDINATES: readonly [keyof RequestedMetricCoordinate, string][] = [
-  ["regionId", "地区不一致"],
-  ["regionBoundaryVersionId", "区划边界版本不一致"],
-  ["cropId", "作物不一致"],
-  ["commodityId", "商品不一致"],
-  ["productFormId", "产品形态不一致"],
-  ["productAccountId", "产品账户不一致"],
-  ["cultivarId", "品种不一致"],
-  ["qualityConditionId", "质量条件不一致"],
-  ["priceConditionId", "价格条件不一致"],
-  ["deliveryConditionId", "交付条件不一致"],
-  ["populationOrSampleId", "总体或样本不一致"],
-  ["inventoryNatureId", "库存性质不一致"],
-  ["statisticalMomentId", "统计时点不一致"],
-  ["consolidationMatrixVersionId", "合并矩阵不一致"],
-  ["dataLayer", "数据层不一致"],
-];
+interface GovernedCoordinateRule<Key extends PropertyKey> {
+  key: Key;
+  label: string;
+  mismatchReason: string;
+  nullAllowed: boolean;
+}
 
-const DOMAIN_REASONS: Record<RequestedMetricCoordinate["domainDimensions"]["domain"], Record<string, string>> = {
-  production: { areaBasisId: "面积口径不一致", yieldMethodId: "单产方法不一致", growthStageId: "生育阶段不一致", surveyRoundId: "调查轮次不一致", costAllocationRuleId: "成本分摊规则不一致" },
-  market: { statisticId: "市场统计量不一致", currency: "币种不一致", taxTreatmentId: "税价口径不一致", packagingConditionId: "包装条件不一致", settlementConditionId: "结算条件不一致", logisticsRouteId: "物流路线不一致", processingConversionBasisId: "加工转换口径不一致" },
-  supply: { accountStandardVersionId: "账户规范版本不一致", consolidationScopeId: "合并范围不一致", ruleComparabilityVersionId: "规则可比版本不一致", marketingYearStageKey: "营销年度阶段不一致" },
-  operations: { obligationSetVersionId: "义务集合版本不一致", eligiblePopulationId: "应纳入总体不一致" },
-};
+const BASE_COORDINATES = [
+  { key: "regionId", label: "地区", mismatchReason: "地区不一致", nullAllowed: false },
+  { key: "regionBoundaryVersionId", label: "区划边界版本", mismatchReason: "区划边界版本不一致", nullAllowed: false },
+  { key: "cropId", label: "作物", mismatchReason: "作物不一致", nullAllowed: true },
+  { key: "commodityId", label: "商品", mismatchReason: "商品不一致", nullAllowed: true },
+  { key: "productFormId", label: "产品形态", mismatchReason: "产品形态不一致", nullAllowed: true },
+  { key: "productAccountId", label: "产品账户", mismatchReason: "产品账户不一致", nullAllowed: true },
+  { key: "cultivarId", label: "品种", mismatchReason: "品种不一致", nullAllowed: true },
+  { key: "qualityConditionId", label: "质量条件", mismatchReason: "质量条件不一致", nullAllowed: true },
+  { key: "priceConditionId", label: "价格条件", mismatchReason: "价格条件不一致", nullAllowed: true },
+  { key: "deliveryConditionId", label: "交付条件", mismatchReason: "交付条件不一致", nullAllowed: true },
+  { key: "populationOrSampleId", label: "总体或样本", mismatchReason: "总体或样本不一致", nullAllowed: false },
+  { key: "inventoryNatureId", label: "库存性质", mismatchReason: "库存性质不一致", nullAllowed: true },
+  { key: "statisticalMomentId", label: "统计时点", mismatchReason: "统计时点不一致", nullAllowed: false },
+  { key: "consolidationMatrixVersionId", label: "合并矩阵版本", mismatchReason: "合并矩阵不一致", nullAllowed: true },
+  { key: "dataLayer", label: "数据层", mismatchReason: "数据层不一致", nullAllowed: false },
+] as const satisfies readonly GovernedCoordinateRule<keyof RequestedMetricCoordinate>[];
+
+const PRODUCTION_COORDINATES = [
+  { key: "areaBasisId", label: "面积口径", mismatchReason: "面积口径不一致", nullAllowed: false },
+  { key: "yieldMethodId", label: "单产方法", mismatchReason: "单产方法不一致", nullAllowed: true },
+  { key: "growthStageId", label: "生育阶段", mismatchReason: "生育阶段不一致", nullAllowed: true },
+  { key: "surveyRoundId", label: "调查轮次", mismatchReason: "调查轮次不一致", nullAllowed: true },
+  { key: "costAllocationRuleId", label: "成本分摊规则", mismatchReason: "成本分摊规则不一致", nullAllowed: true },
+] as const satisfies readonly GovernedCoordinateRule<keyof Extract<RequestedMetricCoordinate["domainDimensions"], { domain: "production" }>>[];
+
+const MARKET_COORDINATES = [
+  { key: "statisticId", label: "市场统计量", mismatchReason: "市场统计量不一致", nullAllowed: false },
+  { key: "currency", label: "币种", mismatchReason: "币种不一致", nullAllowed: true },
+  { key: "taxTreatmentId", label: "税价口径", mismatchReason: "税价口径不一致", nullAllowed: true },
+  { key: "packagingConditionId", label: "包装条件", mismatchReason: "包装条件不一致", nullAllowed: true },
+  { key: "settlementConditionId", label: "结算条件", mismatchReason: "结算条件不一致", nullAllowed: true },
+  { key: "logisticsRouteId", label: "物流路线", mismatchReason: "物流路线不一致", nullAllowed: true },
+  { key: "processingConversionBasisId", label: "加工转换口径", mismatchReason: "加工转换口径不一致", nullAllowed: true },
+] as const satisfies readonly GovernedCoordinateRule<keyof Extract<RequestedMetricCoordinate["domainDimensions"], { domain: "market" }>>[];
+
+const SUPPLY_COORDINATES = [
+  { key: "accountStandardVersionId", label: "账户规范版本", mismatchReason: "账户规范版本不一致", nullAllowed: false },
+  { key: "consolidationScopeId", label: "合并范围", mismatchReason: "合并范围不一致", nullAllowed: false },
+  { key: "ruleComparabilityVersionId", label: "规则可比版本", mismatchReason: "规则可比版本不一致", nullAllowed: false },
+  { key: "marketingYearStageKey", label: "营销年度阶段", mismatchReason: "营销年度阶段不一致", nullAllowed: false },
+] as const satisfies readonly GovernedCoordinateRule<keyof Extract<RequestedMetricCoordinate["domainDimensions"], { domain: "supply" }>>[];
+
+const OPERATIONS_COORDINATES = [
+  { key: "obligationSetVersionId", label: "义务集合版本", mismatchReason: "义务集合版本不一致", nullAllowed: false },
+  { key: "eligiblePopulationId", label: "应纳入总体", mismatchReason: "应纳入总体不一致", nullAllowed: false },
+] as const satisfies readonly GovernedCoordinateRule<keyof Extract<RequestedMetricCoordinate["domainDimensions"], { domain: "operations" }>>[];
+
+const DOMAIN_COORDINATES = {
+  production: PRODUCTION_COORDINATES,
+  market: MARKET_COORDINATES,
+  supply: SUPPLY_COORDINATES,
+  operations: OPERATIONS_COORDINATES,
+} as const;
 
 function isNonEmpty(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function validateGovernedCoordinates(
+  coordinates: Record<string, unknown>,
+  rules: readonly GovernedCoordinateRule<string>[],
+): void {
+  for (const rule of rules) {
+    const value = coordinates[rule.key];
+    if (value === null && rule.nullAllowed) continue;
+    if (!isNonEmpty(value)) throw new Error(`${rule.label}不能为空`);
+  }
+}
+
+function governedCoordinateReason(
+  from: Record<string, unknown>,
+  to: Record<string, unknown>,
+  rules: readonly GovernedCoordinateRule<string>[],
+): string | null {
+  for (const rule of rules) {
+    if (from[rule.key] !== to[rule.key]) return rule.mismatchReason;
+  }
+  return null;
 }
 
 function validatePoint(point: PublishedMetricPoint, definition: MetricDefinition, expectedYear: number): void {
@@ -165,12 +224,9 @@ function validatePoint(point: PublishedMetricPoint, definition: MetricDefinition
     throw new Error("指标坐标与定义不一致");
   }
   if (point.unit !== definition.unit) throw new Error("指标单位与定义不一致");
+  validateGovernedCoordinates(point.coordinate as unknown as Record<string, unknown>, BASE_COORDINATES);
   for (const [label, value] of [
-    ["地区", point.coordinate.regionId],
-    ["区划边界版本", point.coordinate.regionBoundaryVersionId],
-    ["总体或样本", point.coordinate.populationOrSampleId],
     ["单位定义版本", point.coordinate.unitDefinitionVersionId],
-    ["统计时点", point.coordinate.statisticalMomentId],
     ["期间键", point.coordinate.period.periodKey],
     ["同期间键", point.coordinate.period.samePeriodKey],
     ["截止时点", point.coordinate.period.cutoff],
@@ -181,16 +237,11 @@ function validatePoint(point: PublishedMetricPoint, definition: MetricDefinition
   if (point.conversionVersionId !== null && !isNonEmpty(point.conversionVersionId)) {
     throw new Error("单位转换版本不能为空");
   }
-  const domainValues = point.coordinate.domainDimensions.domain === "production"
-    ? [["面积口径", point.coordinate.domainDimensions.areaBasisId], ["调查轮次", point.coordinate.domainDimensions.surveyRoundId]] as const
-    : point.coordinate.domainDimensions.domain === "market"
-      ? [["市场统计量", point.coordinate.domainDimensions.statisticId]] as const
-      : point.coordinate.domainDimensions.domain === "supply"
-        ? [["账户规范版本", point.coordinate.domainDimensions.accountStandardVersionId], ["合并范围", point.coordinate.domainDimensions.consolidationScopeId], ["规则可比版本", point.coordinate.domainDimensions.ruleComparabilityVersionId], ["营销年度阶段", point.coordinate.domainDimensions.marketingYearStageKey]] as const
-        : [["义务集合版本", point.coordinate.domainDimensions.obligationSetVersionId], ["应纳入总体", point.coordinate.domainDimensions.eligiblePopulationId]] as const;
-  for (const [label, value] of domainValues) {
-    if (value !== null && !isNonEmpty(value)) throw new Error(`${label}不能为空`);
-  }
+  const domainDimensions = point.coordinate.domainDimensions;
+  validateGovernedCoordinates(
+    domainDimensions as unknown as Record<string, unknown>,
+    DOMAIN_COORDINATES[domainDimensions.domain],
+  );
   if (definition.domain === "market" && definition.priceStatisticId !== null) {
     const dimensions = point.coordinate.domainDimensions;
     if (dimensions.domain !== "market" || dimensions.statisticId !== definition.priceStatisticId) {
@@ -265,21 +316,29 @@ function coordinateReason(
   bridges: readonly ApprovedMetricBridge[],
   unitConversions: readonly ApprovedUnitConversion[],
 ): string | null {
-  if (from.availability !== "available") return from.reason;
-  if (to.availability !== "available") return to.reason;
   for (const point of [from, to]) {
     const resolution = bridgeResolution(definition.metricId, point.definitionVersionId, definition.definitionVersionId, bridges);
     if (resolution.status === "failed") return resolution.reason;
   }
-  for (const [key, reason] of BASE_COORDINATES) if (from.coordinate[key] !== to.coordinate[key]) return reason;
+  if (from.availability !== "available") return from.reason;
+  if (to.availability !== "available") return to.reason;
+  const baseReason = governedCoordinateReason(
+    from.coordinate as unknown as Record<string, unknown>,
+    to.coordinate as unknown as Record<string, unknown>,
+    BASE_COORDINATES,
+  );
+  if (baseReason) return baseReason;
   if (from.coordinate.period.granularity !== to.coordinate.period.granularity) return "期间粒度不一致";
   if (from.coordinate.period.samePeriodKey !== to.coordinate.period.samePeriodKey) return "同期间键不一致";
   const fromDomain = from.coordinate.domainDimensions;
   const toDomain = to.coordinate.domainDimensions;
   if (fromDomain.domain !== toDomain.domain) return "业务域坐标不一致";
-  for (const [key, reason] of Object.entries(DOMAIN_REASONS[fromDomain.domain])) {
-    if ((fromDomain as unknown as Record<string, unknown>)[key] !== (toDomain as unknown as Record<string, unknown>)[key]) return reason;
-  }
+  const domainReason = governedCoordinateReason(
+    fromDomain as unknown as Record<string, unknown>,
+    toDomain as unknown as Record<string, unknown>,
+    DOMAIN_COORDINATES[fromDomain.domain],
+  );
+  if (domainReason) return domainReason;
   if (from.coordinate.unitDefinitionVersionId !== to.coordinate.unitDefinitionVersionId) {
     // A bridge proves comparability only. Both point values have already passed
     // the canonical published-unit check above; no numeric conversion occurs here.

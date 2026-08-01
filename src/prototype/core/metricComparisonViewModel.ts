@@ -9,7 +9,7 @@ export interface MetricComparisonViewModel {
   unit: string;
   currentValue: string;
   currentChangeText: string;
-  yearCells: readonly { year: number; valueText: string; availabilityLabel: string; releaseVersionLabel: string }[];
+  yearCells: readonly { year: number; valueText: string; availabilityLabel: string; releaseVersionLabel: string; reason: string | null }[];
   pairCells: readonly { label: string; changeText: string; state: "comparable" | "not-comparable"; reason: string | null }[];
   cagrText: string;
   comparabilityText: string;
@@ -94,6 +94,7 @@ export function createMetricComparisonViewModel(
       valueText: pointText(point, definition),
       availabilityLabel: availabilityLabels[point.availability],
       releaseVersionLabel: releaseLabel(point),
+      reason: point.availability === "available" ? null : point.reason,
     })),
     pairCells,
     cagrText: comparison.cagr.status === "available"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildComparisonSet, type PublishedMetricPoint } from "./comparableSeries";
+import { buildComparisonSet, type ApprovedMetricBridge, type PublishedMetricPoint } from "./comparableSeries";
 import { fixedDecimal } from "./fixedDecimal";
 import type { MetricDefinition } from "./metricCatalog";
 import { createMetricComparisonViewModel } from "./metricComparisonViewModel";
@@ -23,8 +23,11 @@ function point(year: number, value: string): PublishedMetricPoint {
   };
 }
 
-function comparison(points: [PublishedMetricPoint, PublishedMetricPoint, PublishedMetricPoint, PublishedMetricPoint]) {
-  return buildComparisonSet({ definition, currentYear: 2026, points, approvedBridges: [] });
+function comparison(
+  points: [PublishedMetricPoint, PublishedMetricPoint, PublishedMetricPoint, PublishedMetricPoint],
+  approvedBridges: readonly ApprovedMetricBridge[] = [],
+) {
+  return buildComparisonSet({ definition, currentYear: 2026, points, approvedBridges });
 }
 
 describe("MetricComparisonViewModel", () => {
@@ -33,7 +36,7 @@ describe("MetricComparisonViewModel", () => {
       point(2023, "100"), point(2024, "110"), point(2025, "121"), point(2026, "133.1"),
     ]));
     expect(model).toMatchObject({ metricId: definition.metricId, metricLabel: "总产量", unit: "万吨", currentValue: "133.1", currentChangeText: "10.0%", cagrText: "年均复合增长率 10.0%", comparabilityText: "四年口径连续可比" });
-    expect(model.yearCells[0]).toEqual({ year: 2023, valueText: "100.0", availabilityLabel: "可用", releaseVersionLabel: "metric-2023-v1" });
+    expect(model.yearCells[0]).toEqual({ year: 2023, valueText: "100.0", availabilityLabel: "可用", releaseVersionLabel: "metric-2023-v1", reason: null });
     expect(model.levelSeries[0]).toEqual({ year: 2023, rawValue: fixedDecimal("100"), valueText: "100.0" });
     expect(model.annualChangeSeries[2]).toMatchObject({ label: "当前同比", changeKind: "relative-rate", rawChange: fixedDecimal("10"), changeText: "10.0%", reason: null });
     expect(model.currentVsBaselineSeries.map(({ label, rawChange, changeText }) => ({ label, rawChange, changeText }))).toEqual([
@@ -59,10 +62,39 @@ describe("MetricComparisonViewModel", () => {
     const model = createMetricComparisonViewModel(definition, comparison([
       point(2023, "100"), missing, point(2025, "121"), point(2026, "133.1"),
     ]));
-    expect(model.yearCells[1]).toEqual({ year: 2024, valueText: "未采集", availabilityLabel: "未采集", releaseVersionLabel: "未发起发布" });
+    expect(model.yearCells[1]).toEqual({ year: 2024, valueText: "未采集", availabilityLabel: "未采集", releaseVersionLabel: "未发起发布", reason: "本年度未组织采集" });
     expect(model.pairCells[0]).toMatchObject({ state: "not-comparable", reason: "本年度未组织采集", changeText: "本年度未组织采集" });
     expect(model.pairCells[2]).toMatchObject({ state: "comparable", reason: null, changeText: "10.0%" });
     expect(model.levelSeries[1]).toEqual({ year: 2024, rawValue: null, valueText: "未采集" });
+  });
+
+  it("keeps an unavailable year reason while pair governance resolves its definition", () => {
+    const unavailable: PublishedMetricPoint = {
+      availability: "missing",
+      coordinate: point(2024, "0").coordinate,
+      releaseAttempt: null,
+      value: null,
+      unit: definition.unit,
+      coverageRate: null,
+      qualityStatus: "blocking",
+      definitionVersionId: "definition-v0",
+      conversionVersionId: null,
+      reason: "本年度缺失",
+    };
+    const points = [point(2023, "100"), unavailable, point(2025, "121"), point(2026, "133.1")] as [PublishedMetricPoint, PublishedMetricPoint, PublishedMetricPoint, PublishedMetricPoint];
+
+    const unbridged = createMetricComparisonViewModel(definition, comparison(points));
+    expect(unbridged.yearCells[1].reason).toBe("本年度缺失");
+    expect(unbridged.pairCells[0]).toMatchObject({ state: "not-comparable", reason: "指标定义缺少到当前版本的批准桥接" });
+
+    const bridged = createMetricComparisonViewModel(definition, comparison(points, [{
+      metricId: definition.metricId,
+      fromDefinitionVersionId: "definition-v0",
+      toDefinitionVersionId: definition.definitionVersionId,
+      conversionVersionId: "definition-conversion-v0-v1",
+    }]));
+    expect(bridged.yearCells[1].reason).toBe("本年度缺失");
+    expect(bridged.pairCells[0]).toMatchObject({ state: "not-comparable", reason: "本年度缺失", changeText: "本年度缺失" });
   });
 
   it("preserves formula-unavailable reasons while coordinates remain comparable", () => {
