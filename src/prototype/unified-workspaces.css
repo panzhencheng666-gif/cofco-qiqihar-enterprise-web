@@ -1936,6 +1936,8 @@
 }
 
 .enterprise-comparison-charts {
+  container-type: inline-size;
+  container-name: enterprise-comparison;
   display: grid;
   gap: 10px;
   color: var(--workspace-text, #18384a);
@@ -1991,19 +1993,19 @@
 
 .enterprise-comparison-chart__value-label {
   fill: #18384a;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .enterprise-comparison-chart__period-label,
 .enterprise-comparison-chart__zero-label {
   fill: #526c79;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .enterprise-comparison-chart__reason-label {
   fill: #526c79;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .enterprise-comparison-chart__level-gap rect,
@@ -2149,6 +2151,12 @@
   .enterprise-comparison-track__rail {
     overflow-x: auto;
     overscroll-behavior-inline: contain;
+  }
+}
+
+@container enterprise-comparison (max-width: 1180px) {
+  .enterprise-comparison-charts__panels {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

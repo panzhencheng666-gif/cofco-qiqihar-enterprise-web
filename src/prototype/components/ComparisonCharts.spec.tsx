@@ -129,6 +129,28 @@ function areaModel(): MetricComparisonViewModel {
   };
 }
 
+function markLevelUnavailableWithStaleComparisons(
+  model: MetricComparisonViewModel,
+  index: number,
+): void {
+  model.yearCells = model.yearCells.map((cell, cellIndex) =>
+    cellIndex === index
+      ? {
+          ...cell,
+          valueText: "未采集",
+          availabilityLabel: "未采集",
+          reason: "本年度未组织采集",
+        }
+      : cell,
+  );
+  model.levelSeries = model.levelSeries.map((point, pointIndex) =>
+    pointIndex === index
+      ? { ...point, rawValue: null, valueText: "未采集" }
+      : point,
+  );
+  if (index === 3) model.currentValue = "未采集";
+}
+
 function replaceLevelValues(
   model: MetricComparisonViewModel,
   values: readonly (string | null)[],
@@ -470,6 +492,161 @@ describe("ComparisonCharts", () => {
     },
   );
 
+  it.each([
+    ["Y-3 baseline", 0],
+    ["intermediate year", 1],
+    ["current year", 3],
+  ] as const)(
+    "rejects an unavailable %s with stale numeric dependent comparisons",
+    (_case, index) => {
+      const model = areaModel();
+      markLevelUnavailableWithStaleComparisons(model, index);
+
+      render(<ComparisonCharts model={model} />);
+
+      expect(
+        screen.getByRole("alert", { name: "种植面积比较数据无效" }),
+      ).toBeVisible();
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    ["first adjacent raw result", 0, 0, "raw"],
+    ["first adjacent state", 0, 0, "state"],
+    ["first adjacent reason", 0, 0, "reason"],
+    ["middle adjacent raw result", 1, 1, "raw"],
+    ["middle adjacent state", 1, 1, "state"],
+    ["middle adjacent reason", 1, 1, "reason"],
+    ["last adjacent raw result", 2, 3, "raw"],
+    ["last adjacent state", 2, 3, "state"],
+    ["last adjacent reason", 2, 3, "reason"],
+  ] as const)(
+    "rejects an unavailable endpoint with a stale %s dependency",
+    (_case, comparisonIndex, unavailableIndex, conflict) => {
+      const model = areaModel();
+      const values = model.levelSeries.map(({ rawValue }) => rawValue);
+      values[unavailableIndex] = null;
+      replaceLevelValues(model, values);
+
+      if (conflict === "raw") {
+        model.annualChangeSeries = model.annualChangeSeries.map(
+          (change, index) =>
+            index === comparisonIndex
+              ? { ...change, rawChange: fixedDecimal("9.9") }
+              : change,
+        );
+      } else if (conflict === "state") {
+        model.pairCells = model.pairCells.map((pair, index) =>
+          index === comparisonIndex ? { ...pair, state: "comparable" } : pair,
+        );
+      } else {
+        model.pairCells = model.pairCells.map((pair, index) =>
+          index === comparisonIndex
+            ? { ...pair, changeText: "", reason: "" }
+            : pair,
+        );
+        model.annualChangeSeries = model.annualChangeSeries.map(
+          (change, index) =>
+            index === comparisonIndex
+              ? { ...change, changeText: "", reason: "" }
+              : change,
+        );
+        if (comparisonIndex === 2) model.currentChangeText = "";
+      }
+
+      render(<ComparisonCharts model={model} />);
+
+      const alert = screen.getByRole("alert", {
+        name: "种植面积比较数据无效",
+      });
+      expect(alert).toHaveTextContent("四年比较端点依赖不一致");
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    ["2023 direct baseline raw result", 0, "raw"],
+    ["2023 direct baseline state", 0, "state"],
+    ["2023 direct baseline reason", 0, "reason"],
+    ["2024 direct baseline raw result", 1, "raw"],
+    ["2024 direct baseline state", 1, "state"],
+    ["2024 direct baseline reason", 1, "reason"],
+    ["2025 direct baseline raw result", 2, "raw"],
+    ["2025 direct baseline state", 2, "state"],
+    ["2025 direct baseline reason", 2, "reason"],
+  ] as const)(
+    "rejects an unavailable %s dependency",
+    (_case, baselineIndex, conflict) => {
+      const model = areaModel();
+      const values = model.levelSeries.map(({ rawValue }) => rawValue);
+      values[baselineIndex] = null;
+      replaceLevelValues(model, values);
+
+      model.currentVsBaselineSeries = model.currentVsBaselineSeries.map(
+        (comparison, index) => {
+          if (index !== baselineIndex) return comparison;
+          if (conflict === "raw") {
+            return { ...comparison, rawChange: fixedDecimal("9.9") };
+          }
+          if (conflict === "state") {
+            return { ...comparison, state: "comparable" };
+          }
+          return { ...comparison, changeText: "", reason: "" };
+        },
+      );
+
+      render(<ComparisonCharts model={model} />);
+
+      const alert = screen.getByRole("alert", {
+        name: "种植面积比较数据无效",
+      });
+      expect(alert).toHaveTextContent("四年比较端点依赖不一致");
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    ["2023 direct result raw value", 0, "raw"],
+    ["2023 direct result state", 0, "state"],
+    ["2023 direct result reason", 0, "reason"],
+    ["2024 direct result raw value", 1, "raw"],
+    ["2024 direct result state", 1, "state"],
+    ["2024 direct result reason", 1, "reason"],
+    ["2025 direct result raw value", 2, "raw"],
+    ["2025 direct result state", 2, "state"],
+    ["2025 direct result reason", 2, "reason"],
+  ] as const)(
+    "rejects a stale %s when the current endpoint is unavailable",
+    (_case, baselineIndex, conflict) => {
+      const model = areaModel();
+      const values = model.levelSeries.map(({ rawValue }) => rawValue);
+      values[3] = null;
+      replaceLevelValues(model, values);
+
+      model.currentVsBaselineSeries = model.currentVsBaselineSeries.map(
+        (comparison, index) => {
+          if (index !== baselineIndex) return comparison;
+          if (conflict === "raw") {
+            return { ...comparison, rawChange: fixedDecimal("9.9") };
+          }
+          if (conflict === "state") {
+            return { ...comparison, state: "comparable" };
+          }
+          return { ...comparison, changeText: "", reason: "" };
+        },
+      );
+
+      render(<ComparisonCharts model={model} />);
+
+      const alert = screen.getByRole("alert", {
+        name: "种植面积比较数据无效",
+      });
+      expect(alert).toHaveTextContent("四年比较端点依赖不一致");
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    },
+  );
+
   it("breaks the level connector only for unavailable coordinates or governed coordinate discontinuity", () => {
     const model = areaModel();
     model.pairCells = [
@@ -749,6 +926,21 @@ describe("ComparisonCharts", () => {
     expect(comparisonCss).toContain("@media (max-width: 1024px)");
     expect(comparisonCss).toMatch(
       /@media \(max-width: 1024px\)[\s\S]*?\.enterprise-comparison-charts__panels\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s,
+    );
+    expect(comparisonCss).toMatch(
+      /\.enterprise-comparison-charts\s*\{[^}]*container-type:\s*inline-size;[^}]*container-name:\s*enterprise-comparison;/s,
+    );
+    expect(comparisonCss).toMatch(
+      /@container enterprise-comparison \(max-width: 1180px\)[\s\S]*?\.enterprise-comparison-charts__panels\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s,
+    );
+    expect(comparisonCss).toMatch(
+      /\.enterprise-comparison-chart__value-label\s*\{[^}]*font-size:\s*1[2-9]px/s,
+    );
+    expect(comparisonCss).toMatch(
+      /\.enterprise-comparison-chart__period-label,\s*\.enterprise-comparison-chart__zero-label\s*\{[^}]*font-size:\s*1[2-9]px/s,
+    );
+    expect(comparisonCss).toMatch(
+      /\.enterprise-comparison-chart__reason-label\s*\{[^}]*font-size:\s*1[2-9]px/s,
     );
     expect(comparisonCss).not.toMatch(/workspace-warning|#a56a05|#d29b33/i);
     expect(comparisonCss).not.toMatch(/font-size:\s*[0-9](?:\.[0-9]+)?px/);

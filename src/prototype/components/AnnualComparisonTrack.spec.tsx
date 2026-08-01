@@ -128,6 +128,64 @@ function areaModel(): MetricComparisonViewModel {
   };
 }
 
+function markLevelUnavailableWithStaleComparisons(
+  model: MetricComparisonViewModel,
+  index: number,
+): void {
+  model.yearCells = model.yearCells.map((cell, cellIndex) =>
+    cellIndex === index
+      ? {
+          ...cell,
+          valueText: "未采集",
+          availabilityLabel: "未采集",
+          reason: "本年度未组织采集",
+        }
+      : cell,
+  );
+  model.levelSeries = model.levelSeries.map((point, pointIndex) =>
+    pointIndex === index
+      ? { ...point, rawValue: null, valueText: "未采集" }
+      : point,
+  );
+  if (index === 3) model.currentValue = "未采集";
+}
+
+function governUnavailableEndpointComparisons(
+  model: MetricComparisonViewModel,
+  index: number,
+  reason: string,
+): void {
+  model.pairCells = model.pairCells.map((pair, pairIndex) =>
+    pairIndex === index || pairIndex + 1 === index
+      ? {
+          ...pair,
+          changeText: reason,
+          state: "not-comparable",
+          reason,
+        }
+      : pair,
+  );
+  model.annualChangeSeries = model.annualChangeSeries.map(
+    (change, changeIndex) =>
+      changeIndex === index || changeIndex + 1 === index
+        ? { ...change, rawChange: null, changeText: reason, reason }
+        : change,
+  );
+  model.currentVsBaselineSeries = model.currentVsBaselineSeries.map(
+    (change, changeIndex) =>
+      changeIndex === index || index === 3
+        ? {
+            ...change,
+            rawChange: null,
+            changeText: reason,
+            state: "not-comparable",
+            reason,
+          }
+        : change,
+  );
+  if (index >= 2) model.currentChangeText = reason;
+}
+
 describe("AnnualComparisonTrack", () => {
   it("renders one selectable four-year comparison rail with governed labels", async () => {
     const user = userEvent.setup();
@@ -215,6 +273,7 @@ describe("AnnualComparisonTrack", () => {
           ? { ...point, rawValue: null, valueText: availability }
           : point,
       );
+      governUnavailableEndpointComparisons(model, 1, reason);
 
       render(
         <AnnualComparisonTrack
@@ -352,6 +411,38 @@ describe("AnnualComparisonTrack", () => {
     expect(onSelect).toHaveBeenCalledTimes(2);
   });
 
+  it("scrolls the comparison rail with arrow keys without selecting the metric", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const { container } = render(
+      <AnnualComparisonTrack
+        model={areaModel()}
+        selected={false}
+        onSelect={onSelect}
+      />,
+    );
+    const track = screen.getByRole("button", { name: /种植面积四年比较/ });
+    const rail = container.querySelector<HTMLElement>(
+      ".enterprise-comparison-track__rail",
+    );
+    expect(rail).not.toBeNull();
+    Object.defineProperties(rail, {
+      clientWidth: { configurable: true, value: 400 },
+      scrollLeft: { configurable: true, value: 120, writable: true },
+      scrollWidth: { configurable: true, value: 900 },
+    });
+
+    track.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(rail?.scrollLeft).toBeGreaterThan(120);
+    expect(onSelect).not.toHaveBeenCalled();
+
+    await user.keyboard("{ArrowLeft}");
+    expect(rail?.scrollLeft).toBe(120);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(track).toHaveAttribute("aria-keyshortcuts", "ArrowLeft ArrowRight");
+  });
+
   it.each([
     ["yearCells", 3],
     ["levelSeries", 3],
@@ -471,7 +562,7 @@ describe("AnnualComparisonTrack", () => {
           }
         : change,
     );
-    model.currentChangeText = "未形成正式发布";
+    governUnavailableEndpointComparisons(model, 3, "未形成正式发布");
 
     render(
       <AnnualComparisonTrack
@@ -630,4 +721,216 @@ describe("AnnualComparisonTrack", () => {
       ).toBeVisible();
     },
   );
+
+  it.each([
+    ["Y-3 baseline", 0],
+    ["intermediate year", 1],
+    ["current year", 3],
+  ] as const)(
+    "rejects an unavailable %s with stale numeric dependent comparisons",
+    (_case, index) => {
+      const model = areaModel();
+      markLevelUnavailableWithStaleComparisons(model, index);
+
+      render(
+        <AnnualComparisonTrack
+          model={model}
+          selected={false}
+          onSelect={vi.fn()}
+        />,
+      );
+
+      expect(
+        screen.getByRole("alert", { name: "种植面积比较数据无效" }),
+      ).toBeVisible();
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    ["first adjacent raw result", 0, 0, "raw"],
+    ["first adjacent state", 0, 0, "state"],
+    ["first adjacent reason", 0, 0, "reason"],
+    ["middle adjacent raw result", 1, 1, "raw"],
+    ["middle adjacent state", 1, 1, "state"],
+    ["middle adjacent reason", 1, 1, "reason"],
+    ["last adjacent raw result", 2, 3, "raw"],
+    ["last adjacent state", 2, 3, "state"],
+    ["last adjacent reason", 2, 3, "reason"],
+  ] as const)(
+    "rejects an unavailable endpoint with a stale %s dependency",
+    (_case, comparisonIndex, unavailableIndex, conflict) => {
+      const model = areaModel();
+      markLevelUnavailableWithStaleComparisons(model, unavailableIndex);
+      governUnavailableEndpointComparisons(
+        model,
+        unavailableIndex,
+        "端点年度未采集",
+      );
+
+      if (conflict === "raw") {
+        model.annualChangeSeries = model.annualChangeSeries.map(
+          (change, index) =>
+            index === comparisonIndex
+              ? { ...change, rawChange: fixedDecimal("9.9") }
+              : change,
+        );
+      } else if (conflict === "state") {
+        model.pairCells = model.pairCells.map((pair, index) =>
+          index === comparisonIndex ? { ...pair, state: "comparable" } : pair,
+        );
+      } else {
+        model.pairCells = model.pairCells.map((pair, index) =>
+          index === comparisonIndex
+            ? { ...pair, changeText: "", reason: "" }
+            : pair,
+        );
+        model.annualChangeSeries = model.annualChangeSeries.map(
+          (change, index) =>
+            index === comparisonIndex
+              ? { ...change, changeText: "", reason: "" }
+              : change,
+        );
+        if (comparisonIndex === 2) model.currentChangeText = "";
+      }
+
+      render(
+        <AnnualComparisonTrack
+          model={model}
+          selected={false}
+          onSelect={vi.fn()}
+        />,
+      );
+
+      const alert = screen.getByRole("alert", {
+        name: "种植面积比较数据无效",
+      });
+      expect(alert).toHaveTextContent("四年比较端点依赖不一致");
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    ["2023 direct baseline raw result", 0, "raw"],
+    ["2023 direct baseline state", 0, "state"],
+    ["2023 direct baseline reason", 0, "reason"],
+    ["2024 direct baseline raw result", 1, "raw"],
+    ["2024 direct baseline state", 1, "state"],
+    ["2024 direct baseline reason", 1, "reason"],
+    ["2025 direct baseline raw result", 2, "raw"],
+    ["2025 direct baseline state", 2, "state"],
+    ["2025 direct baseline reason", 2, "reason"],
+  ] as const)(
+    "rejects an unavailable %s dependency",
+    (_case, baselineIndex, conflict) => {
+      const model = areaModel();
+      markLevelUnavailableWithStaleComparisons(model, baselineIndex);
+      governUnavailableEndpointComparisons(
+        model,
+        baselineIndex,
+        "基期年度未采集",
+      );
+
+      model.currentVsBaselineSeries = model.currentVsBaselineSeries.map(
+        (comparison, index) => {
+          if (index !== baselineIndex) return comparison;
+          if (conflict === "raw") {
+            return { ...comparison, rawChange: fixedDecimal("9.9") };
+          }
+          if (conflict === "state") {
+            return { ...comparison, state: "comparable" };
+          }
+          return { ...comparison, changeText: "", reason: "" };
+        },
+      );
+
+      render(
+        <AnnualComparisonTrack
+          model={model}
+          selected={false}
+          onSelect={vi.fn()}
+        />,
+      );
+
+      const alert = screen.getByRole("alert", {
+        name: "种植面积比较数据无效",
+      });
+      expect(alert).toHaveTextContent("四年比较端点依赖不一致");
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    ["2023 direct result raw value", 0, "raw"],
+    ["2023 direct result state", 0, "state"],
+    ["2023 direct result reason", 0, "reason"],
+    ["2024 direct result raw value", 1, "raw"],
+    ["2024 direct result state", 1, "state"],
+    ["2024 direct result reason", 1, "reason"],
+    ["2025 direct result raw value", 2, "raw"],
+    ["2025 direct result state", 2, "state"],
+    ["2025 direct result reason", 2, "reason"],
+  ] as const)(
+    "rejects a stale %s when the current endpoint is unavailable",
+    (_case, baselineIndex, conflict) => {
+      const model = areaModel();
+      markLevelUnavailableWithStaleComparisons(model, 3);
+      governUnavailableEndpointComparisons(model, 3, "当前年度未采集");
+
+      model.currentVsBaselineSeries = model.currentVsBaselineSeries.map(
+        (comparison, index) => {
+          if (index !== baselineIndex) return comparison;
+          if (conflict === "raw") {
+            return { ...comparison, rawChange: fixedDecimal("9.9") };
+          }
+          if (conflict === "state") {
+            return { ...comparison, state: "comparable" };
+          }
+          return { ...comparison, changeText: "", reason: "" };
+        },
+      );
+
+      render(
+        <AnnualComparisonTrack
+          model={model}
+          selected={false}
+          onSelect={vi.fn()}
+        />,
+      );
+
+      const alert = screen.getByRole("alert", {
+        name: "种植面积比较数据无效",
+      });
+      expect(alert).toHaveTextContent("四年比较端点依赖不一致");
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    },
+  );
+
+  it("preserves Hook order when invalid data becomes valid", () => {
+    const invalidModel = areaModel();
+    markLevelUnavailableWithStaleComparisons(invalidModel, 0);
+    const onSelect = vi.fn();
+    const { rerender } = render(
+      <AnnualComparisonTrack
+        model={invalidModel}
+        selected={false}
+        onSelect={onSelect}
+      />,
+    );
+    expect(
+      screen.getByRole("alert", { name: "种植面积比较数据无效" }),
+    ).toBeVisible();
+
+    rerender(
+      <AnnualComparisonTrack
+        model={areaModel()}
+        selected={false}
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /种植面积四年比较/ }),
+    ).toBeVisible();
+  });
 });

@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import { useRef, type JSX, type KeyboardEvent } from "react";
 
 import { compareFixedDecimal, fixedDecimal } from "../core/fixedDecimal";
 import type { MetricComparisonViewModel } from "../core/metricComparisonViewModel";
@@ -112,6 +112,41 @@ export function getMetricComparisonModelError(
     return "四年比较年度状态关联不一致";
   }
 
+  const hasInvalidAdjacentEndpoint = model.annualChangeSeries.some(
+    (change, index) => {
+      const endpointUnavailable =
+        model.levelSeries[index].rawValue === null ||
+        model.levelSeries[index + 1].rawValue === null;
+      if (!endpointUnavailable) return false;
+
+      const pair = model.pairCells[index];
+      return (
+        change.rawChange !== null ||
+        pair.state !== "not-comparable" ||
+        pair.reason === null ||
+        pair.reason.trim() === ""
+      );
+    },
+  );
+  const currentLevelUnavailable = model.levelSeries[3].rawValue === null;
+  const hasInvalidDirectEndpoint = model.currentVsBaselineSeries.some(
+    (change, index) => {
+      const endpointUnavailable =
+        model.levelSeries[index].rawValue === null || currentLevelUnavailable;
+      if (!endpointUnavailable) return false;
+
+      return (
+        change.rawChange !== null ||
+        change.state !== "not-comparable" ||
+        change.reason === null ||
+        change.reason.trim() === ""
+      );
+    },
+  );
+  if (hasInvalidAdjacentEndpoint || hasInvalidDirectEndpoint) {
+    return "四年比较端点依赖不一致";
+  }
+
   const hasInvalidPairState = model.pairCells.some((pair, index) => {
     const change = model.annualChangeSeries[index];
     if (pair.reason !== change.reason) return true;
@@ -175,6 +210,7 @@ export function AnnualComparisonTrack({
   selected,
   onSelect,
 }: AnnualComparisonTrackProps): JSX.Element {
+  const railRef = useRef<HTMLSpanElement>(null);
   const modelError = getMetricComparisonModelError(model);
   if (modelError !== null) {
     return (
@@ -199,13 +235,25 @@ export function AnnualComparisonTrack({
   const currentHasValue =
     model.levelSeries[model.levelSeries.length - 1]?.rawValue !== null;
   const accessibleName = `${model.metricLabel}四年比较，当前值 ${model.currentValue}${currentHasValue ? ` ${model.unit}` : ""}，当前年度同比 ${currentChangeText}，${model.comparabilityText}`;
+  const handleTrackKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+    const rail = railRef.current;
+    if (rail === null) return;
+    event.preventDefault();
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    const distance = Math.max(120, Math.round(rail.clientWidth * 0.6));
+    rail.scrollLeft += direction * distance;
+  };
 
   return (
     <button
       aria-label={accessibleName}
+      aria-keyshortcuts="ArrowLeft ArrowRight"
       aria-pressed={selected}
       className="enterprise-comparison-track"
       onClick={() => onSelect(model.metricId)}
+      onKeyDown={handleTrackKeyDown}
       type="button"
     >
       <span className="enterprise-comparison-track__identity">
@@ -228,7 +276,7 @@ export function AnnualComparisonTrack({
         </span>
       </span>
 
-      <span className="enterprise-comparison-track__rail">
+      <span className="enterprise-comparison-track__rail" ref={railRef}>
         <span className="enterprise-comparison-track__years">
           {model.yearCells.map((cell, index) => {
             const missing = model.levelSeries[index]?.rawValue === null;
