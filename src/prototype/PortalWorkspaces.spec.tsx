@@ -36,7 +36,11 @@ function ExecutiveHarness({
       ...prototypeOperationalIdentity.authorization,
       ...authorization,
     },
-    coordinates: { regionId: "authorized-all", ...initialCoordinates },
+    coordinates: {
+      regionId: "authorized-all",
+      periodKey: "2026-W31",
+      ...initialCoordinates,
+    },
     savedView: null,
   });
   return (

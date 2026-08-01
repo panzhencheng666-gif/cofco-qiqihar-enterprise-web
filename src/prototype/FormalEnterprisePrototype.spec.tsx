@@ -75,7 +75,7 @@ describe("formal enterprise prototype", () => {
   it("owns executive filters, route tabs, and selected metrics in the URL", async () => {
     const user = userEvent.setup();
     render(
-      <FormalEnterprisePrototype initialSearch="?page=overview&section=operations" />,
+      <FormalEnterprisePrototype initialSearch="?page=overview&section=operations&period=2026-W31" />,
     );
 
     expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
@@ -102,6 +102,33 @@ describe("formal enterprise prototype", () => {
     expect(window.location.search).toContain("section=risks");
     expect(
       screen.getByRole("table", { name: "经营异常风险台账" }),
+    ).toBeVisible();
+  });
+
+  it("requires a governed period before executing the executive query", async () => {
+    const user = userEvent.setup();
+    render(
+      <FormalEnterprisePrototype initialSearch="?page=overview&section=operations" />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "经营期间" })).toHaveValue("");
+    expect(screen.getByRole("alert")).toHaveTextContent("请选择经营期间");
+    expect(screen.getByRole("alert")).toHaveTextContent("系统未执行数据查询");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "当前业务坐标没有可用经营指标",
+    );
+    expect(document.body).not.toHaveTextContent(
+      /2026-W31|periodKey|prototypeExecutiveDefaultPeriodKey/,
+    );
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "经营期间" }),
+      "2026-W31",
+    );
+
+    expect(window.location.search).toContain("period=2026-W31");
+    expect(
+      screen.getByRole("table", { name: "经营指标趋势台账" }),
     ).toBeVisible();
   });
 
@@ -166,7 +193,7 @@ describe("formal enterprise prototype", () => {
 
   it("does not silently execute a shared URL with inconsistent region coordinates", () => {
     render(
-      <FormalEnterprisePrototype initialSearch="?page=overview&section=operations&region=qiqihar-nehe&regionLevel=city" />,
+      <FormalEnterprisePrototype initialSearch="?page=overview&section=operations&region=qiqihar-nehe&regionLevel=city&period=2026-W31" />,
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent(
@@ -185,7 +212,7 @@ describe("formal enterprise prototype", () => {
 
   it("rejects unsupported executive coordinates with a Chinese explanation and no raw codes", () => {
     render(
-      <FormalEnterprisePrototype initialSearch="?page=overview&section=operations&businessDomain=bogus-domain&riskState=bogus-risk" />,
+      <FormalEnterprisePrototype initialSearch="?page=overview&section=operations&businessDomain=bogus-domain&riskState=bogus-risk&period=2026-W31" />,
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent("业务筛选参数无效");
@@ -200,6 +227,21 @@ describe("formal enterprise prototype", () => {
       "当前业务坐标没有可用经营指标",
     );
     expect(document.body).not.toHaveTextContent(/bogus-domain|bogus-risk/);
+  });
+
+  it("distinguishes an invalid executive period from a period that has not been selected", () => {
+    render(
+      <FormalEnterprisePrototype initialSearch="?page=overview&section=operations&period=unsupported-period" />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "经营期间" })).toHaveValue(
+      "unsupported-period",
+    );
+    expect(screen.getByLabelText("已应用业务坐标")).toHaveTextContent(
+      "经营期间无效，请重新选择",
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("请选择经营期间");
+    expect(document.body).not.toHaveTextContent("unsupported-period");
   });
 
   it("restores the replaced page filter across application Back and Forward", async () => {

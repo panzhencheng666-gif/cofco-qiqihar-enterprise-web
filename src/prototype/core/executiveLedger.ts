@@ -18,7 +18,6 @@ import {
   executiveDutyFixtures,
   executiveReleaseFixtures,
   executiveRiskFixtures,
-  prototypeExecutiveDefaultPeriodKey,
   prototypeExecutiveSupportedPeriodKeys,
   temporaryExecutiveSupplyReleasePoints,
   type ExecutiveFixtureCoordinates,
@@ -168,7 +167,7 @@ const domains = [
 const riskStates = ["all", "warning", "blocking"] as const;
 
 export interface ExecutiveScopeCoordinateIssue {
-  coordinate: "business-domain" | "risk-state";
+  coordinate: "business-domain" | "period" | "risk-state";
 }
 
 function isQueryDomain(
@@ -191,6 +190,14 @@ export function getExecutiveScopeCoordinateIssues(
   if (businessDomainId !== undefined && !isQueryDomain(businessDomainId)) {
     issues.push({ coordinate: "business-domain" });
   }
+  if (
+    !scope.coordinates.periodKey ||
+    !prototypeExecutiveSupportedPeriodKeys.some(
+      (periodKey) => periodKey === scope.coordinates.periodKey,
+    )
+  ) {
+    issues.push({ coordinate: "period" });
+  }
   if (riskState !== undefined && !isRiskState(riskState)) {
     issues.push({ coordinate: "risk-state" });
   }
@@ -212,7 +219,7 @@ export function createDefaultExecutiveLedgerQuery(
         BusinessClassification["id"] | undefined) ?? null,
     productId: coordinates.productId ?? null,
     cultivarId: coordinates.cultivarId ?? null,
-    periodKey: coordinates.periodKey ?? prototypeExecutiveDefaultPeriodKey,
+    periodKey: coordinates.periodKey ?? "",
     dataLayer: coordinates.dataLayer ?? "official",
     releaseVersion: coordinates.releaseVersion ?? null,
     riskState: coordinates.riskState ?? "all",

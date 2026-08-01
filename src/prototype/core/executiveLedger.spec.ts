@@ -87,7 +87,7 @@ function expectStringFields<T extends object>(
 }
 
 describe("ExecutiveLedger", () => {
-  it("returns the four-domain default for the real prototype identity without URL period coordinates", () => {
+  it("keeps a missing governed period explicit until the URL or user supplies one", () => {
     const currentScope: OperationalScope = {
       ...prototypeOperationalIdentity,
       coordinates: { regionId: "authorized-all" },
@@ -96,10 +96,28 @@ describe("ExecutiveLedger", () => {
     const defaultQuery = createDefaultExecutiveLedgerQuery(currentScope);
     const result = queryExecutiveLedger(currentScope, defaultQuery);
 
-    expect(defaultQuery.periodKey).not.toBe("");
-    expect(result.view).toBe("operations");
-    if (result.view !== "operations") throw new Error("unexpected view");
-    expect(new Set(result.metrics.map(({ domain }) => domain))).toEqual(
+    expect(defaultQuery.periodKey).toBe("");
+    expect(getExecutiveScopeCoordinateIssues(currentScope)).toEqual([
+      { coordinate: "period" },
+    ]);
+    expect(result).toEqual({ view: "operations", metrics: [] });
+
+    const governedScope: OperationalScope = {
+      ...currentScope,
+      coordinates: {
+        ...currentScope.coordinates,
+        periodKey: "2026-W31",
+      },
+    };
+    const governedResult = queryExecutiveLedger(
+      governedScope,
+      createDefaultExecutiveLedgerQuery(governedScope),
+    );
+    expect(governedResult.view).toBe("operations");
+    if (governedResult.view !== "operations") {
+      throw new Error("unexpected view");
+    }
+    expect(new Set(governedResult.metrics.map(({ domain }) => domain))).toEqual(
       new Set(["production", "market", "supply", "operations"]),
     );
   });

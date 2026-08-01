@@ -531,11 +531,13 @@ function AppliedCoordinates({
   query,
   regionLevel,
   invalidBusinessDomain,
+  invalidPeriod,
   invalidRiskState,
 }: {
   query: ExecutiveLedgerQuery;
   regionLevel: ExecutiveRegionLevel;
   invalidBusinessDomain: boolean;
+  invalidPeriod: boolean;
   invalidRiskState: boolean;
 }) {
   const subtypeLabel = query.businessSubtype
@@ -587,11 +589,13 @@ function AppliedCoordinates({
       <span>
         <small>期间与数据层</small>
         <strong>
-          {optionLabel(
-            executiveCoordinateOptions.periods,
-            query.periodKey,
-            "经营期间待维护",
-          )}{" "}
+          {invalidPeriod && query.periodKey
+            ? "经营期间无效，请重新选择"
+            : optionLabel(
+                executiveCoordinateOptions.periods,
+                query.periodKey,
+                "尚未选择经营期间",
+              )}{" "}
           ·{" "}
           {optionLabel(
             executiveCoordinateOptions.dataLayers,
@@ -627,12 +631,14 @@ function ExecutiveFilters({
   query,
   onScopeChange,
   invalidBusinessDomain,
+  invalidPeriod,
   invalidRiskState,
 }: {
   scope: OperationalScope;
   query: ExecutiveLedgerQuery;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   invalidBusinessDomain: boolean;
+  invalidPeriod: boolean;
   invalidRiskState: boolean;
 }) {
   const visibleClassifications = businessClassifications.filter(
@@ -811,6 +817,13 @@ function ExecutiveFilters({
               })
             }
           >
+            {invalidPeriod && (
+              <option disabled value={query.periodKey}>
+                {query.periodKey
+                  ? "无效经营期间（请重新选择）"
+                  : "请选择经营期间"}
+              </option>
+            )}
             {executiveCoordinateOptions.periods.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.label}
@@ -946,6 +959,9 @@ export function ExecutiveOverviewWorkspace({
   const invalidBusinessDomain = coordinateIssues.some(
     ({ coordinate }) => coordinate === "business-domain",
   );
+  const invalidPeriod = coordinateIssues.some(
+    ({ coordinate }) => coordinate === "period",
+  );
   const invalidRiskState = coordinateIssues.some(
     ({ coordinate }) => coordinate === "risk-state",
   );
@@ -984,20 +1000,32 @@ export function ExecutiveOverviewWorkspace({
         query={query}
         onScopeChange={onScopeChange}
         invalidBusinessDomain={invalidBusinessDomain}
+        invalidPeriod={invalidPeriod}
         invalidRiskState={invalidRiskState}
       />
       <AppliedCoordinates
         query={query}
         regionLevel={selectedRegionLevel}
         invalidBusinessDomain={invalidBusinessDomain}
+        invalidPeriod={invalidPeriod}
         invalidRiskState={invalidRiskState}
       />
       {coordinateIssues.length > 0 && (
         <div className="executive-coordinate-alert" role="alert">
-          <strong>业务筛选参数无效</strong>
-          <span>
-            当前链接中的业务域或风险状态不是系统支持的业务值；系统未执行数据查询，请重新选择。
-          </span>
+          <strong>
+            {invalidBusinessDomain || invalidRiskState
+              ? "业务筛选参数无效"
+              : "请选择经营期间"}
+          </strong>
+          {invalidBusinessDomain || invalidRiskState ? (
+            <span>
+              当前链接中的业务域、风险状态或经营期间缺少有效治理值；系统未执行数据查询，请重新选择。
+            </span>
+          ) : (
+            <span>
+              当前查询尚未指定有效治理期间；系统未执行数据查询，请从经营期间列表中选择。
+            </span>
+          )}
         </div>
       )}
       {regionCoordinateConflict && (
