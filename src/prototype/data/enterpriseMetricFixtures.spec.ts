@@ -5,6 +5,7 @@ import {
   aggregateRegionMembershipSnapshots,
   enterpriseMetricDefinitions,
   enterpriseMetricPoints,
+  prototypeCurrentMetricReleaseVersionId,
   queryPrototypeMetricComparisons,
 } from "./enterpriseMetricFixtures";
 
@@ -24,7 +25,7 @@ function scope(overrides: Partial<OperationalScope["coordinates"]> = {}): Operat
       authorizedBusinessClassificationIds: ["production.planting-production", "market.quote-trade", "supply.results", "operations.data-quality"],
       authorizedProductIds: ["corn"],
       authorizedCultivarIds: ["jingke-968"],
-      authorizedReleaseVersionIds: ["metric-2026-v1"],
+      authorizedReleaseVersionIds: ["METRIC-2026-W31-V3"],
       permissionKeys: ["prototype:read"],
     },
     coordinates: { regionId: "authorized-all", productId: "corn", dataLayer: "official", ...overrides },
@@ -52,6 +53,56 @@ describe("enterprise metric fixtures", () => {
     expect(unit("market.processing-capacity")).toBe("万吨/年");
     const agriPoints = enterpriseMetricPoints.filter(({ coordinate }) => coordinate.metricId.startsWith("market.agri-input"));
     expect(agriPoints.every(({ coordinate }) => coordinate.cropId === null && coordinate.commodityId === "agri-input" && coordinate.productFormId === "agricultural-input")).toBe(true);
+  });
+
+  it("governs per-area cost, arithmetic sample yield, and quality metric semantics explicitly", () => {
+    const byId = new Map(enterpriseMetricDefinitions.map((item) => [item.metricId, item]));
+    expect(byId.get("production.cost-per-area")).toMatchObject({
+      measureType: "amount",
+      unit: "元/亩",
+      aggregation: "per-area",
+    });
+    expect(byId.get("production.cost-per-area")?.formula).toContain("/");
+    expect(byId.get("production.sample-average-yield")).toMatchObject({
+      aggregation: "arithmetic-average",
+    });
+    expect(enterpriseMetricPoints
+      .filter(({ coordinate }) => coordinate.metricId === "production.sample-average-yield")
+      .every(({ coordinate }) => coordinate.populationOrSampleId === "authorized-yield-sample")).toBe(true);
+    expect(byId.get("production.regional-yield")).toMatchObject({
+      aggregation: "ratio-of-aggregates",
+    });
+
+    for (const metricId of [
+      "production.quality-moisture",
+      "production.quality-impurity",
+      "production.quality-imperfect-grain",
+      "production.quality-mildew",
+      "market.quality-moisture",
+      "market.quality-impurity",
+    ]) {
+      expect(byId.get(metricId), metricId).toMatchObject({
+        measureType: "percentage",
+        unit: "%",
+        comparisonPolicy: { relativeChange: "percentage-points", cagr: "not-applicable" },
+      });
+      const points = enterpriseMetricPoints.filter(({ coordinate }) => coordinate.metricId === metricId);
+      expect(points.every((point) => point.availability !== "available" || (Number(point.value) >= 0 && Number(point.value) <= 100)), metricId).toBe(true);
+    }
+    expect(enterpriseMetricDefinitions
+      .filter(({ metricId, measureType }) => (metricId.startsWith("production.quality-") || metricId.startsWith("market.quality-")) && measureType === "percentage")
+      .map(({ metricId }) => metricId)
+      .sort()).toEqual([
+        "market.quality-impurity",
+        "market.quality-moisture",
+        "production.quality-imperfect-grain",
+        "production.quality-impurity",
+        "production.quality-mildew",
+        "production.quality-moisture",
+      ]);
+    expect(byId.get("production.quality-test-weight")).toMatchObject({ unit: "克/升", measureType: "ratio", comparisonPolicy: { relativeChange: "allowed", cagr: "allowed" } });
+    expect(byId.get("production.quality-toxin")).toMatchObject({ unit: "微克/千克", measureType: "ratio", comparisonPolicy: { relativeChange: "allowed", cagr: "allowed" } });
+    expect([...byId.values()].filter(({ businessSubtype }) => businessSubtype === "production.cost-support").every(({ unit }) => unit === "元/亩")).toBe(true);
   });
 
   it("provides every non-supply comparable definition with exact Y-3 through Y states", () => {
@@ -145,10 +196,40 @@ describe("enterprise metric fixtures", () => {
     expect(results.every((result) => result.status === "no-release" && result.reason.includes("不可变发布点"))).toBe(true);
   });
 
-  it("does not use the current release selector to discard historical lineage", () => {
-    const [result] = queryPrototypeMetricComparisons({ scope: scope({ releaseVersion: "metric-2026-v1" }), queryAllowed: true, domain: "production", businessSubtype: "production.planting-production", currentYear: 2026 });
+  it("binds the selected authorized release to current Y while retaining historical lineage", () => {
+    expect(prototypeCurrentMetricReleaseVersionId).toBe("METRIC-2026-W31-V3");
+    const [result] = queryPrototypeMetricComparisons({ scope: scope({ releaseVersion: "METRIC-2026-W31-V3" }), queryAllowed: true, domain: "production", businessSubtype: "production.planting-production", currentYear: 2026 });
     expect(result.status).toBe("ready");
-    if (result.status === "ready") expect(result.comparison.points.map(({ coordinate }) => coordinate.period.year)).toEqual([2023, 2024, 2025, 2026]);
+    if (result.status === "ready") {
+      expect(result.comparison.points.map(({ coordinate }) => coordinate.period.year)).toEqual([2023, 2024, 2025, 2026]);
+      expect(result.comparison.points.map((point) => point.availability === "available" ? point.coordinate.metricReleaseVersionId : null)).toEqual([
+        "metric-2023-v1",
+        "metric-2024-v1",
+        "metric-2025-v1",
+        "METRIC-2026-W31-V3",
+      ]);
+    }
+
+    const mismatch = scope({ releaseVersion: "METRIC-2026-W31-V2" });
+    mismatch.authorization = { ...mismatch.authorization, authorizedReleaseVersionIds: ["METRIC-2026-W31-V2", "METRIC-2026-W31-V3"] };
+    const mismatchResults = queryPrototypeMetricComparisons({ scope: mismatch, queryAllowed: true, domain: "production", businessSubtype: "production.planting-production", currentYear: 2026 });
+    expect(mismatchResults.length).toBeGreaterThan(0);
+    expect(mismatchResults.every((item) => item.status === "no-release")).toBe(true);
+
+    const noSelector = scope();
+    noSelector.authorization = { ...noSelector.authorization, authorizedReleaseVersionIds: [] };
+    const unauthorizedCurrent = queryPrototypeMetricComparisons({ scope: noSelector, queryAllowed: true, domain: "production", businessSubtype: "production.planting-production", currentYear: 2026 });
+    expect(unauthorizedCurrent.length).toBeGreaterThan(0);
+    expect(unauthorizedCurrent.every((item) => item.status === "no-release")).toBe(true);
+
+    const authorizedCurrent = queryPrototypeMetricComparisons({ scope: scope(), queryAllowed: true, domain: "production", businessSubtype: "production.planting-production", currentYear: 2026 });
+    expect(authorizedCurrent.every((item) => item.status === "ready")).toBe(true);
+
+    const historicalOnly = scope();
+    historicalOnly.authorization = { ...historicalOnly.authorization, authorizedReleaseVersionIds: ["metric-2025-v1"] };
+    const historicalOnlyResults = queryPrototypeMetricComparisons({ scope: historicalOnly, queryAllowed: true, domain: "production", businessSubtype: "production.planting-production", currentYear: 2026 });
+    expect(historicalOnlyResults.length).toBeGreaterThan(0);
+    expect(historicalOnlyResults.every((item) => item.status === "no-release")).toBe(true);
   });
 
   it("never returns agricultural-input series for a corn query", () => {

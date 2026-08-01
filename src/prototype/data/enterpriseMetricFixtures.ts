@@ -25,6 +25,8 @@ export const aggregateRegionMembershipSnapshots: readonly AggregateRegionMembers
   },
 ];
 
+export const prototypeCurrentMetricReleaseVersionId = "METRIC-2026-W31-V3" as const;
+
 type DefinitionSeed = readonly [
   metricId: string,
   label: string,
@@ -42,11 +44,11 @@ const definitionSeeds: readonly DefinitionSeed[] = [
   ["production.total-loss-area", "绝收面积", "production.planting-production"],
   ["production.growth-condition", "长势指数", "production.planting-production", "ratio", "weighted-average"],
   ["production.regional-yield", "区域加权单产", "production.planting-production", "ratio", "ratio-of-aggregates"],
-  ["production.sample-average-yield", "样本平均单产", "production.planting-production", "ratio", "weighted-average"],
+  ["production.sample-average-yield", "样本平均单产", "production.planting-production", "ratio", "arithmetic-average"],
   ["production.expected-yield", "预计单产", "production.planting-production", "ratio", "weighted-average"],
   ["production.total-output", "总产量", "production.planting-production"],
-  ["production.cost-per-area", "亩均成本", "production.cost-support", "amount"],
-  ...Object.entries({ "land-rent": "地租", "seed-cost": "种子成本", "pesticide-cost": "农药成本", "fertilizer-cost": "化肥成本", "irrigation-cost": "灌溉成本", "labor-cost": "人工成本", "machinery-cost": "机耕成本", subsidy: "补贴", insurance: "保险" }).map(([id, label]) => [`production.${id}`, label, "production.cost-support", "amount"] as DefinitionSeed),
+  ["production.cost-per-area", "亩均成本", "production.cost-support", "amount", "per-area"],
+  ...Object.entries({ "land-rent": "地租", "seed-cost": "种子成本", "pesticide-cost": "农药成本", "fertilizer-cost": "化肥成本", "irrigation-cost": "灌溉成本", "labor-cost": "人工成本", "machinery-cost": "机耕成本", subsidy: "补贴", insurance: "保险" }).map(([id, label]) => [`production.${id}`, label, "production.cost-support", "amount", "per-area"] as DefinitionSeed),
   ["production.farmer-opening-stock", "农户期初库存", "production.farmer-stock-sales"],
   ["production.farmer-stock-inflow", "农户入库", "production.farmer-stock-sales"],
   ["production.farmer-stock-loss", "农户损耗", "production.farmer-stock-sales"],
@@ -54,12 +56,17 @@ const definitionSeeds: readonly DefinitionSeed[] = [
   ["production.sales-volume", "农户销售量", "production.farmer-stock-sales"],
   ["production.sales-price", "农户销售价", "production.farmer-stock-sales", "price", "weighted-average"],
   ["production.intended-area", "意向面积", "production.planting-intention"],
-  ...Object.entries({ moisture: "水分", "test-weight": "容重", impurity: "杂质", "imperfect-grain": "不完善粒", mildew: "霉变", toxin: "毒素" }).map(([id, label]) => [`production.quality-${id}`, label, "production.quality-survey", "ratio", "weighted-average"] as DefinitionSeed),
+  ["production.quality-moisture", "水分", "production.quality-survey", "percentage", "weighted-average"],
+  ["production.quality-test-weight", "容重", "production.quality-survey", "ratio", "weighted-average"],
+  ["production.quality-impurity", "杂质", "production.quality-survey", "percentage", "weighted-average"],
+  ["production.quality-imperfect-grain", "不完善粒", "production.quality-survey", "percentage", "weighted-average"],
+  ["production.quality-mildew", "霉变", "production.quality-survey", "percentage", "weighted-average"],
+  ["production.quality-toxin", "毒素", "production.quality-survey", "ratio", "weighted-average"],
   ["market.purchase-price", "采购价", "market.quote-trade", "price", "weighted-average"],
   ["market.transaction-price", "成交价", "market.quote-trade", "price", "weighted-average"],
   ["market.trade-volume", "成交量", "market.quote-trade"],
-  ["market.quality-moisture", "市场水分", "market.quality", "ratio", "weighted-average"],
-  ["market.quality-impurity", "市场杂质", "market.quality", "ratio", "weighted-average"],
+  ["market.quality-moisture", "市场水分", "market.quality", "percentage", "weighted-average"],
+  ["market.quality-impurity", "市场杂质", "market.quality", "percentage", "weighted-average"],
   ["market.inventory-opening", "市场期初库存", "market.inventory"],
   ["market.inventory-inflow", "市场入库", "market.inventory"],
   ["market.inventory-outflow", "市场出库", "market.inventory"],
@@ -100,7 +107,7 @@ function createDefinition(seed: DefinitionSeed): MetricDefinition {
   const domain = metricId.split(".")[0] as MetricDefinition["domain"];
   const priceStatisticId = domain === "market" || measureType === "price" ? `${metricId}.governed-statistic-v1` : null;
   const relativeChange = measureType === "percentage" ? "percentage-points" : measureType === "signed-difference" ? "absolute-only" : "allowed";
-  const unit = metricUnit(metricId, measureType);
+  const unit = metricUnit(metricId, measureType, aggregation);
   return validateMetricDefinition({
     metricId,
     label,
@@ -123,17 +130,16 @@ function createDefinition(seed: DefinitionSeed): MetricDefinition {
   });
 }
 
-function metricUnit(metricId: string, measureType: MetricDefinition["measureType"]): string {
+function metricUnit(metricId: string, measureType: MetricDefinition["measureType"], aggregation: MetricDefinition["aggregation"]): string {
   if (measureType === "percentage") return "%";
   if (measureType === "price") return metricId === "market.freight-rate" ? "元/吨公里" : "元/吨";
-  if (metricId.includes("area")) return "万亩";
-  if (metricId.includes("yield")) return "公斤/亩";
   if (metricId === "production.quality-test-weight") return "克/升";
   if (metricId === "production.quality-toxin") return "微克/千克";
+  if (aggregation === "per-area") return "元/亩";
+  if (metricId.includes("area")) return "万亩";
+  if (metricId.includes("yield")) return "公斤/亩";
   if (metricId === "production.growth-condition") return "指数";
   if (metricId === "market.processing-capacity") return "万吨/年";
-  if (metricId.includes("cost") || metricId.endsWith("land-rent") || metricId.endsWith("subsidy") || metricId.endsWith("insurance")) return "元/亩";
-  if (metricId.includes("quality-") || metricId === "production.growth-condition") return "%";
   return "万吨";
 }
 
@@ -151,6 +157,8 @@ function metricFormula(metricId: string, label: string, aggregation: MetricDefin
   };
   if (exact[metricId]) return exact[metricId];
   if (aggregation === "ending-balance") return `按${label}规范事实的期末余额规则计算`;
+  if (aggregation === "arithmetic-average") return `${label}按治理样本取算术平均`;
+  if (aggregation === "per-area") return `${label}按治理成本合计 / 对应治理面积计算`;
   if (aggregation === "ratio-of-aggregates") return `${label}治理分子合计 / 治理分母合计`;
   if (aggregation === "weighted-average") return `${label}按已发布权重加权汇总`;
   if (aggregation === "median") return `${label}按同坐标有效样本取中位数`;
@@ -161,7 +169,7 @@ function metricFormula(metricId: string, label: string, aggregation: MetricDefin
 export const enterpriseMetricDefinitions: readonly MetricDefinition[] = definitionSeeds.map(createDefinition);
 
 function domainDimensions(definition: MetricDefinition): ReleasedMetricCoordinate["domainDimensions"] {
-  if (definition.domain === "production") return { domain: "production", areaBasisId: definition.metricId === "production.regional-yield" ? "harvested-area" : "governed-area", yieldMethodId: definition.metricId.includes("yield") ? "governed-weighted-estimate" : null, growthStageId: null, surveyRoundId: "annual-final", costAllocationRuleId: definition.businessSubtype === "production.cost-support" ? "cost-allocation-v1" : null };
+  if (definition.domain === "production") return { domain: "production", areaBasisId: definition.metricId === "production.regional-yield" ? "harvested-area" : "governed-area", yieldMethodId: definition.metricId === "production.sample-average-yield" ? "sample-arithmetic-average" : definition.metricId === "production.regional-yield" ? "ratio-of-aggregates" : definition.metricId.includes("yield") ? "governed-yield-estimate" : null, growthStageId: null, surveyRoundId: "annual-final", costAllocationRuleId: definition.businessSubtype === "production.cost-support" ? "cost-allocation-v1" : null };
   if (definition.domain === "market") return { domain: "market", statisticId: definition.priceStatisticId ?? `${definition.metricId}.governed-statistic-v1`, currency: definition.measureType === "price" ? "CNY" : null, taxTreatmentId: definition.measureType === "price" ? "tax-included" : null, packagingConditionId: "bulk", settlementConditionId: definition.measureType === "price" ? "spot" : null, logisticsRouteId: definition.businessSubtype === "market.logistics" ? "authorized-route-network-v1" : null, processingConversionBasisId: definition.businessSubtype === "market.processing" ? "processing-basis-v1" : null };
   if (definition.domain === "supply") return { domain: "supply", accountStandardVersionId: "supply-account-standard-v1", consolidationScopeId: "authorized-scope-v1", ruleComparabilityVersionId: "supply-rule-comparison-v1", marketingYearStageKey: "final" };
   return { domain: "operations", obligationSetVersionId: "obligation-set-v1", eligiblePopulationId: "authorized-obligations-v1" };
@@ -183,7 +191,11 @@ function availablePoint(definition: MetricDefinition, year: number, value: strin
       qualityConditionId: definition.businessSubtype.includes("quality") ? "governed-quality-v1" : null,
       priceConditionId: definition.measureType === "price" ? "governed-price-condition-v1" : null,
       deliveryConditionId: definition.measureType === "price" ? "warehouse-delivery" : null,
-      populationOrSampleId: definition.domain === "operations" ? "authorized-obligation-population" : "authorized-weighted-population",
+      populationOrSampleId: definition.metricId === "production.sample-average-yield"
+        ? "authorized-yield-sample"
+        : definition.domain === "operations"
+          ? "authorized-obligation-population"
+          : "authorized-weighted-population",
       unitDefinitionVersionId: `${definition.unit}.definition-v1`,
       inventoryNatureId: definition.metricId.includes("inventory") || definition.metricId.includes("stock") ? "commercial" : null,
       statisticalMomentId: definition.aggregation === "ending-balance" ? "year-end" : "annual-final",
@@ -192,7 +204,7 @@ function availablePoint(definition: MetricDefinition, year: number, value: strin
       period: { year, granularity: "year", periodKey: `${year}`, samePeriodKey: "annual-final", cutoff: `${year}-12-31T23:59:59+08:00` },
       dataLayer: "official",
       inputReleaseVersionIds: [`facts-${year}-v1`],
-      metricReleaseVersionId: `metric-${year}-v1`,
+      metricReleaseVersionId: year === 2026 ? prototypeCurrentMetricReleaseVersionId : `metric-${year}-v1`,
       releaseLineage: { kind: "standard-metric" },
     },
     value: fixedDecimal(value),
@@ -283,6 +295,17 @@ export function queryPrototypeMetricComparisons(query: MetricComparisonQuery): r
         )
       : [];
     if (points.length !== 4) return { status: "no-release", metricId: definition.metricId, reason: "当前治理坐标没有四个年度的不可变发布点" };
+    const currentPoint = points.find(({ coordinate }) => coordinate.period.year === query.currentYear);
+    const currentReleaseVersionId = currentPoint?.availability === "available"
+      ? currentPoint.coordinate.metricReleaseVersionId
+      : null;
+    if (
+      currentReleaseVersionId === null
+      || !query.scope.authorization.authorizedReleaseVersionIds.includes(currentReleaseVersionId)
+      || (selectedRelease !== undefined && selectedRelease !== currentReleaseVersionId)
+    ) {
+      return { status: "no-release", metricId: definition.metricId, reason: "当前指标发布版本未获授权或与所选版本不一致" };
+    }
     return {
       status: "ready",
       definition,

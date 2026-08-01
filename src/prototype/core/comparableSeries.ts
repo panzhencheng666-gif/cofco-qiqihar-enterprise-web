@@ -155,8 +155,8 @@ const DOMAIN_REASONS: Record<RequestedMetricCoordinate["domainDimensions"]["doma
   operations: { obligationSetVersionId: "义务集合版本不一致", eligiblePopulationId: "应纳入总体不一致" },
 };
 
-function isNonEmpty(value: string): boolean {
-  return value.trim().length > 0;
+function isNonEmpty(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function validatePoint(point: PublishedMetricPoint, definition: MetricDefinition, expectedYear: number): void {
@@ -173,6 +173,7 @@ function validatePoint(point: PublishedMetricPoint, definition: MetricDefinition
     ["统计时点", point.coordinate.statisticalMomentId],
     ["期间键", point.coordinate.period.periodKey],
     ["同期间键", point.coordinate.period.samePeriodKey],
+    ["截止时点", point.coordinate.period.cutoff],
   ] as const) {
     if (!isNonEmpty(value)) throw new Error(`${label}不能为空`);
   }
@@ -196,6 +197,9 @@ function validatePoint(point: PublishedMetricPoint, definition: MetricDefinition
       throw new Error("市场统计量与指标定义不一致");
     }
   }
+  if (point.coverageRate !== null && (compareFixedDecimal(point.coverageRate, fixedDecimal("0")) < 0 || compareFixedDecimal(point.coverageRate, fixedDecimal("100")) > 0)) {
+    throw new Error("覆盖率必须在 0 至 100 之间");
+  }
   if (point.availability === "available") {
     if (point.coordinate.inputReleaseVersionIds.length === 0 || point.coordinate.inputReleaseVersionIds.some((id) => !isNonEmpty(id)) || !isNonEmpty(point.coordinate.metricReleaseVersionId)) {
       throw new Error("可用指标点必须具有完整发布版本");
@@ -206,15 +210,15 @@ function validatePoint(point: PublishedMetricPoint, definition: MetricDefinition
         throw new Error("供需指标点必须具有完整结果血缘");
       }
     }
-    if (compareFixedDecimal(point.coverageRate, fixedDecimal("0")) < 0 || compareFixedDecimal(point.coverageRate, fixedDecimal("100")) > 0) {
-      throw new Error("覆盖率必须在 0 至 100 之间");
-    }
     if (definition.measureType === "percentage" && (compareFixedDecimal(point.value, fixedDecimal("0")) < 0 || compareFixedDecimal(point.value, fixedDecimal("100")) > 0)) {
       throw new Error("百分比指标值必须在 0 至 100 之间");
     }
-  } else if (point.releaseAttempt) {
-    if (point.releaseAttempt.inputReleaseVersionIds.length === 0 || point.releaseAttempt.inputReleaseVersionIds.some((id) => !isNonEmpty(id)) || (point.releaseAttempt.metricReleaseVersionId !== null && !isNonEmpty(point.releaseAttempt.metricReleaseVersionId))) {
-      throw new Error("发布尝试版本不完整");
+  } else {
+    if (!isNonEmpty(point.reason)) throw new Error("不可用指标点原因不能为空");
+    if (point.releaseAttempt) {
+      if (point.releaseAttempt.inputReleaseVersionIds.length === 0 || point.releaseAttempt.inputReleaseVersionIds.some((id) => !isNonEmpty(id)) || (point.releaseAttempt.metricReleaseVersionId !== null && !isNonEmpty(point.releaseAttempt.metricReleaseVersionId))) {
+        throw new Error("发布尝试版本不完整");
+      }
     }
   }
 }
@@ -304,7 +308,7 @@ function pair(
   const reason = coordinateReason(from, to, definition, bridges, unitConversions);
   const common = { fromYear: from.coordinate.period.year, toYear: to.coordinate.period.year, kind, label };
   if (reason) return { ...common, comparable: false, calculationAvailable: false, absoluteDelta: null, relativeRate: null, percentagePointDelta: null, reason, formula: null };
-  if (from.availability !== "available" || to.availability !== "available") throw new Error("unreachable availability state");
+  if (from.availability !== "available" || to.availability !== "available") throw new Error("指标点可用状态不一致");
   const absolute = subtractFixedDecimal(to.value, from.value);
   if (definition.comparisonPolicy.relativeChange === "absolute-only") {
     return { ...common, comparable: true, calculationAvailable: true, absoluteDelta: absolute, relativeRate: null, percentagePointDelta: null, reason: null, formula: `${to.value} - ${from.value}` };
@@ -328,6 +332,17 @@ export function buildComparisonSet(input: {
   const definition = validateMetricDefinition(input.definition);
   if (!Number.isSafeInteger(input.currentYear)) throw new Error("当前年份无效");
   if (input.points.length !== 4) throw new Error("四年序列必须恰好包含四个年度点");
+  for (const bridge of input.approvedBridges) {
+    if (![bridge.metricId, bridge.fromDefinitionVersionId, bridge.toDefinitionVersionId, bridge.conversionVersionId].every(isNonEmpty)) {
+      throw new Error("指标定义桥接字段不能为空");
+    }
+  }
+  const unitConversions = input.approvedUnitConversions ?? [];
+  for (const conversion of unitConversions) {
+    if (![conversion.metricId, conversion.fromUnitDefinitionVersionId, conversion.toUnitDefinitionVersionId, conversion.conversionVersionId].every(isNonEmpty)) {
+      throw new Error("单位转换证据字段不能为空");
+    }
+  }
   const points = structuredClone(input.points) as ComparisonSet["points"];
   const firstYear = input.currentYear - 3;
   points.forEach((point, index) => {
@@ -335,7 +350,6 @@ export function buildComparisonSet(input: {
     if (point.coordinate.period.year !== expected) throw new Error(`四年序列必须严格对应 ${firstYear} 至 ${input.currentYear}`);
     validatePoint(point, definition, expected);
   });
-  const unitConversions = input.approvedUnitConversions ?? [];
   const adjacent = [0, 1, 2].map((index) => pair(points[index], points[index + 1], "year-over-year", index === 2 ? "当前同比" : `${firstYear + index + 1} 年同比`, definition, input.approvedBridges, unitConversions)) as unknown as ComparisonSet["pairs"];
   const direct = [0, 1, 2].map((index) => pair(points[index], points[3], "current-vs-baseline", `较 ${firstYear + index} 年变化`, definition, input.approvedBridges, unitConversions)) as unknown as ComparisonSet["currentVsBaselines"];
   const unavailablePoints = points.filter((point) => point.availability !== "available");
@@ -358,7 +372,7 @@ export function buildComparisonSet(input: {
         : [],
     ),
   ])].sort((left, right) => left - right);
-  const comparableDeltas = adjacent.filter((item) => item.comparable && item.calculationAvailable).map((item) => item.absoluteDelta ?? item.percentagePointDelta).filter((value): value is FixedDecimal => value !== null).map((value) => compareFixedDecimal(value, fixedDecimal("0")));
+  const comparableDeltas = adjacent.filter((item) => item.comparable).map((item) => item.absoluteDelta ?? item.percentagePointDelta).filter((value): value is FixedDecimal => value !== null).map((value) => compareFixedDecimal(value, fixedDecimal("0")));
   const direction = comparableDeltas.length < 3 ? "insufficient" : comparableDeltas.every((value) => value > 0) ? "rising" : comparableDeltas.every((value) => value < 0) ? "falling" : comparableDeltas.every((value) => value === 0) ? "flat" : "mixed";
   const anomalies: string[] = [];
   for (let index = 1; index < points.length; index += 1) {

@@ -185,10 +185,42 @@ describe("buildComparisonSet", () => {
       expect(comparison.points[1].availability).toBe(availability);
       expect(comparison.pairs.map((pair) => pair.comparable)).toEqual([false, false, true]);
       expect(comparison.pairs[0].reason).toBe(`治理原因-${availability}`);
-      expect(comparison.trend).toMatchObject({ continuity: "broken", breakYears: [2024] });
+      expect(comparison.trend).toMatchObject({ direction: "insufficient", continuity: "broken", breakYears: [2024] });
       expect(comparison.cagr.status).toBe("unavailable");
     },
   );
+
+  it("validates unavailable coverage and requires a governed non-empty reason", () => {
+    const unavailable = (availability: Exclude<PublishedMetricPoint["availability"], "available">, coverageRate: string | null, reason: string): PublishedMetricPoint => ({
+      availability,
+      coordinate: coordinate(2024),
+      releaseAttempt: null,
+      value: null,
+      unit: definition.unit,
+      coverageRate: coverageRate === null ? null : fixedDecimal(coverageRate),
+      qualityStatus: "blocking",
+      definitionVersionId: definition.definitionVersionId,
+      conversionVersionId: null,
+      reason,
+    });
+    for (const availability of ["missing", "not-collected", "not-applicable", "no-release", "rejected", "pending-review"] as const) {
+      for (const invalidCoverage of ["-0.1", "100.1"]) {
+        const points = four();
+        points[1] = unavailable(availability, invalidCoverage, "等待治理审核");
+        expect(() => build(points), `${availability}:${invalidCoverage}`).toThrow("覆盖率必须在 0 至 100 之间");
+      }
+    }
+    for (const reason of ["", "   ", "\t", "\n"]) {
+      const blankReason = four();
+      blankReason[1] = unavailable("pending-review", "80", reason);
+      expect(() => build(blankReason), JSON.stringify(reason)).toThrow("不可用指标点原因不能为空");
+    }
+    for (const coverageRate of [null, "0", "100"] as const) {
+      const boundary = four();
+      boundary[1] = unavailable("pending-review", coverageRate, "等待治理审核");
+      expect(build(boundary).pairs[0].reason).toBe("等待治理审核");
+    }
+  });
 
   it("rejects malformed, duplicated, non-consecutive, or wrong-final-year tuples", () => {
     expect(() => buildComparisonSet({ definition, currentYear: 2026, points: [] as never, approvedBridges: [] })).toThrow("四年序列必须恰好包含四个年度点");
@@ -198,6 +230,23 @@ describe("buildComparisonSet", () => {
     const wrongMetric = four();
     wrongMetric[0] = point(2023, "100", { coordinate: { ...coordinate(2023), metricId: "other" } });
     expect(() => build(wrongMetric)).toThrow("指标坐标与定义不一致");
+    const blankCutoff = four();
+    blankCutoff[3] = point(2026, "133.1", { coordinate: { ...coordinate(2026), period: { ...coordinate(2026).period, cutoff: "   " } } });
+    expect(() => build(blankCutoff)).toThrow("截止时点不能为空");
+    const unavailableBlankCutoff = four();
+    unavailableBlankCutoff[1] = {
+      availability: "pending-review",
+      coordinate: { ...coordinate(2024), period: { ...coordinate(2024).period, cutoff: "\t" } },
+      releaseAttempt: null,
+      value: null,
+      unit: definition.unit,
+      coverageRate: null,
+      qualityStatus: "blocking",
+      definitionVersionId: definition.definitionVersionId,
+      conversionVersionId: null,
+      reason: "等待治理审核",
+    };
+    expect(() => build(unavailableBlankCutoff)).toThrow("截止时点不能为空");
   });
 
   const baseMutations: readonly [string, (coordinate: ReleasedMetricCoordinate) => void][] = [
@@ -227,7 +276,7 @@ describe("buildComparisonSet", () => {
     points[3] = changed;
     const comparison = build(points);
     expect(comparison.pairs[2]).toMatchObject({ comparable: false, reason });
-    expect(comparison.trend).toMatchObject({ continuity: "broken", breakYears: [2026] });
+    expect(comparison.trend).toMatchObject({ direction: "insufficient", continuity: "broken", breakYears: [2026] });
   });
 
   it.each([
@@ -292,6 +341,29 @@ describe("buildComparisonSet", () => {
     expect(build(four(), definition, [{ ...bridge, fromDefinitionVersionId: "metric-def-v2", toDefinitionVersionId: "metric-def-v2" }]).pairs[0].reason).toBe("指标定义桥接存在循环");
   });
 
+  it.each(["metricId", "fromDefinitionVersionId", "toDefinitionVersionId", "conversionVersionId"] as const)(
+    "rejects blank ApprovedMetricBridge field %s",
+    (field) => {
+      const older = four();
+      older[0] = point(2023, "100", { definitionVersionId: "metric-def-v1" });
+      for (const blank of ["", " \t "]) {
+        const bridge: ApprovedMetricBridge = {
+          metricId: definition.metricId,
+          fromDefinitionVersionId: "metric-def-v1",
+          toDefinitionVersionId: "metric-def-v2",
+          conversionVersionId: "conversion-v1-v2",
+          [field]: blank,
+        };
+        expect(() => build(older, definition, [bridge])).toThrow("指标定义桥接字段不能为空");
+      }
+    },
+  );
+
+  it("rejects malformed bridge evidence even when it is irrelevant or unnecessary", () => {
+    const malformed = { metricId: "other.metric", fromDefinitionVersionId: "old", toDefinitionVersionId: "new", conversionVersionId: "" };
+    expect(() => build(four(), definition, [malformed])).toThrow("指标定义桥接字段不能为空");
+  });
+
   it("requires explicit unit conversion evidence when unit-definition versions differ", () => {
     const points = four();
     points[3] = point(2026, "133.1", { coordinate: { ...coordinate(2026), unitDefinitionVersionId: "tonnes-v2" } });
@@ -333,5 +405,14 @@ describe("buildComparisonSet", () => {
     (points[3].coordinate as ReleasedMetricCoordinate).period.samePeriodKey = "mutated-after-build";
     expect(result.points[3].coordinate.period.samePeriodKey).toBe("annual-final");
     expect(result.pairs[2].comparable).toBe(true);
+  });
+
+  it("derives trend from exact deltas even when a zero baseline has no relative rate", () => {
+    const comparison = build(four(["0", "1", "2", "3"]));
+    expect(comparison.pairs[0]).toMatchObject({ comparable: true, calculationAvailable: false, absoluteDelta: fixedDecimal("1") });
+    expect(comparison.trend).toMatchObject({ direction: "rising", continuity: "continuous", breakYears: [] });
+    expect(build(four(["0", "0", "0", "0"])).trend.direction).toBe("flat");
+    expect(build(four(["-2", "-1", "0", "1"])).trend.direction).toBe("rising");
+    expect(build(four(["0", "1", "0", "1"])).trend.direction).toBe("mixed");
   });
 });

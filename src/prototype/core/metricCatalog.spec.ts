@@ -72,4 +72,30 @@ describe("MetricDefinition", () => {
       comparisonPolicy: { ...definition().comparisonPolicy, relativeChange: "absolute-only", cagr: "allowed" },
     }))).toThrow("复合增长率仅适用于允许相对变化的指标");
   });
+
+  it.each([
+    ["label", "指标名称不能为空"],
+    ["formula", "指标公式不能为空"],
+    ["unit", "指标单位不能为空"],
+    ["businessSubtype", "业务分类不能为空"],
+    ["definitionVersionId", "指标定义版本不能为空"],
+    ["anomalyRuleVersionId", "异常规则版本不能为空"],
+  ] as const)("rejects whitespace-only governed definition field %s", (field, reason) => {
+    expect(() => validateMetricDefinition(definition({ [field]: "   " }))).toThrow(reason);
+  });
+
+  it("rejects blank price statistics, comparison IDs, and metric/domain disagreement", () => {
+    expect(() => validateMetricDefinition(definition({
+      metricId: "market.purchase-price",
+      domain: "market",
+      businessSubtype: "market.quote-trade",
+      measureType: "price",
+      priceStatisticId: "   ",
+    }))).toThrow("价格统计口径不能为空");
+    expect(() => validateMetricDefinition(definition({
+      comparisonPolicy: { ...definition().comparisonPolicy, comparabilityRuleVersionId: "   " },
+    }))).toThrow("比较规则版本不能为空");
+    expect(() => validateMetricDefinition(definition({ priceStatisticId: "\t" }))).toThrow("价格统计口径不能为空");
+    expect(() => validateMetricDefinition(definition({ metricId: "market.trade-volume" }))).toThrow("指标编号与业务域不一致");
+  });
 });
