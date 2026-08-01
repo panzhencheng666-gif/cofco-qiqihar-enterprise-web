@@ -37,8 +37,7 @@ export type WorkSection = SectionFor<"work">;
 export type OverviewSection = SectionFor<"overview">;
 export type ProductionSection = SectionFor<"production">;
 export type MarketSection = SectionFor<"market">;
-/** Workspace compatibility is intentionally wider than the URL route contract. */
-export type SupplySection = SectionFor<"supply"> | (string & {});
+export type SupplySection = SectionFor<"supply">;
 export type ReportingSection = SectionFor<"reporting">;
 export type FormalSection = SectionFor<FormalApplication>;
 

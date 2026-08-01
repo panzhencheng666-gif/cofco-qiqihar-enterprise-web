@@ -48,14 +48,21 @@ export interface FormalNavigationItem {
   label: string;
 }
 
-export interface FormalApplicationDefinition {
-  key: FormalApplication;
+export type FormalNavigationItemFor<A extends FormalApplication> = {
+  route: Extract<FormalRoute, { application: A }>;
+  label: string;
+};
+
+export type FormalApplicationDefinition = {
+  [A in FormalApplication]: {
+  key: A;
   code: string;
   label: string;
   shortLabel: string;
   note: string;
-  navigation: readonly FormalNavigationItem[];
-}
+  navigation: readonly FormalNavigationItemFor<A>[];
+  };
+}[FormalApplication];
 
 export interface ReportingNavigationGroup {
   label: string;

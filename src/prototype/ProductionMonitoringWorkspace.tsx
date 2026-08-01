@@ -1,11 +1,9 @@
 import { useState } from "react";
 import type { BusinessReportContext } from "./businessReportModel";
-import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import { getEnterpriseRegion } from "./enterpriseRegions";
 import type { ProductionSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
-import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   productionCropProfiles,
   productionObjectRows,
@@ -30,15 +28,14 @@ import {
   WorkspaceTable,
   WorkspaceTableToolbar,
   WorkspaceRegionSelect,
+  FormalWorkspaceScopeProvider,
+  useWorkspaceRegion,
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
 export interface ProductionMonitoringWorkspaceProps {
-  section: ProductionSection | "overview" | "collection" | "review" | "reports";
-  onSectionChange?: (section: ProductionSection | "collection") => void;
+  section: ProductionSection;
   onComposeReport: (context: BusinessReportContext) => void;
-  scope?: OperationalScope;
-  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }
 
 const productionReportContext: BusinessReportContext = {
@@ -113,14 +110,14 @@ function ProductionContext({
 }
 
 function ProductionOverview({
-  onSectionChange,
+  onCollect,
 }: {
-  onSectionChange?: (section: ProductionSection | "collection") => void;
+  onCollect?: () => void;
 }) {
   const [crop, setCrop] = useState<ProductionCrop>("corn");
   const profile = productionCropProfiles.find((item) => item.key === crop)!;
   return (
-    <div className="unified-workspace production-workspace" data-classification-source={businessClassificationFixtures.productionAnalysis.join(",")}>
+    <div className="unified-workspace production-workspace">
       <WorkspaceHeader
         eyebrow="产情监测 / 产情总览"
         title="种植生产监测工作区"
@@ -129,14 +126,14 @@ function ProductionOverview({
           <>
             <button
               type="button"
-              onClick={() => onSectionChange?.("collection")}
+              onClick={onCollect}
             >
               导入调查结果
             </button>
             <button
               className="is-primary"
               type="button"
-              onClick={() => onSectionChange?.("collection")}
+              onClick={onCollect}
             >
               进入数据采集
             </button>
@@ -949,14 +946,37 @@ function ProductionReports({
 
 export function ProductionMonitoringWorkspace({
   section,
-  onSectionChange,
   onComposeReport,
 }: ProductionMonitoringWorkspaceProps) {
   if (section === "objects") return <ProductionObjects />;
-  if (section === "collection" || section === "tasks") return <ProductionCollection />;
-  if (section === "review") return <ProductionReview />;
-  if (section === "reports" || section === "analysis") {
-    return <ProductionReports onComposeReport={onComposeReport} />;
-  }
-  return <ProductionOverview onSectionChange={onSectionChange} />;
+  if (section === "tasks") return <ProductionTasks onComposeReport={onComposeReport} />;
+  return <ProductionReports onComposeReport={onComposeReport} />;
+}
+
+function ProductionTasks({ onComposeReport }: { onComposeReport: (context: BusinessReportContext) => void }) {
+  const [subview, setSubview] = useState<"overview" | "collection" | "review">("collection");
+  return (
+    <div>
+      <div role="tablist" aria-label="产情任务子视图">
+        <button type="button" onClick={() => setSubview("overview")}>产情总览</button>
+        <button type="button" onClick={() => setSubview("collection")}>数据采集</button>
+        <button type="button" onClick={() => setSubview("review")}>产情审核</button>
+      </div>
+      {subview === "overview" ? <ProductionOverview onCollect={() => setSubview("collection")} /> : subview === "review" ? <ProductionReview /> : <ProductionCollection />}
+    </div>
+  );
+}
+
+export function FormalProductionMonitoringWorkspace({
+  section,
+  scope,
+  onScopeChange,
+  onComposeReport,
+}: {
+  section: ProductionSection;
+  scope: OperationalScope;
+  onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  onComposeReport: (context: BusinessReportContext) => void;
+}) {
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><ProductionMonitoringWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }

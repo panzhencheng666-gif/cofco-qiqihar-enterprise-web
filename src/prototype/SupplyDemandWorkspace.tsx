@@ -1,16 +1,16 @@
 import { useState } from "react";
 import type { BusinessReportContext } from "./businessReportModel";
-import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import { getEnterpriseRegion } from "./enterpriseRegions";
 import type { SupplySection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
-import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   WorkspaceFilterBar,
   WorkspaceHeader,
   WorkspaceInlineStats,
   WorkspaceRegionSelect,
+  FormalWorkspaceScopeProvider,
+  useWorkspaceRegion,
   WorkspaceStatus,
   WorkspaceTable,
   WorkspaceTableToolbar,
@@ -18,10 +18,8 @@ import {
 } from "./UnifiedWorkspacePrimitives";
 
 export interface SupplyDemandWorkspaceProps {
-  section: SupplySection | "statement";
+  section: SupplySection;
   onComposeReport: (context: BusinessReportContext) => void;
-  scope?: OperationalScope;
-  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }
 
 type SupplyProduct =
@@ -274,7 +272,7 @@ function SupplyStatement({
 }: {
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
-  const { regionId } = useEnterpriseRegion();
+  const { regionId } = useWorkspaceRegion();
   const region = getEnterpriseRegion(regionId);
   const [product, setProduct] = useState<SupplyProduct>("corn");
   const [selectedSource, setSelectedSource] = useState<BalanceRow | null>(null);
@@ -294,7 +292,7 @@ function SupplyStatement({
   };
 
   return (
-    <div className="unified-workspace supply-workspace" data-classification-source={businessClassificationFixtures.supplyAnalysis.join(",")}>
+    <div className="unified-workspace supply-workspace">
       <WorkspaceHeader
         actions={
           <button
@@ -610,4 +608,18 @@ export function SupplyDemandWorkspace({
 }: SupplyDemandWorkspaceProps) {
   if (section === "versions") return <SupplyVersionHistory />;
   return <SupplyStatement onComposeReport={onComposeReport} />;
+}
+
+export function FormalSupplyDemandWorkspace({
+  section,
+  scope,
+  onScopeChange,
+  onComposeReport,
+}: {
+  section: Extract<import("./formalEnterpriseModel").FormalRoute, { application: "supply" }>["section"];
+  scope: OperationalScope;
+  onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  onComposeReport: (context: BusinessReportContext) => void;
+}) {
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><SupplyDemandWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }

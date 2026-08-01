@@ -35,7 +35,7 @@ export function EnterpriseShell({
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [currentUnit, setCurrentUnit] = useState(shellIdentity.workUnit.currentUnitLabel);
+  const currentUnit = shellIdentity.workUnit.currentUnitLabel;
   const [workUnitOpen, setWorkUnitOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const application = formalApplicationDefinitions.find(
@@ -53,8 +53,8 @@ export function EnterpriseShell({
               <EnterpriseIcon name="home" />
               <span><small>{shellIdentity.workUnit.organizationLabel}</small><strong>{currentUnit}</strong></span>
             </button>
-            {workUnitOpen && <div aria-label="工作单位选择" className="formal-org-menu" role="menu">
-              {shellIdentity.workUnit.units.map((unit) => <button aria-current={unit === currentUnit ? "true" : undefined} key={unit} role="menuitem" type="button" onClick={() => { setCurrentUnit(unit); setWorkUnitOpen(false); }}>{unit}</button>)}
+            {workUnitOpen && <div aria-label="工作单位选择" className="formal-org-menu" role="menu"><small>当前原型工作单位只读</small>
+              {shellIdentity.workUnit.units.map((unit) => <button aria-current={unit === currentUnit ? "true" : undefined} aria-readonly="true" key={unit} role="menuitem" type="button" onClick={() => setWorkUnitOpen(false)}>{unit}</button>)}
             </div>}
           </div>
           <label className="formal-global-search">

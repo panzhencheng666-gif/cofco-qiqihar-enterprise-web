@@ -6,14 +6,15 @@ import { ProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
 afterEach(cleanup);
 
 describe("production monitoring workspace", () => {
-  it("keeps crop varieties, quality, sample results and regional estimates visible", () => {
+  it("keeps crop varieties, quality, sample results and regional estimates visible", async () => {
+    const user = userEvent.setup();
     const { container } = render(
       <ProductionMonitoringWorkspace
-        section="overview"
+        section="tasks"
         onComposeReport={vi.fn()}
-        onSectionChange={vi.fn()}
       />,
     );
+    await user.click(screen.getByRole("button", { name: "产情总览" }));
 
     expect(screen.getByRole("combobox", { name: "业务地区" })).toBeVisible();
     expect(
@@ -48,9 +49,8 @@ describe("production monitoring workspace", () => {
     const user = userEvent.setup();
     render(
       <ProductionMonitoringWorkspace
-        section="collection"
+        section="tasks"
         onComposeReport={vi.fn()}
-        onSectionChange={vi.fn()}
       />,
     );
 
@@ -69,9 +69,8 @@ describe("production monitoring workspace", () => {
   it("keeps the complete cost, insurance and subsidy ledger in the production task", () => {
     render(
       <ProductionMonitoringWorkspace
-        section="collection"
+        section="tasks"
         onComposeReport={vi.fn()}
-        onSectionChange={vi.fn()}
       />,
     );
 
@@ -107,9 +106,8 @@ describe("production monitoring workspace", () => {
     const onComposeReport = vi.fn();
     render(
       <ProductionMonitoringWorkspace
-        section="reports"
+        section="analysis"
         onComposeReport={onComposeReport}
-        onSectionChange={vi.fn()}
       />,
     );
 

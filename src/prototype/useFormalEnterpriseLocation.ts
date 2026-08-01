@@ -86,7 +86,7 @@ export function useFormalEnterpriseLocation(
         ...result.location,
         coordinates: { ...result.location.coordinates, ...coordinates },
       },
-      "replace",
+      "push",
     );
   }, [apply, result.location]);
 

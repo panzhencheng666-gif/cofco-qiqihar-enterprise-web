@@ -6,13 +6,15 @@ import { MarketMonitoringWorkspace } from "./MarketMonitoringWorkspace";
 afterEach(cleanup);
 
 describe("market monitoring workspace", () => {
-  it("shows a clear overview and current administrative-source state", () => {
+  it("shows a clear overview and current administrative-source state", async () => {
+    const user = userEvent.setup();
     const { container } = render(
       <MarketMonitoringWorkspace
-        section="overview"
+        section="tasks"
         onComposeReport={vi.fn()}
       />,
     );
+    await user.click(screen.getByRole("button", { name: "市场总览" }));
 
     expect(
       screen.getByRole("heading", { name: "粮食市场监测总览" }),
@@ -96,7 +98,7 @@ describe("market monitoring workspace", () => {
   it("binds prices and inventory to complete market facts in online collection", () => {
     render(
       <MarketMonitoringWorkspace
-        section="collection"
+        section="tasks"
         onComposeReport={vi.fn()}
       />,
     );
@@ -117,20 +119,17 @@ describe("market monitoring workspace", () => {
     }
   });
 
-  it("enters collection from the primary action", async () => {
+  it("keeps collection inside the formal tasks section", async () => {
     const user = userEvent.setup();
-    const onSectionChange = vi.fn();
     render(
       <MarketMonitoringWorkspace
-        section="overview"
-        onSectionChange={onSectionChange}
+        section="tasks"
         onComposeReport={vi.fn()}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "进入数据采集" }));
-
-    expect(onSectionChange).toHaveBeenCalledWith("collection");
+    await user.click(screen.getByRole("button", { name: "数据采集" }));
+    expect(screen.getByRole("button", { name: "市场主体填报" })).toBeVisible();
   });
 
   it("builds the report from the grain selected on the overview", async () => {
@@ -138,10 +137,11 @@ describe("market monitoring workspace", () => {
     const onComposeReport = vi.fn();
     render(
       <MarketMonitoringWorkspace
-        section="overview"
+        section="tasks"
         onComposeReport={onComposeReport}
       />,
     );
+    await user.click(screen.getByRole("button", { name: "市场总览" }));
 
     await user.selectOptions(
       screen.getByRole("combobox", { name: "粮食品种" }),
@@ -158,7 +158,7 @@ describe("market monitoring workspace", () => {
     const user = userEvent.setup();
     render(
       <MarketMonitoringWorkspace
-        section="collection"
+        section="tasks"
         onComposeReport={vi.fn()}
       />,
     );
@@ -205,7 +205,7 @@ describe("market monitoring workspace", () => {
     const user = userEvent.setup();
     render(
       <MarketMonitoringWorkspace
-        section="collection"
+        section="tasks"
         onComposeReport={vi.fn()}
       />,
     );
@@ -237,17 +237,19 @@ describe("market monitoring workspace", () => {
     expect(screen.queryByText("米厂生产日报")).not.toBeInTheDocument();
   });
 
-  it("shows supply adoption and keeps duty supervision out of market business", () => {
+  it("shows supply adoption and keeps duty supervision out of market business", async () => {
+    const user = userEvent.setup();
     const { rerender } = render(
-      <MarketMonitoringWorkspace section="review" onComposeReport={vi.fn()} />,
+      <MarketMonitoringWorkspace section="tasks" onComposeReport={vi.fn()} />,
     );
+    await user.click(screen.getByRole("button", { name: "市场审核" }));
 
     expect(
       screen.getByRole("region", { name: "市场数据发布与供需采用关系" }),
     ).toHaveTextContent("库存、加工和去重物流按版本引用");
 
     rerender(
-      <MarketMonitoringWorkspace section="reports" onComposeReport={vi.fn()} />,
+      <MarketMonitoringWorkspace section="analysis" onComposeReport={vi.fn()} />,
     );
 
     expect(screen.getByRole("button", { name: "生成日报" })).toBeVisible();

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { FormalEnterprisePrototype } from "./FormalEnterprisePrototype";
@@ -43,5 +43,78 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("当前范围无权查询");
     expect(screen.queryByRole("button", { name: "在线填报" })).not.toBeInTheDocument();
+  });
+
+  it("writes page-owned scope coordinates from visible workspace controls", async () => {
+    const user = userEvent.setup();
+    render(<FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />);
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "业务地区" }), "qiqihar-nehe");
+    await user.clear(screen.getByRole("textbox", { name: "范围产品" }));
+    await user.type(screen.getByRole("textbox", { name: "范围产品" }), "corn");
+    await user.clear(screen.getByRole("textbox", { name: "范围期间" }));
+    await user.type(screen.getByRole("textbox", { name: "范围期间" }), "2026-W31");
+
+    expect(window.location.search).toContain("region=qiqihar-nehe");
+    expect(window.location.search).toContain("product=corn");
+    expect(window.location.search).toContain("period=2026-W31");
+  });
+
+  it("restores a real workspace scope control on browser Back", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState({}, "", "/?page=production&section=tasks");
+    render(<FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />);
+
+    const region = screen.getByRole("combobox", { name: "业务地区" });
+    await user.selectOptions(region, "qiqihar-nehe");
+    expect(window.location.search).toContain("region=qiqihar-nehe");
+
+    window.history.back();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue("authorized-all");
+  });
+
+  it("renders authorized classification catalog entries in the visible scope filter", () => {
+    render(<FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />);
+
+    const classification = screen.getByRole("combobox", { name: "业务分类" });
+    expect(within(classification).getByRole("option", { name: "种植生产" })).toHaveValue("production.planting-production");
+    expect(within(classification).queryByRole("option", { name: "市场库存" })).not.toBeInTheDocument();
+  });
+
+  it("keeps preserved production and reporting flows reachable within formal sections", async () => {
+    const user = userEvent.setup();
+    render(<FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />);
+
+    await user.click(screen.getByRole("button", { name: "产情总览" }));
+    expect(screen.getByRole("heading", { name: "种植生产监测工作区" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "产情审核" }));
+    expect(screen.getByRole("heading", { name: "产情审核与结果发布" })).toBeVisible();
+
+    window.history.replaceState({}, "", "/?page=reporting&section=compose");
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    await user.click(screen.getByRole("button", { name: "履责报告" }));
+    expect(screen.getByRole("heading", { name: "填报履责监督" })).toBeVisible();
+  });
+
+  it("keeps market, reporting distribution, and work queues inside formal sections", async () => {
+    const user = userEvent.setup();
+    render(<FormalEnterprisePrototype initialSearch="?page=market&section=tasks" />);
+
+    await user.click(screen.getByRole("button", { name: "市场总览" }));
+    expect(screen.getByRole("heading", { name: "粮食市场监测总览" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "市场审核" }));
+    expect(screen.getByRole("heading", { name: "市场数据审核与发布" })).toBeVisible();
+
+    window.history.replaceState({}, "", "/?page=reporting&section=review-distribution");
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    await user.click(screen.getByRole("button", { name: "报告分发" }));
+    expect(screen.getByRole("heading", { name: "发布与分发" })).toBeVisible();
+
+    window.history.replaceState({}, "", "/?page=work&section=tasks");
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    await user.click(screen.getByRole("button", { name: "待我审核" }));
+    expect(screen.getByRole("heading", { name: "待我审核" })).toBeVisible();
   });
 });

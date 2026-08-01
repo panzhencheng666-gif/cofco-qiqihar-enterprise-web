@@ -91,17 +91,27 @@ const governedLabels: Record<BusinessClassification["id"], string> = {
 export const businessClassifications: readonly BusinessClassification[] =
   requiredBusinessClassificationIds.map(classification);
 
+const classificationById = new Map(
+  businessClassifications.map((item) => [item.id, item]),
+);
+
+function selectClassifications(
+  ids: readonly BusinessClassification["id"][],
+): readonly BusinessClassification[] {
+  return ids.map((id) => classificationById.get(id)!);
+}
+
 export const businessClassificationOptionSources = {
-  workItems: ["production.planting-production", "market.quote-trade"],
-  executiveFilters: ["operations.obligation-performance", "operations.data-quality"],
-  productionAnalysis: ["production.planting-production", "production.quality-survey"],
-  marketAnalysis: ["market.quote-trade", "market.inventory", "market.logistics"],
-  supplyAnalysis: ["supply.supply", "supply.use-outflow", "supply.results"],
-  reportCompatibility: [
+  workItems: selectClassifications(["production.planting-production", "market.quote-trade"]),
+  executiveFilters: selectClassifications(["operations.obligation-performance", "operations.data-quality"]),
+  productionAnalysis: selectClassifications(["production.planting-production", "production.quality-survey"]),
+  marketAnalysis: selectClassifications(["market.quote-trade", "market.inventory", "market.logistics"]),
+  supplyAnalysis: selectClassifications(["supply.supply", "supply.use-outflow", "supply.results"]),
+  reportCompatibility: selectClassifications([
     "reporting.production",
     "reporting.market",
     "reporting.supply",
     "reporting.cross-business",
     "reporting.duty",
-  ],
-} as const satisfies Record<string, readonly BusinessClassification["id"][]>;
+  ]),
+} as const satisfies Record<string, readonly BusinessClassification[]>;

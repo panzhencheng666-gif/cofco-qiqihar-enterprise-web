@@ -1,12 +1,10 @@
 import {
   createFormalRoute,
-  type FormalApplication,
   type FormalRoute,
-  type FormalSection,
+  type OverviewSection,
 } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
-import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   WorkspaceScopeBar,
   WorkspaceHeader,
@@ -14,26 +12,20 @@ import {
   WorkspaceInlineStats,
   WorkspaceTable,
   WorkspaceTableToolbar,
+  FormalWorkspaceScopeProvider,
 } from "./UnifiedWorkspacePrimitives";
 
 export function ExecutiveOverviewWorkspace({
-  onOpenApplication,
   onOpenRoute,
 }: {
-  onOpenApplication?: (
-    application: FormalApplication,
-    section: FormalSection | "overview",
-  ) => void;
-  onOpenRoute?: (route: FormalRoute) => void;
-  scope?: OperationalScope;
-  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
+  section: OverviewSection;
+  onOpenRoute: (route: FormalRoute) => void;
 }) {
   function open(route: FormalRoute) {
-    if (onOpenRoute) return onOpenRoute(route);
-    onOpenApplication?.(route.application, "overview");
+    onOpenRoute(route);
   }
   return (
-    <div className="unified-workspace" data-classification-source={businessClassificationFixtures.executiveFilters.join(",")}>
+    <div className="unified-workspace">
       <WorkspaceHeader
         eyebrow="经营门户 / 经营总览"
         title="粮食商情经营总览"
@@ -197,4 +189,18 @@ export function ExecutiveOverviewWorkspace({
       />
     </div>
   );
+}
+
+export function FormalExecutiveOverviewWorkspace({
+  section: _section,
+  scope,
+  onScopeChange,
+  onOpenRoute,
+}: {
+  section: OverviewSection;
+  scope: OperationalScope;
+  onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  onOpenRoute: (route: FormalRoute) => void;
+}) {
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><ExecutiveOverviewWorkspace section={_section} onOpenRoute={onOpenRoute} /></FormalWorkspaceScopeProvider>;
 }

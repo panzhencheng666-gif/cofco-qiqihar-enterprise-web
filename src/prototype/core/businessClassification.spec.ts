@@ -16,10 +16,10 @@ describe("business classification catalog", () => {
     );
   });
 
-  it("uses catalog identifiers for each task, analysis, and report fixture source", () => {
-    const ids = new Set(businessClassifications.map((item) => item.id));
+  it("uses governed catalog entries for each task, analysis, and report fixture source", () => {
+    const entries = new Set(businessClassifications);
     for (const source of Object.values(businessClassificationOptionSources)) {
-      expect(source.every((id) => ids.has(id))).toBe(true);
+      expect(source.every((entry) => entries.has(entry))).toBe(true);
     }
   });
 

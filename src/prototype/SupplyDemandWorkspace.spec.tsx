@@ -11,7 +11,7 @@ afterEach(cleanup);
 
 describe("supply demand workspace", () => {
   function RegionHarness({
-    section = "statement",
+    section = "calculation",
   }: {
     section?: SupplySection;
   }) {

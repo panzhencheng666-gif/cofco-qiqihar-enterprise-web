@@ -1,7 +1,7 @@
+import { useState } from "react";
 import type { WorkSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
-import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   BusinessContextBar,
   WorkspaceHeader,
@@ -10,6 +10,7 @@ import {
   WorkspaceInlineStats,
   WorkspaceTable,
   WorkspaceTableToolbar,
+  FormalWorkspaceScopeProvider,
 } from "./UnifiedWorkspacePrimitives";
 
 type BusinessDestination = readonly [
@@ -29,6 +30,20 @@ interface PersonalTask {
   destination: BusinessDestination;
   action: string;
   group: "reporting" | "review" | "exception" | "completed";
+}
+
+export function FormalMyWorkWorkspace({
+  section,
+  scope,
+  onScopeChange,
+  onOpenBusiness,
+}: {
+  section: WorkSection;
+  scope: OperationalScope;
+  onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  onOpenBusiness: (application: BusinessDestination[0], section: BusinessDestination[1]) => void;
+}) {
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><MyWorkWorkspace section={section} onOpenBusiness={onOpenBusiness} /></FormalWorkspaceScopeProvider>;
 }
 
 const personalTasks: readonly PersonalTask[] = [
@@ -109,20 +124,20 @@ export function MyWorkWorkspace({
   section,
   onOpenBusiness,
 }: {
-  section: WorkSection | "inbox" | "reporting" | "review" | "exception" | "completed";
+  section: WorkSection;
   onOpenBusiness: (
     application: BusinessDestination[0],
     section: BusinessDestination[1],
   ) => void;
-  scope?: OperationalScope;
-  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }) {
-  const selectedGroup = section === "tasks" || section === "inbox" ? null : section;
-  const visibleTasks = selectedGroup
-    ? personalTasks.filter((task) => task.group === selectedGroup)
-    : personalTasks.filter((task) => task.group !== "completed");
-  const titles: Record<string, [string, string]> = {
-    tasks: ["我的任务", "按截止时间和风险统一安排本人工作"],
+  if (section === "tasks") return <MyWorkTaskViews onOpenBusiness={onOpenBusiness} />;
+  return null;
+}
+
+function MyWorkList({ section, onOpenBusiness }: { section: "inbox" | PersonalTask["group"]; onOpenBusiness: (application: BusinessDestination[0], section: BusinessDestination[1]) => void }) {
+  const selectedGroup = section === "inbox" ? null : section;
+  const visibleTasks = selectedGroup ? personalTasks.filter((task) => task.group === selectedGroup) : personalTasks.filter((task) => task.group !== "completed");
+  const titles: Record<"inbox" | PersonalTask["group"], [string, string]> = {
     inbox: ["待我处理", "按截止时间和风险统一安排本人工作"],
     reporting: ["待我填报", "从任务直接进入产情或市场原始业务单据"],
     review: ["待我审核", "审核人员只能审核、退回和填写审核意见"],
@@ -131,7 +146,7 @@ export function MyWorkWorkspace({
   };
 
   return (
-    <div className="unified-workspace" data-classification-source={businessClassificationFixtures.workItems.join(",")}>
+    <div className="unified-workspace">
       <WorkspaceHeader
         eyebrow="统一工作门户 / 我的工作"
         title={titles[section][0]}
@@ -267,6 +282,22 @@ export function MyWorkWorkspace({
           ],
         ]}
       />
+    </div>
+  );
+}
+
+function MyWorkTaskViews({ onOpenBusiness }: { onOpenBusiness: (application: BusinessDestination[0], section: BusinessDestination[1]) => void }) {
+  const [subview, setSubview] = useState<"inbox" | PersonalTask["group"]>("inbox");
+  return (
+    <div>
+      <div role="tablist" aria-label="我的工作子视图">
+        <button type="button" onClick={() => setSubview("inbox")}>待我处理</button>
+        <button type="button" onClick={() => setSubview("reporting")}>待我填报</button>
+        <button type="button" onClick={() => setSubview("review")}>待我审核</button>
+        <button type="button" onClick={() => setSubview("exception")}>异常与逾期</button>
+        <button type="button" onClick={() => setSubview("completed")}>已办跟踪</button>
+      </div>
+      <MyWorkList section={subview} onOpenBusiness={onOpenBusiness} />
     </div>
   );
 }

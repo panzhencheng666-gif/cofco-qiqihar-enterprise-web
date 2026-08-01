@@ -17,6 +17,7 @@ import {
   responsibilityAssignments,
   weeklyTasks,
 } from "./formalEnterpriseData";
+import type { FormalApplicationDefinition } from "./formalEnterpriseData";
 
 describe("formal enterprise route model", () => {
   it("reads typed application sections and falls back to the work task list", () => {
@@ -90,6 +91,17 @@ describe("formal location", () => {
     createFormalRoute("overview", "duty");
     // @ts-expect-error supply does not have an operations section
     createFormalRoute("supply", "operations");
+
+    const invalidDefinition: Extract<FormalApplicationDefinition, { key: "production" }> = {
+      key: "production",
+      code: "03",
+      label: "产情监测",
+      shortLabel: "产情",
+      note: "type-only negative assertion",
+      // @ts-expect-error a production definition cannot contain a market route
+      navigation: [{ route: createFormalRoute("market", "tasks"), label: "错误路由" }],
+    };
+    expect(invalidDefinition).toBeDefined();
   });
 
   it("round-trips a full formal location", () => {

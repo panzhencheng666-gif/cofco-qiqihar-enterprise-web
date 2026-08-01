@@ -11,8 +11,9 @@ describe("enterprise portal workspaces", () => {
     const user = userEvent.setup();
     const onOpenBusiness = vi.fn();
     render(
-      <MyWorkWorkspace section="reporting" onOpenBusiness={onOpenBusiness} />,
+      <MyWorkWorkspace section="tasks" onOpenBusiness={onOpenBusiness} />,
     );
+    await user.click(screen.getByRole("button", { name: "待我填报" }));
 
     await user.click(screen.getByRole("button", { name: "进入市场填报" }));
     expect(onOpenBusiness).toHaveBeenCalledWith("market", "collection");
@@ -23,9 +24,9 @@ describe("enterprise portal workspaces", () => {
 
   it("shows a read-only executive overview with domain drill-down", async () => {
     const user = userEvent.setup();
-    const onOpenApplication = vi.fn();
+    const onOpenRoute = vi.fn();
     render(
-      <ExecutiveOverviewWorkspace onOpenApplication={onOpenApplication} />,
+      <ExecutiveOverviewWorkspace section="operations" onOpenRoute={onOpenRoute} />,
     );
 
     const businessSummary = screen.getByRole("table", {
@@ -39,13 +40,15 @@ describe("enterprise portal workspaces", () => {
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "进入产情监测" }));
-    expect(onOpenApplication).toHaveBeenCalledWith("production", "overview");
+    expect(onOpenRoute).toHaveBeenCalledWith({ application: "production", section: "tasks" });
   });
 
-  it("presents My Work as one task-led table instead of a dashboard grid", () => {
+  it("presents My Work as one task-led table instead of a dashboard grid", async () => {
+    const user = userEvent.setup();
     const { container } = render(
-      <MyWorkWorkspace section="inbox" onOpenBusiness={vi.fn()} />,
+      <MyWorkWorkspace section="tasks" onOpenBusiness={vi.fn()} />,
     );
+    await user.click(screen.getByRole("button", { name: "待我处理" }));
 
     expect(screen.getByRole("table", { name: "本人责任任务" })).toBeVisible();
     expect(screen.getByRole("table", { name: "今日重点事项" })).toBeVisible();
@@ -55,7 +58,7 @@ describe("enterprise portal workspaces", () => {
 
   it("limits executive overview to one summary strip and operational tables", () => {
     const { container } = render(
-      <ExecutiveOverviewWorkspace onOpenApplication={vi.fn()} />,
+      <ExecutiveOverviewWorkspace section="operations" onOpenRoute={vi.fn()} />,
     );
 
     expect(screen.getByLabelText("经营核心摘要").children).toHaveLength(4);

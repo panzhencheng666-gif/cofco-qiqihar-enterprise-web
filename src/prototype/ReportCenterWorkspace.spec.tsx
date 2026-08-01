@@ -27,7 +27,7 @@ describe("ReportCenterWorkspace", () => {
     const { container } = render(
       <RegionHarness>
         <ReportCenterWorkspace
-          section="business-reports"
+          section="compose"
           onComposeReport={onComposeReport}
         />
       </RegionHarness>,
@@ -77,11 +77,12 @@ describe("ReportCenterWorkspace", () => {
     const { container } = render(
       <RegionHarness>
         <ReportCenterWorkspace
-          section="duty-reports"
+          section="compose"
           onComposeReport={vi.fn()}
         />
       </RegionHarness>,
     );
+    await user.click(screen.getByRole("button", { name: "履责报告" }));
 
     const policy = screen.getByRole("group", { name: "查看填报规则" });
     expect(policy).not.toHaveAttribute("open");

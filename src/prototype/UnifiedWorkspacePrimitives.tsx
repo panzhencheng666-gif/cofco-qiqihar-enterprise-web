@@ -1,9 +1,50 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import {
   enterpriseRegionGroups,
   type EnterpriseRegionId,
 } from "./enterpriseRegions";
+import type { BusinessCoordinates } from "./formalEnterpriseModel";
+import type { OperationalScope } from "./core/operationalScope";
+import { businessClassifications } from "./core/businessClassification";
+
+interface FormalWorkspaceScopeValue {
+  scope: OperationalScope;
+  onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+}
+
+const FormalWorkspaceScopeContext =
+  createContext<FormalWorkspaceScopeValue | null>(null);
+
+export function useFormalWorkspaceScope() {
+  return useContext(FormalWorkspaceScopeContext);
+}
+
+/** Uses the URL-owned scope whenever the formal prototype is mounted. */
+export function useWorkspaceRegion() {
+  const formalScope = useFormalWorkspaceScope();
+  const legacyScope = useEnterpriseRegion();
+  if (formalScope) {
+    return {
+      regionId: formalScope.scope.coordinates.regionId,
+      setRegionId: (regionId: EnterpriseRegionId) =>
+        formalScope.onScopeChange({ regionId }),
+    };
+  }
+  return legacyScope;
+}
+
+export function FormalWorkspaceScopeProvider({
+  scope,
+  onScopeChange,
+  children,
+}: FormalWorkspaceScopeValue & { children: ReactNode }) {
+  return (
+    <FormalWorkspaceScopeContext.Provider value={{ scope, onScopeChange }}>
+      {children}
+    </FormalWorkspaceScopeContext.Provider>
+  );
+}
 
 export type WorkspaceTone = "normal" | "good" | "warning" | "danger";
 export type CollectionMode = "online" | "excel" | "system";
@@ -13,7 +54,8 @@ export function WorkspaceRegionSelect({
 }: {
   label?: string;
 }) {
-  const { regionId, setRegionId } = useEnterpriseRegion();
+  const formalScope = useFormalWorkspaceScope();
+  const { regionId, setRegionId } = useWorkspaceRegion();
   return (
     <select
       aria-label={label}
@@ -23,6 +65,7 @@ export function WorkspaceRegionSelect({
         setRegionId(event.target.value as EnterpriseRegionId)
       }
     >
+      {formalScope && <option value="authorized-all">全部已授权范围</option>}
       {enterpriseRegionGroups.map((group) => (
         <optgroup key={group.id} label={group.label}>
           {group.regions.map((region) => (
@@ -90,6 +133,15 @@ export function WorkspaceScopeBar({
 }: {
   items: readonly (readonly [label: string, value: ReactNode])[];
 }) {
+  const formalScope = useContext(FormalWorkspaceScopeContext);
+  const [productDraft, setProductDraft] = useState(
+    formalScope?.scope.coordinates.productId ?? "",
+  );
+
+  useEffect(() => {
+    setProductDraft(formalScope?.scope.coordinates.productId ?? "");
+  }, [formalScope?.scope.coordinates.productId]);
+
   return (
     <section aria-label="工作区范围" className="unified-context-bar">
       {items.map(([label, value]) => (
@@ -98,6 +150,43 @@ export function WorkspaceScopeBar({
           {typeof value === "string" ? <strong>{value}</strong> : value}
         </div>
       ))}
+      {formalScope && (
+        <>
+          <label>
+            <small>产品</small>
+            <input aria-label="范围产品" value={productDraft} onChange={(event) => {
+              const productId = event.target.value;
+              setProductDraft(productId);
+              if (!productId || formalScope.scope.authorization.authorizedProductIds.includes(productId)) {
+                formalScope.onScopeChange({ productId: productId || undefined });
+              }
+            }} />
+          </label>
+          <label>
+            <small>期间</small>
+            <input aria-label="范围期间" value={formalScope.scope.coordinates.periodKey ?? ""} onChange={(event) => formalScope.onScopeChange({ periodKey: event.target.value || undefined })} />
+          </label>
+          <label>
+            <small>业务分类</small>
+            <select
+              aria-label="业务分类"
+              value={formalScope.scope.coordinates.businessSubtypeId ?? ""}
+              onChange={(event) => formalScope.onScopeChange({
+                businessSubtypeId: event.target.value || undefined,
+              })}
+            >
+              <option value="">全部已授权分类</option>
+              {businessClassifications
+                .filter((item) => formalScope.scope.authorization.authorizedBusinessClassificationIds.includes(item.id))
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+            </select>
+          </label>
+        </>
+      )}
     </section>
   );
 }

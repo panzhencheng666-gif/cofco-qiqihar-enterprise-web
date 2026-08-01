@@ -3,7 +3,6 @@ import type {
   BusinessReportContext,
   ReportableApplication,
 } from "./businessReportModel";
-import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import { getEnterpriseRegion } from "./enterpriseRegions";
 import {
   businessReportRows,
@@ -14,7 +13,6 @@ import {
 import type { ReportingSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
-import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   WorkspaceScopeBar,
   WorkspaceFilterBar,
@@ -22,6 +20,8 @@ import {
   WorkspaceInlineStats,
   WorkspacePagination,
   WorkspaceRegionSelect,
+  FormalWorkspaceScopeProvider,
+  useWorkspaceRegion,
   WorkspaceStatus,
   WorkspaceTable,
   WorkspaceTableToolbar,
@@ -145,7 +145,7 @@ function BusinessReports({
   const definition = reportApplications.find(
     (item) => item.key === application,
   )!;
-  const { regionId } = useEnterpriseRegion();
+  const { regionId } = useWorkspaceRegion();
   const region = getEnterpriseRegion(regionId);
   const [product, setProduct] = useState<string>("玉米");
   const [period, setPeriod] = useState<string>("2026 年第 31 周");
@@ -168,7 +168,7 @@ function BusinessReports({
   }
 
   return (
-    <div className="unified-workspace" data-classification-source={businessClassificationFixtures.reportCompatibility.join(",")}>
+    <div className="unified-workspace">
       <WorkspaceHeader
         actions={
           <>
@@ -763,23 +763,51 @@ function VersionWorkspace() {
 export function ReportCenterWorkspace({
   section,
   onComposeReport,
-  scope: _scope,
-  onScopeChange: _onScopeChange,
 }: {
-  section:
-    | ReportingSection
-    | "business-reports"
-    | "duty-reports"
-    | "review"
-    | "distribution"
-    | "versions";
+  section: ReportingSection;
   onComposeReport: (context: BusinessReportContext) => void;
-  scope?: OperationalScope;
-  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }) {
-  if (section === "duty-reports") return <DutyReports />;
-  if (section === "review" || section === "review-distribution") return <ReviewWorkspace />;
-  if (section === "distribution") return <DistributionWorkspace />;
-  if (section === "versions" || section === "ledger") return <VersionWorkspace />;
-  return <BusinessReports onComposeReport={onComposeReport} />;
+  if (section === "compose") return <ReportCompose onComposeReport={onComposeReport} />;
+  if (section === "review-distribution") return <ReportReviewDistribution />;
+  return <VersionWorkspace />;
+}
+
+function ReportReviewDistribution() {
+  const [subview, setSubview] = useState<"review" | "distribution">("review");
+  return (
+    <div>
+      <div role="tablist" aria-label="报告复核与分发子视图">
+        <button type="button" onClick={() => setSubview("review")}>报告复核</button>
+        <button type="button" onClick={() => setSubview("distribution")}>报告分发</button>
+      </div>
+      {subview === "review" ? <ReviewWorkspace /> : <DistributionWorkspace />}
+    </div>
+  );
+}
+
+function ReportCompose({ onComposeReport }: { onComposeReport: (context: BusinessReportContext) => void }) {
+  const [subview, setSubview] = useState<"business" | "duty">("business");
+  return (
+    <div>
+      <div role="tablist" aria-label="报告编制子视图">
+        <button type="button" onClick={() => setSubview("business")}>业务报告</button>
+        <button type="button" onClick={() => setSubview("duty")}>履责报告</button>
+      </div>
+      {subview === "duty" ? <DutyReports /> : <BusinessReports onComposeReport={onComposeReport} />}
+    </div>
+  );
+}
+
+export function FormalReportCenterWorkspace({
+  section,
+  scope,
+  onScopeChange,
+  onComposeReport,
+}: {
+  section: ReportingSection;
+  scope: OperationalScope;
+  onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  onComposeReport: (context: BusinessReportContext) => void;
+}) {
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><ReportCenterWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }

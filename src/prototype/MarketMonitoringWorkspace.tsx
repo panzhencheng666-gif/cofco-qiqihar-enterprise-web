@@ -21,8 +21,6 @@ import {
 import type { MarketSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
-import { businessClassificationFixtures } from "./formalEnterpriseData";
-import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import { getEnterpriseRegion } from "./enterpriseRegions";
 import {
   WorkspaceScopeBar,
@@ -34,15 +32,14 @@ import {
   WorkspaceTable,
   WorkspaceTableToolbar,
   WorkspaceRegionSelect,
+  FormalWorkspaceScopeProvider,
+  useWorkspaceRegion,
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
 export interface MarketMonitoringWorkspaceProps {
-  section: MarketSection | "overview" | "collection" | "review" | "reports";
-  onSectionChange?: (section: MarketSection | "collection") => void;
+  section: MarketSection;
   onComposeReport: (context: BusinessReportContext) => void;
-  scope?: OperationalScope;
-  onScopeChange?: (coordinates: Partial<BusinessCoordinates>) => void;
 }
 
 const marketReportContext: BusinessReportContext = {
@@ -141,7 +138,7 @@ function MarketOverview({
   onCollect: () => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
-  const { regionId } = useEnterpriseRegion();
+  const { regionId } = useWorkspaceRegion();
   const region = getEnterpriseRegion(regionId);
   const [grain, setGrain] = useState<GrainKind>("corn");
   const grainRegistry = {
@@ -198,7 +195,7 @@ function MarketOverview({
   );
 
   return (
-    <div className="market-workspace market-overview" data-classification-source={businessClassificationFixtures.marketAnalysis.join(",")}>
+    <div className="market-workspace market-overview">
       <MarketPageHeader
         eyebrow="市场监测 / 市场总览"
         title="粮食市场监测总览"
@@ -1286,19 +1283,40 @@ function MarketReportWorkspace({
 
 export function MarketMonitoringWorkspace({
   section,
-  onSectionChange,
   onComposeReport,
 }: MarketMonitoringWorkspaceProps) {
-  if (section === "collection" || section === "tasks") return <MarketCollectionWorkspace />;
+  if (section === "tasks") return <MarketTasks onComposeReport={onComposeReport} />;
   if (section === "objects") return <MarketObjectRegistry />;
-  if (section === "review") return <MarketReviewWorkspace />;
-  if (section === "reports" || section === "analysis") {
+  if (section === "analysis") {
     return <MarketReportWorkspace onComposeReport={onComposeReport} />;
   }
+  return <MarketTasks onComposeReport={onComposeReport} />;
+}
+
+function MarketTasks({ onComposeReport }: { onComposeReport: (context: BusinessReportContext) => void }) {
+  const [subview, setSubview] = useState<"overview" | "collection" | "review">("collection");
   return (
-    <MarketOverview
-      onCollect={() => onSectionChange?.("collection")}
-      onComposeReport={onComposeReport}
-    />
+    <div>
+      <div role="tablist" aria-label="市场任务子视图">
+        <button type="button" onClick={() => setSubview("overview")}>市场总览</button>
+        <button type="button" onClick={() => setSubview("collection")}>数据采集</button>
+        <button type="button" onClick={() => setSubview("review")}>市场审核</button>
+      </div>
+      {subview === "overview" ? <MarketOverview onCollect={() => setSubview("collection")} onComposeReport={onComposeReport} /> : subview === "review" ? <MarketReviewWorkspace /> : <MarketCollectionWorkspace />}
+    </div>
   );
+}
+
+export function FormalMarketMonitoringWorkspace({
+  section,
+  scope,
+  onScopeChange,
+  onComposeReport,
+}: {
+  section: MarketSection;
+  scope: OperationalScope;
+  onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  onComposeReport: (context: BusinessReportContext) => void;
+}) {
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><MarketMonitoringWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }
