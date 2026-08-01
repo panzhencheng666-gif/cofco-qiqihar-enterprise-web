@@ -7,9 +7,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { MyWorkWorkspace } from "./MyWorkWorkspace";
 import type { OperationalScope } from "./core/operationalScope";
+import { businessWorkFixtures } from "./data/businessWorkFixtures";
 import type {
   BusinessCoordinates,
   FormalRoute,
+  FormalSelection,
   OverviewSection,
 } from "./formalEnterpriseModel";
 import { prototypeOperationalIdentity } from "./formalEnterpriseData";
@@ -62,6 +64,48 @@ function ExecutiveHarness({
   );
 }
 
+function MyWorkHarness({
+  initialCoordinates = {},
+  authorization = {},
+  identity = prototypeOperationalIdentity.identity,
+  onCoordinateChange = vi.fn(),
+  onOpenBusiness = vi.fn(),
+}: {
+  initialCoordinates?: Partial<OperationalScope["coordinates"]>;
+  authorization?: Partial<OperationalScope["authorization"]>;
+  identity?: OperationalScope["identity"];
+  onCoordinateChange?: (coordinates: Partial<BusinessCoordinates>) => void;
+  onOpenBusiness?: (route: FormalRoute, selection?: FormalSelection) => void;
+}) {
+  const [scope, setScope] = useState<OperationalScope>({
+    ...prototypeOperationalIdentity,
+    identity,
+    authorization: {
+      ...prototypeOperationalIdentity.authorization,
+      ...authorization,
+    },
+    coordinates: {
+      regionId: "authorized-all",
+      ...initialCoordinates,
+    },
+    savedView: null,
+  });
+  return (
+    <MyWorkWorkspace
+      section="tasks"
+      scope={scope}
+      onScopeChange={(coordinates) => {
+        onCoordinateChange(coordinates);
+        setScope((current) => ({
+          ...current,
+          coordinates: { ...current.coordinates, ...coordinates },
+        }));
+      }}
+      onOpenBusiness={onOpenBusiness}
+    />
+  );
+}
+
 describe("enterprise portal workspaces", () => {
   it("keeps the executive ledger dense, horizontally operable, and keyboard visible", () => {
     const css = readFileSync("src/prototype/unified-workspaces.css", "utf8");
@@ -87,20 +131,44 @@ describe("enterprise portal workspaces", () => {
     expect(marker).not.toContain("#6f8795");
   });
 
-  it("routes personal tasks to the owning business document", async () => {
+  it("projects the same governed production work item into My Work and its owning route", async () => {
     const user = userEvent.setup();
     const onOpenBusiness = vi.fn();
-    render(<MyWorkWorkspace section="tasks" onOpenBusiness={onOpenBusiness} />);
-    await user.click(screen.getByRole("tab", { name: "待我填报" }));
-
-    await user.click(screen.getByRole("button", { name: "进入市场填报" }));
-    expect(onOpenBusiness).toHaveBeenCalledWith(
-      { application: "market", section: "tasks" },
-      { type: "work-item", id: "WORK-MARKET-FILL-W31" },
+    render(<MyWorkHarness onOpenBusiness={onOpenBusiness} />);
+    const source = businessWorkFixtures.find(
+      ({ domain }) => domain === "production",
     );
-    expect(
-      screen.queryByRole("textbox", { name: "本周玉米主流收购价格" }),
-    ).not.toBeInTheDocument();
+    expect(source).toBeDefined();
+    expect(source!.subject.kind).toBe("monitoring-object");
+    const row = screen.getByRole("row", { name: new RegExp(source!.title) });
+
+    expect(row).toHaveTextContent(
+      source!.subject.kind === "monitoring-object"
+        ? source!.subject.objectName
+        : "监测对象名称待维护",
+    );
+    expect(row).toHaveTextContent("2026年7月31日 17:00");
+    expect(row).toHaveTextContent(
+      `${source!.responsiblePerson} · ${source!.responsiblePost}`,
+    );
+    for (const state of [
+      "进行中",
+      "已退回",
+      "审核退回",
+      "质量阻断",
+      "未发布",
+    ]) {
+      expect(row).toHaveTextContent(state);
+    }
+
+    await user.click(within(row).getByRole("button", { name: "处理产情单据" }));
+    expect(onOpenBusiness).toHaveBeenCalledWith(
+      { application: "production", section: "tasks" },
+      { type: "work-item", id: source!.workId },
+    );
+    expect(document.body).not.toHaveTextContent(
+      /WORK-|OBJ-|RESP-|SUBMISSION-|REVIEW-|QUALITY-|RELEASE-|in-progress|returned|blocking|unreleased|T\d{2}:/,
+    );
   });
 
   it("renders an authorized-all ledger with explicit filters instead of a card wall", () => {
@@ -260,17 +328,180 @@ describe("enterprise portal workspaces", () => {
     );
   });
 
-  it("presents My Work as one task-led table instead of a dashboard grid", async () => {
+  it("presents My Work as one authorized four-domain ledger with governed filters", async () => {
     const user = userEvent.setup();
+    const onCoordinateChange = vi.fn();
     const { container } = render(
-      <MyWorkWorkspace section="tasks" onOpenBusiness={vi.fn()} />,
+      <MyWorkHarness onCoordinateChange={onCoordinateChange} />,
     );
-    await user.click(screen.getByRole("tab", { name: "待我处理" }));
 
-    expect(screen.getByRole("table", { name: "本人责任任务" })).toBeVisible();
-    expect(screen.getByRole("table", { name: "今日重点事项" })).toBeVisible();
-    expect(container.querySelector(".unified-two-column")).toBeNull();
-    expect(container.querySelector(".unified-attention-panel")).toBeNull();
+    const ledger = screen.getByRole("table", { name: "本人工作台账" });
+    expect(container.querySelectorAll("table")).toHaveLength(1);
+    for (const label of [
+      "业务域",
+      "业务分类",
+      "业务地区",
+      "产品或作物",
+      "任务期间",
+    ]) {
+      expect(screen.getByRole("combobox", { name: label })).toBeVisible();
+    }
+    expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
+      "authorized-all",
+    );
+    expect(screen.getByRole("combobox", { name: "任务期间" })).toHaveValue("");
+    for (const column of [
+      "义务状态",
+      "单据状态",
+      "审核状态",
+      "质量状态",
+      "发布状态",
+    ]) {
+      expect(
+        within(ledger).getByRole("columnheader", { name: column }),
+      ).toBeVisible();
+    }
+    for (const domain of ["产情监测", "市场监测", "供需核算", "报告中心"]) {
+      expect(within(ledger).getByText(domain)).toBeVisible();
+    }
+    for (const view of ["待填报", "待审核", "异常逾期", "待发布", "已办"]) {
+      expect(
+        screen.getByRole("tab", { name: new RegExp(`^${view}`) }),
+      ).toBeVisible();
+    }
+    expect(screen.queryByText("责任岗位有效")).not.toBeInTheDocument();
+    expect(screen.queryByText("今日重点事项")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("本人工作摘要")).not.toBeInTheDocument();
+    expect(container.querySelector(".workspace-inline-stats")).toBeNull();
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "业务域" }),
+      "market",
+    );
+    expect(onCoordinateChange).toHaveBeenLastCalledWith({
+      businessDomainId: "market",
+      businessSubtypeId: undefined,
+    });
+    expect(within(ledger).getByText("市场监测")).toBeVisible();
+    expect(within(ledger).queryByText("产情监测")).not.toBeInTheDocument();
+  });
+
+  it("shows a governed empty state for unauthorized My Work coordinates without fallback", () => {
+    render(
+      <MyWorkHarness
+        initialCoordinates={{ businessSubtypeId: "unauthorized-work-type" }}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("当前业务坐标无权查询");
+    expect(
+      screen.getByRole("combobox", { name: "业务分类" }),
+    ).toHaveDisplayValue("业务分类无效（请重新选择）");
+    expect(
+      screen.queryByRole("row", { name: /讷河市玉米长势/ }),
+    ).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("unauthorized-work-type");
+  });
+
+  it("resolves a reviewer-only governed identity without defaulting to another person", () => {
+    render(
+      <MyWorkHarness
+        identity={{ userId: "zhao-chen", postId: "business-reviewer" }}
+      />,
+    );
+
+    const identity = screen.getByRole("region", { name: "当前责任身份" });
+    expect(identity).toHaveTextContent("赵晨");
+    expect(identity).toHaveTextContent("业务审核岗");
+    const ledger = screen.getByRole("table", { name: "本人工作台账" });
+    expect(ledger).toHaveTextContent("讷河市玉米长势与测产调查");
+    expect(ledger).toHaveTextContent("齐齐哈尔市玉米市场运行周填报");
+    expect(ledger).not.toHaveTextContent("2026 年玉米供需差额说明复核");
+    expect(ledger).not.toHaveTextContent("第 31 周粮食商情报告审核与分发");
+  });
+
+  it("does not infer a person when the identity has no governed assignment", () => {
+    render(
+      <MyWorkHarness
+        identity={{ userId: "wang-yang-copy", postId: "business-reviewer" }}
+      />,
+    );
+
+    const identity = screen.getByRole("region", { name: "当前责任身份" });
+    expect(identity).toHaveTextContent("人员姓名待维护");
+    expect(identity).toHaveTextContent("岗位名称待维护");
+    expect(
+      screen.getByRole("table", { name: "本人工作台账" }),
+    ).not.toHaveTextContent(
+      /讷河市玉米长势与测产调查|齐齐哈尔市玉米市场运行周填报/,
+    );
+  });
+
+  it("keeps the Task 5 My Work ledger responsive, internally scrollable, and keyboard visible", () => {
+    const css = readFileSync("src/prototype/unified-workspaces.css", "utf8");
+    const start = css.indexOf("/* enterprise-task5-my-work:start */");
+    const end = css.indexOf("/* enterprise-task5-my-work:end */");
+    const marker = css.slice(start, end);
+
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(marker).toMatch(
+      /\.my-work-task5-ledger-scroll\s*\{[^}]*overflow-x:\s*auto/s,
+    );
+    expect(marker).toMatch(
+      /\.my-work-task5-sticky\s*\{[^}]*position:\s*sticky/s,
+    );
+    expect(marker).toMatch(
+      /\.my-work-task5-filter-grid[^}]*grid-template-columns:\s*repeat\(5,/s,
+    );
+    expect(marker).toMatch(/@media \(max-width:\s*1280px\)/);
+    expect(marker).toMatch(/@media \(max-width:\s*1024px\)/);
+    expect(marker).toMatch(/:focus-visible\s*\{[^}]*outline:/s);
+    expect(marker).not.toMatch(/font-size:\s*9px/);
+  });
+
+  it("styles every Task 5 production job as an aligned responsive work surface", () => {
+    const css = readFileSync("src/prototype/unified-workspaces.css", "utf8");
+    const start = css.indexOf("/* enterprise-task5-production:start */");
+    const end = css.indexOf("/* enterprise-task5-production:end */");
+    const marker = css.slice(start, end);
+
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(marker).toMatch(
+      /\.production-task5-workspace\s*\{[^}]*overflow-x:\s*clip/s,
+    );
+    expect(marker).toMatch(
+      /\.production-task5-filter-grid\s*\{[^}]*grid-template-columns:\s*repeat\(5,/s,
+    );
+    expect(marker).toMatch(
+      /\.production-task5-ledger-scroll\s*\{[^}]*overflow-x:\s*auto/s,
+    );
+    expect(marker).toMatch(
+      /\.production-task5-sticky\s*\{[^}]*position:\s*sticky/s,
+    );
+    expect(marker).toMatch(
+      /\.production-task5-lifecycle-states\s*\{[^}]*grid-template-columns:\s*repeat\(5,/s,
+    );
+    for (const selector of [
+      ".production-task5-object-detail",
+      ".production-task5-document",
+      ".production-task5-selected-analysis",
+      ".production-task5-lineage",
+    ]) {
+      expect(marker).toContain(selector);
+    }
+    expect(marker).toMatch(/@media \(max-width:\s*1280px\)/);
+    expect(marker).toMatch(/@media \(max-width:\s*1024px\)/);
+    expect(marker).toMatch(/:focus-visible\s*\{[^}]*outline:/s);
+    expect(marker).not.toMatch(/font-size:\s*9px/);
+  });
+
+  it("removes the legacy hard-coded My Work structures", () => {
+    const source = readFileSync("src/prototype/MyWorkWorkspace.tsx", "utf8");
+    expect(source).not.toMatch(
+      /personalTasks|BusinessContextBar|WorkspaceScopeBar|WorkspaceInlineStats|今日重点事项/,
+    );
   });
 
   it("routes among four materially different executive ledgers", async () => {

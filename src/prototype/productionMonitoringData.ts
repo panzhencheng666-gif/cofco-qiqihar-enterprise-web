@@ -156,3 +156,69 @@ export const productionReviewRows = [
     publication: "待审核",
   },
 ] as const;
+
+export const productionTaskPeriods = [
+  { id: "2026-W31", label: "2026 年第 31 周" },
+] as const;
+
+export const productionTaskStateOptions = {
+  obligation: [
+    ["", "全部义务状态"],
+    ["not-due", "未到期"],
+    ["in-progress", "进行中"],
+    ["on-time", "按时完成"],
+    ["overdue-completed", "逾期补填"],
+    ["missed", "截止未提交"],
+    ["exempt", "免报"],
+  ],
+  document: [
+    ["", "全部单据状态"],
+    ["draft", "草稿"],
+    ["submitted", "已提交"],
+    ["returned", "已退回"],
+    ["corrected", "已更正"],
+  ],
+  review: [
+    ["", "全部审核状态"],
+    ["pending", "待审核"],
+    ["reviewing", "审核中"],
+    ["approved", "审核通过"],
+    ["returned", "审核退回"],
+  ],
+  quality: [
+    ["", "全部质量状态"],
+    ["passed", "质量通过"],
+    ["warning", "质量警告"],
+    ["blocking", "质量阻断"],
+    ["awaiting-explanation", "等待说明"],
+  ],
+  release: [
+    ["", "全部发布状态"],
+    ["unreleased", "未发布"],
+    ["pending", "待发布"],
+    ["published", "已发布"],
+    ["superseded", "已被新版本替代"],
+  ],
+} as const;
+
+export const productionAnalysisCoordinateOptions = {
+  periods: [{ id: "2026-W31", label: "2026 年第 31 周" }],
+  dataLayers: [{ id: "official", label: "正式数据" }],
+  releaseVersions: [
+    { id: "METRIC-2026-W31-V3", label: "2026年第31周正式指标第3版" },
+  ],
+} as const;
+
+export const productionMetricReleaseNames: Readonly<Record<string, string>> = {
+  "metric-2023-v1": "2023年度正式指标第1版",
+  "metric-2024-v1": "2024年度正式指标第1版",
+  "metric-2025-v1": "2025年度正式指标第1版",
+  "METRIC-2026-W31-V3": "2026年第31周正式指标第3版",
+};
+
+export const productionMetricGovernanceLabels = {
+  source: "官方已发布产情指标",
+  definitionEdition: "指标定义第1版",
+  comparabilityEdition: "跨年度可比规则第1版",
+  qualityPassed: "质量校验通过",
+} as const;
