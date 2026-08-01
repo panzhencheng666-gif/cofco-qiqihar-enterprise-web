@@ -3,6 +3,7 @@ import {
   enterpriseRegionGroups,
   getEnterpriseRegion,
   getEnterpriseRegionOptions,
+  getEnterpriseScopeRegion,
   isStatisticalEnterpriseRegionId,
 } from "./enterpriseRegions";
 
@@ -64,5 +65,16 @@ describe("enterprise region catalog", () => {
   it("keeps the authorized-all scope separate from statistical regions", () => {
     expect(isStatisticalEnterpriseRegionId("authorized-all")).toBe(false);
     expect(isStatisticalEnterpriseRegionId("qiqihar-nehe")).toBe(true);
+    expect(getEnterpriseScopeRegion("authorized-all")).toEqual(
+      expect.objectContaining({
+        id: "authorized-all",
+        label: "全部已授权范围",
+        level: "授权范围",
+        parentId: null,
+      }),
+    );
+    expect(getEnterpriseScopeRegion("authorized-all")).not.toEqual(
+      getEnterpriseRegion("qiqihar-all"),
+    );
   });
 });

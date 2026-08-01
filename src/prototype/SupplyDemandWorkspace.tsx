@@ -1,12 +1,14 @@
 import { useState } from "react";
 import type { BusinessReportContext } from "./businessReportModel";
-import { getEnterpriseRegion } from "./enterpriseRegions";
+import { getEnterpriseScopeRegion } from "./enterpriseRegions";
 import type { SupplySection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   WorkspaceFilterBar,
   WorkspaceHeader,
+  WorkspaceScopeBar,
   WorkspaceInlineStats,
   WorkspaceRegionSelect,
   FormalWorkspaceScopeProvider,
@@ -273,7 +275,7 @@ function SupplyStatement({
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
   const { regionId } = useWorkspaceRegion();
-  const region = getEnterpriseRegion(regionId);
+  const region = getEnterpriseScopeRegion(regionId)!;
   const [product, setProduct] = useState<SupplyProduct>("corn");
   const [selectedSource, setSelectedSource] = useState<BalanceRow | null>(null);
   const hasFormalAccount = product === "corn" && region.parentId === "qiqihar";
@@ -306,6 +308,9 @@ function SupplyStatement({
         eyebrow="供需与态势 / 供需平衡表"
         summary="按地区、产品、营销年度和采用版本查看正式供需账户。"
         title="区域粮食供需平衡表"
+      />
+      <WorkspaceScopeBar
+        items={[["账户范围", region.label], ["产品账户", productLabels[product]]]}
       />
       <WorkspaceFilterBar
         actions={
@@ -621,5 +626,5 @@ export function FormalSupplyDemandWorkspace({
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
-  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><SupplyDemandWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.supplyAnalysis}><SupplyDemandWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }

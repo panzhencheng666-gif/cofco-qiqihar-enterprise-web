@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { WorkSection } from "./formalEnterpriseModel";
+import { createFormalRoute, type FormalRoute, type FormalSelection, type WorkSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   BusinessContextBar,
   WorkspaceHeader,
@@ -10,13 +11,11 @@ import {
   WorkspaceInlineStats,
   WorkspaceTable,
   WorkspaceTableToolbar,
+  WorkspaceTabs,
+  WorkspaceScopeBar,
+  WorkspaceRegionSelect,
   FormalWorkspaceScopeProvider,
 } from "./UnifiedWorkspacePrimitives";
-
-type BusinessDestination = readonly [
-  application: "production" | "market",
-  section: "collection" | "review",
-];
 
 interface PersonalTask {
   title: string;
@@ -27,7 +26,7 @@ interface PersonalTask {
   document: string;
   quality: string;
   publication: string;
-  destination: BusinessDestination;
+  destination: FormalRoute;
   action: string;
   group: "reporting" | "review" | "exception" | "completed";
 }
@@ -41,9 +40,9 @@ export function FormalMyWorkWorkspace({
   section: WorkSection;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
-  onOpenBusiness: (application: BusinessDestination[0], section: BusinessDestination[1]) => void;
+  onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
 }) {
-  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><MyWorkWorkspace section={section} onOpenBusiness={onOpenBusiness} /></FormalWorkspaceScopeProvider>;
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.workItems}><MyWorkWorkspace section={section} onOpenBusiness={onOpenBusiness} /></FormalWorkspaceScopeProvider>;
 }
 
 const personalTasks: readonly PersonalTask[] = [
@@ -56,7 +55,7 @@ const personalTasks: readonly PersonalTask[] = [
     document: "填写中",
     quality: "2 项警告",
     publication: "未发布",
-    destination: ["market", "collection"],
+    destination: createFormalRoute("market", "tasks"),
     action: "进入市场填报",
     group: "reporting",
   },
@@ -69,7 +68,7 @@ const personalTasks: readonly PersonalTask[] = [
     document: "已退回",
     quality: "1 项阻断",
     publication: "未发布",
-    destination: ["production", "collection"],
+    destination: createFormalRoute("production", "tasks"),
     action: "进入产情填报",
     group: "exception",
   },
@@ -82,7 +81,7 @@ const personalTasks: readonly PersonalTask[] = [
     document: "已提交",
     quality: "通过",
     publication: "待审核",
-    destination: ["market", "review"],
+    destination: createFormalRoute("market", "tasks"),
     action: "进入市场审核",
     group: "review",
   },
@@ -95,7 +94,7 @@ const personalTasks: readonly PersonalTask[] = [
     document: "已通过",
     quality: "通过",
     publication: "已发布",
-    destination: ["production", "review"],
+    destination: createFormalRoute("production", "tasks"),
     action: "查看产情记录",
     group: "completed",
   },
@@ -125,16 +124,13 @@ export function MyWorkWorkspace({
   onOpenBusiness,
 }: {
   section: WorkSection;
-  onOpenBusiness: (
-    application: BusinessDestination[0],
-    section: BusinessDestination[1],
-  ) => void;
+  onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
 }) {
   if (section === "tasks") return <MyWorkTaskViews onOpenBusiness={onOpenBusiness} />;
   return null;
 }
 
-function MyWorkList({ section, onOpenBusiness }: { section: "inbox" | PersonalTask["group"]; onOpenBusiness: (application: BusinessDestination[0], section: BusinessDestination[1]) => void }) {
+function MyWorkList({ section, onOpenBusiness }: { section: "inbox" | PersonalTask["group"]; onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void }) {
   const selectedGroup = section === "inbox" ? null : section;
   const visibleTasks = selectedGroup ? personalTasks.filter((task) => task.group === selectedGroup) : personalTasks.filter((task) => task.group !== "completed");
   const titles: Record<"inbox" | PersonalTask["group"], [string, string]> = {
@@ -168,6 +164,9 @@ function MyWorkList({ section, onOpenBusiness }: { section: "inbox" | PersonalTa
           ["最近截止", "今天 17:00"],
         ]}
         state="责任岗位有效"
+      />
+      <WorkspaceScopeBar
+        items={[["任务范围", <WorkspaceRegionSelect key="work-region" />], ["任务期间", "2026 年第 31 周"]]}
       />
       <WorkspaceInlineStats
         label="本人工作摘要"
@@ -238,7 +237,7 @@ function MyWorkList({ section, onOpenBusiness }: { section: "inbox" | PersonalTa
             className="unified-table-action"
             key={`${task.title}-action`}
             type="button"
-            onClick={() => onOpenBusiness(...task.destination)}
+            onClick={() => onOpenBusiness(task.destination)}
           >
             {task.action}
           </button>,
@@ -286,18 +285,14 @@ function MyWorkList({ section, onOpenBusiness }: { section: "inbox" | PersonalTa
   );
 }
 
-function MyWorkTaskViews({ onOpenBusiness }: { onOpenBusiness: (application: BusinessDestination[0], section: BusinessDestination[1]) => void }) {
+function MyWorkTaskViews({ onOpenBusiness }: { onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void }) {
   const [subview, setSubview] = useState<"inbox" | PersonalTask["group"]>("inbox");
   return (
     <div>
-      <div role="tablist" aria-label="我的工作子视图">
-        <button type="button" onClick={() => setSubview("inbox")}>待我处理</button>
-        <button type="button" onClick={() => setSubview("reporting")}>待我填报</button>
-        <button type="button" onClick={() => setSubview("review")}>待我审核</button>
-        <button type="button" onClick={() => setSubview("exception")}>异常与逾期</button>
-        <button type="button" onClick={() => setSubview("completed")}>已办跟踪</button>
+      <WorkspaceTabs label="我的工作子视图" active={subview} onChange={(key) => setSubview(key as typeof subview)} tabs={[{ key: "inbox", label: "待我处理" }, { key: "reporting", label: "待我填报" }, { key: "review", label: "待我审核" }, { key: "exception", label: "异常与逾期" }, { key: "completed", label: "已办跟踪" }]} />
+      <div aria-labelledby={`我的工作子视图-${subview}-tab`} id={`我的工作子视图-${subview}-panel`} role="tabpanel">
+        <MyWorkList section={subview} onOpenBusiness={onOpenBusiness} />
       </div>
-      <MyWorkList section={subview} onOpenBusiness={onOpenBusiness} />
     </div>
   );
 }

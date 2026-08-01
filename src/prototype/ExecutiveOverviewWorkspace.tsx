@@ -5,6 +5,7 @@ import {
 } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   WorkspaceScopeBar,
   WorkspaceHeader,
@@ -12,6 +13,7 @@ import {
   WorkspaceInlineStats,
   WorkspaceTable,
   WorkspaceTableToolbar,
+  WorkspaceRegionSelect,
   FormalWorkspaceScopeProvider,
 } from "./UnifiedWorkspacePrimitives";
 
@@ -39,7 +41,7 @@ export function ExecutiveOverviewWorkspace({
       <WorkspaceScopeBar
         items={[
           ["组织", "齐齐哈尔经营部"],
-          ["业务区域", "三大区域 · 当前授权范围"],
+          ["业务区域", <WorkspaceRegionSelect key="overview-region" />],
           ["经营期间", "2026 年第 31 周"],
           ["数据截止", "7 月 31 日 17:00"],
         ]}
@@ -202,5 +204,5 @@ export function FormalExecutiveOverviewWorkspace({
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenRoute: (route: FormalRoute) => void;
 }) {
-  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><ExecutiveOverviewWorkspace section={_section} onOpenRoute={onOpenRoute} /></FormalWorkspaceScopeProvider>;
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.executiveFilters}><ExecutiveOverviewWorkspace section={_section} onOpenRoute={onOpenRoute} /></FormalWorkspaceScopeProvider>;
 }

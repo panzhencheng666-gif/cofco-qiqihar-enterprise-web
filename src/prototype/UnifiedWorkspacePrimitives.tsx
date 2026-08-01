@@ -2,15 +2,17 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import {
   enterpriseRegionGroups,
+  getEnterpriseRegionOptions,
   type EnterpriseRegionId,
 } from "./enterpriseRegions";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
-import { businessClassifications } from "./core/businessClassification";
+import type { BusinessClassification } from "./core/businessClassification";
 
 interface FormalWorkspaceScopeValue {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  classificationOptions: readonly BusinessClassification[];
 }
 
 const FormalWorkspaceScopeContext =
@@ -37,10 +39,11 @@ export function useWorkspaceRegion() {
 export function FormalWorkspaceScopeProvider({
   scope,
   onScopeChange,
+  classificationOptions,
   children,
 }: FormalWorkspaceScopeValue & { children: ReactNode }) {
   return (
-    <FormalWorkspaceScopeContext.Provider value={{ scope, onScopeChange }}>
+    <FormalWorkspaceScopeContext.Provider value={{ scope, onScopeChange, classificationOptions }}>
       {children}
     </FormalWorkspaceScopeContext.Provider>
   );
@@ -49,6 +52,12 @@ export function FormalWorkspaceScopeProvider({
 export type WorkspaceTone = "normal" | "good" | "warning" | "danger";
 export type CollectionMode = "online" | "excel" | "system";
 
+function isWorkspaceRegionId(value: string): value is EnterpriseRegionId {
+  return value === "authorized-all" || getEnterpriseRegionOptions().some(
+    (region) => region.id === value,
+  );
+}
+
 export function WorkspaceRegionSelect({
   label = "业务地区",
 }: {
@@ -56,17 +65,34 @@ export function WorkspaceRegionSelect({
 }) {
   const formalScope = useFormalWorkspaceScope();
   const { regionId, setRegionId } = useWorkspaceRegion();
+  const authorizedRegions = formalScope
+    ? enterpriseRegionGroups.map((group) => ({
+        ...group,
+        regions: group.regions.filter((region) =>
+          formalScope.scope.authorization.authorizedRegionIds.includes(region.id),
+        ),
+      })).filter((group) => group.regions.length > 0)
+    : enterpriseRegionGroups;
   return (
     <select
       aria-label={label}
       className="workspace-region-select"
       value={regionId}
-      onChange={(event) =>
-        setRegionId(event.target.value as EnterpriseRegionId)
-      }
+      onChange={(event) => {
+        const nextRegionId = event.target.value;
+        const isVisibleRegion = authorizedRegions.some((group) =>
+          group.regions.some((region) => region.id === nextRegionId),
+        );
+        if (
+          isWorkspaceRegionId(nextRegionId) &&
+          (nextRegionId === "authorized-all" || isVisibleRegion)
+        ) {
+          setRegionId(nextRegionId);
+        }
+      }}
     >
       {formalScope && <option value="authorized-all">全部已授权范围</option>}
-      {enterpriseRegionGroups.map((group) => (
+      {authorizedRegions.map((group) => (
         <optgroup key={group.id} label={group.label}>
           {group.regions.map((region) => (
             <option key={region.id} value={region.id}>
@@ -176,7 +202,7 @@ export function WorkspaceScopeBar({
               })}
             >
               <option value="">全部已授权分类</option>
-              {businessClassifications
+              {formalScope.classificationOptions
                 .filter((item) => formalScope.scope.authorization.authorizedBusinessClassificationIds.includes(item.id))
                 .map((item) => (
                   <option key={item.id} value={item.id}>
@@ -265,11 +291,26 @@ export function WorkspaceTabs({
       {tabs.map((tab) => (
         <button
           aria-selected={active === tab.key}
+          aria-controls={`${label}-${tab.key}-panel`}
           className={active === tab.key ? "is-active" : undefined}
+          id={`${label}-${tab.key}-tab`}
           key={tab.key}
           role="tab"
+          tabIndex={active === tab.key ? 0 : -1}
           type="button"
           onClick={() => onChange(tab.key)}
+          onKeyDown={(event) => {
+            const tabs = Array.from(
+              event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role=tab]") ?? [],
+            );
+            const currentIndex = tabs.indexOf(event.currentTarget);
+            const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : event.key === "ArrowRight" ? (currentIndex + 1) % tabs.length : event.key === "ArrowLeft" ? (currentIndex - 1 + tabs.length) % tabs.length : null;
+            if (nextIndex === null) return;
+            event.preventDefault();
+            tabs[nextIndex].focus();
+            onChange(tabs[nextIndex].dataset.workspaceTabKey!);
+          }}
+          data-workspace-tab-key={tab.key}
         >
           {tab.label}
           {tab.count && <span>{tab.count}</span>}

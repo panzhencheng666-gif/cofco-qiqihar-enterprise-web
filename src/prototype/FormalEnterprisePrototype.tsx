@@ -3,9 +3,6 @@ import { BusinessReportComposer } from "./BusinessReportComposer";
 import type { BusinessReportContext } from "./businessReportModel";
 import { EnterpriseShell } from "./EnterpriseShell";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
-import {
-  createFormalRoute,
-} from "./formalEnterpriseModel";
 import { FormalMarketMonitoringWorkspace } from "./MarketMonitoringWorkspace";
 import { FormalMyWorkWorkspace } from "./MyWorkWorkspace";
 import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
@@ -37,7 +34,7 @@ export function FormalEnterprisePrototype({ initialSearch }: FormalEnterprisePro
       case "reporting":
         return <FormalReportCenterWorkspace scope={scope} onScopeChange={updateCoordinates} section={location.route.section} onComposeReport={setReportContext} />;
       case "work":
-        return <FormalMyWorkWorkspace scope={scope} onScopeChange={updateCoordinates} section={location.route.section} onOpenBusiness={(application) => navigate(createFormalRoute(application, "tasks"))} />;
+        return <FormalMyWorkWorkspace scope={scope} onScopeChange={updateCoordinates} section={location.route.section} onOpenBusiness={navigate} />;
     }
   })();
 

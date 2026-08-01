@@ -13,10 +13,10 @@ describe("enterprise portal workspaces", () => {
     render(
       <MyWorkWorkspace section="tasks" onOpenBusiness={onOpenBusiness} />,
     );
-    await user.click(screen.getByRole("button", { name: "待我填报" }));
+    await user.click(screen.getByRole("tab", { name: "待我填报" }));
 
     await user.click(screen.getByRole("button", { name: "进入市场填报" }));
-    expect(onOpenBusiness).toHaveBeenCalledWith("market", "collection");
+    expect(onOpenBusiness).toHaveBeenCalledWith({ application: "market", section: "tasks" });
     expect(
       screen.queryByRole("textbox", { name: "本周玉米主流收购价格" }),
     ).not.toBeInTheDocument();
@@ -48,7 +48,7 @@ describe("enterprise portal workspaces", () => {
     const { container } = render(
       <MyWorkWorkspace section="tasks" onOpenBusiness={vi.fn()} />,
     );
-    await user.click(screen.getByRole("button", { name: "待我处理" }));
+    await user.click(screen.getByRole("tab", { name: "待我处理" }));
 
     expect(screen.getByRole("table", { name: "本人责任任务" })).toBeVisible();
     expect(screen.getByRole("table", { name: "今日重点事项" })).toBeVisible();

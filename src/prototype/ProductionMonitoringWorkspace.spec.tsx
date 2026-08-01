@@ -14,7 +14,7 @@ describe("production monitoring workspace", () => {
         onComposeReport={vi.fn()}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "产情总览" }));
+    await user.click(screen.getByRole("tab", { name: "产情总览" }));
 
     expect(screen.getByRole("combobox", { name: "业务地区" })).toBeVisible();
     expect(

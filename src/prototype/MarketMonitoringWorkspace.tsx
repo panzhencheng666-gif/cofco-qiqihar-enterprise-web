@@ -21,7 +21,8 @@ import {
 import type { MarketSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
-import { getEnterpriseRegion } from "./enterpriseRegions";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
+import { getEnterpriseScopeRegion } from "./enterpriseRegions";
 import {
   WorkspaceScopeBar,
   WorkspaceFilterBar,
@@ -32,6 +33,7 @@ import {
   WorkspaceTable,
   WorkspaceTableToolbar,
   WorkspaceRegionSelect,
+  WorkspaceTabs,
   FormalWorkspaceScopeProvider,
   useWorkspaceRegion,
   type WorkspaceTone,
@@ -139,7 +141,7 @@ function MarketOverview({
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
   const { regionId } = useWorkspaceRegion();
-  const region = getEnterpriseRegion(regionId);
+  const region = getEnterpriseScopeRegion(regionId)!;
   const [grain, setGrain] = useState<GrainKind>("corn");
   const grainRegistry = {
     corn: {
@@ -1297,12 +1299,10 @@ function MarketTasks({ onComposeReport }: { onComposeReport: (context: BusinessR
   const [subview, setSubview] = useState<"overview" | "collection" | "review">("collection");
   return (
     <div>
-      <div role="tablist" aria-label="市场任务子视图">
-        <button type="button" onClick={() => setSubview("overview")}>市场总览</button>
-        <button type="button" onClick={() => setSubview("collection")}>数据采集</button>
-        <button type="button" onClick={() => setSubview("review")}>市场审核</button>
+      <WorkspaceTabs label="市场任务子视图" active={subview} onChange={(key) => setSubview(key as typeof subview)} tabs={[{ key: "overview", label: "市场总览" }, { key: "collection", label: "数据采集" }, { key: "review", label: "市场审核" }]} />
+      <div aria-labelledby={`市场任务子视图-${subview}-tab`} id={`市场任务子视图-${subview}-panel`} role="tabpanel">
+        {subview === "overview" ? <MarketOverview onCollect={() => setSubview("collection")} onComposeReport={onComposeReport} /> : subview === "review" ? <MarketReviewWorkspace /> : <MarketCollectionWorkspace />}
       </div>
-      {subview === "overview" ? <MarketOverview onCollect={() => setSubview("collection")} onComposeReport={onComposeReport} /> : subview === "review" ? <MarketReviewWorkspace /> : <MarketCollectionWorkspace />}
     </div>
   );
 }
@@ -1318,5 +1318,5 @@ export function FormalMarketMonitoringWorkspace({
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
-  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><MarketMonitoringWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.marketAnalysis}><MarketMonitoringWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }

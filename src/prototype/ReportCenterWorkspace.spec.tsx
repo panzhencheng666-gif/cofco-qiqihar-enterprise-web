@@ -82,7 +82,7 @@ describe("ReportCenterWorkspace", () => {
         />
       </RegionHarness>,
     );
-    await user.click(screen.getByRole("button", { name: "履责报告" }));
+    await user.click(screen.getByRole("tab", { name: "履责报告" }));
 
     const policy = screen.getByRole("group", { name: "查看填报规则" });
     expect(policy).not.toHaveAttribute("open");

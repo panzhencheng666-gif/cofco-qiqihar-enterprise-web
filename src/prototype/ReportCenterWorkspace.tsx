@@ -3,7 +3,7 @@ import type {
   BusinessReportContext,
   ReportableApplication,
 } from "./businessReportModel";
-import { getEnterpriseRegion } from "./enterpriseRegions";
+import { getEnterpriseScopeRegion } from "./enterpriseRegions";
 import {
   businessReportRows,
   dutyMonthlyRows,
@@ -13,6 +13,7 @@ import {
 import type { ReportingSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   WorkspaceScopeBar,
   WorkspaceFilterBar,
@@ -25,6 +26,7 @@ import {
   WorkspaceStatus,
   WorkspaceTable,
   WorkspaceTableToolbar,
+  WorkspaceTabs,
   type WorkspaceTone,
 } from "./UnifiedWorkspacePrimitives";
 
@@ -146,7 +148,7 @@ function BusinessReports({
     (item) => item.key === application,
   )!;
   const { regionId } = useWorkspaceRegion();
-  const region = getEnterpriseRegion(regionId);
+  const region = getEnterpriseScopeRegion(regionId)!;
   const [product, setProduct] = useState<string>("玉米");
   const [period, setPeriod] = useState<string>("2026 年第 31 周");
   const [dataVersion, setDataVersion] = useState<string>("第 31 周已核定数据");
@@ -182,6 +184,7 @@ function BusinessReports({
         summary="按业务、地区、产品、期间和已核定数据版本生成报告，不复制原始业务数据。"
         title="业务报告"
       />
+      <ReportContext context={context} />
       <WorkspaceFilterBar
         label="业务报告生成条件"
         actions={
@@ -776,11 +779,10 @@ function ReportReviewDistribution() {
   const [subview, setSubview] = useState<"review" | "distribution">("review");
   return (
     <div>
-      <div role="tablist" aria-label="报告复核与分发子视图">
-        <button type="button" onClick={() => setSubview("review")}>报告复核</button>
-        <button type="button" onClick={() => setSubview("distribution")}>报告分发</button>
+      <WorkspaceTabs label="报告复核与分发子视图" active={subview} onChange={(key) => setSubview(key as typeof subview)} tabs={[{ key: "review", label: "报告复核" }, { key: "distribution", label: "报告分发" }]} />
+      <div aria-labelledby={`报告复核与分发子视图-${subview}-tab`} id={`报告复核与分发子视图-${subview}-panel`} role="tabpanel">
+        {subview === "review" ? <ReviewWorkspace /> : <DistributionWorkspace />}
       </div>
-      {subview === "review" ? <ReviewWorkspace /> : <DistributionWorkspace />}
     </div>
   );
 }
@@ -789,11 +791,10 @@ function ReportCompose({ onComposeReport }: { onComposeReport: (context: Busines
   const [subview, setSubview] = useState<"business" | "duty">("business");
   return (
     <div>
-      <div role="tablist" aria-label="报告编制子视图">
-        <button type="button" onClick={() => setSubview("business")}>业务报告</button>
-        <button type="button" onClick={() => setSubview("duty")}>履责报告</button>
+      <WorkspaceTabs label="报告编制子视图" active={subview} onChange={(key) => setSubview(key as typeof subview)} tabs={[{ key: "business", label: "业务报告" }, { key: "duty", label: "履责报告" }]} />
+      <div aria-labelledby={`报告编制子视图-${subview}-tab`} id={`报告编制子视图-${subview}-panel`} role="tabpanel">
+        {subview === "duty" ? <DutyReports /> : <BusinessReports onComposeReport={onComposeReport} />}
       </div>
-      {subview === "duty" ? <DutyReports /> : <BusinessReports onComposeReport={onComposeReport} />}
     </div>
   );
 }
@@ -809,5 +810,5 @@ export function FormalReportCenterWorkspace({
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
-  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><ReportCenterWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.reportCompatibility}><ReportCenterWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }

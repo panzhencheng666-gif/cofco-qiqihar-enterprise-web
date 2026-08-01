@@ -45,6 +45,30 @@ export interface EnterpriseRegion {
   sourceNote: string;
 }
 
+export interface AuthorizedScopeRegion {
+  id: typeof authorizedScopeRegionId;
+  label: "全部已授权范围";
+  level: "授权范围";
+  parentId: null;
+  townshipCount: "按授权汇总";
+  villageCount: "按授权汇总";
+  sourceStatus: "已核定";
+  sourceNote: "仅聚合当前身份已授权的地区，不代表任一统计行政区。";
+}
+
+export type EnterpriseScopeRegion = EnterpriseRegion | AuthorizedScopeRegion;
+
+export const authorizedScopeRegion: AuthorizedScopeRegion = {
+  id: authorizedScopeRegionId,
+  label: "全部已授权范围",
+  level: "授权范围",
+  parentId: null,
+  townshipCount: "按授权汇总",
+  villageCount: "按授权汇总",
+  sourceStatus: "已核定",
+  sourceNote: "仅聚合当前身份已授权的地区，不代表任一统计行政区。",
+};
+
 export interface EnterpriseRegionGroup {
   id: EnterpriseRegion["parentId"];
   label: string;
@@ -159,10 +183,16 @@ export function isStatisticalEnterpriseRegionId(
 }
 
 export function getEnterpriseRegion(
-  id: string | null | undefined,
+  id: Exclude<EnterpriseRegionId, typeof authorizedScopeRegionId>,
 ): EnterpriseRegion {
-  return (
-    getEnterpriseRegionOptions().find((item) => item.id === id) ??
-    enterpriseRegionGroups[0].regions[0]
-  );
+  const region = getEnterpriseRegionOptions().find((item) => item.id === id);
+  if (!region) throw new Error(`Unknown statistical enterprise region: ${id}`);
+  return region;
+}
+
+export function getEnterpriseScopeRegion(
+  id: string | null | undefined,
+): EnterpriseScopeRegion | undefined {
+  if (id === authorizedScopeRegionId) return authorizedScopeRegion;
+  return getEnterpriseRegionOptions().find((item) => item.id === id);
 }

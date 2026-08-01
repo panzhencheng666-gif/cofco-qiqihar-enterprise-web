@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { BusinessReportContext } from "./businessReportModel";
-import { getEnterpriseRegion } from "./enterpriseRegions";
 import type { ProductionSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
+import { businessClassificationFixtures } from "./formalEnterpriseData";
 import {
   productionCropProfiles,
   productionObjectRows,
@@ -28,6 +28,7 @@ import {
   WorkspaceTable,
   WorkspaceTableToolbar,
   WorkspaceRegionSelect,
+  WorkspaceTabs,
   FormalWorkspaceScopeProvider,
   useWorkspaceRegion,
   type WorkspaceTone,
@@ -957,12 +958,10 @@ function ProductionTasks({ onComposeReport }: { onComposeReport: (context: Busin
   const [subview, setSubview] = useState<"overview" | "collection" | "review">("collection");
   return (
     <div>
-      <div role="tablist" aria-label="产情任务子视图">
-        <button type="button" onClick={() => setSubview("overview")}>产情总览</button>
-        <button type="button" onClick={() => setSubview("collection")}>数据采集</button>
-        <button type="button" onClick={() => setSubview("review")}>产情审核</button>
+      <WorkspaceTabs label="产情任务子视图" active={subview} onChange={(key) => setSubview(key as typeof subview)} tabs={[{ key: "overview", label: "产情总览" }, { key: "collection", label: "数据采集" }, { key: "review", label: "产情审核" }]} />
+      <div aria-labelledby={`产情任务子视图-${subview}-tab`} id={`产情任务子视图-${subview}-panel`} role="tabpanel">
+        {subview === "overview" ? <ProductionOverview onCollect={() => setSubview("collection")} /> : subview === "review" ? <ProductionReview /> : <ProductionCollection />}
       </div>
-      {subview === "overview" ? <ProductionOverview onCollect={() => setSubview("collection")} /> : subview === "review" ? <ProductionReview /> : <ProductionCollection />}
     </div>
   );
 }
@@ -978,5 +977,5 @@ export function FormalProductionMonitoringWorkspace({
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
-  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange}><ProductionMonitoringWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.productionAnalysis}><ProductionMonitoringWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }

@@ -14,7 +14,7 @@ describe("market monitoring workspace", () => {
         onComposeReport={vi.fn()}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "市场总览" }));
+    await user.click(screen.getByRole("tab", { name: "市场总览" }));
 
     expect(
       screen.getByRole("heading", { name: "粮食市场监测总览" }),
@@ -128,7 +128,7 @@ describe("market monitoring workspace", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "数据采集" }));
+    await user.click(screen.getByRole("tab", { name: "数据采集" }));
     expect(screen.getByRole("button", { name: "市场主体填报" })).toBeVisible();
   });
 
@@ -141,7 +141,7 @@ describe("market monitoring workspace", () => {
         onComposeReport={onComposeReport}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "市场总览" }));
+    await user.click(screen.getByRole("tab", { name: "市场总览" }));
 
     await user.selectOptions(
       screen.getByRole("combobox", { name: "粮食品种" }),
@@ -242,7 +242,7 @@ describe("market monitoring workspace", () => {
     const { rerender } = render(
       <MarketMonitoringWorkspace section="tasks" onComposeReport={vi.fn()} />,
     );
-    await user.click(screen.getByRole("button", { name: "市场审核" }));
+    await user.click(screen.getByRole("tab", { name: "市场审核" }));
 
     expect(
       screen.getByRole("region", { name: "市场数据发布与供需采用关系" }),

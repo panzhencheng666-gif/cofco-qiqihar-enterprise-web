@@ -59,7 +59,7 @@ function LocationProbe() {
 }
 
 describe("useFormalEnterpriseLocation", () => {
-  it("writes page navigation and user-controlled filters with pushState", async () => {
+  it("writes page navigation with pushState and filters with replaceState", async () => {
     window.history.replaceState({}, "", "/?variant=A&page=market&section=objects");
     const pushState = window.history.pushState;
     const replaceState = window.history.replaceState;
@@ -81,11 +81,11 @@ describe("useFormalEnterpriseLocation", () => {
     expect(pushed.at(-1)).toContain("selectionId=PROD-W31-002");
 
     await user.click(screen.getByRole("button", { name: "update filters" }));
-    expect(pushed.at(-1)).toContain("page=production");
-    expect(pushed.at(-1)).toContain("variant=A");
-    expect(pushed.at(-1)).toContain("region=qiqihar-nehe");
-    expect(pushed.at(-1)).toContain("product=corn");
-    expect(pushed.at(-1)).toContain("period=2026-W31");
+    expect(replaced.at(-1)).toContain("page=production");
+    expect(replaced.at(-1)).toContain("variant=A");
+    expect(replaced.at(-1)).toContain("region=qiqihar-nehe");
+    expect(replaced.at(-1)).toContain("product=corn");
+    expect(replaced.at(-1)).toContain("period=2026-W31");
 
     window.history.pushState = pushState;
     window.history.replaceState = replaceState;
