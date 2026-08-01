@@ -26,9 +26,9 @@ export function FormalEnterprisePrototype({ initialSearch }: FormalEnterprisePro
       case "overview":
         return <FormalExecutiveOverviewWorkspace section={location.route.section} onOpenRoute={navigate} scope={scope} onScopeChange={updateCoordinates} />;
       case "production":
-        return <FormalProductionMonitoringWorkspace scope={scope} onScopeChange={updateCoordinates} section={location.route.section} onComposeReport={setReportContext} />;
+        return <FormalProductionMonitoringWorkspace scope={scope} onScopeChange={updateCoordinates} section={location.route.section} selection={location.selection} onComposeReport={setReportContext} />;
       case "market":
-        return <FormalMarketMonitoringWorkspace scope={scope} onScopeChange={updateCoordinates} section={location.route.section} onComposeReport={setReportContext} />;
+        return <FormalMarketMonitoringWorkspace scope={scope} onScopeChange={updateCoordinates} section={location.route.section} selection={location.selection} onComposeReport={setReportContext} />;
       case "supply":
         return <FormalSupplyDemandWorkspace scope={scope} onScopeChange={updateCoordinates} section={location.route.section} onComposeReport={setReportContext} />;
       case "reporting":

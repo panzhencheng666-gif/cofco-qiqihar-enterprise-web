@@ -173,4 +173,36 @@ describe("formal enterprise prototype", () => {
     await user.click(screen.getByRole("tab", { name: "待我审核" }));
     expect(screen.getByRole("heading", { name: "待我审核" })).toBeVisible();
   });
+
+  it("deep-links My Work review and record actions to their owning workflow subviews", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState({}, "", "/?page=work");
+    render(<FormalEnterprisePrototype initialSearch="?page=work" />);
+
+    await user.click(screen.getByRole("tab", { name: "待我审核" }));
+    await user.click(screen.getByRole("button", { name: "进入市场审核" }));
+    expect(window.location.search).toContain("page=market");
+    expect(window.location.search).toContain("selectionType=work-item");
+    expect(window.location.search).toContain("selectionId=WORK-MARKET-REVIEW-W31");
+    expect(screen.getByRole("heading", { name: "市场数据审核与发布" })).toBeVisible();
+
+    window.history.back();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    expect(screen.getByRole("heading", { name: "待我处理" })).toBeVisible();
+
+    window.history.forward();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    expect(screen.getByRole("heading", { name: "市场数据审核与发布" })).toBeVisible();
+
+    window.history.replaceState({}, "", "/?page=work");
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+    await user.click(screen.getByRole("tab", { name: "已办跟踪" }));
+    await user.click(screen.getByRole("button", { name: "查看产情记录" }));
+    expect(window.location.search).toContain("page=production");
+    expect(window.location.search).toContain("selectionId=WORK-PRODUCTION-RECORD-W30");
+    expect(screen.getByRole("heading", { name: "种植生产监测工作区" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "产情数据采集工作台" })).not.toBeInTheDocument();
+  });
 });

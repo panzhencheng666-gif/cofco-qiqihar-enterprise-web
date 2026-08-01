@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { BusinessReportContext } from "./businessReportModel";
 import {
   marketLogisticsRows,
@@ -18,7 +18,7 @@ import {
   type GrainKind,
   type MarketProductKind,
 } from "./marketMonitoringModel";
-import type { MarketSection } from "./formalEnterpriseModel";
+import type { FormalSelection, MarketSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
 import { businessClassificationFixtures } from "./formalEnterpriseData";
@@ -41,6 +41,7 @@ import {
 
 export interface MarketMonitoringWorkspaceProps {
   section: MarketSection;
+  selection?: FormalSelection;
   onComposeReport: (context: BusinessReportContext) => void;
 }
 
@@ -1285,18 +1286,34 @@ function MarketReportWorkspace({
 
 export function MarketMonitoringWorkspace({
   section,
+  selection,
   onComposeReport,
 }: MarketMonitoringWorkspaceProps) {
-  if (section === "tasks") return <MarketTasks onComposeReport={onComposeReport} />;
+  if (section === "tasks") return <MarketTasks selection={selection} onComposeReport={onComposeReport} />;
   if (section === "objects") return <MarketObjectRegistry />;
   if (section === "analysis") {
     return <MarketReportWorkspace onComposeReport={onComposeReport} />;
   }
-  return <MarketTasks onComposeReport={onComposeReport} />;
+  return <MarketTasks selection={selection} onComposeReport={onComposeReport} />;
 }
 
-function MarketTasks({ onComposeReport }: { onComposeReport: (context: BusinessReportContext) => void }) {
-  const [subview, setSubview] = useState<"overview" | "collection" | "review">("collection");
+type MarketTaskSubview = "overview" | "collection" | "review";
+
+const marketWorkItemSubviews: Readonly<Record<string, MarketTaskSubview>> = {
+  "WORK-MARKET-FILL-W31": "collection",
+  "WORK-MARKET-REVIEW-W31": "review",
+};
+
+function resolveMarketTaskSubview(selection?: FormalSelection): MarketTaskSubview {
+  if (selection?.type !== "work-item") return "collection";
+  return marketWorkItemSubviews[selection.id] ?? "collection";
+}
+
+function MarketTasks({ selection, onComposeReport }: { selection?: FormalSelection; onComposeReport: (context: BusinessReportContext) => void }) {
+  const [subview, setSubview] = useState<MarketTaskSubview>(() => resolveMarketTaskSubview(selection));
+  useEffect(() => {
+    setSubview(resolveMarketTaskSubview(selection));
+  }, [selection?.id, selection?.type]);
   return (
     <div>
       <WorkspaceTabs label="市场任务子视图" active={subview} onChange={(key) => setSubview(key as typeof subview)} tabs={[{ key: "overview", label: "市场总览" }, { key: "collection", label: "数据采集" }, { key: "review", label: "市场审核" }]} />
@@ -1309,14 +1326,16 @@ function MarketTasks({ onComposeReport }: { onComposeReport: (context: BusinessR
 
 export function FormalMarketMonitoringWorkspace({
   section,
+  selection,
   scope,
   onScopeChange,
   onComposeReport,
 }: {
   section: MarketSection;
+  selection?: FormalSelection;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
-  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.marketAnalysis}><MarketMonitoringWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.marketAnalysis}><MarketMonitoringWorkspace section={section} selection={selection} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }

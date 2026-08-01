@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { BusinessReportContext } from "./businessReportModel";
-import type { ProductionSection } from "./formalEnterpriseModel";
+import type { FormalSelection, ProductionSection } from "./formalEnterpriseModel";
 import type { BusinessCoordinates } from "./formalEnterpriseModel";
 import type { OperationalScope } from "./core/operationalScope";
 import { businessClassificationFixtures } from "./formalEnterpriseData";
@@ -36,6 +36,7 @@ import {
 
 export interface ProductionMonitoringWorkspaceProps {
   section: ProductionSection;
+  selection?: FormalSelection;
   onComposeReport: (context: BusinessReportContext) => void;
 }
 
@@ -947,15 +948,31 @@ function ProductionReports({
 
 export function ProductionMonitoringWorkspace({
   section,
+  selection,
   onComposeReport,
 }: ProductionMonitoringWorkspaceProps) {
   if (section === "objects") return <ProductionObjects />;
-  if (section === "tasks") return <ProductionTasks onComposeReport={onComposeReport} />;
+  if (section === "tasks") return <ProductionTasks selection={selection} onComposeReport={onComposeReport} />;
   return <ProductionReports onComposeReport={onComposeReport} />;
 }
 
-function ProductionTasks({ onComposeReport }: { onComposeReport: (context: BusinessReportContext) => void }) {
-  const [subview, setSubview] = useState<"overview" | "collection" | "review">("collection");
+type ProductionTaskSubview = "overview" | "collection" | "review";
+
+const productionWorkItemSubviews: Readonly<Record<string, ProductionTaskSubview>> = {
+  "WORK-PRODUCTION-FILL-W31": "collection",
+  "WORK-PRODUCTION-RECORD-W30": "overview",
+};
+
+function resolveProductionTaskSubview(selection?: FormalSelection): ProductionTaskSubview {
+  if (selection?.type !== "work-item") return "collection";
+  return productionWorkItemSubviews[selection.id] ?? "collection";
+}
+
+function ProductionTasks({ selection, onComposeReport }: { selection?: FormalSelection; onComposeReport: (context: BusinessReportContext) => void }) {
+  const [subview, setSubview] = useState<ProductionTaskSubview>(() => resolveProductionTaskSubview(selection));
+  useEffect(() => {
+    setSubview(resolveProductionTaskSubview(selection));
+  }, [selection?.id, selection?.type]);
   return (
     <div>
       <WorkspaceTabs label="产情任务子视图" active={subview} onChange={(key) => setSubview(key as typeof subview)} tabs={[{ key: "overview", label: "产情总览" }, { key: "collection", label: "数据采集" }, { key: "review", label: "产情审核" }]} />
@@ -968,14 +985,16 @@ function ProductionTasks({ onComposeReport }: { onComposeReport: (context: Busin
 
 export function FormalProductionMonitoringWorkspace({
   section,
+  selection,
   scope,
   onScopeChange,
   onComposeReport,
 }: {
   section: ProductionSection;
+  selection?: FormalSelection;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onComposeReport: (context: BusinessReportContext) => void;
 }) {
-  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.productionAnalysis}><ProductionMonitoringWorkspace section={section} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
+  return <FormalWorkspaceScopeProvider scope={scope} onScopeChange={onScopeChange} classificationOptions={businessClassificationFixtures.productionAnalysis}><ProductionMonitoringWorkspace section={section} selection={selection} onComposeReport={onComposeReport} /></FormalWorkspaceScopeProvider>;
 }

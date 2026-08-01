@@ -26,7 +26,10 @@ interface PersonalTask {
   document: string;
   quality: string;
   publication: string;
-  destination: FormalRoute;
+  destination: {
+    route: FormalRoute;
+    selection: FormalSelection & { type: "work-item" };
+  };
   action: string;
   group: "reporting" | "review" | "exception" | "completed";
 }
@@ -55,7 +58,10 @@ const personalTasks: readonly PersonalTask[] = [
     document: "填写中",
     quality: "2 项警告",
     publication: "未发布",
-    destination: createFormalRoute("market", "tasks"),
+    destination: {
+      route: createFormalRoute("market", "tasks"),
+      selection: { type: "work-item", id: "WORK-MARKET-FILL-W31" },
+    },
     action: "进入市场填报",
     group: "reporting",
   },
@@ -68,7 +74,10 @@ const personalTasks: readonly PersonalTask[] = [
     document: "已退回",
     quality: "1 项阻断",
     publication: "未发布",
-    destination: createFormalRoute("production", "tasks"),
+    destination: {
+      route: createFormalRoute("production", "tasks"),
+      selection: { type: "work-item", id: "WORK-PRODUCTION-FILL-W31" },
+    },
     action: "进入产情填报",
     group: "exception",
   },
@@ -81,7 +90,10 @@ const personalTasks: readonly PersonalTask[] = [
     document: "已提交",
     quality: "通过",
     publication: "待审核",
-    destination: createFormalRoute("market", "tasks"),
+    destination: {
+      route: createFormalRoute("market", "tasks"),
+      selection: { type: "work-item", id: "WORK-MARKET-REVIEW-W31" },
+    },
     action: "进入市场审核",
     group: "review",
   },
@@ -94,7 +106,10 @@ const personalTasks: readonly PersonalTask[] = [
     document: "已通过",
     quality: "通过",
     publication: "已发布",
-    destination: createFormalRoute("production", "tasks"),
+    destination: {
+      route: createFormalRoute("production", "tasks"),
+      selection: { type: "work-item", id: "WORK-PRODUCTION-RECORD-W30" },
+    },
     action: "查看产情记录",
     group: "completed",
   },
@@ -237,7 +252,9 @@ function MyWorkList({ section, onOpenBusiness }: { section: "inbox" | PersonalTa
             className="unified-table-action"
             key={`${task.title}-action`}
             type="button"
-            onClick={() => onOpenBusiness(task.destination)}
+            onClick={() =>
+              onOpenBusiness(task.destination.route, task.destination.selection)
+            }
           >
             {task.action}
           </button>,

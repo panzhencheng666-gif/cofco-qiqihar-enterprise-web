@@ -16,7 +16,10 @@ describe("enterprise portal workspaces", () => {
     await user.click(screen.getByRole("tab", { name: "待我填报" }));
 
     await user.click(screen.getByRole("button", { name: "进入市场填报" }));
-    expect(onOpenBusiness).toHaveBeenCalledWith({ application: "market", section: "tasks" });
+    expect(onOpenBusiness).toHaveBeenCalledWith(
+      { application: "market", section: "tasks" },
+      { type: "work-item", id: "WORK-MARKET-FILL-W31" },
+    );
     expect(
       screen.queryByRole("textbox", { name: "本周玉米主流收购价格" }),
     ).not.toBeInTheDocument();
