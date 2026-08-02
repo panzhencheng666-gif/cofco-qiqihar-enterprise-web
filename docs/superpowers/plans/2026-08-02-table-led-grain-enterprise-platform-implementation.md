@@ -816,6 +816,7 @@ git commit -m "feat: add governed supply calculation ledger"
 **Interfaces:**
 - Consumes: approved dataset labels, Task 2 region cascade and selected business context。
 - Produces: report request with business type、region、product、cultivar、period、frequency、cutoff、approved data and sections。
+- Produces: one-click business daily／weekly／monthly exports and submission-record weekly／monthly exports from the exact current scope。
 
 - [ ] **Step 1: Add failing nine-parameter report tests**
 
@@ -830,6 +831,11 @@ expect(screen.getByLabelText("数据截止")).toBeInTheDocument();
 expect(screen.getByLabelText("采用数据")).toBeInTheDocument();
 expect(screen.getByLabelText("报告章节")).toBeInTheDocument();
 expect(screen.getByRole("button", { name: "生成预览" })).toBeDisabled();
+expect(screen.getByRole("button", { name: "导出业务日报" })).toBeDisabled();
+expect(screen.getByRole("button", { name: "导出业务周报" })).toBeDisabled();
+expect(screen.getByRole("button", { name: "导出业务月报" })).toBeDisabled();
+expect(screen.getByRole("button", { name: "导出填报记录周报" })).toBeDisabled();
+expect(screen.getByRole("button", { name: "导出填报记录月报" })).toBeDisabled();
 ```
 
 Add an assertion that rendered text and exported filename contain no internal dataset ID or ASCII version token.
@@ -858,15 +864,31 @@ export interface BusinessReportRequest {
 
 The internal dataset ID remains in the request but is never rendered. UI uses `businessDataBatchLabel` and Chinese source time.
 
+```ts
+export type QuickReportExportKind =
+  | "business-daily"
+  | "business-weekly"
+  | "business-monthly"
+  | "submission-weekly"
+  | "submission-monthly";
+
+export function createQuickReportArtifact(
+  request: BusinessReportRequest,
+  kind: QuickReportExportKind,
+): BusinessReportArtifact;
+```
+
+`submission-weekly` and `submission-monthly` use responsibility records and submission snapshots for the selected business and region. The three business export kinds use the selected approved business dataset. None may infer a missing region、business、product or period.
+
 - [ ] **Step 4: Recompose report pages**
 
-Use one parameter query, one report preview and one report ledger. Frequency is a parameter rather than separate menus. The workflow remains save draft, submit, review, publish, revise and export.
+Use one parameter query, one report preview and one report ledger. Frequency is a parameter rather than separate menus. Business workspaces expose one compact “生成报告” menu that inherits the current scope; report center exposes the same five export kinds alongside cross-scope composition, review, publication and ledger management. Both entry points call the same request builder and export service. The workflow remains save draft, submit, review, publish, revise and export.
 
 - [ ] **Step 5: Run report and workflow tests**
 
 Run: `npm test -- src/prototype/businessReportModel.spec.ts src/prototype/BusinessReportComposer.spec.tsx src/prototype/ReportCenterWorkspace.spec.tsx src/prototype/businessReportWorkflow.spec.ts src/prototype/data/businessReportDatasets.spec.ts`
 
-Expected: PASS including authorization, storage recovery, publication and revision behavior.
+Expected: PASS including authorization, exact-scope quick exports, storage recovery, publication and revision behavior.
 
 - [ ] **Step 6: Commit report files**
 
