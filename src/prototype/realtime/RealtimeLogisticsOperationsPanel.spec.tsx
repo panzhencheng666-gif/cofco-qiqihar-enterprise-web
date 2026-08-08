@@ -69,7 +69,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
   it("renders backend-owned logistics definitions and an empty real list", async () => {
     render(<RealtimeLogisticsOperationsPanel repository={repository()} />);
     expect(
-      await screen.findByRole("heading", { name: "本地实时物流节点监测" }),
+      await screen.findByRole("heading", { name: "实时物流节点监测" }),
     ).toBeVisible();
     expect(screen.getByLabelText(/物流监测期/)).toBeVisible();
     expect(screen.getByText("暂无物流记录，可新建填报。")).toBeVisible();

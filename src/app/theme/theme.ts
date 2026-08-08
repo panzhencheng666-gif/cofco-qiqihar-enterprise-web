@@ -2,18 +2,28 @@ import type { ThemeConfig } from "antd";
 
 export const enterpriseTheme: ThemeConfig = {
   token: {
-    colorPrimary: "#0f766e",
-    colorInfo: "#1677ff",
-    colorSuccess: "#2f855a",
-    colorWarning: "#b7791f",
-    colorError: "#c53030",
-    colorBgLayout: "#f3f6f8",
-    colorText: "#172b3a",
+    colorPrimary: "#197c76",
+    colorInfo: "#2f6f9f",
+    colorSuccess: "#4d9d69",
+    colorWarning: "#d59a2b",
+    colorError: "#ce5c5c",
+    colorBgLayout: "#eef3f6",
+    colorText: "#183044",
+    colorBorder: "#d7e1e8",
     borderRadius: 8,
-    fontFamily: 'Inter, "PingFang SC", "Microsoft YaHei", sans-serif',
+    fontFamily:
+      '"PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif',
   },
   components: {
-    Layout: { siderBg: "#102a43", headerBg: "#ffffff" },
-    Table: { headerBg: "#f4f7f9", headerColor: "#334e68" },
+    Layout: { siderBg: "#0c2940", headerBg: "#ffffff" },
+    Table: {
+      headerBg: "#f6f8fa",
+      headerColor: "#536b7c",
+      rowHoverBg: "#f0f8f7",
+    },
+    Button: {
+      controlHeight: 36,
+      fontWeight: 600,
+    },
   },
 };

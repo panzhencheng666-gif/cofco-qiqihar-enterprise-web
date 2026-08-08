@@ -91,7 +91,7 @@ export function RealtimeBusinessOperationsPanel({
   const [values, setValues] = useState<Record<string, string>>({});
   const [returnReason, setReturnReason] = useState("");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("正在读取本地数据库配置…");
+  const [message, setMessage] = useState("正在读取业务配置…");
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
 
@@ -112,9 +112,7 @@ export function RealtimeBusinessOperationsPanel({
             : { MKT_REPORTER_NAME: actorName }),
         }));
         setMessage(
-          snapshot.products.length > 0
-            ? "本地数据库配置已连接"
-            : "数据库尚未配置产品",
+          snapshot.products.length > 0 ? "业务配置已连接" : "当前尚未配置产品",
         );
       })
       .catch((reason: unknown) => {
@@ -311,7 +309,7 @@ export function RealtimeBusinessOperationsPanel({
           ? productionValues(record as ProductionRecordRow)
           : marketValues(record as MarketRecordRow),
       );
-      setMessage(`已从数据库读取 ${id}`);
+      setMessage(`已读取业务记录 ${id}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "读取记录失败");
     } finally {
@@ -330,7 +328,7 @@ export function RealtimeBusinessOperationsPanel({
         ? { PROD_REPORTER_NAME: actorName }
         : { MKT_REPORTER_NAME: actorName }),
     });
-    setMessage("已新建空白填报，保存后才会写入数据库");
+    setMessage("已新建空白填报，保存后生成正式记录");
     setError("");
   }
 
@@ -370,7 +368,7 @@ export function RealtimeBusinessOperationsPanel({
       );
       await reload(record.productCode);
       onRecordsChanged?.();
-      setMessage(`保存成功，数据库版本 ${record.version}`);
+      setMessage(`保存成功，数据版本 ${record.version}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存失败");
     } finally {
@@ -401,7 +399,7 @@ export function RealtimeBusinessOperationsPanel({
       await reload(record.productCode);
       onRecordsChanged?.();
       setMessage(
-        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : "退回"}成功，数据库版本 ${record.version}`,
+        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : "退回"}成功，数据版本 ${record.version}`,
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "状态操作失败");
@@ -419,7 +417,7 @@ export function RealtimeBusinessOperationsPanel({
       await reload(productCode);
       onRecordsChanged?.();
       setMessage(
-        `导入任务 ${job.id} 状态 ${job.statusCode}：${job.importedRows} 行进入本地数据库，失败 ${job.failedRows} 行。`,
+        `导入任务 ${job.id} 状态 ${job.statusCode}：${job.importedRows} 行已入库，失败 ${job.failedRows} 行。`,
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "CSV 导入失败");
@@ -433,19 +431,15 @@ export function RealtimeBusinessOperationsPanel({
   );
   return (
     <section
-      aria-label={
-        domain === "production" ? "本地实时产情业务" : "本地实时市场业务"
-      }
+      aria-label={domain === "production" ? "实时产情业务" : "实时市场业务"}
       className="realtime-business-panel"
     >
       <header>
         <div>
-          <span>本地数据库实时模式</span>
-          <h2>
-            {domain === "production" ? "本地实时产情业务" : "本地实时市场业务"}
-          </h2>
+          <span>实时业务模式</span>
+          <h2>{domain === "production" ? "实时产情业务" : "实时市场业务"}</h2>
           <p>
-            字段定义、产品、地区和记录均来自 8090 后端；页面不会回退到演示数据。
+            字段定义、产品、地区和记录均来自业务数据服务；未获取数据时不会使用其他记录。
           </p>
         </div>
         <div className="realtime-business-header-actions">
@@ -470,11 +464,11 @@ export function RealtimeBusinessOperationsPanel({
         </div>
       </header>
       <div className="realtime-business-layout">
-        <aside aria-label="数据库业务记录">
+        <aside aria-label="业务记录">
           <label>
             <span>品种</span>
             <select
-              aria-label="数据库记录品种"
+              aria-label="记录品种"
               value={productCode}
               onChange={(event) => edit("productCode", event.target.value)}
             >
@@ -485,7 +479,7 @@ export function RealtimeBusinessOperationsPanel({
               ))}
             </select>
           </label>
-          <strong>{records.length} 条数据库记录</strong>
+          <strong>{records.length} 条业务记录</strong>
           <ul>
             {records.map((record) => (
               <li key={record.id}>
@@ -521,7 +515,7 @@ export function RealtimeBusinessOperationsPanel({
                 ? `${selected.id} · ${statusLabel(selected.status)}`
                 : "新建填报"}
             </strong>
-            {selected && <span>数据库版本 {selected.version}</span>}
+            {selected && <span>数据版本 {selected.version}</span>}
           </header>
           <div className="realtime-business-fields">
             {fields.map((field) => {
@@ -565,7 +559,7 @@ export function RealtimeBusinessOperationsPanel({
           </div>
           <div className="realtime-business-actions">
             <button disabled={busy || !definition} type="submit">
-              保存到本地数据库
+              保存业务记录
             </button>
             {selected && allowed.has("SUBMIT") && (
               <button

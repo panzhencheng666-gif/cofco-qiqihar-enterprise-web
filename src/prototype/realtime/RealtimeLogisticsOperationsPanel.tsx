@@ -47,7 +47,7 @@ export function RealtimeLogisticsOperationsPanel({
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("正在读取本地物流定义…");
+  const [message, setMessage] = useState("正在读取物流业务定义…");
   const [returnReason, setReturnReason] = useState("");
 
   const fields = useMemo(() => definition?.fields ?? [], [definition]);
@@ -68,7 +68,7 @@ export function RealtimeLogisticsOperationsPanel({
         setDefinition(nextDefinition);
         setRecords(page.items);
         setError("");
-        setMessage("物流定义和记录已连接本地数据库");
+        setMessage("物流定义和记录已连接业务数据服务");
       })
       .catch((cause: unknown) => {
         if (!cancelled)
@@ -92,7 +92,7 @@ export function RealtimeLogisticsOperationsPanel({
     setSelected(null);
     setValues(Object.fromEntries(fields.map((field) => [field.code, ""])));
     setReturnReason("");
-    setMessage("已新建空白物流记录，保存后才会写入数据库");
+    setMessage("已新建空白物流记录，保存后生成正式记录");
   }
 
   async function openRecord(id: string) {
@@ -124,7 +124,7 @@ export function RealtimeLogisticsOperationsPanel({
       setSelected(record);
       setValues(record.values);
       await reload();
-      setMessage(`保存成功，数据库版本 ${record.version}`);
+      setMessage(`保存成功，数据版本 ${record.version}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "保存物流记录失败");
     } finally {
@@ -147,7 +147,7 @@ export function RealtimeLogisticsOperationsPanel({
       setValues(record.values);
       await reload();
       setMessage(
-        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : "退回"}成功，数据库版本 ${record.version}`,
+        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : "退回"}成功，数据版本 ${record.version}`,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "物流状态操作失败");
@@ -160,14 +160,13 @@ export function RealtimeLogisticsOperationsPanel({
     selected?.allowedActions.map((action) => action.toUpperCase()) ?? [],
   );
   return (
-    <section className="realtime-business-panel" aria-label="本地实时物流业务">
+    <section className="realtime-business-panel" aria-label="实时物流业务">
       <header>
         <div>
-          <span>本地数据库实时模式</span>
-          <h2>本地实时物流节点监测</h2>
+          <span>实时业务模式</span>
+          <h2>实时物流节点监测</h2>
           <p>
-            物流节点定义、记录和审批状态均来自 8090
-            后端；页面不会回退到演示数据。
+            物流节点定义、记录和审批状态均来自业务数据服务；未获取数据时不会使用其他记录。
           </p>
         </div>
         <button type="button" onClick={newRecord} disabled={busy}>
@@ -180,8 +179,8 @@ export function RealtimeLogisticsOperationsPanel({
         </p>
       )}
       <div className="realtime-business-layout">
-        <aside aria-label="数据库物流记录">
-          <strong>{records.length} 条数据库记录</strong>
+        <aside aria-label="物流业务记录">
+          <strong>{records.length} 条业务记录</strong>
           <ul>
             {records.map((record) => (
               <li key={record.id}>
@@ -211,7 +210,7 @@ export function RealtimeLogisticsOperationsPanel({
                 ? `${selected.id} · ${statusLabel(selected.status)}`
                 : "新建物流记录"}
             </strong>
-            {selected && <span>数据库版本 {selected.version}</span>}
+            {selected && <span>数据版本 {selected.version}</span>}
           </header>
           <div className="realtime-business-fields">
             {fields.map((field) => (
@@ -258,7 +257,7 @@ export function RealtimeLogisticsOperationsPanel({
           </div>
           <div className="realtime-business-actions">
             <button disabled={busy || !definition} type="submit">
-              保存到本地数据库
+              保存物流记录
             </button>
             {selected && actions.has("SUBMIT") && (
               <button

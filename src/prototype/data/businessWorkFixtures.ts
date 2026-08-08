@@ -1,5 +1,241 @@
 import type { BusinessWorkItem } from "../core/businessWork";
 
+type MarketWorkSeed = Pick<
+  BusinessWorkItem,
+  | "workId"
+  | "title"
+  | "businessSubtypeId"
+  | "businessLabel"
+  | "regionId"
+  | "regionLabel"
+  | "productId"
+  | "cultivarIds"
+  | "deadline"
+  | "responsibleUserId"
+  | "responsiblePerson"
+  | "responsiblePost"
+  | "reviewerUserId"
+  | "reviewer"
+  | "obligationStatus"
+  | "documentStatus"
+  | "reviewStatus"
+  | "qualityStatus"
+  | "releaseStatus"
+  | "completedFields"
+  | "applicableFields"
+  | "fieldGroupIds"
+> & {
+  objectId: string;
+  objectName: string;
+  objectTypeId: string;
+  locationRegionId?: string;
+};
+
+function createMarketWorkItem(seed: MarketWorkSeed): BusinessWorkItem {
+  const obligationHistory: BusinessWorkItem["obligationHistory"] = [
+    {
+      obligationEventId: `OBLIGATION-${seed.workId}-START`,
+      action: "started",
+      actor: seed.responsiblePerson,
+      at: "2026-07-28T09:00:00+08:00",
+      reason: null,
+    },
+  ];
+  const returned =
+    seed.documentStatus === "returned" || seed.reviewStatus === "returned";
+  const submissionHistory: BusinessWorkItem["submissionHistory"] = returned
+    ? [
+        {
+          submissionVersionId: `SUBMISSION-${seed.workId}-1`,
+          submittedBy: seed.responsiblePerson,
+          submittedAt: "2026-07-31T10:00:00+08:00",
+          kind: "initial",
+          replacesSubmissionVersionId: null,
+        },
+      ]
+    : [];
+  const reviewHistory: BusinessWorkItem["reviewHistory"] = returned
+    ? [
+        {
+          reviewEventId: `REVIEW-${seed.workId}-CLAIM`,
+          submissionVersionId: `SUBMISSION-${seed.workId}-1`,
+          action: "claimed",
+          reviewer: seed.reviewer,
+          at: "2026-07-31T10:30:00+08:00",
+          reason: null,
+        },
+        {
+          reviewEventId: `REVIEW-${seed.workId}-RETURN`,
+          submissionVersionId: `SUBMISSION-${seed.workId}-1`,
+          action: "returned",
+          reviewer: seed.reviewer,
+          at: "2026-07-31T11:00:00+08:00",
+          reason: "质量检验依据需要补充",
+        },
+      ]
+    : [];
+  const qualityHistory: BusinessWorkItem["qualityHistory"] =
+    seed.qualityStatus === "warning" || seed.qualityStatus === "blocking"
+      ? [
+          {
+            qualityEventId: `QUALITY-${seed.workId}-RUN`,
+            action: "rules-executed",
+            ruleVersionId: "RULE-MARKET-1",
+            result: seed.qualityStatus,
+            actor: "系统",
+            actorRoleId: "system",
+            at: "2026-07-31T11:15:00+08:00",
+            explanationVersionId: null,
+          },
+        ]
+      : [];
+  return {
+    workId: seed.workId,
+    title: seed.title,
+    domain: "market",
+    businessSubtypeId: seed.businessSubtypeId,
+    businessLabel: seed.businessLabel,
+    subject: {
+      kind: "monitoring-object",
+      objectId: seed.objectId,
+      objectName: seed.objectName,
+      objectTypeId: seed.objectTypeId,
+      locationRegionId: seed.locationRegionId,
+    },
+    regionId: seed.regionId,
+    regionLabel: seed.regionLabel,
+    productId: seed.productId,
+    cultivarIds: seed.cultivarIds,
+    periodKey: "2026-W31",
+    deadline: seed.deadline,
+    responsibleUserId: seed.responsibleUserId,
+    responsiblePerson: seed.responsiblePerson,
+    responsiblePost: seed.responsiblePost,
+    dutyLabel: "市场周度报送",
+    reviewerUserId: seed.reviewerUserId,
+    reviewer: seed.reviewer,
+    responsibilityId: `RESP-${seed.workId}`,
+    frequency: "每周一次",
+    deadlineRule: "按任务截止时间前完成",
+    effectivePeriod: "2026 年度",
+    obligationStatus: seed.obligationStatus,
+    documentStatus: seed.documentStatus,
+    reviewStatus: seed.reviewStatus,
+    qualityStatus: seed.qualityStatus,
+    releaseStatus: seed.releaseStatus,
+    completedFields: seed.completedFields,
+    applicableFields: seed.applicableFields,
+    collectionModes: ["online", "excel", "system"],
+    fieldGroupIds: seed.fieldGroupIds,
+    inputVersionState: "current",
+    qualityGovernance: {
+      ruleVersionId: "RULE-MARKET-1",
+      warningPublicationPolicy: "allow-approved-explanation",
+      approvedExplanationVersionIds: [],
+    },
+    obligationHistory,
+    submissionHistory,
+    reviewHistory,
+    qualityHistory,
+    releaseHistory: [],
+  };
+}
+
+type ProductionWorkSeed = {
+  workId: string;
+  title: string;
+  objectId: string;
+  objectName: string;
+  objectTypeId: string;
+  locationRegionId: string;
+  productId: "soybean" | "paddy";
+  cultivarIds: readonly string[];
+  responsiblePerson: string;
+  responsibleUserId: string;
+};
+
+function createProductionWorkItem(seed: ProductionWorkSeed): BusinessWorkItem {
+  return {
+    workId: seed.workId,
+    title: seed.title,
+    domain: "production",
+    businessSubtypeId: "production.planting-production",
+    businessLabel: "种植生产",
+    subject: {
+      kind: "monitoring-object",
+      objectId: seed.objectId,
+      objectName: seed.objectName,
+      objectTypeId: seed.objectTypeId,
+      locationRegionId: seed.locationRegionId,
+    },
+    regionId: "qiqihar-nehe",
+    regionLabel: "讷河市同义镇",
+    productId: seed.productId,
+    cultivarIds: seed.cultivarIds,
+    periodKey: "2026-W31",
+    deadline: "2026-07-31T17:00:00+08:00",
+    responsibleUserId: seed.responsibleUserId,
+    responsiblePerson: seed.responsiblePerson,
+    responsiblePost: "产情数据填报员",
+    dutyLabel: "每周产情调查",
+    reviewerUserId: "zhao-chen",
+    reviewer: "赵晨",
+    responsibilityId: `RESP-${seed.workId}`,
+    frequency: "每周一次",
+    deadlineRule: "每周五 17:00 前",
+    effectivePeriod: "2026 年度",
+    obligationStatus: "in-progress",
+    documentStatus: "draft",
+    reviewStatus: "pending",
+    qualityStatus: "warning",
+    releaseStatus: "unreleased",
+    completedFields: 24,
+    applicableFields: 26,
+    collectionModes: ["online", "excel", "system"],
+    fieldGroupIds: [
+      "specific-variety",
+      "area-location",
+      "growth-stage-disaster",
+      "yield-output",
+      "quality-evidence",
+      "stock-sale-use-loss",
+      "planting-intention",
+      "cost-support-insurance",
+      "source-validation",
+    ],
+    inputVersionState: "current",
+    qualityGovernance: {
+      ruleVersionId: "RULE-PRODUCTION-1",
+      warningPublicationPolicy: "allow-approved-explanation",
+      approvedExplanationVersionIds: [],
+    },
+    obligationHistory: [
+      {
+        obligationEventId: `OBLIGATION-${seed.workId}-START`,
+        action: "started",
+        actor: seed.responsiblePerson,
+        at: "2026-07-28T09:00:00+08:00",
+        reason: null,
+      },
+    ],
+    submissionHistory: [],
+    reviewHistory: [],
+    qualityHistory: [
+      {
+        qualityEventId: `QUALITY-${seed.workId}-RUN-1`,
+        action: "rules-executed",
+        ruleVersionId: "RULE-PRODUCTION-1",
+        result: "warning",
+        actor: "系统",
+        actorRoleId: "system",
+        at: "2026-07-31T13:40:00+08:00",
+        explanationVersionId: null,
+      },
+    ],
+    releaseHistory: [],
+  };
+}
+
 export const businessWorkFixtures: readonly BusinessWorkItem[] = [
   {
     workId: "WORK-PRODUCTION-FILL-W31",
@@ -10,8 +246,9 @@ export const businessWorkFixtures: readonly BusinessWorkItem[] = [
     subject: {
       kind: "monitoring-object",
       objectId: "OBJ-PRODUCTION-SURVEY-01",
-      objectName: "讷河市同义镇调查片区",
-      objectTypeId: "survey-area",
+      objectName: "讷河市同义镇保国村村委会",
+      objectTypeId: "village-committee",
+      locationRegionId: "qiqihar-nehe-tongyi-baoguo",
     },
     regionId: "qiqihar-nehe",
     regionLabel: "讷河市",
@@ -104,6 +341,30 @@ export const businessWorkFixtures: readonly BusinessWorkItem[] = [
     ],
     releaseHistory: [],
   },
+  createProductionWorkItem({
+    workId: "WORK-PRODUCTION-SOY-W31",
+    title: "讷河市大豆长势与测产调查",
+    objectId: "OBJ-PRODUCTION-VILLAGE-02",
+    objectName: "讷河市同义镇保国村村委会",
+    objectTypeId: "village-committee",
+    locationRegionId: "qiqihar-nehe-tongyi-baoguo",
+    productId: "soybean",
+    cultivarIds: ["heinong-84"],
+    responsiblePerson: "王洋",
+    responsibleUserId: "wang-yang",
+  }),
+  createProductionWorkItem({
+    workId: "WORK-PRODUCTION-PADDY-W31",
+    title: "讷河市稻谷长势与测产调查",
+    objectId: "OBJ-PRODUCTION-STATION-03",
+    objectName: "讷河市同义镇农技站",
+    objectTypeId: "agri-station",
+    locationRegionId: "qiqihar-nehe-tongyi-qingbao",
+    productId: "paddy",
+    cultivarIds: ["longjing-31"],
+    responsiblePerson: "孙悦",
+    responsibleUserId: "sun-yue",
+  }),
   {
     workId: "WORK-MARKET-FILL-W31",
     title: "齐齐哈尔市玉米市场运行周填报",
@@ -365,4 +626,167 @@ export const businessWorkFixtures: readonly BusinessWorkItem[] = [
       },
     ],
   },
+  createMarketWorkItem({
+    workId: "WORK-MARKET-TRADER-W31",
+    title: "龙江北方粮贸玉米市场周填报",
+    businessSubtypeId: "market.quote-trade",
+    businessLabel: "报价与交易",
+    objectId: "OBJ-MARKET-TRADER-COMPANY-01",
+    objectName: "龙江北方粮贸有限公司",
+    objectTypeId: "grain-trading-enterprise",
+    regionId: "qiqihar-longjiang",
+    regionLabel: "龙江县",
+    productId: "corn",
+    cultivarIds: ["demeiya-3"],
+    deadline: "2026-07-31T17:00:00+08:00",
+    responsibleUserId: "zhao-chen",
+    responsiblePerson: "赵晨",
+    responsiblePost: "市场数据填报员",
+    reviewerUserId: "wang-yang",
+    reviewer: "王洋",
+    obligationStatus: "in-progress",
+    documentStatus: "draft",
+    reviewStatus: "pending",
+    qualityStatus: "warning",
+    releaseStatus: "unreleased",
+    completedFields: 18,
+    applicableFields: 18,
+    fieldGroupIds: ["purchase", "quality", "inventory", "sales"],
+  }),
+  createMarketWorkItem({
+    workId: "WORK-MARKET-RICE-W31",
+    title: "讷河恒泰米业稻谷市场周填报",
+    businessSubtypeId: "market.processing",
+    businessLabel: "加工",
+    objectId: "OBJ-MARKET-RICE-01",
+    objectName: "讷河恒泰米业",
+    objectTypeId: "grain-processing-enterprise",
+    locationRegionId: "qiqihar-nehe-tongyi-qingbao",
+    regionId: "qiqihar-nehe",
+    regionLabel: "讷河市",
+    productId: "paddy",
+    cultivarIds: ["longjing-31", "suijing-18"],
+    deadline: "2026-07-31T17:00:00+08:00",
+    responsibleUserId: "wang-yang",
+    responsiblePerson: "王洋",
+    responsiblePost: "市场数据填报员",
+    reviewerUserId: "zhao-chen",
+    reviewer: "赵晨",
+    obligationStatus: "in-progress",
+    documentStatus: "draft",
+    reviewStatus: "pending",
+    qualityStatus: "warning",
+    releaseStatus: "unreleased",
+    completedFields: 18,
+    applicableFields: 24,
+    fieldGroupIds: ["purchase", "quality", "processing", "inventory", "sales"],
+  }),
+  createMarketWorkItem({
+    workId: "WORK-MARKET-SOY-W31",
+    title: "北安大豆蛋白市场周填报",
+    businessSubtypeId: "market.processing",
+    businessLabel: "加工",
+    objectId: "OBJ-MARKET-SOY-01",
+    objectName: "北安大豆蛋白有限公司",
+    objectTypeId: "grain-processing-enterprise",
+    regionId: "heihe-beian",
+    regionLabel: "黑河市北安市",
+    productId: "soybean",
+    cultivarIds: ["heinong-84", "dongsheng-22"],
+    deadline: "2026-08-01T12:00:00+08:00",
+    responsibleUserId: "sun-yue",
+    responsiblePerson: "孙悦",
+    responsiblePost: "市场数据填报员",
+    reviewerUserId: "wang-yang",
+    reviewer: "王洋",
+    obligationStatus: "in-progress",
+    documentStatus: "returned",
+    reviewStatus: "returned",
+    qualityStatus: "blocking",
+    releaseStatus: "unreleased",
+    completedFields: 13,
+    applicableFields: 16,
+    fieldGroupIds: ["purchase", "quality", "processing", "inventory"],
+  }),
+  createMarketWorkItem({
+    workId: "WORK-MARKET-AGRI-W31",
+    title: "梅里斯农资市场周填报",
+    businessSubtypeId: "market.agricultural-input",
+    businessLabel: "农资",
+    objectId: "OBJ-MARKET-AGRI-01",
+    objectName: "梅里斯惠农农资服务部",
+    objectTypeId: "agri-input-operator",
+    regionId: "qiqihar-meilisi",
+    regionLabel: "梅里斯达斡尔族区",
+    productId: "agri-input",
+    cultivarIds: [],
+    deadline: "2026-08-01T12:00:00+08:00",
+    responsibleUserId: "zhou-nan",
+    responsiblePerson: "周楠",
+    responsiblePost: "市场数据填报员",
+    reviewerUserId: "wang-yang",
+    reviewer: "王洋",
+    obligationStatus: "in-progress",
+    documentStatus: "draft",
+    reviewStatus: "pending",
+    qualityStatus: "warning",
+    releaseStatus: "unreleased",
+    completedFields: 7,
+    applicableFields: 9,
+    fieldGroupIds: ["inventory", "sales"],
+  }),
+  createMarketWorkItem({
+    workId: "WORK-MARKET-RAIL-W31",
+    title: "铁路粮食物流市场周填报",
+    businessSubtypeId: "market.logistics",
+    businessLabel: "物流",
+    objectId: "OBJ-MARKET-RAIL-01",
+    objectName: "齐齐哈尔铁路货运站",
+    objectTypeId: "rail-node",
+    regionId: "qiqihar-all",
+    regionLabel: "齐齐哈尔市",
+    productId: "corn",
+    cultivarIds: ["demeiya-3"],
+    deadline: "2026-07-31T17:00:00+08:00",
+    responsibleUserId: "wang-yang",
+    responsiblePerson: "王洋",
+    responsiblePost: "物流数据填报员",
+    reviewerUserId: "zhao-chen",
+    reviewer: "赵晨",
+    obligationStatus: "in-progress",
+    documentStatus: "draft",
+    reviewStatus: "pending",
+    qualityStatus: "warning",
+    releaseStatus: "unreleased",
+    completedFields: 9,
+    applicableFields: 12,
+    fieldGroupIds: ["movement", "purchase", "evidence"],
+  }),
+  createMarketWorkItem({
+    workId: "WORK-MARKET-ROAD-W31",
+    title: "公路粮食物流市场周填报",
+    businessSubtypeId: "market.logistics",
+    businessLabel: "物流",
+    objectId: "OBJ-MARKET-ROAD-01",
+    objectName: "扎兰屯公路物流监测点",
+    objectTypeId: "road-node",
+    regionId: "hulunbuir-zhalantun",
+    regionLabel: "扎兰屯市",
+    productId: "corn",
+    cultivarIds: ["demeiya-3"],
+    deadline: "2026-08-01T12:00:00+08:00",
+    responsibleUserId: "chen-jia",
+    responsiblePerson: "陈佳",
+    responsiblePost: "物流数据填报员",
+    reviewerUserId: "wang-yang",
+    reviewer: "王洋",
+    obligationStatus: "in-progress",
+    documentStatus: "draft",
+    reviewStatus: "pending",
+    qualityStatus: "warning",
+    releaseStatus: "unreleased",
+    completedFields: 6,
+    applicableFields: 9,
+    fieldGroupIds: ["movement", "evidence"],
+  }),
 ];

@@ -72,6 +72,7 @@
 ### Task 1: Product-Owned Routes and Chinese Navigation
 
 **Files:**
+
 - Create: `src/prototype/core/productWorkspaceContext.ts`
 - Create: `src/prototype/core/productWorkspaceContext.spec.ts`
 - Modify: `src/prototype/formalEnterpriseModel.ts`
@@ -79,6 +80,7 @@
 - Test: `src/prototype/FormalEnterprisePrototype.spec.tsx`
 
 **Interfaces:**
+
 - Produces: `getProductWorkspaceContext(route: FormalRoute): ProductWorkspaceContext | null`。
 - Produces: `ProductWorkspaceContext = { domain: "production" | "market" | "supply"; productId: "corn" | "soybean" | "paddy"; productLabel: string; titleStem: string }`。
 - Consumed by: Tasks 3、5、6、8。
@@ -212,7 +214,7 @@ const productContextByRoute = {
 Update `formalApplicationDefinitions` so the six top applications are exactly:
 
 ```ts
-["我的工作", "经营总览", "产情监测", "市场监测", "供需分析", "报表中心"]
+["我的工作", "经营总览", "产情监测", "市场监测", "供需分析", "报表中心"];
 ```
 
 Use the exact left labels from the approved design and ensure no navigation label contains `日报`、`版本`、`能力清单` or a second logistics application.
@@ -233,6 +235,7 @@ git commit -m "feat: add product-owned enterprise routes"
 ### Task 2: Authorized Administrative Region Cascade
 
 **Files:**
+
 - Create: `src/prototype/data/enterpriseRegionHierarchy.ts`
 - Create: `src/prototype/data/enterpriseRegionHierarchy.spec.ts`
 - Create: `src/prototype/components/RegionCascadeSelector.tsx`
@@ -241,6 +244,7 @@ git commit -m "feat: add product-owned enterprise routes"
 - Modify: `src/prototype/UnifiedWorkspacePrimitives.tsx`
 
 **Interfaces:**
+
 - Produces: `EnterpriseRegionNode` and `getAuthorizedRegionChildren(parentId, authorizedLeafIds)`。
 - Produces: `<RegionCascadeSelector value onChange maxLevel authorizedRegionIds />`。
 - Consumed by: Tasks 5、6、8、9、10。
@@ -248,10 +252,12 @@ git commit -m "feat: add product-owned enterprise routes"
 - [ ] **Step 1: Write failing hierarchy and cascade tests**
 
 ```ts
-expect(getEnterpriseRegionPath("qiqihar-nehe-tongyi").map(({ label }) => label))
-  .toEqual(["黑龙江省", "齐齐哈尔市", "讷河市", "同义镇"]);
-expect(getAuthorizedRegionChildren("qiqihar", ["qiqihar-nehe"]))
-  .toEqual(expect.arrayContaining([expect.objectContaining({ id: "qiqihar-nehe" })]));
+expect(
+  getEnterpriseRegionPath("qiqihar-nehe-tongyi").map(({ label }) => label),
+).toEqual(["黑龙江省", "齐齐哈尔市", "讷河市", "同义镇"]);
+expect(getAuthorizedRegionChildren("qiqihar", ["qiqihar-nehe"])).toEqual(
+  expect.arrayContaining([expect.objectContaining({ id: "qiqihar-nehe" })]),
+);
 ```
 
 ```tsx
@@ -264,7 +270,9 @@ render(
   />,
 );
 expect(screen.getByLabelText("区县")).toBeInTheDocument();
-expect(screen.queryByRole("option", { name: "黑河市全域" })).not.toBeInTheDocument();
+expect(
+  screen.queryByRole("option", { name: "黑河市全域" }),
+).not.toBeInTheDocument();
 ```
 
 - [ ] **Step 2: Run and verify the flat-region implementation fails**
@@ -277,11 +285,7 @@ Expected: FAIL because the hierarchy and cascade component do not exist.
 
 ```ts
 export type EnterpriseAdministrativeLevel =
-  | "province"
-  | "prefecture"
-  | "county"
-  | "township"
-  | "village";
+  "province" | "prefecture" | "county" | "township" | "village";
 
 export interface EnterpriseRegionNode {
   id: string;
@@ -318,6 +322,7 @@ git commit -m "feat: add authorized region cascade"
 ### Task 3: Enterprise Shell, Utility Center, and Business Tree
 
 **Files:**
+
 - Create: `src/prototype/components/BusinessNavigationTree.tsx`
 - Create: `src/prototype/components/BusinessNavigationTree.spec.tsx`
 - Modify: `src/prototype/EnterpriseShell.tsx`
@@ -326,6 +331,7 @@ git commit -m "feat: add authorized region cascade"
 - Modify: `src/prototype/formal-enterprise.css`
 
 **Interfaces:**
+
 - Consumes: `FormalApplicationDefinition.navigation` and Task 1 product routes。
 - Produces: accessible top utilities and one left navigation tree per current application。
 - Consumed by: all later workspace tasks。
@@ -409,6 +415,7 @@ git commit -m "feat: rebuild enterprise shell utilities"
 ### Task 4: Compact Query and Standard Enterprise Work Table
 
 **Files:**
+
 - Create: `src/prototype/components/CompactBusinessQuery.tsx`
 - Create: `src/prototype/components/EnterpriseWorkTable.tsx`
 - Create: `src/prototype/components/EnterpriseWorkTable.spec.tsx`
@@ -417,6 +424,7 @@ git commit -m "feat: rebuild enterprise shell utilities"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Produces: `EnterpriseWorkTableColumn<Row>` and `<EnterpriseWorkTable />`。
 - Produces: `<CompactBusinessQuery primaryFields moreFields actions />`。
 - Consumed by: Tasks 5、6、8、9、10。
@@ -434,11 +442,23 @@ render(
       { key: "state", title: "状态" },
     ]}
     getRowId={(row) => row.id}
-    rows={[{ id: "1", objectName: "龙江北方粮贸有限公司", price: "2410", state: "待审核" }]}
+    rows={[
+      {
+        id: "1",
+        objectName: "龙江北方粮贸有限公司",
+        price: "2410",
+        state: "待审核",
+      },
+    ]}
   />,
 );
-expect(screen.getByRole("columnheader", { name: "采购与质量" })).toBeInTheDocument();
-expect(screen.getByRole("cell", { name: "2410" })).toHaveAttribute("data-editable", "true");
+expect(
+  screen.getByRole("columnheader", { name: "采购与质量" }),
+).toBeInTheDocument();
+expect(screen.getByRole("cell", { name: "2410" })).toHaveAttribute(
+  "data-editable",
+  "true",
+);
 ```
 
 - [ ] **Step 2: Run and verify the components are missing**
@@ -496,6 +516,7 @@ git commit -m "feat: add standard enterprise work table"
 ### Task 5: Product-Specific Production Worktables
 
 **Files:**
+
 - Modify: `src/prototype/ProductionMonitoringWorkspace.tsx`
 - Modify: `src/prototype/ProductionMonitoringWorkspace.spec.tsx`
 - Modify: `src/prototype/production/ProductionTaskWorkspace.tsx`
@@ -505,6 +526,7 @@ git commit -m "feat: add standard enterprise work table"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Consumes: `getProductWorkspaceContext`、`RegionCascadeSelector`、`CompactBusinessQuery`、`EnterpriseWorkTable`。
 - Produces: one production collection worktable per crop and a sectioned full document。
 
@@ -512,14 +534,24 @@ git commit -m "feat: add standard enterprise work table"
 
 ```tsx
 renderProduction({ section: "corn-collection" });
-expect(screen.getByRole("heading", { name: "玉米产情调查表" })).toBeInTheDocument();
+expect(
+  screen.getByRole("heading", { name: "玉米产情调查表" }),
+).toBeInTheDocument();
 expect(screen.queryByLabelText("产品或作物")).not.toBeInTheDocument();
 expect(screen.getByLabelText("区县")).toBeInTheDocument();
 expect(screen.getByLabelText("乡镇")).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: /播种面积/ })).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: /预计单产/ })).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: /预计总产/ })).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: /上年同比/ })).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: /播种面积/ }),
+).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: /预计单产/ }),
+).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: /预计总产/ }),
+).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: /上年同比/ }),
+).toBeInTheDocument();
 ```
 
 - [ ] **Step 2: Run and confirm the old generic task layout fails**
@@ -556,6 +588,7 @@ git commit -m "feat: rebuild product production worktables"
 ### Task 6: Product-Specific Market and Logistics Worktables
 
 **Files:**
+
 - Create: `src/prototype/market/LogisticsMonitoringWorkspace.tsx`
 - Create: `src/prototype/market/LogisticsMonitoringWorkspace.spec.tsx`
 - Modify: `src/prototype/MarketMonitoringWorkspace.tsx`
@@ -567,6 +600,7 @@ git commit -m "feat: rebuild product production worktables"
 - Modify: `src/prototype/market-monitoring.css`
 
 **Interfaces:**
+
 - Consumes: Task 1 product context and Task 4 table components。
 - Produces: market collection rows and logistics node rows eligible for Task 8 supply inputs。
 
@@ -574,18 +608,30 @@ git commit -m "feat: rebuild product production worktables"
 
 ```tsx
 renderMarket({ section: "corn-collection" });
-expect(screen.getByRole("heading", { name: "玉米市场采集表" })).toBeInTheDocument();
+expect(
+  screen.getByRole("heading", { name: "玉米市场采集表" }),
+).toBeInTheDocument();
 expect(screen.queryByLabelText("产品")).not.toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: "采购与质量" })).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: /库存与交易/ })).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: "采购与质量" }),
+).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: /库存与交易/ }),
+).toBeInTheDocument();
 ```
 
 ```tsx
 render(<LogisticsMonitoringWorkspace {...authorizedProps} />);
-expect(screen.getByRole("heading", { name: "粮食物流节点监测表" })).toBeInTheDocument();
+expect(
+  screen.getByRole("heading", { name: "粮食物流节点监测表" }),
+).toBeInTheDocument();
 expect(screen.getByRole("option", { name: "铁路站点" })).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: /流入量/ })).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: /流出量/ })).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: /流入量/ }),
+).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: /流出量/ }),
+).toBeInTheDocument();
 ```
 
 - [ ] **Step 2: Run and verify both worktables fail**
@@ -622,6 +668,7 @@ git commit -m "feat: rebuild market and logistics worktables"
 ### Task 7: On-Demand Object Detail and Sectioned Documents
 
 **Files:**
+
 - Modify: `src/prototype/production/ProductionObjectRegistry.tsx`
 - Modify: `src/prototype/market/MarketObjectRegistry.tsx`
 - Modify: `src/prototype/ProductionMonitoringWorkspace.spec.tsx`
@@ -631,13 +678,16 @@ git commit -m "feat: rebuild market and logistics worktables"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Consumes: existing `MonitoringObject` identity、role、capability and document state。
 - Produces: selected-object detail only after explicit `查看`; returns to unchanged list scope when closed。
 
 - [ ] **Step 1: Write failing detail-behavior tests**
 
 ```tsx
-expect(screen.queryByRole("region", { name: "对象详情" })).not.toBeInTheDocument();
+expect(
+  screen.queryByRole("region", { name: "对象详情" }),
+).not.toBeInTheDocument();
 await user.click(screen.getAllByRole("button", { name: "查看" })[0]);
 expect(screen.getByRole("region", { name: "对象详情" })).toBeInTheDocument();
 expect(screen.getByText("身份与业务角色")).toBeInTheDocument();
@@ -681,6 +731,7 @@ git commit -m "feat: add on-demand business object details"
 ### Task 8: Supply Trial, Formal Calculation, and Source Ledger
 
 **Files:**
+
 - Create: `src/prototype/core/supplyAccountEngine.ts`
 - Create: `src/prototype/core/supplyAccountEngine.spec.ts`
 - Modify: `src/prototype/data/supplyAccountSnapshot.ts`
@@ -692,6 +743,7 @@ git commit -m "feat: add on-demand business object details"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Produces: `calculateSupplyAccount(input: SupplyAccountInput): SupplyAccountCalculation`。
 - Produces: `resolveSupplyResultState(inputs: readonly SupplyInputRelease[], publishApproved: boolean): SupplyResultState`。
 - Consumes: approved production, market, logistics and inventory input rows。
@@ -803,6 +855,7 @@ git commit -m "feat: add governed supply calculation ledger"
 ### Task 9: Dynamic Chinese Report Composition
 
 **Files:**
+
 - Modify: `src/prototype/businessReportModel.ts`
 - Modify: `src/prototype/businessReportModel.spec.ts`
 - Modify: `src/prototype/BusinessReportComposer.tsx`
@@ -814,6 +867,7 @@ git commit -m "feat: add governed supply calculation ledger"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Consumes: approved dataset labels, Task 2 region cascade and selected business context。
 - Produces: report request with business type、region、product、cultivar、period、frequency、cutoff、approved data and sections。
 - Produces: one-click business daily／weekly／monthly exports and submission-record weekly／monthly exports from the exact current scope。
@@ -850,7 +904,13 @@ Expected: FAIL until all parameters are explicit and linked.
 
 ```ts
 export interface BusinessReportRequest {
-  reportType: "产情报告" | "市场报告" | "物流报告" | "供需报告" | "综合经营报告" | "履责报告";
+  reportType:
+    | "产情报告"
+    | "市场报告"
+    | "物流报告"
+    | "供需报告"
+    | "综合经营报告"
+    | "履责报告";
   regionId: string;
   productId: string;
   cultivarId: string | null;
@@ -900,6 +960,7 @@ git commit -m "feat: add dynamic Chinese report composition"
 ### Task 10: Four-Year Comparisons, Overview Ledger, and My Work
 
 **Files:**
+
 - Modify: `src/prototype/components/AnnualComparisonTrack.tsx`
 - Modify: `src/prototype/components/AnnualComparisonTrack.spec.tsx`
 - Modify: `src/prototype/components/ComparisonCharts.tsx`
@@ -913,6 +974,7 @@ git commit -m "feat: add dynamic Chinese report composition"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Consumes: existing `ComparisonSet` and published metric catalog。
 - Produces: four-year values, three year-over-year rates, explicit non-comparability and filtered overview ledgers。
 
@@ -920,9 +982,15 @@ git commit -m "feat: add dynamic Chinese report composition"
 
 ```tsx
 expect(screen.getByRole("columnheader", { name: "2023" })).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: "2024同比" })).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: "2025同比" })).toBeInTheDocument();
-expect(screen.getByRole("columnheader", { name: "2026同比" })).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: "2024同比" }),
+).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: "2025同比" }),
+).toBeInTheDocument();
+expect(
+  screen.getByRole("columnheader", { name: "2026同比" }),
+).toBeInTheDocument();
 expect(screen.getByRole("img", { name: /四年数值趋势/ })).toBeInTheDocument();
 ```
 
@@ -966,6 +1034,7 @@ git commit -m "feat: finish ledger-led enterprise views"
 ### Task 11: Chinese Display Audit, Field Preservation, and Full Verification
 
 **Files:**
+
 - Modify: `src/prototype/core/businessDisplayPolicy.ts`
 - Modify: `src/prototype/core/businessDisplayPolicy.spec.ts`
 - Modify: `src/prototype/prototypeFieldPreservation.spec.ts`
@@ -975,6 +1044,7 @@ git commit -m "feat: finish ledger-led enterprise views"
 - Modify: `src/prototype/unified-workspaces.css`
 
 **Interfaces:**
+
 - Consumes: all prior task outputs。
 - Produces: final source-level and rendered-surface acceptance evidence。
 

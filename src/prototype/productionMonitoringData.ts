@@ -45,7 +45,7 @@ export const productionCropProfiles: readonly ProductionCropProfile[] = [
       { name: "东生22", status: "已确认" },
       { name: "绥农52", status: "已确认" },
     ],
-    quality: ["蛋白", "水分", "杂质", "不完善粒"],
+    quality: ["蛋白", "出油率", "不完善粒", "水分", "杂质"],
   },
   {
     key: "paddy",
@@ -59,7 +59,7 @@ export const productionCropProfiles: readonly ProductionCropProfile[] = [
       { name: "绥粳18", status: "已确认" },
       { name: "龙稻18", status: "已确认" },
     ],
-    quality: ["出糙率", "出米率", "水分", "杂质", "不完善粒"],
+    quality: ["水分", "出米率", "出糙率", "杂质"],
   },
 ];
 
@@ -76,17 +76,17 @@ export interface ProductionObjectRow {
 
 export const productionObjectRows: readonly ProductionObjectRow[] = [
   {
-    name: "讷河市同义镇调查片区",
-    type: "village-ledger",
-    region: "讷河市同义镇",
+    name: "讷河市同义镇保国村村委会",
+    type: "village-committee",
+    region: "讷河市同义镇保国村",
     crops: "玉米 · 大豆",
     varieties: "德美亚3号 · 黑农84",
-    source: "行政村台账",
+    source: "村级种植台账",
     owner: "刘敏",
     state: "正常监测",
   },
   {
-    name: "龙江县杏山镇样本户组",
+    name: "龙江县杏山镇农户调查点",
     type: "farmer",
     region: "龙江县杏山镇",
     crops: "玉米",
@@ -96,12 +96,12 @@ export const productionObjectRows: readonly ProductionObjectRow[] = [
     state: "正常监测",
   },
   {
-    name: "泰来县和平镇田间样方",
-    type: "field-plot",
+    name: "泰来县和平镇农业技术服务站",
+    type: "agri-station",
     region: "泰来县和平镇",
     crops: "稻谷",
     varieties: "龙粳31 · 绥粳18",
-    source: "田间测产",
+    source: "农技站测产记录",
     owner: "王洋",
     state: "待补依据",
   },
@@ -116,12 +116,12 @@ export const productionObjectRows: readonly ProductionObjectRow[] = [
     state: "复核中",
   },
   {
-    name: "梅里斯达斡尔族区丰源家庭农场",
-    type: "family-farm",
+    name: "梅里斯达斡尔族区丰源种植户",
+    type: "farmer",
     region: "梅里斯达斡尔族区",
     crops: "玉米 · 稻谷",
     varieties: "德美亚3号 · 龙稻18",
-    source: "家庭农场样本",
+    source: "农户样本",
     owner: "周楠",
     state: "正常监测",
   },
@@ -197,28 +197,31 @@ export const productionTaskStateOptions = {
     ["unreleased", "未发布"],
     ["pending", "待发布"],
     ["published", "已发布"],
-    ["superseded", "已被新版本替代"],
+    ["superseded", "已由后续发布结果替代"],
   ],
 } as const;
 
 export const productionAnalysisCoordinateOptions = {
   periods: [{ id: "2026-W31", label: "2026 年第 31 周" }],
-  dataLayers: [{ id: "official", label: "正式数据" }],
+  dataLayers: [{ id: "official", label: "已核定数据" }],
   releaseVersions: [
-    { id: "METRIC-2026-W31-V3", label: "2026年第31周正式指标第3版" },
+    {
+      id: "METRIC-2026-W31-V3",
+      label: "2026年第31周已核定数据（当前采用）",
+    },
   ],
 } as const;
 
 export const productionMetricReleaseNames: Readonly<Record<string, string>> = {
-  "metric-2023-v1": "2023年度正式指标第1版",
-  "metric-2024-v1": "2024年度正式指标第1版",
-  "metric-2025-v1": "2025年度正式指标第1版",
-  "METRIC-2026-W31-V3": "2026年第31周正式指标第3版",
+  "metric-2023-v1": "2023年第31周已核定数据",
+  "metric-2024-v1": "2024年第31周已核定数据",
+  "metric-2025-v1": "2025年第31周已核定数据",
+  "METRIC-2026-W31-V3": "2026年第31周已核定数据（当前采用）",
 };
 
 export const productionMetricGovernanceLabels = {
   source: "官方已发布产情指标",
-  definitionEdition: "指标定义第1版",
-  comparabilityEdition: "跨年度可比规则第1版",
+  definitionEdition: "统计口径",
+  comparabilityEdition: "四年统计口径连续可比",
   qualityPassed: "质量校验通过",
 } as const;

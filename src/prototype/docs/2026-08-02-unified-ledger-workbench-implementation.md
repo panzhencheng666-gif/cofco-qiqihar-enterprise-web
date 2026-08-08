@@ -21,12 +21,14 @@
 ### Task 1: Standardize the shared query toolbar
 
 **Files:**
+
 - Modify: `src/prototype/unified-workspaces.css`
 - Test: `src/prototype/UnifiedWorkspacePrimitives.spec.tsx`
 - Test: `src/prototype/ProductionMonitoringWorkspace.spec.tsx`
 - Test: `src/prototype/MarketMonitoringWorkspace.spec.tsx`
 
 **Interfaces:**
+
 - Consumes: existing `.enterprise-ledger-query`, `.region-cascade-selector`, and `.enterprise-ledger-query__actions` markup.
 - Produces: one shared width and wrapping contract for production, market, logistics, supply, and report queries.
 
@@ -35,8 +37,12 @@
 ```ts
 expect(css).toContain("--enterprise-query-control-width: 176px");
 expect(css).toContain("--enterprise-query-region-width: 220px");
-expect(css).toMatch(/\.enterprise-ledger-query__actions\s*\{[^}]*margin-inline-start:\s*auto/s);
-expect(css).not.toMatch(/enterprise-ledger-query--production\s*\{[^}]*170px 280px/s);
+expect(css).toMatch(
+  /\.enterprise-ledger-query__actions\s*\{[^}]*margin-inline-start:\s*auto/s,
+);
+expect(css).not.toMatch(
+  /enterprise-ledger-query--production\s*\{[^}]*170px 280px/s,
+);
 ```
 
 - [ ] **Step 2: Run the focused tests and confirm the new contract is absent**
@@ -96,6 +102,7 @@ Expected: no output.
 ### Task 2: Unify production and market analysis
 
 **Files:**
+
 - Modify: `src/prototype/production/ProductionAnalysisWorkspace.tsx`
 - Modify: `src/prototype/market/MarketAnalysisWorkspace.tsx`
 - Modify: `src/prototype/unified-workspaces.css`
@@ -104,6 +111,7 @@ Expected: no output.
 - Test: `src/prototype/MarketMonitoringWorkspace.spec.tsx`
 
 **Interfaces:**
+
 - Consumes: `OperationalScope`, `BusinessCoordinates`, existing comparison queries, `QuickReportExportMenu`, and selected metric state.
 - Produces: identical analysis-page order: header → compact filters → single result state → four-year ledger → selected-metric charts.
 
@@ -112,11 +120,15 @@ Expected: no output.
 ```ts
 expect(screen.getByRole("region", { name: "产情分析查询条件" })).toBeVisible();
 expect(screen.getByRole("table", { name: "产情四年指标台账" })).toBeVisible();
-expect(screen.queryByRole("region", { name: "产情分析结果摘要" })).not.toBeInTheDocument();
+expect(
+  screen.queryByRole("region", { name: "产情分析结果摘要" }),
+).not.toBeInTheDocument();
 
 expect(screen.getByRole("region", { name: "市场分析查询条件" })).toBeVisible();
 expect(screen.getByRole("table", { name: "市场四年指标台账" })).toBeVisible();
-expect(screen.queryByRole("region", { name: "市场分析结果摘要" })).not.toBeInTheDocument();
+expect(
+  screen.queryByRole("region", { name: "市场分析结果摘要" }),
+).not.toBeInTheDocument();
 expect(screen.queryByText(/数据状态：正式发布数据/)).not.toBeInTheDocument();
 ```
 
@@ -135,7 +147,11 @@ Production primary fields remain business classification, region, product/crop, 
   ariaLabel="市场分析查询条件"
   primaryFields={[classificationField, regionField, productField, periodField]}
   moreFields={[cultivarField, adoptedDatasetField]}
-  actions={<button className="is-primary" type="button">查询</button>}
+  actions={
+    <button className="is-primary" type="button">
+      查询
+    </button>
+  }
 />
 ```
 
@@ -146,7 +162,10 @@ Delete the market data-status paragraph, filter chips that restate the selected 
 - [ ] **Step 5: Preserve ledger and metric expansion behavior**
 
 ```tsx
-<button type="button" onClick={() => onScopeChange({ selectedMetricId: metric.id })}>
+<button
+  type="button"
+  onClick={() => onScopeChange({ selectedMetricId: metric.id })}
+>
   分析{metric.label}
 </button>
 ```
@@ -162,12 +181,14 @@ Expected: PASS.
 ### Task 3: Convert business reports to one compact generation path
 
 **Files:**
+
 - Modify: `src/prototype/ReportCenterWorkspace.tsx`
 - Modify: `src/prototype/unified-workspaces.css`
 - Test: `src/prototype/ReportCenterWorkspace.spec.tsx`
 - Test: `src/prototype/BusinessReportComposer.spec.tsx`
 
 **Interfaces:**
+
 - Consumes: approved report datasets, report authorization, `buildReportContext`, `QuickReportExportMenu`, and the existing report workflow.
 - Produces: one query surface with six primary coordinates, four progressive fields, one generate action, and one report ledger.
 
@@ -177,11 +198,15 @@ Expected: PASS.
 const query = screen.getByRole("region", { name: "业务报告生成条件" });
 expect(within(query).getByRole("combobox", { name: "业务类型" })).toBeVisible();
 expect(within(query).getByLabelText("选择地区")).toBeVisible();
-expect(within(query).getByRole("combobox", { name: "产品或专题" })).toBeVisible();
+expect(
+  within(query).getByRole("combobox", { name: "产品或专题" }),
+).toBeVisible();
 expect(within(query).getByRole("combobox", { name: "报告频率" })).toBeVisible();
 expect(within(query).getByRole("combobox", { name: "报告期间" })).toBeVisible();
 expect(within(query).getByRole("combobox", { name: "采用数据" })).toBeVisible();
-expect(screen.queryByRole("group", { name: "报告范围" })).not.toBeInTheDocument();
+expect(
+  screen.queryByRole("group", { name: "报告范围" }),
+).not.toBeInTheDocument();
 ```
 
 - [ ] **Step 2: Run report tests and confirm the old fieldset layout fails**
@@ -211,10 +236,19 @@ Expected: FAIL on compact-layout assertions.
   ]}
   actions={
     <>
-      <button className="is-primary" disabled={!canCompose} type="button" onClick={composeReport}>
+      <button
+        className="is-primary"
+        disabled={!canCompose}
+        type="button"
+        onClick={composeReport}
+      >
         生成报告
       </button>
-      <QuickReportExportMenu request={quickReportRequest} exportAllowed={canExport} onExport={onQuickExport} />
+      <QuickReportExportMenu
+        request={quickReportRequest}
+        exportAllowed={canExport}
+        onExport={onQuickExport}
+      />
     </>
   }
 />
@@ -235,9 +269,11 @@ Expected: PASS, including all five governed export kinds.
 ### Task 4: Verify the integrated prototype
 
 **Files:**
+
 - Verify only: `src/prototype/**`
 
 **Interfaces:**
+
 - Consumes: completed query, analysis, and report workspaces.
 - Produces: evidence that the approved architecture works at the actual desktop viewport.
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getApplicableFieldGroups,
   getMarketCompletion,
+  marketLifecycleLabels,
   marketRoleLabels,
   type MarketRole,
   type MarketTask,
@@ -45,6 +46,7 @@ describe("market collection presentation model", () => {
   it("calculates completion from applicable fields only", () => {
     const task: MarketTask = {
       id: "task-1",
+      workId: "WORK-MARKET-TEST",
       target: "subject",
       targetName: "讷河恒泰米业",
       role: "rice-mill",
@@ -58,5 +60,12 @@ describe("market collection presentation model", () => {
     };
 
     expect(getMarketCompletion(task)).toBe(75);
+  });
+
+  it("describes a superseded release as a later published result", () => {
+    expect(marketLifecycleLabels.release.superseded).toBe(
+      "已由后续发布结果替代",
+    );
+    expect(marketLifecycleLabels.release.superseded).not.toContain("新版本");
   });
 });

@@ -1,9 +1,5 @@
 export type BusinessClassificationDomain =
-  | "production"
-  | "market"
-  | "supply"
-  | "operations"
-  | "reporting";
+  "production" | "market" | "supply" | "operations" | "reporting";
 
 export const requiredBusinessClassificationIds = [
   "production.planting-production",
@@ -45,16 +41,17 @@ export interface BusinessClassification {
 function classification(
   id: BusinessClassification["id"],
 ): BusinessClassification {
-  const [domain, key] = id.split(".") as [
-    BusinessClassificationDomain,
-    string,
-  ];
+  const domain = id.split(".", 1)[0] as BusinessClassificationDomain;
   return {
     id,
     domain,
     label: governedLabels[id],
     productDimension:
-      domain === "supply" ? "product-account" : domain === "operations" ? "none" : "crop",
+      domain === "supply"
+        ? "product-account"
+        : domain === "operations"
+          ? "none"
+          : "crop",
     taskEnabled: domain !== "reporting",
     analysisEnabled: domain !== "reporting",
     reportEnabled: true,
@@ -102,11 +99,28 @@ function selectClassifications(
 }
 
 export const businessClassificationOptionSources = {
-  workItems: selectClassifications(["production.planting-production", "market.quote-trade"]),
-  executiveFilters: selectClassifications(["operations.obligation-performance", "operations.data-quality"]),
-  productionAnalysis: selectClassifications(["production.planting-production", "production.quality-survey"]),
-  marketAnalysis: selectClassifications(["market.quote-trade", "market.inventory", "market.logistics"]),
-  supplyAnalysis: selectClassifications(["supply.supply", "supply.use-outflow", "supply.results"]),
+  workItems: selectClassifications([
+    "production.planting-production",
+    "market.quote-trade",
+  ]),
+  executiveFilters: selectClassifications([
+    "operations.obligation-performance",
+    "operations.data-quality",
+  ]),
+  productionAnalysis: selectClassifications([
+    "production.planting-production",
+    "production.quality-survey",
+  ]),
+  marketAnalysis: selectClassifications([
+    "market.quote-trade",
+    "market.inventory",
+    "market.logistics",
+  ]),
+  supplyAnalysis: selectClassifications([
+    "supply.supply",
+    "supply.use-outflow",
+    "supply.results",
+  ]),
   reportCompatibility: selectClassifications([
     "reporting.production",
     "reporting.market",

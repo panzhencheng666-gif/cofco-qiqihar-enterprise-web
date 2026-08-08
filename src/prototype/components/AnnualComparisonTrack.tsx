@@ -1,6 +1,7 @@
 import { useRef, type JSX, type KeyboardEvent } from "react";
 
 import { compareFixedDecimal, fixedDecimal } from "../core/fixedDecimal";
+import { businessComparisonReason } from "../core/businessDisplayPolicy";
 import type { MetricComparisonViewModel } from "../core/metricComparisonViewModel";
 
 export interface AnnualComparisonTrackProps {
@@ -225,7 +226,6 @@ export function AnnualComparisonTrack({
     );
   }
 
-  const currentYear = model.yearCells[model.yearCells.length - 1];
   const currentChange =
     model.annualChangeSeries[model.annualChangeSeries.length - 1];
   const currentChangeText = signedChangeText(
@@ -267,9 +267,7 @@ export function AnnualComparisonTrack({
           {cagrDisplayText(model.cagrText)}
         </span>
         <span className="enterprise-comparison-track__version">
-          {currentYear
-            ? `指标版本 ${currentYear.releaseVersionLabel}`
-            : "指标版本未知"}
+          数据状态：已核定（当前采用）
         </span>
         <span className="enterprise-comparison-track__comparability">
           {model.comparabilityText}
@@ -289,10 +287,9 @@ export function AnnualComparisonTrack({
               >
                 <small>{cell.year}</small>
                 <strong>{cell.valueText}</strong>
-                <span>{cell.releaseVersionLabel}</span>
                 {cell.reason && (
                   <span className="enterprise-comparison-track__reason">
-                    {cell.reason}
+                    {businessComparisonReason(cell.reason)}
                   </span>
                 )}
               </span>
@@ -309,7 +306,7 @@ export function AnnualComparisonTrack({
             const formulaUnavailable = !coordinateBreak && rawChange === null;
             const className = `enterprise-comparison-track__pair${coordinateBreak ? " is-coordinate-not-comparable" : formulaUnavailable ? " is-formula-unavailable" : ""}`;
             const text = coordinateBreak
-              ? `${toYear} 与 ${fromYear} 口径不可比：${pair.reason ?? pair.changeText}`
+              ? `${toYear} 与 ${fromYear} 口径不可比：${businessComparisonReason(pair.reason ?? pair.changeText)}`
               : `${toYear}/${fromYear}同比 ${signedChangeText(pair.changeText, rawChange)}`;
             return (
               <span className={className} key={`${fromYear}-${toYear}`}>

@@ -20,59 +20,92 @@ import {
 import type { FormalApplicationDefinition } from "./formalEnterpriseData";
 
 describe("formal enterprise route model", () => {
-  it("reads typed application sections and falls back to the work task list", () => {
+  it("writes a complete Chinese business hash for every application view", () => {
+    const routes = [
+      ["work", "tasks", "#/我的工作/待我处理"],
+      ["work", "submitted", "#/我的工作/待我填报"],
+      ["work", "review", "#/我的工作/待我审核"],
+      ["work", "exceptions", "#/我的工作/退回与异常"],
+      ["work", "completed", "#/我的工作/已办事项"],
+      ["overview", "operations", "#/经营总览/经营运行"],
+      ["overview", "risks", "#/经营总览/风险关注"],
+      ["overview", "duty", "#/经营总览/履责情况"],
+      ["overview", "releases", "#/经营总览/结果发布"],
+      ["production", "corn-collection", "#/产情监测/玉米产情填报"],
+      ["production", "soybean-collection", "#/产情监测/大豆产情填报"],
+      ["production", "rice-collection", "#/产情监测/稻谷产情填报"],
+      ["production", "tasks", "#/产情监测/产情任务"],
+      ["production", "objects", "#/产情监测/调查对象"],
+      ["production", "review", "#/产情监测/数据审核"],
+      ["production", "analysis", "#/产情监测/产情分析"],
+      ["market", "corn-collection", "#/市场监测/玉米市场采集"],
+      ["market", "soybean-collection", "#/市场监测/大豆市场采集"],
+      ["market", "paddy-collection", "#/市场监测/稻谷市场采集"],
+      ["market", "logistics", "#/市场监测/物流节点监测"],
+      ["market", "tasks", "#/市场监测/采集任务"],
+      ["market", "objects", "#/市场监测/监测对象"],
+      ["market", "review", "#/市场监测/数据审核"],
+      ["market", "analysis", "#/市场监测/市场分析"],
+      ["supply", "corn-balance", "#/供需分析/玉米供需平衡"],
+      ["supply", "soybean-balance", "#/供需分析/大豆供需平衡"],
+      ["supply", "paddy-balance", "#/供需分析/稻谷供需平衡"],
+      ["supply", "records", "#/供需分析/计算记录"],
+      ["supply", "calculation", "#/供需分析/供需测算"],
+      ["supply", "comparison", "#/供需分析/四年对比"],
+      ["supply", "versions", "#/供需分析/核定记录"],
+      ["reporting", "compose", "#/报表中心/业务报告"],
+      ["reporting", "comprehensive", "#/报表中心/综合报告"],
+      ["reporting", "review-distribution", "#/报表中心/报告审核与发布"],
+      ["reporting", "ledger", "#/报表中心/报告台账"],
+    ] as const;
+
+    for (const [application, section, businessHash] of routes) {
+      const route = createFormalRoute(application, section);
+      expect(writeFormalRoute(route)).toBe(businessHash);
+      expect(readFormalRoute(businessHash)).toEqual(route);
+      expect(
+        readFormalRoute(`https://example.test/prototype.html${businessHash}`),
+      ).toEqual(route);
+    }
+  });
+
+  it("keeps the former paddy production bookmark compatible", () => {
+    expect(readFormalRoute("#/产情监测/水稻产情填报")).toEqual({
+      application: "production",
+      section: "rice-collection",
+    });
+  });
+
+  it("migrates legacy English routes but never writes them back", () => {
     expect(readFormalRoute("?page=production&section=objects")).toEqual({
       application: "production",
       section: "objects",
     });
-    expect(readFormalRoute("?page=supply&section=analysis")).toEqual({
-      application: "supply",
-      section: "calculation",
+    expect(readFormalRoute("#/overview/risks")).toEqual({
+      application: "overview",
+      section: "risks",
     });
-    expect(readFormalRoute("?page=reporting&section=compose")).toEqual({
-      application: "reporting",
-      section: "compose",
-    });
+    expect(
+      writeFormalRoute(readFormalRoute("?page=reporting&section=ledger")),
+    ).toBe("#/报表中心/报告台账");
+  });
 
+  it("normalizes invalid modules and views without reflecting unknown codes", () => {
     expect(readFormalRoute("?page=unknown&section=unknown")).toEqual({
       application: "work",
       section: "tasks",
     });
-
-    expect(readFormalRoute("?page=market&section=unknown")).toEqual({
-      application: "market",
+    expect(readFormalRoute("#/不存在的模块/内部代码-001")).toEqual({
+      application: "work",
       section: "tasks",
     });
-  });
-
-  it("writes stable application and section query parameters", () => {
-    expect(
-      writeFormalRoute({
-        application: "reporting",
-        section: "compose",
-      }),
-    ).toBe("page=reporting");
-
-    expect(
-      writeFormalRoute({
-        application: "market",
-        section: "tasks",
-      }),
-    ).toBe("page=market");
-
-    expect(
-      writeFormalRoute({
-        application: "production",
-        section: "objects",
-      }),
-    ).toBe("page=production&section=objects");
-
-    expect(
-      writeFormalRoute({
-        application: "work",
-        section: "tasks",
-      }),
-    ).toBe("page=work");
+    expect(readFormalRoute("#/市场监测/内部代码-001")).toEqual({
+      application: "market",
+      section: "corn-collection",
+    });
+    expect(writeFormalRoute(readFormalRoute("#/市场监测/内部代码-001"))).toBe(
+      "#/市场监测/玉米市场采集",
+    );
   });
 });
 
@@ -92,19 +125,24 @@ describe("formal location", () => {
     // @ts-expect-error supply does not have an operations section
     createFormalRoute("supply", "operations");
 
-    const invalidDefinition: Extract<FormalApplicationDefinition, { key: "production" }> = {
+    const invalidDefinition: Extract<
+      FormalApplicationDefinition,
+      { key: "production" }
+    > = {
       key: "production",
       code: "03",
       label: "产情监测",
       shortLabel: "产情",
       note: "type-only negative assertion",
-      // @ts-expect-error a production definition cannot contain a market route
-      navigation: [{ route: createFormalRoute("market", "tasks"), label: "错误路由" }],
+      navigation: [
+        // @ts-expect-error a production definition cannot contain a market route
+        { route: createFormalRoute("market", "tasks"), label: "错误路由" },
+      ],
     };
     expect(invalidDefinition).toBeDefined();
   });
 
-  it("round-trips a full formal location", () => {
+  it("serializes only the stable route and ignores injected business state", () => {
     const location: FormalLocation = {
       route: createFormalRoute("production", "tasks"),
       coordinates: {
@@ -123,8 +161,17 @@ describe("formal location", () => {
       selection: { type: "work-item", id: "PROD-W31-002" },
     };
 
-    expect(readFormalLocation(writeFormalLocation(location), authorization)).toEqual({
-      location,
+    expect(writeFormalLocation(location)).toBe("#/产情监测/产情任务");
+    expect(
+      readFormalLocation(
+        "?page=production&region=qiqihar-nehe&product=corn&releaseVersion=METRIC-2026-W31-V3&selectionType=work-item&selectionId=PROD-W31-002",
+        authorization,
+      ),
+    ).toEqual({
+      location: {
+        route: createFormalRoute("production", "corn-collection"),
+        coordinates: { regionId: "authorized-all" },
+      },
       issues: [],
       queryAllowed: true,
     });

@@ -1,14 +1,28 @@
 import { useMemo } from "react";
 
+import type {
+  BusinessReportContext,
+  BusinessReportRequest,
+} from "../businessReportModel";
+import { QuickReportExportMenu } from "../components/QuickReportExportMenu";
+import { CompactBusinessQuery } from "../components/CompactBusinessQuery";
 import { AnnualComparisonTrack } from "../components/AnnualComparisonTrack";
 import { ComparisonCharts } from "../components/ComparisonCharts";
 import { businessClassifications } from "../core/businessClassification";
+import {
+  getApplicableCultivars,
+  platformProducts,
+} from "../core/platformMasterData";
 import {
   createMetricComparisonViewModel,
   type MetricComparisonViewModel,
 } from "../core/metricComparisonViewModel";
 import type { OperationalScope } from "../core/operationalScope";
-import { queryPrototypeMetricComparisons } from "../data/enterpriseMetricFixtures";
+import {
+  enterpriseMetricDefinitions,
+  queryPrototypeMetricComparisons,
+} from "../data/enterpriseMetricFixtures";
+import { findApprovedBusinessReportDatasetByMetricRelease } from "../data/businessReportDatasets";
 import { getEnterpriseScopeRegion } from "../enterpriseRegions";
 import type { BusinessCoordinates } from "../formalEnterpriseModel";
 import {
@@ -33,6 +47,30 @@ interface GovernedMetric {
   sourceVersionLabel: string;
   definitionLabel: string;
   comparabilityLabel: string;
+}
+
+interface UnavailableMetric {
+  metricId: string;
+  label: string;
+  businessClassificationLabel: string;
+  reason: string;
+}
+
+const productionReportTemplateByClassification: Readonly<
+  Record<string, string>
+> = {
+  "production.planting-production": "种植生产监测报告",
+};
+
+const productionReportPeriodByAnalysisPeriod: Readonly<Record<string, string>> =
+  {
+    "2026-W31": "2026年第31周",
+  };
+
+function unavailableReason(reason: string): string {
+  return reason.includes("批次")
+    ? "所选采用数据与当前可用的已核定数据不一致"
+    : "当前筛选范围尚未形成连续四个年度的已核定数据";
 }
 
 function regionName(id: string): string {
@@ -69,13 +107,29 @@ function AnalysisFilters({
       domain === "production" &&
       scope.authorization.authorizedBusinessClassificationIds.includes(id),
   );
+  const authorizedProductionProducts = platformProducts.filter(
+    ({ id }) =>
+      scope.authorization.authorizedProductIds.includes(id) &&
+      productionProductNames[id] !== undefined,
+  );
+  const productInvalid =
+    scope.coordinates.productId !== undefined &&
+    !authorizedProductionProducts.some(
+      ({ id }) => id === scope.coordinates.productId,
+    );
+  const applicableCultivars = scope.coordinates.productId
+    ? getApplicableCultivars(scope.coordinates.productId).filter(({ id }) =>
+        scope.authorization.authorizedCultivarIds.includes(id),
+      )
+    : [];
+  const cultivarInvalid =
+    scope.coordinates.cultivarId !== undefined &&
+    !applicableCultivars.some(({ id }) => id === scope.coordinates.cultivarId);
   return (
-    <section
-      aria-label="产情分析筛选"
-      className="production-task5-filter-surface"
-    >
-      <div className="production-task5-filter-grid production-task5-filter-grid--analysis">
-        <label>
+    <CompactBusinessQuery
+      ariaLabel="产情分析查询条件"
+      primaryFields={[
+        <label key="classification">
           <span>业务分类</span>
           <select
             aria-label="业务分类"
@@ -94,8 +148,8 @@ function AnalysisFilters({
               </option>
             ))}
           </select>
-        </label>
-        <label>
+        </label>,
+        <label key="region">
           <span>业务地区</span>
           <select
             aria-label="业务地区"
@@ -114,8 +168,8 @@ function AnalysisFilters({
               </option>
             ))}
           </select>
-        </label>
-        <label>
+        </label>,
+        <label key="product">
           <span>产品或作物</span>
           <select
             aria-label="产品或作物"
@@ -129,42 +183,19 @@ function AnalysisFilters({
             }
           >
             <option value="">请选择已授权产品</option>
-            {scope.authorization.authorizedProductIds.map((id) => (
+            {productInvalid && (
+              <option disabled value={scope.coordinates.productId}>
+                产品不可用（请重新选择）
+              </option>
+            )}
+            {authorizedProductionProducts.map(({ id, label }) => (
               <option key={id} value={id}>
-                {governedProductionName(
-                  productionProductNames,
-                  id,
-                  "产品名称待维护",
-                )}
+                {governedProductionName(productionProductNames, id, label)}
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          <span>具体品种</span>
-          <select
-            aria-label="具体品种"
-            value={scope.coordinates.cultivarId ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                cultivarId: event.target.value || undefined,
-                selectedMetricId: undefined,
-              })
-            }
-          >
-            <option value="">全部已授权品种</option>
-            {scope.authorization.authorizedCultivarIds.map((id) => (
-              <option key={id} value={id}>
-                {governedProductionName(
-                  productionCultivarNames,
-                  id,
-                  "品种名称待维护",
-                )}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
+        </label>,
+        <label key="period">
           <span>分析期间</span>
           <select
             aria-label="分析期间"
@@ -191,11 +222,42 @@ function AnalysisFilters({
                 </option>
               )}
           </select>
-        </label>
-        <label>
-          <span>数据层</span>
+        </label>,
+      ]}
+      moreFields={[
+        <label key="cultivar">
+          <span>具体品种</span>
           <select
-            aria-label="数据层"
+            aria-label="具体品种"
+            value={scope.coordinates.cultivarId ?? ""}
+            onChange={(event) =>
+              onScopeChange({
+                cultivarId: event.target.value || undefined,
+                selectedMetricId: undefined,
+              })
+            }
+          >
+            <option value="">
+              {scope.coordinates.productId
+                ? "全部适用品种"
+                : "请先选择产品或作物"}
+            </option>
+            {cultivarInvalid && (
+              <option disabled value={scope.coordinates.cultivarId}>
+                品种不适用于当前产品（请重新选择）
+              </option>
+            )}
+            {applicableCultivars.map(({ id, label }) => (
+              <option key={id} value={id}>
+                {governedProductionName(productionCultivarNames, id, label)}
+              </option>
+            ))}
+          </select>
+        </label>,
+        <label key="data-layer">
+          <span>数据状态</span>
+          <select
+            aria-label="数据状态"
             value={scope.coordinates.dataLayer ?? ""}
             onChange={(event) =>
               onScopeChange({
@@ -205,18 +267,18 @@ function AnalysisFilters({
               })
             }
           >
-            <option value="">请选择数据层</option>
+            <option value="">请选择数据状态</option>
             {productionAnalysisCoordinateOptions.dataLayers.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.label}
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          <span>指标数据版本</span>
+        </label>,
+        <label key="release-version">
+          <span>采用数据</span>
           <select
-            aria-label="指标数据版本"
+            aria-label="采用数据"
             value={scope.coordinates.releaseVersion ?? ""}
             onChange={(event) =>
               onScopeChange({
@@ -225,7 +287,7 @@ function AnalysisFilters({
               })
             }
           >
-            <option value="">请选择已授权版本</option>
+            <option value="">请选择采用的已核定数据</option>
             {productionAnalysisCoordinateOptions.releaseVersions
               .filter(({ id }) =>
                 scope.authorization.authorizedReleaseVersionIds.includes(id),
@@ -236,9 +298,33 @@ function AnalysisFilters({
                 </option>
               ))}
           </select>
-        </label>
-      </div>
-    </section>
+        </label>,
+      ]}
+      actions={
+        <>
+          <button className="is-primary" type="button">
+            查询
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onScopeChange({
+                regionId: "authorized-all",
+                businessSubtypeId: undefined,
+                productId: undefined,
+                cultivarId: undefined,
+                periodKey: undefined,
+                dataLayer: undefined,
+                releaseVersion: undefined,
+                selectedMetricId: undefined,
+              })
+            }
+          >
+            重置
+          </button>
+        </>
+      }
+    />
   );
 }
 
@@ -246,10 +332,12 @@ export function ProductionAnalysisWorkspace({
   scope,
   onScopeChange,
   queryAllowed,
+  onComposeReport,
 }: {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   queryAllowed: boolean;
+  onComposeReport: (context: BusinessReportContext) => void;
 }) {
   const year = currentYear(scope.coordinates.periodKey);
   const completeCoordinates =
@@ -257,18 +345,43 @@ export function ProductionAnalysisWorkspace({
     scope.coordinates.productId !== undefined &&
     scope.coordinates.dataLayer === "official" &&
     scope.coordinates.releaseVersion !== undefined;
-  const { metrics, unmappedVersion } = useMemo(() => {
+  const { metrics, unavailableMetrics, unmappedVersion } = useMemo(() => {
     if (!completeCoordinates || year === null)
-      return { metrics: [] as GovernedMetric[], unmappedVersion: false };
+      return {
+        metrics: [] as GovernedMetric[],
+        unavailableMetrics: [] as UnavailableMetric[],
+        unmappedVersion: false,
+      };
     let missingGovernance = false;
-    const governed = queryPrototypeMetricComparisons({
+    const available: GovernedMetric[] = [];
+    const unavailable: UnavailableMetric[] = [];
+    const results = queryPrototypeMetricComparisons({
       scope,
       queryAllowed,
       domain: "production",
       currentYear: year,
       businessSubtype: scope.coordinates.businessSubtypeId as never,
-    }).flatMap((result): GovernedMetric[] => {
-      if (result.status !== "ready") return [];
+    });
+    for (const result of results) {
+      if (result.status === "no-release") {
+        const definition = enterpriseMetricDefinitions.find(
+          ({ metricId }) => metricId === result.metricId,
+        );
+        if (!definition) {
+          missingGovernance = true;
+          continue;
+        }
+        unavailable.push({
+          metricId: definition.metricId,
+          label: definition.label,
+          businessClassificationLabel:
+            businessClassifications.find(
+              ({ id }) => id === definition.businessSubtype,
+            )?.label ?? "业务分类待维护",
+          reason: unavailableReason(result.reason),
+        });
+        continue;
+      }
       const rawModel = createMetricComparisonViewModel(
         result.definition,
         result.comparison,
@@ -276,58 +389,239 @@ export function ProductionAnalysisWorkspace({
       const model = localizedModel(rawModel);
       if (!model) {
         missingGovernance = true;
-        return [];
+        unavailable.push({
+          metricId: result.definition.metricId,
+          label: result.definition.label,
+          businessClassificationLabel:
+            businessClassifications.find(
+              ({ id }) => id === result.definition.businessSubtype,
+            )?.label ?? "业务分类待维护",
+          reason: "采用数据名称尚未完成业务确认",
+        });
+        continue;
       }
       const current = result.comparison.points[3];
-      if (current.availability !== "available") return [];
-      return [
-        {
-          model,
-          formula: result.definition.formula,
-          cutoff: formatProductionDateTime(current.coordinate.period.cutoff),
-          coverage: `${current.coverageRate}%`,
-          quality:
-            current.qualityStatus === "passed"
-              ? productionMetricGovernanceLabels.qualityPassed
-              : "存在质量提醒",
-          sourceVersionLabel:
-            productionMetricReleaseNames[
-              current.coordinate.metricReleaseVersionId
-            ] ?? "指标版本名称待维护",
-          definitionLabel: `${result.definition.label}${productionMetricGovernanceLabels.definitionEdition}`,
-          comparabilityLabel:
-            productionMetricGovernanceLabels.comparabilityEdition,
-        },
-      ];
-    });
-    return { metrics: governed, unmappedVersion: missingGovernance };
+      if (current.availability !== "available") {
+        unavailable.push({
+          metricId: result.definition.metricId,
+          label: result.definition.label,
+          businessClassificationLabel:
+            businessClassifications.find(
+              ({ id }) => id === result.definition.businessSubtype,
+            )?.label ?? "业务分类待维护",
+          reason: "当前年度数据尚未完成核定",
+        });
+        continue;
+      }
+      available.push({
+        model,
+        formula: result.definition.formula,
+        cutoff: formatProductionDateTime(current.coordinate.period.cutoff),
+        coverage: `${current.coverageRate}%`,
+        quality:
+          current.qualityStatus === "passed"
+            ? productionMetricGovernanceLabels.qualityPassed
+            : "存在质量提醒",
+        sourceVersionLabel:
+          productionMetricReleaseNames[
+            current.coordinate.metricReleaseVersionId
+          ] ?? "采用数据名称待维护",
+        definitionLabel: `${result.definition.label}${productionMetricGovernanceLabels.definitionEdition}`,
+        comparabilityLabel:
+          productionMetricGovernanceLabels.comparabilityEdition,
+      });
+    }
+    return {
+      metrics: available,
+      unavailableMetrics: unavailable,
+      unmappedVersion: missingGovernance,
+    };
   }, [completeCoordinates, queryAllowed, scope, year]);
   const selected = metrics.find(
     ({ model }) => model.metricId === scope.coordinates.selectedMetricId,
   );
   const invalidSelectedMetric =
     scope.coordinates.selectedMetricId !== undefined && selected === undefined;
+  const reportClassification = businessClassifications.find(
+    ({ domain, id }) =>
+      domain === "production" &&
+      id === scope.coordinates.businessSubtypeId &&
+      scope.authorization.authorizedBusinessClassificationIds.includes(id),
+  );
+  const reportRegion =
+    scope.coordinates.regionId !== "authorized-all" &&
+    scope.authorization.authorizedRegionIds.includes(
+      scope.coordinates
+        .regionId as (typeof scope.authorization.authorizedRegionIds)[number],
+    )
+      ? getEnterpriseScopeRegion(scope.coordinates.regionId)
+      : undefined;
+  const reportProduct =
+    scope.coordinates.productId &&
+    scope.authorization.authorizedProductIds.includes(
+      scope.coordinates.productId,
+    )
+      ? productionProductNames[scope.coordinates.productId]
+      : undefined;
+  const selectedReportCultivar =
+    scope.coordinates.productId &&
+    scope.coordinates.cultivarId &&
+    scope.authorization.authorizedCultivarIds.includes(
+      scope.coordinates.cultivarId,
+    ) &&
+    getApplicableCultivars(scope.coordinates.productId).some(
+      ({ id }) => id === scope.coordinates.cultivarId,
+    )
+      ? productionCultivarNames[scope.coordinates.cultivarId]
+      : undefined;
+  const reportCultivar = selectedReportCultivar ?? "不按具体品种拆分";
+  const reportPeriod = scope.coordinates.periodKey
+    ? productionReportPeriodByAnalysisPeriod[scope.coordinates.periodKey]
+    : undefined;
+  const reportTemplate = reportClassification
+    ? productionReportTemplateByClassification[reportClassification.id]
+    : undefined;
+  const metricReleaseVersionId = scope.coordinates.releaseVersion;
+  const reportCoordinatesComplete = Boolean(
+    reportClassification &&
+    reportRegion &&
+    reportProduct &&
+    reportCultivar &&
+    reportPeriod &&
+    reportTemplate &&
+    metricReleaseVersionId &&
+    scope.coordinates.dataLayer === "official",
+  );
+  const canDraftReport =
+    scope.authorization.permissionKeys.includes("report.draft.save");
+  const approvedReportDataset =
+    queryAllowed &&
+    reportClassification &&
+    reportRegion &&
+    reportProduct &&
+    reportCultivar &&
+    reportPeriod &&
+    reportTemplate &&
+    metricReleaseVersionId &&
+    scope.coordinates.dataLayer === "official"
+      ? findApprovedBusinessReportDatasetByMetricRelease({
+          application: "production",
+          businessClassificationId: reportClassification.id,
+          region: reportRegion.label,
+          product: reportProduct,
+          cultivar: reportCultivar,
+          reportTemplate,
+          period: reportPeriod,
+          frequency: "周报",
+          metricReleaseVersionId,
+        })
+      : null;
+  const quickReportRequest: BusinessReportRequest | null =
+    approvedReportDataset && reportRegion && scope.coordinates.productId
+      ? {
+          reportType: "产情报告",
+          regionId: reportRegion.id,
+          productId: scope.coordinates.productId,
+          cultivarId: scope.coordinates.cultivarId ?? null,
+          periodKey: approvedReportDataset.period,
+          frequency: "周",
+          cutoff: approvedReportDataset.dataCutoff,
+          approvedDatasetId: approvedReportDataset.dataBatchId,
+          sectionKeys: approvedReportDataset.chapters.map(({ title }) => title),
+        }
+      : null;
+  const reportUnavailableReason = !queryAllowed
+    ? "当前筛选范围超出您的数据权限，无法编制报告。"
+    : !canDraftReport
+      ? "当前登录岗位没有编制业务报告的权限。"
+      : scope.coordinates.dataLayer !== "official"
+        ? "只有已核定数据可用于编制报告。"
+        : !reportCoordinatesComplete
+          ? "请选择具体业务地区、业务分类、产品、品种口径、分析期间和采用数据后编制报告。"
+          : !approvedReportDataset
+            ? "当前地区、业务分类、产品、具体品种、期间和采用数据尚无完全匹配的已核定报告数据，系统未改用其他范围。"
+            : null;
+  const composeReport = () => {
+    if (
+      !canDraftReport ||
+      !approvedReportDataset ||
+      !reportClassification ||
+      !reportRegion
+    )
+      return;
+    onComposeReport({
+      application: "production",
+      applicationLabel: "产情监测",
+      businessClassificationId: approvedReportDataset.businessClassificationId,
+      businessClassificationLabel: reportClassification.label,
+      product: approvedReportDataset.product,
+      cultivar: approvedReportDataset.cultivar,
+      reportTemplate: approvedReportDataset.reportTemplate,
+      region: approvedReportDataset.region,
+      regionLevel: reportRegion.level,
+      period: approvedReportDataset.period,
+      frequency: approvedReportDataset.frequency,
+      dataCutoff: approvedReportDataset.dataCutoff,
+      dataVersion: approvedReportDataset.dataBatchId,
+      dataBatchLabel: approvedReportDataset.dataBatchLabel,
+      author: scope.identity.displayName ?? "当前登录人员",
+      authorPost: "区域数据管理员",
+      reviewer: "赵晨",
+      reviewerPost: "报告复核岗",
+    });
+  };
   return (
     <div className="unified-workspace production-task5-workspace">
       <WorkspaceHeader
+        actions={
+          <div className="workspace-header-report-actions">
+            <button
+              aria-describedby={
+                reportUnavailableReason
+                  ? "production-report-unavailable-reason"
+                  : undefined
+              }
+              className="is-primary"
+              disabled={!canDraftReport || !approvedReportDataset}
+              type="button"
+              onClick={composeReport}
+            >
+              按当前范围编制报告
+            </button>
+            <QuickReportExportMenu
+              exportAllowed={scope.authorization.permissionKeys.includes(
+                "report.export",
+              )}
+              request={quickReportRequest}
+            />
+          </div>
+        }
         eyebrow="产情监测 / 监测分析"
         title="产情监测分析"
         summary="只读取官方已发布指标，按当前期与前三年同口径比较，并在选择指标后展开图表。"
       />
+      {reportUnavailableReason && (
+        <p
+          className="production-task5-contract-context"
+          id="production-report-unavailable-reason"
+        >
+          {reportUnavailableReason}
+        </p>
+      )}
       <AnalysisFilters onScopeChange={onScopeChange} scope={scope} />
       {!queryAllowed && (
         <div className="production-task5-alert" role="alert">
-          当前业务坐标无权查询，系统未展示其他分析结果。
+          当前筛选范围超出您的数据权限，系统未展示其他分析结果。
         </div>
       )}
       {!completeCoordinates && (
         <div className="production-task5-empty" role="status">
-          请选择产品或作物、分析期间、正式数据层和指标数据版本后查询。
+          请选择产品或作物、分析期间、数据状态和采用数据后查询。
         </div>
       )}
       {unmappedVersion && (
         <div className="production-task5-alert" role="alert">
-          指标版本名称待维护，相关指标已停止展示且没有回落到其他版本。
+          采用数据名称待维护，相关指标已停止展示且没有改用其他数据。
         </div>
       )}
       {invalidSelectedMetric && (
@@ -339,7 +633,18 @@ export function ProductionAnalysisWorkspace({
         aria-label="产情四年指标台账区域"
         className="production-task5-ledger-region"
       >
-        <div className="production-task5-ledger-scroll">
+        <header>
+          <div>
+            <h2>四年指标对比台账</h2>
+            <p>当前期、前三年、相邻同比和长期趋势采用同一统计口径</p>
+          </div>
+          <strong>{metrics.length} 项</strong>
+        </header>
+        <div
+          aria-label="产情四年指标台账横向滚动区域"
+          className="production-task5-ledger-scroll"
+          tabIndex={0}
+        >
           <table
             aria-label="产情四年指标台账"
             className="production-task5-ledger production-task5-analysis-ledger"
@@ -350,13 +655,10 @@ export function ProductionAnalysisWorkspace({
                   指标
                 </th>
                 <th scope="col">当前值</th>
-                <th scope="col">当前与前三年</th>
-                <th scope="col">三段相邻变化</th>
-                <th scope="col">当前较三个基期</th>
-                <th scope="col">三年复合增长率</th>
-                <th scope="col">来源与质量</th>
-                <th scope="col">截止</th>
-                <th scope="col">指标数据版本</th>
+                <th scope="col">四年指标值</th>
+                <th scope="col">相邻同比</th>
+                <th scope="col">当前较前三年</th>
+                <th scope="col">数据依据</th>
                 <th scope="col">操作</th>
               </tr>
             </thead>
@@ -384,13 +686,32 @@ export function ProductionAnalysisWorkspace({
                       .map(({ label, changeText }) => `${label} ${changeText}`)
                       .join(" · ")}
                   </td>
-                  <td>{metric.model.cagrText}</td>
                   <td>
-                    {productionMetricGovernanceLabels.source} ·{" "}
-                    {metric.coverage} · {metric.quality}
+                    <details className="production-task5-evidence-details">
+                      <summary>查看数据依据</summary>
+                      <dl>
+                        <div>
+                          <dt>三年复合增长率</dt>
+                          <dd>{metric.model.cagrText}</dd>
+                        </div>
+                        <div>
+                          <dt>来源与质量</dt>
+                          <dd>
+                            {productionMetricGovernanceLabels.source} ·{" "}
+                            {metric.coverage} · {metric.quality}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>数据截止</dt>
+                          <dd>{metric.cutoff}</dd>
+                        </div>
+                        <div>
+                          <dt>采用数据</dt>
+                          <dd>{metric.sourceVersionLabel}</dd>
+                        </div>
+                      </dl>
+                    </details>
                   </td>
-                  <td>{metric.cutoff}</td>
-                  <td>{metric.sourceVersionLabel}</td>
                   <td>
                     <button
                       className="production-task5-row-action"
@@ -412,11 +733,46 @@ export function ProductionAnalysisWorkspace({
             </tbody>
           </table>
         </div>
-        {completeCoordinates && metrics.length === 0 && !unmappedVersion && (
-          <div className="production-task5-empty" role="status">
-            当前业务坐标没有四个年度的官方发布指标，系统未改变筛选条件。
-          </div>
-        )}
+        {queryAllowed &&
+          completeCoordinates &&
+          metrics.length === 0 &&
+          !unmappedVersion && (
+            <div className="production-task5-empty" role="status">
+              当前条件下暂无四年可比指标。指标目录及未达到比较条件的原因可在下方查看。
+            </div>
+          )}
+        {queryAllowed &&
+          completeCoordinates &&
+          unavailableMetrics.length > 0 && (
+            <details className="production-task5-availability-register">
+              <summary>
+                查看 {unavailableMetrics.length} 项暂不可比指标及原因
+              </summary>
+              <p>
+                以下指标仍保留在业务目录中；在连续四个年度数据全部核定前，不计算同比或趋势。
+              </p>
+              <div className="production-task5-availability-scroll">
+                <table aria-label="产情暂不可比指标目录">
+                  <thead>
+                    <tr>
+                      <th scope="col">指标</th>
+                      <th scope="col">业务分类</th>
+                      <th scope="col">当前状态</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unavailableMetrics.map((metric) => (
+                      <tr key={metric.metricId}>
+                        <th scope="row">{metric.label}</th>
+                        <td>{metric.businessClassificationLabel}</td>
+                        <td>{metric.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
       </section>
       {selected && !invalidSelectedMetric && (
         <section
@@ -431,8 +787,11 @@ export function ProductionAnalysisWorkspace({
             selected
           />
           <ComparisonCharts model={selected.model} />
-          <aside aria-label="来源与口径" className="production-task5-lineage">
-            <h2>来源与口径</h2>
+          <aside
+            aria-label="统计口径与数据来源"
+            className="production-task5-lineage"
+          >
+            <h2>统计口径与数据来源</h2>
             <dl>
               <div>
                 <dt>指标来源</dt>
@@ -449,20 +808,20 @@ export function ProductionAnalysisWorkspace({
                 </dd>
               </div>
               <div>
-                <dt>指标定义</dt>
+                <dt>统计公式</dt>
                 <dd>
                   {selected.definitionLabel} · {selected.formula}
                 </dd>
               </div>
               <div>
-                <dt>可比规则</dt>
+                <dt>可比性</dt>
                 <dd>
                   {selected.comparabilityLabel} ·{" "}
                   {selected.model.comparabilityText}
                 </dd>
               </div>
               <div>
-                <dt>采用版本</dt>
+                <dt>采用数据</dt>
                 <dd>{selected.sourceVersionLabel}</dd>
               </div>
             </dl>

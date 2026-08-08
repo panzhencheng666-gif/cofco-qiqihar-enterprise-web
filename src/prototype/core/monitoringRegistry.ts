@@ -3,17 +3,33 @@ import type { OperationalScope } from "./operationalScope";
 export type MonitoringObjectTypeId =
   | "survey-area"
   | "farmer"
+  | "village-committee"
   | "family-farm"
   | "cooperative"
   | "agri-station"
-  | "field-plot";
+  | "field-plot"
+  | "market-monitoring-group"
+  | "grain-processing-enterprise"
+  | "grain-trading-enterprise"
+  | "grain-storage-enterprise"
+  | "breeding-farm"
+  | "feed-mill"
+  | "wholesale-market"
+  | "agri-input-operator"
+  | "rail-node"
+  | "road-node";
 
 export type MonitoringSourceChannelId =
   | "administrative-village-ledger"
   | "farmer-sample"
   | "family-farm-sample"
   | "agricultural-station-observation"
-  | "field-yield-survey";
+  | "field-yield-survey"
+  | "enterprise-report"
+  | "rail-waybill-ledger"
+  | "road-waybill-weighing";
+
+export type MonitoringDomain = "production" | "market";
 
 export interface EffectiveBusinessRole {
   roleId: string;
@@ -96,9 +112,13 @@ export function getActiveObjectCapabilities(
       ({ capabilityTemplateVersionId }) =>
         capabilityTemplateVersionId === role.capabilityTemplateVersionId,
     );
+    const businessLabel = template?.label
+      .replace(/(?:字段)?模板第[0-9一二三四五六七八九十百]+版/g, "")
+      .replace(/(?:字段)?模板/g, "")
+      .trim();
     return {
       roleLabel: role.label || "业务角色名称待维护",
-      templateLabel: template?.label || "能力模板名称待维护",
+      templateLabel: businessLabel || "适用能力名称待维护",
       capabilityLabels: template?.capabilityLabels ?? [],
     };
   });
@@ -108,25 +128,26 @@ export function projectMonitoringObjects(
   objects: readonly MonitoringObject[],
   scope: OperationalScope,
   queryAllowed: boolean,
+  domain: MonitoringDomain = "production",
 ): readonly MonitoringObject[] {
   const requestedSubtype = scope.coordinates.businessSubtypeId;
-  const authorizedProductionClassifications =
+  const authorizedDomainClassifications =
     scope.authorization.authorizedBusinessClassificationIds.filter((id) =>
-      id.startsWith("production."),
+      id.startsWith(`${domain}.`),
     );
   const matchedSubtypes = requestedSubtype
-    ? authorizedProductionClassifications.filter(
+    ? authorizedDomainClassifications.filter(
         (id) => id === requestedSubtype || id.endsWith(`.${requestedSubtype}`),
       )
     : [];
   const subtypeAllowed =
-    authorizedProductionClassifications.length > 0 &&
+    authorizedDomainClassifications.length > 0 &&
     (requestedSubtype === undefined || matchedSubtypes.length === 1);
   if (
     !queryAllowed ||
     !scope.authorization.permissionKeys.includes("prototype:read") ||
     (scope.coordinates.businessDomainId !== undefined &&
-      scope.coordinates.businessDomainId !== "production") ||
+      scope.coordinates.businessDomainId !== domain) ||
     !subtypeAllowed
   ) {
     return [];

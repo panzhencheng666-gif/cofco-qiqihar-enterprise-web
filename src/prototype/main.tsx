@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { FormalEnterprisePrototype } from "./FormalEnterprisePrototype";
+import { PrototypeBusinessErrorBoundary } from "./PrototypeBusinessErrorBoundary";
 import "./formal-enterprise.css";
 import "./market-monitoring.css";
 import "./unified-workspaces.css";
@@ -10,6 +11,8 @@ if (!mount) throw new Error("缺少系统挂载节点");
 
 createRoot(mount).render(
   <StrictMode>
-    <FormalEnterprisePrototype />
+    <PrototypeBusinessErrorBoundary>
+      <FormalEnterprisePrototype />
+    </PrototypeBusinessErrorBoundary>
   </StrictMode>,
 );

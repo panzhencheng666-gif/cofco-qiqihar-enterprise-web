@@ -1,19 +1,42 @@
 import type { AccessControlProvider } from "@refinedev/core";
+import type { CapabilityCode } from "@/domains/identity-organization/model";
+import type { EnterpriseGateway } from "@/workflows/enterprise-gateway/port";
 
-const allowedActions = new Set([
-  "overview:list",
-  "tasks:list",
-  "objects:show",
-  "documents:show",
-  "reviews:list",
-  "documents:review",
+const capabilityByAction = new Map<string, CapabilityCode>([
+  ["workspace:show", "my-work:view"],
+  ["my-work:list", "my-work:view"],
+  ["objects:show", "business-document:view"],
+  ["documents:show", "business-document:view"],
+  ["documents:review", "business-document:review"],
+  ["account-security:show", "account-security:view"],
 ]);
 
-export const accessControlProvider: AccessControlProvider = {
-  can({ resource, action }) {
-    return Promise.resolve({
-      can: allowedActions.has(`${resource}:${action}`),
-      reason: "本地兼容阶段只开放读取与复核投影",
-    });
-  },
-};
+export function createAccessControlProvider(
+  gateway: EnterpriseGateway,
+): AccessControlProvider {
+  let currentCapabilities: Promise<ReadonlySet<CapabilityCode>> | undefined;
+
+  function capabilities() {
+    currentCapabilities ??= gateway
+      .getCurrentWorkspace()
+      .then((workspace) => new Set(workspace.capabilities));
+    return currentCapabilities;
+  }
+
+  return {
+    async can({ resource, action }) {
+      const required = capabilityByAction.get(`${resource}:${action}`);
+      if (!required) {
+        return {
+          can: false,
+          reason: "当前能力未在正式权限映射中启用",
+        };
+      }
+
+      return {
+        can: (await capabilities()).has(required),
+        reason: "权限由当前服务端工作空间投影决定",
+      };
+    },
+  };
+}

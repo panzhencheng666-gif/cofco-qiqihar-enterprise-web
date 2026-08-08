@@ -1,10 +1,15 @@
+import { useState } from "react";
+
 import { AnnualComparisonTrack } from "./components/AnnualComparisonTrack";
 import { ComparisonCharts } from "./components/ComparisonCharts";
 import { businessClassifications } from "./core/businessClassification";
+import type { BusinessWorkItem } from "./core/businessWork";
+import { chinesePeriodRange } from "./core/businessDisplayPolicy";
 import {
   createDefaultExecutiveLedgerQuery,
   getExecutiveScopeCoordinateIssues,
   queryExecutiveLedger,
+  resolveExecutiveAggregateMembership,
   type ExecutiveDrillDownTarget,
   type ExecutiveDutyRow,
   type ExecutiveLedgerQuery,
@@ -13,6 +18,13 @@ import {
   type ExecutiveRiskRow,
 } from "./core/executiveLedger";
 import type { OperationalScope } from "./core/operationalScope";
+import type { BusinessReportRecord } from "./businessReportWorkflow";
+import {
+  filterPlatformMasterDataByAuthorization,
+  isCultivarApplicableToProduct,
+  platformCultivars,
+  platformProducts,
+} from "./core/platformMasterData";
 import { executiveCoordinateOptions } from "./data/executiveLedgerFixtures";
 import { getEnterpriseScopeRegion } from "./enterpriseRegions";
 import {
@@ -24,8 +36,8 @@ import {
 import { WorkspaceHeader, WorkspaceTabs } from "./UnifiedWorkspacePrimitives";
 
 const overviewTabs = [
-  { key: "operations", label: "经营态势" },
-  { key: "risks", label: "异常风险" },
+  { key: "operations", label: "经营运行" },
+  { key: "risks", label: "风险事项" },
   { key: "duty", label: "履责监督" },
   { key: "releases", label: "发布成果" },
 ] as const;
@@ -45,6 +57,7 @@ function optionLabel(
 }
 
 function regionLabel(regionId: string): string {
+  if (!regionId) return "未选择授权地区";
   return getEnterpriseScopeRegion(regionId)?.label ?? "地区名称待维护";
 }
 
@@ -60,23 +73,34 @@ function editionNumber(value: string): string {
 }
 
 function executiveVersionLabel(versionId: string): string {
+  const currentReportWorkflow =
+    /^REPORT-WORKFLOW-(\d{4})-W(\d+)-CURRENT$/i.exec(versionId);
+  if (currentReportWorkflow) {
+    return `${currentReportWorkflow[1]}年第${editionNumber(currentReportWorkflow[2])}周报告处理状态`;
+  }
+  const currentBusinessWorkflow = /^WORKFLOW-(\d{4})-W(\d+)-CURRENT$/i.exec(
+    versionId,
+  );
+  if (currentBusinessWorkflow) {
+    return `${currentBusinessWorkflow[1]}年第${editionNumber(currentBusinessWorkflow[2])}周业务处理状态`;
+  }
   const weeklyMetric = /^METRIC-(\d{4})-W(\d+)-V(\d+)$/i.exec(versionId);
   if (weeklyMetric) {
-    return `${weeklyMetric[1]}年第${editionNumber(weeklyMetric[2])}周正式指标第${editionNumber(weeklyMetric[3])}版`;
+    return `${weeklyMetric[1]}年第${editionNumber(weeklyMetric[2])}周已核定数据（当前采用）`;
   }
   const weeklyDuty = /^DUTY-(\d{4})-W(\d+)-V(\d+)$/i.exec(versionId);
   if (weeklyDuty) {
-    return `${weeklyDuty[1]}年第${editionNumber(weeklyDuty[2])}周履责台账第${editionNumber(weeklyDuty[3])}版`;
+    return `${weeklyDuty[1]}年第${editionNumber(weeklyDuty[2])}周履责已核定数据`;
   }
   const annualSupply = /^SUPPLY-METRIC-(\d{4})-V(\d+)$/i.exec(versionId);
   if (annualSupply) {
-    return `${annualSupply[1]}年度供需指标第${editionNumber(annualSupply[2])}版`;
+    return `${annualSupply[1]}年度供需已核定数据`;
   }
   const annualMetric = /^METRIC-(\d{4})-V(\d+)$/i.exec(versionId);
   if (annualMetric) {
-    return `${annualMetric[1]}年度正式指标第${editionNumber(annualMetric[2])}版`;
+    return `${annualMetric[1]}年度已核定数据`;
   }
-  return "治理版本中文名称待核定";
+  return "采用数据名称待维护";
 }
 
 function qualityStateLabel(qualityState: string): string {
@@ -102,17 +126,11 @@ function definitionVersionLabel(
   metricLabel: string,
   versionId: string,
 ): string {
-  const edition = /(?:^|[-.])v(\d+)$/i.exec(versionId)?.[1];
-  return edition
-    ? `${metricLabel}指标定义第${editionNumber(edition)}版`
-    : `${metricLabel}指标定义版本待核定`;
+  return versionId ? `${metricLabel}统计公式` : "统计公式待维护";
 }
 
 function comparabilityVersionLabel(versionId: string): string {
-  const edition = /(?:^|[-.])v(\d+)$/i.exec(versionId)?.[1];
-  return edition
-    ? `跨年度可比规则第${editionNumber(edition)}版`
-    : "跨年度可比规则版本待核定";
+  return versionId ? "四年统计口径连续可比" : "可比性说明待维护";
 }
 
 function localizedComparison(
@@ -159,7 +177,9 @@ function LedgerEmptyState({ children }: { children: string }) {
   return (
     <div className="executive-ledger-empty" role="status">
       <strong>{children}</strong>
-      <span>系统未改变地区、期间、数据层或版本，请调整已显示的业务坐标。</span>
+      <span>
+        系统未改变地区、期间、数据状态或采用数据，请调整当前筛选条件。
+      </span>
     </div>
   );
 }
@@ -176,12 +196,12 @@ function OperationsLedger({
   onOpenTarget: (target: ExecutiveDrillDownTarget) => void;
 }) {
   if (rows.length === 0) {
-    return <LedgerEmptyState>当前业务坐标没有可用经营指标</LedgerEmptyState>;
+    return <LedgerEmptyState>当前筛选范围没有可用经营指标</LedgerEmptyState>;
   }
   return (
     <div className="executive-ledger-scroll">
       <table
-        aria-label="经营指标趋势台账"
+        aria-label="经营运行台账"
         className="executive-ledger-table executive-ledger-table--operations"
       >
         <thead>
@@ -189,24 +209,35 @@ function OperationsLedger({
             <th className="executive-ledger-table__indicator" scope="col">
               指标
             </th>
-            <th scope="col">当前值</th>
-            <th scope="col">上年同期</th>
-            <th scope="col">当前同比</th>
-            <th scope="col">前三年值</th>
-            <th scope="col">四年趋势</th>
+            <th scope="col">2023</th>
+            <th scope="col">2024</th>
+            <th scope="col">2024同比</th>
+            <th scope="col">2025</th>
+            <th scope="col">2025同比</th>
+            <th scope="col">2026</th>
+            <th scope="col">2026同比</th>
             <th scope="col">三年复合增长率</th>
             <th scope="col">覆盖与质量</th>
             <th scope="col">异常</th>
             <th scope="col">可比性</th>
             <th scope="col">截止</th>
-            <th scope="col">指标数据版本</th>
+            <th scope="col">采用数据</th>
             <th scope="col">操作</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => {
             const selected = row.id === `metric-${selectedMetricId ?? ""}`;
-            const prior = row.comparison.yearCells[2];
+            const years = row.comparison.yearCells;
+            const comparisons = row.comparison.pairCells;
+            const yearValue = (index: number) => {
+              const year = years[index];
+              return `${year.valueText}${
+                year.availabilityLabel === "可用"
+                  ? ` ${row.comparison.unit}`
+                  : ""
+              }`;
+            };
             return (
               <tr
                 aria-selected={selected}
@@ -230,35 +261,13 @@ function OperationsLedger({
                     </span>
                   </button>
                 </th>
-                <td>
-                  {row.comparison.currentValue} {row.comparison.unit}
-                </td>
-                <td>
-                  {prior.valueText}
-                  {prior.availabilityLabel === "可用"
-                    ? ` ${row.comparison.unit}`
-                    : ""}
-                </td>
-                <td>{row.comparison.currentChangeText}</td>
-                <td>
-                  <span className="executive-ledger-year-values">
-                    {row.comparison.yearCells.slice(0, 3).map((year) => (
-                      <span key={year.year}>
-                        {year.year}：{year.valueText}
-                      </span>
-                    ))}
-                  </span>
-                </td>
-                <td>
-                  <span className="executive-ledger-trend-sequence">
-                    {row.comparison.yearCells.map((year, index) => (
-                      <span key={year.year}>
-                        {index > 0 ? " → " : ""}
-                        {year.valueText}
-                      </span>
-                    ))}
-                  </span>
-                </td>
+                <td>{yearValue(0)}</td>
+                <td>{yearValue(1)}</td>
+                <td>{comparisons[0].changeText}</td>
+                <td>{yearValue(2)}</td>
+                <td>{comparisons[1].changeText}</td>
+                <td>{yearValue(3)}</td>
+                <td>{comparisons[2].changeText}</td>
                 <td>{row.comparison.cagrText}</td>
                 <td>
                   {row.coverage} · {qualityStateLabel(row.qualityState)}
@@ -293,7 +302,7 @@ function RisksLedger({
   onOpenTarget: (target: ExecutiveDrillDownTarget) => void;
 }) {
   if (rows.length === 0)
-    return <LedgerEmptyState>当前业务坐标没有经营风险记录</LedgerEmptyState>;
+    return <LedgerEmptyState>当前筛选范围没有经营风险记录</LedgerEmptyState>;
   return (
     <div className="executive-ledger-scroll">
       <table
@@ -311,7 +320,7 @@ function RisksLedger({
             <th scope="col">当前状态</th>
             <th scope="col">覆盖</th>
             <th scope="col">数据截止</th>
-            <th scope="col">风险识别数据版本</th>
+            <th scope="col">风险识别依据</th>
             <th scope="col">操作</th>
           </tr>
         </thead>
@@ -364,7 +373,7 @@ function DutyLedger({
   onOpenTarget: (target: ExecutiveDrillDownTarget) => void;
 }) {
   if (rows.length === 0)
-    return <LedgerEmptyState>当前业务坐标没有履责监督记录</LedgerEmptyState>;
+    return <LedgerEmptyState>当前筛选范围没有履责监督记录</LedgerEmptyState>;
   return (
     <div className="executive-ledger-scroll">
       <table
@@ -377,27 +386,12 @@ function DutyLedger({
               履责事项
             </th>
             <th scope="col">地区</th>
-            <th scope="col">频率</th>
-            <th scope="col">责任人</th>
-            <th scope="col">责任岗位</th>
-            <th scope="col">复核人</th>
+            <th scope="col">责任人及岗位</th>
             <th scope="col">截止规则</th>
-            <th scope="col">有效期</th>
-            <th scope="col">责任状态</th>
-            <th scope="col">首次合格提交</th>
             <th scope="col">本周状态</th>
             <th scope="col">逾期时长</th>
             <th scope="col">复核结论</th>
-            <th scope="col">月度应报</th>
-            <th scope="col">月度按时</th>
-            <th scope="col">月度逾期</th>
-            <th scope="col">月度缺报</th>
-            <th scope="col">月度退回</th>
-            <th scope="col">月度按时率</th>
-            <th scope="col">月度趋势</th>
-            <th scope="col">数据截止</th>
-            <th scope="col">履责台账版本</th>
-            <th scope="col">操作</th>
+            <th scope="col">详情与操作</th>
           </tr>
         </thead>
         <tbody>
@@ -407,34 +401,91 @@ function DutyLedger({
                 {row.assignment.businessItem}
               </th>
               <td>{row.assignment.region}</td>
-              <td>{row.assignment.frequency}</td>
-              <td>{row.assignment.person}</td>
-              <td>{row.assignment.post}</td>
-              <td>{row.assignment.reviewer}</td>
+              <td>
+                <span className="executive-ledger-stack">
+                  <strong>{row.assignment.person}</strong>
+                  <small>{row.assignment.post}</small>
+                </span>
+              </td>
               <td>{row.assignment.deadlineRule}</td>
-              <td>{row.assignment.effectivePeriod}</td>
-              <td>{row.assignment.status}</td>
-              <td>{valueOrDash(row.weekly?.firstQualifiedSubmission)}</td>
               <td>{valueOrDash(row.weekly?.status)}</td>
               <td>{valueOrDash(row.weekly?.overdueDuration)}</td>
               <td>{valueOrDash(row.weekly?.review)}</td>
-              <td>{valueOrDash(row.monthly?.expected)}</td>
-              <td>{valueOrDash(row.monthly?.onTime)}</td>
-              <td>{valueOrDash(row.monthly?.overdue)}</td>
-              <td>{valueOrDash(row.monthly?.missing)}</td>
-              <td>{valueOrDash(row.monthly?.returned)}</td>
-              <td>{valueOrDash(row.monthly?.onTimeRate)}</td>
-              <td>{valueOrDash(row.monthly?.trend)}</td>
-              <td>{businessTimestampLabel(row.cutoff)}</td>
-              <td>{executiveVersionLabel(row.sourceVersionId)}</td>
               <td>
-                <button
-                  className="executive-ledger-drill"
-                  type="button"
-                  onClick={() => onOpenTarget(row.drillDownTarget)}
-                >
-                  查看履责任务
-                </button>
+                <div className="executive-ledger-row-actions">
+                  <details className="executive-ledger-details">
+                    <summary>查看完整履责记录</summary>
+                    <dl>
+                      <div>
+                        <dt>填报频率</dt>
+                        <dd>{row.assignment.frequency}</dd>
+                      </div>
+                      <div>
+                        <dt>复核人</dt>
+                        <dd>{row.assignment.reviewer}</dd>
+                      </div>
+                      <div>
+                        <dt>有效期</dt>
+                        <dd>
+                          {chinesePeriodRange(row.assignment.effectivePeriod)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>责任状态</dt>
+                        <dd>{row.assignment.status}</dd>
+                      </div>
+                      <div>
+                        <dt>首次合格提交</dt>
+                        <dd>
+                          {valueOrDash(row.weekly?.firstQualifiedSubmission)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>月度应报</dt>
+                        <dd>{valueOrDash(row.monthly?.expected)}</dd>
+                      </div>
+                      <div>
+                        <dt>月度按时</dt>
+                        <dd>{valueOrDash(row.monthly?.onTime)}</dd>
+                      </div>
+                      <div>
+                        <dt>月度逾期</dt>
+                        <dd>{valueOrDash(row.monthly?.overdue)}</dd>
+                      </div>
+                      <div>
+                        <dt>月度缺报</dt>
+                        <dd>{valueOrDash(row.monthly?.missing)}</dd>
+                      </div>
+                      <div>
+                        <dt>月度退回</dt>
+                        <dd>{valueOrDash(row.monthly?.returned)}</dd>
+                      </div>
+                      <div>
+                        <dt>月度按时率</dt>
+                        <dd>{valueOrDash(row.monthly?.onTimeRate)}</dd>
+                      </div>
+                      <div>
+                        <dt>月度趋势</dt>
+                        <dd>{valueOrDash(row.monthly?.trend)}</dd>
+                      </div>
+                      <div>
+                        <dt>数据截止</dt>
+                        <dd>{businessTimestampLabel(row.cutoff)}</dd>
+                      </div>
+                      <div>
+                        <dt>履责统计依据</dt>
+                        <dd>{executiveVersionLabel(row.sourceVersionId)}</dd>
+                      </div>
+                    </dl>
+                  </details>
+                  <button
+                    className="executive-ledger-drill"
+                    type="button"
+                    onClick={() => onOpenTarget(row.drillDownTarget)}
+                  >
+                    查看履责任务
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -444,12 +495,19 @@ function DutyLedger({
   );
 }
 
+function businessPublicationLabel(label: string): string {
+  return label.replace(/第(\d+)版/g, (_, editionText: string) => {
+    const edition = Number(editionText);
+    return edition <= 1 ? "（初次发布）" : `（第${edition - 1}次修订发布）`;
+  });
+}
+
 function replacementText(row: ExecutiveReleaseRow): string {
   if (row.replacedByPublicationLabel)
-    return `已由 ${row.replacedByPublicationLabel} 替代`;
+    return `已由 ${businessPublicationLabel(row.replacedByPublicationLabel)} 修订替代`;
   if (row.replacesPublicationLabel)
-    return `替代 ${row.replacesPublicationLabel}`;
-  return "首次发布";
+    return `修订替代 ${businessPublicationLabel(row.replacesPublicationLabel)}`;
+  return "初次发布，无后续修订";
 }
 
 function ReleasesLedger({
@@ -460,7 +518,7 @@ function ReleasesLedger({
   onOpenTarget: (target: ExecutiveDrillDownTarget) => void;
 }) {
   if (rows.length === 0)
-    return <LedgerEmptyState>当前业务坐标没有发布成果记录</LedgerEmptyState>;
+    return <LedgerEmptyState>当前筛选范围没有发布成果记录</LedgerEmptyState>;
   return (
     <div className="executive-ledger-scroll">
       <table
@@ -470,54 +528,82 @@ function ReleasesLedger({
         <thead>
           <tr>
             <th className="executive-ledger-table__indicator" scope="col">
-              成果发布版本
+              发布成果
             </th>
             <th scope="col">报告名称</th>
-            <th scope="col">来源业务域</th>
-            <th scope="col">来源业务分类</th>
-            <th scope="col">频率</th>
+            <th scope="col">来源业务</th>
             <th scope="col">范围</th>
             <th scope="col">期间</th>
-            <th scope="col">采用数据批次</th>
             <th scope="col">发布状态</th>
             <th scope="col">责任岗位</th>
             <th scope="col">发布时间</th>
-            <th scope="col">替代关系</th>
-            <th scope="col">数据截止</th>
-            <th scope="col">上游指标版本</th>
-            <th scope="col">操作</th>
+            <th scope="col">详情与操作</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.id}>
               <th className="executive-ledger-table__indicator" scope="row">
-                {row.publicationLabel}
+                {businessPublicationLabel(row.publicationLabel)}
               </th>
               <td>{row.reportName}</td>
               <td>
-                {domainLabels.get(row.sourceBusinessDomain) ??
-                  "来源业务域名称待维护"}
+                <span className="executive-ledger-stack">
+                  <strong>
+                    {domainLabels.get(row.sourceBusinessDomain) ??
+                      "来源业务名称待维护"}
+                  </strong>
+                  <small>
+                    {classificationLabel(row.sourceBusinessSubtype)}
+                  </small>
+                </span>
               </td>
-              <td>{classificationLabel(row.sourceBusinessSubtype)}</td>
-              <td>{row.frequency}</td>
               <td>{row.scope}</td>
               <td>{row.period}</td>
-              <td>{row.dataVersion}</td>
               <td>{row.publicationStatus}</td>
               <td>{row.owner}</td>
               <td>{row.publishedAt}</td>
-              <td>{replacementText(row)}</td>
-              <td>{businessTimestampLabel(row.cutoff)}</td>
-              <td>{executiveVersionLabel(row.sourceVersionId)}</td>
               <td>
-                <button
-                  className="executive-ledger-drill"
-                  type="button"
-                  onClick={() => onOpenTarget(row.drillDownTarget)}
-                >
-                  查看发布记录
-                </button>
+                <div className="executive-ledger-row-actions">
+                  <details className="executive-ledger-details">
+                    <summary>查看完整发布记录</summary>
+                    <dl>
+                      <div>
+                        <dt>发布频率</dt>
+                        <dd>{row.frequency}</dd>
+                      </div>
+                      <div>
+                        <dt>来源业务分类</dt>
+                        <dd>
+                          {classificationLabel(row.sourceBusinessSubtype)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>采用数据</dt>
+                        <dd>{row.dataVersion}</dd>
+                      </div>
+                      <div>
+                        <dt>修订记录</dt>
+                        <dd>{replacementText(row)}</dd>
+                      </div>
+                      <div>
+                        <dt>数据截止</dt>
+                        <dd>{businessTimestampLabel(row.cutoff)}</dd>
+                      </div>
+                      <div>
+                        <dt>数据来源</dt>
+                        <dd>{executiveVersionLabel(row.sourceVersionId)}</dd>
+                      </div>
+                    </dl>
+                  </details>
+                  <button
+                    className="executive-ledger-drill"
+                    type="button"
+                    onClick={() => onOpenTarget(row.drillDownTarget)}
+                  >
+                    查看发布记录
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -527,102 +613,104 @@ function ReleasesLedger({
   );
 }
 
-function AppliedCoordinates({
+const executivePageSize = 20;
+
+function ExecutiveResultSummary({
+  section,
   query,
-  regionLevel,
-  invalidBusinessDomain,
-  invalidPeriod,
-  invalidRiskState,
+  totalRows,
 }: {
+  section: ExecutiveLedgerQuery["view"];
   query: ExecutiveLedgerQuery;
-  regionLevel: ExecutiveRegionLevel;
-  invalidBusinessDomain: boolean;
-  invalidPeriod: boolean;
-  invalidRiskState: boolean;
+  totalRows: number;
 }) {
-  const subtypeLabel = query.businessSubtype
-    ? classificationLabel(query.businessSubtype)
-    : "全部已授权分类";
+  const viewLabels: Readonly<Record<ExecutiveLedgerQuery["view"], string>> = {
+    operations: "经营指标",
+    risks: "风险事项",
+    duty: "履责事项",
+    releases: "发布成果",
+  };
   return (
     <section
-      aria-label="已应用业务坐标"
-      className="executive-coordinate-summary"
+      aria-label="查询结果摘要"
+      aria-live="polite"
+      className="executive-result-summary"
+      role="status"
     >
+      <strong>
+        {viewLabels[section]} {totalRows} 项
+      </strong>
+      <span>{regionLabel(query.regionId)}</span>
       <span>
-        <small>范围</small>
-        <strong>
-          {optionLabel(
-            executiveCoordinateOptions.regionLevels,
-            regionLevel,
-            "地区层级待维护",
-          )}{" "}
-          · {regionLabel(query.regionId)}
-        </strong>
+        {optionLabel(
+          executiveCoordinateOptions.periods,
+          query.periodKey,
+          "尚未选择经营期间",
+          "经营期间名称待维护",
+        )}
       </span>
       <span>
-        <small>业务</small>
-        <strong>
-          {invalidBusinessDomain
-            ? "业务域无效，请重新选择"
-            : (domainLabels.get(query.domain) ?? "业务域名称待维护")}{" "}
-          · {subtypeLabel}
-        </strong>
+        {domainLabels.get(query.domain) ?? "业务域名称待维护"} ·{" "}
+        {optionLabel(
+          executiveCoordinateOptions.products,
+          query.productId,
+          "全部已授权产品",
+          "产品名称待维护",
+        )}
       </span>
       <span>
-        <small>产品与品种</small>
-        <strong>
-          {optionLabel(
-            executiveCoordinateOptions.products,
-            query.productId,
-            "全部已授权产品",
-            "产品名称待维护",
-          )}{" "}
-          ·{" "}
-          {optionLabel(
-            executiveCoordinateOptions.cultivars,
-            query.cultivarId,
-            "全部已授权品种",
-            "品种名称待维护",
-          )}
-        </strong>
+        {query.releaseVersion
+          ? executiveVersionLabel(query.releaseVersion)
+          : "全部已核定数据"}
       </span>
-      <span>
-        <small>期间与数据层</small>
-        <strong>
-          {invalidPeriod && query.periodKey
-            ? "经营期间无效，请重新选择"
-            : optionLabel(
-                executiveCoordinateOptions.periods,
-                query.periodKey,
-                "尚未选择经营期间",
-              )}{" "}
-          ·{" "}
-          {optionLabel(
-            executiveCoordinateOptions.dataLayers,
-            query.dataLayer,
-            "数据层名称待维护",
-          )}
-        </strong>
-      </span>
-      <span>
-        <small>指标数据版本与风险</small>
-        <strong>
-          {optionLabel(
-            executiveCoordinateOptions.releaseVersions,
-            query.releaseVersion,
-            "全部已授权版本",
-            "数据版本名称待维护",
-          )}{" "}
-          ·{" "}
-          {optionLabel(
-            executiveCoordinateOptions.riskStates,
-            query.riskState,
-            "全部风险状态",
-            invalidRiskState ? "风险状态无效，请重新选择" : "风险状态待维护",
-          )}
-        </strong>
-      </span>
+      {section === "operations" &&
+        query.productId === null &&
+        totalRows > 0 && (
+          <span className="executive-result-summary__scope-note">
+            当前未选择具体产品，仅展示跨产品经营指标；选择产品后可查看对应的产情、市场和供需指标。
+          </span>
+        )}
     </section>
+  );
+}
+
+function ExecutivePagination({
+  page,
+  totalRows,
+  onPageChange,
+}: {
+  page: number;
+  totalRows: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalRows === 0) return null;
+  const totalPages = Math.max(1, Math.ceil(totalRows / executivePageSize));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * executivePageSize + 1;
+  const end = Math.min(currentPage * executivePageSize, totalRows);
+  return (
+    <nav aria-label="经营总览分页" className="executive-ledger-pagination">
+      <span>
+        共 {totalRows} 条 · 当前 {start}–{end}
+      </span>
+      <button
+        disabled={currentPage === 1}
+        type="button"
+        onClick={() => onPageChange(currentPage - 1)}
+      >
+        上一页
+      </button>
+      <strong>
+        {currentPage} / {totalPages}
+      </strong>
+      <button
+        disabled={currentPage === totalPages}
+        type="button"
+        onClick={() => onPageChange(currentPage + 1)}
+      >
+        下一页
+      </button>
+    </nav>
   );
 }
 
@@ -641,60 +729,68 @@ function ExecutiveFilters({
   invalidPeriod: boolean;
   invalidRiskState: boolean;
 }) {
+  const [cascadeNotice, setCascadeNotice] = useState<string | null>(null);
   const visibleClassifications = businessClassifications.filter(
     ({ id, domain }) =>
       scope.authorization.authorizedBusinessClassificationIds.includes(id) &&
       (query.domain === "all" || domain === query.domain),
   );
-  const authorizedRegions = scope.authorization.authorizedRegionIds.map(
-    (id) => ({
+  const authorizedRegions = scope.authorization.authorizedRegionIds
+    .filter((id) => id !== "authorized-all")
+    .map((id) => ({
       id,
       label: regionLabel(id),
-    }),
-  );
+    }));
   const selectedRegionLevel =
     scope.coordinates.regionLevel ?? regionLevelForId(query.regionId);
   const regionCoordinateConflict =
+    Boolean(query.regionId) &&
     regionLevelForId(query.regionId) !== selectedRegionLevel;
   const availableRegionLevels = executiveCoordinateOptions.regionLevels.filter(
     ({ id }) =>
       id === "custom" ||
       authorizedRegions.some((region) => regionLevelForId(region.id) === id),
   );
-  const regionsAtSelectedLevel = authorizedRegions.filter(
-    (region) => regionLevelForId(region.id) === selectedRegionLevel,
+  const authorizedMasterData = filterPlatformMasterDataByAuthorization(
+    scope.authorization,
   );
-  const productOptions = scope.authorization.authorizedProductIds.map((id) => ({
-    id,
-    label: optionLabel(
-      executiveCoordinateOptions.products,
-      id,
-      "产品名称待维护",
-    ),
-  }));
-  const cultivarOptions = scope.authorization.authorizedCultivarIds.map(
-    (id) => ({
-      id,
-      label: optionLabel(
-        executiveCoordinateOptions.cultivars,
-        id,
-        "品种名称待维护",
-      ),
-    }),
+  const productOptions = [
+    ...authorizedMasterData.products,
+    ...(query.productId &&
+    scope.authorization.authorizedProductIds.includes(query.productId) &&
+    !authorizedMasterData.products.some(({ id }) => id === query.productId)
+      ? [{ id: query.productId, label: "产品名称待维护" }]
+      : []),
+  ];
+  const selectedProductId = query.productId;
+  const cultivarOptions = selectedProductId
+    ? authorizedMasterData.cultivars.filter(({ id }) =>
+        isCultivarApplicableToProduct(selectedProductId, id),
+      )
+    : [];
+  const cultivarSelectionInvalid = Boolean(
+    query.cultivarId &&
+    (!query.productId ||
+      !isCultivarApplicableToProduct(query.productId, query.cultivarId)),
   );
-  const releaseOptions = scope.authorization.authorizedReleaseVersionIds.map(
-    (id) => ({
-      id,
-      label: optionLabel(
-        executiveCoordinateOptions.releaseVersions,
-        id,
-        "数据版本名称待维护",
-      ),
-    }),
-  );
+  const releaseOptions = [
+    ...authorizedMasterData.releaseBatches,
+    ...(query.releaseVersion &&
+    scope.authorization.authorizedReleaseVersionIds.includes(
+      query.releaseVersion,
+    ) &&
+    !authorizedMasterData.releaseBatches.some(
+      ({ id }) => id === query.releaseVersion,
+    )
+      ? [{ id: query.releaseVersion, label: "采用数据名称待维护" }]
+      : []),
+  ];
+  const selectedRegionAuthorized =
+    query.regionId === "authorized-all" ||
+    authorizedRegions.some(({ id }) => id === query.regionId);
   return (
     <section aria-label="经营总览业务筛选" className="executive-filter-surface">
-      <div className="executive-filter-grid">
+      <div className="executive-filter-grid executive-filter-grid--primary">
         <label>
           <span>业务域</span>
           <select
@@ -732,73 +828,34 @@ function ExecutiveFilters({
           </select>
         </label>
         <label>
-          <span>业务分类</span>
+          <span>授权地区</span>
           <select
-            aria-label="业务分类"
-            value={query.businessSubtype ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                businessSubtypeId: event.target.value || undefined,
-                selectedMetricId: undefined,
-              })
-            }
-          >
-            <option value="">全部已授权分类</option>
-            {visibleClassifications.map((classification) => (
-              <option key={classification.id} value={classification.id}>
-                {classification.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>地区层级</span>
-          <select
-            aria-label="地区层级"
-            value={selectedRegionLevel}
+            aria-label="授权地区"
+            value={query.regionId}
             onChange={(event) => {
-              const regionLevel = event.target.value as ExecutiveRegionLevel;
-              const firstAuthorizedRegion = authorizedRegions.find(
-                (region) => regionLevelForId(region.id) === regionLevel,
-              );
+              const regionId = event.target.value;
               onScopeChange({
-                regionLevel,
-                regionId:
-                  regionLevel === "custom"
-                    ? "authorized-all"
-                    : firstAuthorizedRegion?.id,
+                regionId,
+                regionLevel: regionId
+                  ? regionLevelForId(regionId)
+                  : selectedRegionLevel,
                 selectedMetricId: undefined,
               });
             }}
           >
-            {availableRegionLevels.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
+            {!query.regionId && <option value="">请选择授权地区</option>}
+            {query.regionId && !selectedRegionAuthorized && (
+              <option disabled value={query.regionId}>
+                地区名称待维护（不在当前授权范围）
               </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>业务地区</span>
-          <select
-            aria-label="业务地区"
-            value={query.regionId}
-            onChange={(event) =>
-              onScopeChange({
-                regionId: event.target.value,
-                selectedMetricId: undefined,
-              })
-            }
-          >
-            {regionCoordinateConflict && (
+            )}
+            {regionCoordinateConflict && selectedRegionAuthorized && (
               <option disabled value={query.regionId}>
                 {regionLabel(query.regionId)}（与所选层级不一致）
               </option>
             )}
-            {selectedRegionLevel === "custom" && (
-              <option value="authorized-all">全部已授权范围</option>
-            )}
-            {regionsAtSelectedLevel.map((option) => (
+            <option value="authorized-all">全部已授权范围</option>
+            {authorizedRegions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.label}
               </option>
@@ -836,13 +893,35 @@ function ExecutiveFilters({
           <select
             aria-label="产品或作物"
             value={query.productId ?? ""}
-            onChange={(event) =>
+            onChange={(event) => {
+              const productId = event.target.value || undefined;
+              const cultivarId =
+                productId &&
+                query.cultivarId &&
+                isCultivarApplicableToProduct(productId, query.cultivarId)
+                  ? query.cultivarId
+                  : undefined;
+              if (query.cultivarId && cultivarId === undefined) {
+                const productLabel = platformProducts.find(
+                  ({ id }) => id === productId,
+                )?.label;
+                const cultivarLabel = platformCultivars.find(
+                  ({ id }) => id === query.cultivarId,
+                )?.label;
+                setCascadeNotice(
+                  productLabel
+                    ? `已移除与${productLabel}不适用的品种：${cultivarLabel ?? "所选具体品种"}`
+                    : `已移除具体品种：${cultivarLabel ?? "所选具体品种"}；请先选择适用产品`,
+                );
+              } else {
+                setCascadeNotice(null);
+              }
               onScopeChange({
-                productId: event.target.value || undefined,
-                cultivarId: undefined,
+                productId,
+                cultivarId,
                 selectedMetricId: undefined,
-              })
-            }
+              });
+            }}
           >
             <option value="">全部已授权产品</option>
             {productOptions.map((option) => (
@@ -852,93 +931,167 @@ function ExecutiveFilters({
             ))}
           </select>
         </label>
-        <label>
-          <span>具体品种</span>
-          <select
-            aria-label="具体品种"
-            value={query.cultivarId ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                cultivarId: event.target.value || undefined,
-                selectedMetricId: undefined,
-              })
-            }
-          >
-            <option value="">全部已授权品种</option>
-            {cultivarOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>数据层</span>
-          <select
-            aria-label="数据层"
-            value={query.dataLayer}
-            onChange={(event) =>
-              onScopeChange({
-                dataLayer: event.target
-                  .value as BusinessCoordinates["dataLayer"],
-                selectedMetricId: undefined,
-              })
-            }
-          >
-            {executiveCoordinateOptions.dataLayers.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>指标数据版本</span>
-          <select
-            aria-label="指标数据版本"
-            value={query.releaseVersion ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                releaseVersion: event.target.value || undefined,
-                selectedMetricId: undefined,
-              })
-            }
-          >
-            <option value="">全部已授权版本</option>
-            {releaseOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>风险状态</span>
-          <select
-            aria-label="风险状态"
-            value={
-              invalidRiskState ? "__invalid-risk-state__" : query.riskState
-            }
-            onChange={(event) =>
-              onScopeChange({
-                riskState: event.target
-                  .value as BusinessCoordinates["riskState"],
-              })
-            }
-          >
-            {invalidRiskState && (
-              <option disabled value="__invalid-risk-state__">
-                无效风险状态（请重新选择）
-              </option>
-            )}
-            {executiveCoordinateOptions.riskStates.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
+      <details className="executive-more-filters">
+        <summary>
+          <strong>更多筛选</strong>
+          <span>业务分类、地区层级、具体品种、数据状态、采用数据与风险</span>
+        </summary>
+        <div className="executive-filter-grid executive-filter-grid--secondary">
+          <label>
+            <span>业务分类</span>
+            <select
+              aria-label="业务分类"
+              value={query.businessSubtype ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  businessSubtypeId: event.target.value || undefined,
+                  selectedMetricId: undefined,
+                })
+              }
+            >
+              <option value="">全部已授权分类</option>
+              {visibleClassifications.map((classification) => (
+                <option key={classification.id} value={classification.id}>
+                  {classification.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>地区层级</span>
+            <select
+              aria-label="地区层级"
+              value={selectedRegionLevel}
+              onChange={(event) => {
+                const regionLevel = event.target.value as ExecutiveRegionLevel;
+                const currentRegionStillValid =
+                  Boolean(query.regionId) &&
+                  regionLevelForId(query.regionId) === regionLevel;
+                onScopeChange({
+                  regionLevel,
+                  regionId: currentRegionStillValid
+                    ? query.regionId
+                    : regionLevel === "custom"
+                      ? "authorized-all"
+                      : "",
+                  selectedMetricId: undefined,
+                });
+              }}
+            >
+              {availableRegionLevels.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>具体品种</span>
+            <select
+              aria-label="具体品种"
+              disabled={!query.productId || cultivarOptions.length === 0}
+              value={query.cultivarId ?? ""}
+              onChange={(event) => {
+                setCascadeNotice(null);
+                onScopeChange({
+                  cultivarId: event.target.value || undefined,
+                  selectedMetricId: undefined,
+                });
+              }}
+            >
+              <option value="">
+                {!query.productId
+                  ? "请先选择产品"
+                  : cultivarOptions.length === 0
+                    ? "所选产品不使用具体品种"
+                    : "全部已授权品种"}
+              </option>
+              {cultivarSelectionInvalid && query.cultivarId && (
+                <option disabled value={query.cultivarId}>
+                  品种与当前产品不匹配（请重新选择）
+                </option>
+              )}
+              {cultivarOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>数据状态</span>
+            <select
+              aria-label="数据状态"
+              value={query.dataLayer}
+              onChange={(event) =>
+                onScopeChange({
+                  dataLayer: event.target
+                    .value as BusinessCoordinates["dataLayer"],
+                  selectedMetricId: undefined,
+                })
+              }
+            >
+              {executiveCoordinateOptions.dataLayers.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>采用数据</span>
+            <select
+              aria-label="采用数据"
+              value={query.releaseVersion ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  releaseVersion: event.target.value || undefined,
+                  selectedMetricId: undefined,
+                })
+              }
+            >
+              <option value="">全部已核定数据</option>
+              {releaseOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>风险状态</span>
+            <select
+              aria-label="风险状态"
+              value={
+                invalidRiskState ? "__invalid-risk-state__" : query.riskState
+              }
+              onChange={(event) =>
+                onScopeChange({
+                  riskState: event.target
+                    .value as BusinessCoordinates["riskState"],
+                })
+              }
+            >
+              {invalidRiskState && (
+                <option disabled value="__invalid-risk-state__">
+                  无效风险状态（请重新选择）
+                </option>
+              )}
+              {executiveCoordinateOptions.riskStates.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </details>
+      {cascadeNotice && (
+        <p className="executive-coordinate-alert" role="alert">
+          {cascadeNotice}
+        </p>
+      )}
     </section>
   );
 }
@@ -946,15 +1099,25 @@ function ExecutiveFilters({
 export function ExecutiveOverviewWorkspace({
   section,
   scope,
+  workItems,
+  reportRecords,
   onScopeChange,
   onOpenRoute,
 }: {
   section: OverviewSection;
   scope: OperationalScope;
+  workItems?: readonly BusinessWorkItem[];
+  reportRecords?: readonly BusinessReportRecord[];
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenRoute: (route: FormalRoute) => void;
 }) {
-  const query = { ...createDefaultExecutiveLedgerQuery(scope), view: section };
+  const [page, setPage] = useState(1);
+  if (section === "map") return null;
+  const query = {
+    ...createDefaultExecutiveLedgerQuery(scope),
+    view: section,
+    regionId: scope.coordinates.regionId,
+  };
   const coordinateIssues = getExecutiveScopeCoordinateIssues(scope);
   const invalidBusinessDomain = coordinateIssues.some(
     ({ coordinate }) => coordinate === "business-domain",
@@ -967,14 +1130,33 @@ export function ExecutiveOverviewWorkspace({
   );
   const selectedRegionLevel =
     scope.coordinates.regionLevel ?? regionLevelForId(query.regionId);
+  const regionSelectionMissing = query.regionId.length === 0;
   const regionCoordinateConflict =
+    !regionSelectionMissing &&
     regionLevelForId(query.regionId) !== selectedRegionLevel;
+  const aggregateCoverageMissing =
+    coordinateIssues.length === 0 &&
+    query.regionId === "authorized-all" &&
+    resolveExecutiveAggregateMembership(scope, query) === null;
   const result = queryExecutiveLedger(
     scope,
     regionCoordinateConflict
       ? { ...query, regionId: "__inconsistent-region-level__" }
       : query,
+    { workItems, reportRecords },
   );
+  const totalRows =
+    result.view === "operations"
+      ? result.metrics.length
+      : result.view === "risks"
+        ? result.risks.length
+        : result.view === "duty"
+          ? result.duties.length
+          : result.releases.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / executivePageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * executivePageSize;
+  const pageEnd = pageStart + executivePageSize;
   const selectedMetric =
     result.view === "operations"
       ? result.metrics.find(
@@ -993,22 +1175,32 @@ export function ExecutiveOverviewWorkspace({
       <WorkspaceHeader
         eyebrow="经营门户 / 经营总览"
         title="粮食商情经营总览"
-        summary="以全部已授权范围为默认聚合，在同一组业务坐标下查询经营指标、异常、履责与发布结果。"
+        summary="以全部已授权范围为默认查询范围，在同一筛选口径下查看经营指标、异常、履责与发布结果。"
+      />
+      <WorkspaceTabs
+        active={section}
+        label="经营总览视图"
+        tabs={overviewTabs}
+        onChange={(key) => {
+          setPage(1);
+          onOpenRoute(createFormalRoute("overview", key as OverviewSection));
+        }}
       />
       <ExecutiveFilters
         scope={scope}
         query={query}
-        onScopeChange={onScopeChange}
+        onScopeChange={(coordinates) => {
+          setPage(1);
+          onScopeChange(coordinates);
+        }}
         invalidBusinessDomain={invalidBusinessDomain}
         invalidPeriod={invalidPeriod}
         invalidRiskState={invalidRiskState}
       />
-      <AppliedCoordinates
+      <ExecutiveResultSummary
+        section={section}
         query={query}
-        regionLevel={selectedRegionLevel}
-        invalidBusinessDomain={invalidBusinessDomain}
-        invalidPeriod={invalidPeriod}
-        invalidRiskState={invalidRiskState}
+        totalRows={totalRows}
       />
       {coordinateIssues.length > 0 && (
         <div className="executive-coordinate-alert" role="alert">
@@ -1019,31 +1211,39 @@ export function ExecutiveOverviewWorkspace({
           </strong>
           {invalidBusinessDomain || invalidRiskState ? (
             <span>
-              当前链接中的业务域、风险状态或经营期间缺少有效治理值；系统未执行数据查询，请重新选择。
+              当前链接中的业务域、风险状态或经营期间缺少有效筛选值；系统未执行数据查询，请重新选择。
             </span>
           ) : (
             <span>
-              当前查询尚未指定有效治理期间；系统未执行数据查询，请从经营期间列表中选择。
+              当前查询尚未指定有效经营期间；系统未执行数据查询，请从经营期间列表中选择。
             </span>
           )}
         </div>
       )}
       {regionCoordinateConflict && (
         <div className="executive-coordinate-alert" role="alert">
-          <strong>地区层级与业务地区不一致</strong>
+          <strong>地区层级与授权地区不一致</strong>
           <span>
             当前共享链接未执行数据查询；请选择该层级内的已授权地区后再查询。
           </span>
         </div>
       )}
-      <WorkspaceTabs
-        active={section}
-        label="经营总览视图"
-        tabs={overviewTabs}
-        onChange={(key) =>
-          onOpenRoute(createFormalRoute("overview", key as OverviewSection))
-        }
-      />
+      {regionSelectionMissing && (
+        <div className="executive-coordinate-alert" role="alert">
+          <strong>地区层级已更新，请重新选择授权地区</strong>
+          <span>
+            系统已清空原层级下的地区，不会自动改用授权列表中的第一个地区。
+          </span>
+        </div>
+      )}
+      {aggregateCoverageMissing && (
+        <div className="executive-coordinate-alert" role="alert">
+          <strong>当前授权范围内部分地区尚无已发布数据</strong>
+          <span>
+            当前期间、数据状态或采用数据尚未覆盖全部已授权地区；系统没有改用齐齐哈尔或其他首个地区的数据。
+          </span>
+        </div>
+      )}
       <section
         aria-labelledby={`经营总览视图-${section}-tab`}
         className="executive-ledger-primary"
@@ -1052,18 +1252,32 @@ export function ExecutiveOverviewWorkspace({
       >
         {result.view === "operations" ? (
           <OperationsLedger
-            rows={result.metrics}
+            rows={result.metrics.slice(pageStart, pageEnd)}
             selectedMetricId={scope.coordinates.selectedMetricId}
             onSelect={(selectedMetricId) => onScopeChange({ selectedMetricId })}
             onOpenTarget={openTarget}
           />
         ) : result.view === "risks" ? (
-          <RisksLedger rows={result.risks} onOpenTarget={openTarget} />
+          <RisksLedger
+            rows={result.risks.slice(pageStart, pageEnd)}
+            onOpenTarget={openTarget}
+          />
         ) : result.view === "duty" ? (
-          <DutyLedger rows={result.duties} onOpenTarget={openTarget} />
+          <DutyLedger
+            rows={result.duties.slice(pageStart, pageEnd)}
+            onOpenTarget={openTarget}
+          />
         ) : (
-          <ReleasesLedger rows={result.releases} onOpenTarget={openTarget} />
+          <ReleasesLedger
+            rows={result.releases.slice(pageStart, pageEnd)}
+            onOpenTarget={openTarget}
+          />
         )}
+        <ExecutivePagination
+          page={currentPage}
+          totalRows={totalRows}
+          onPageChange={setPage}
+        />
       </section>
       {selectedMetric && selectedComparison && (
         <section
@@ -1077,12 +1291,12 @@ export function ExecutiveOverviewWorkspace({
           />
           <ComparisonCharts model={selectedComparison} />
           <aside
-            aria-label="指标口径与来源"
+            aria-label="统计口径与数据来源"
             className="executive-lineage-drawer"
             role="complementary"
           >
             <header>
-              <span>治理口径与发布血缘</span>
+              <span>统计口径与数据来源</span>
               <h2>{selectedMetric.comparison.metricLabel}</h2>
             </header>
             <dl>
@@ -1107,11 +1321,11 @@ export function ExecutiveOverviewWorkspace({
                 <dd>{businessTimestampLabel(selectedMetric.cutoff)}</dd>
               </div>
               <div>
-                <dt>指标数据版本</dt>
+                <dt>采用数据</dt>
                 <dd>{executiveVersionLabel(selectedMetric.sourceVersionId)}</dd>
               </div>
               <div>
-                <dt>口径定义版本</dt>
+                <dt>统计公式</dt>
                 <dd>
                   {definitionVersionLabel(
                     selectedMetric.comparison.metricLabel,
@@ -1120,7 +1334,7 @@ export function ExecutiveOverviewWorkspace({
                 </dd>
               </div>
               <div>
-                <dt>可比规则版本</dt>
+                <dt>可比性</dt>
                 <dd>
                   {comparabilityVersionLabel(
                     selectedMetric.definition.comparisonPolicy
@@ -1143,6 +1357,8 @@ export function ExecutiveOverviewWorkspace({
 export function FormalExecutiveOverviewWorkspace(props: {
   section: OverviewSection;
   scope: OperationalScope;
+  workItems?: readonly BusinessWorkItem[];
+  reportRecords?: readonly BusinessReportRecord[];
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenRoute: (route: FormalRoute) => void;
 }) {

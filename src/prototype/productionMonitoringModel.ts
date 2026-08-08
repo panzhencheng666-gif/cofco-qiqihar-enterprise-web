@@ -1,6 +1,7 @@
 export type ProductionCrop = "corn" | "soybean" | "paddy";
 export type ProductionObjectType =
   | "farmer"
+  | "village-committee"
   | "family-farm"
   | "cooperative"
   | "agri-station"
@@ -29,6 +30,7 @@ export const productionCropLabels: Record<ProductionCrop, string> = {
 
 export const productionObjectLabels: Record<ProductionObjectType, string> = {
   farmer: "农户",
+  "village-committee": "村委会",
   "family-farm": "家庭农场",
   cooperative: "合作社",
   "agri-station": "农技站",
@@ -56,6 +58,17 @@ const objectFields: Record<
   readonly ProductionFieldGroup["key"][]
 > = {
   farmer: [
+    "variety",
+    "area",
+    "growth",
+    "yield",
+    "quality",
+    "stock-sale",
+    "intention",
+    "cost-support",
+    "evidence",
+  ],
+  "village-committee": [
     "variety",
     "area",
     "growth",
@@ -106,19 +119,24 @@ export const productionProductNames: Readonly<Record<string, string>> = {
   corn: "玉米",
   soybean: "大豆",
   paddy: "稻谷",
+  wheat: "小麦",
 };
 
 export const productionCultivarNames: Readonly<Record<string, string>> = {
   "jingke-968": "京科968",
   "demeiya-3": "德美亚3号",
   "heinong-84": "黑农84",
+  "dongsheng-22": "东生22",
   "xianyu-335": "先玉335",
   "longjing-31": "龙粳31",
   "suijing-18": "绥粳18",
+  "longmai-35": "龙麦35",
+  "kechun-14": "克春14号",
 };
 
 export const productionObjectTypeNames: Readonly<Record<string, string>> = {
-  "survey-area": "调查片区",
+  "village-committee": "村委会",
+  "survey-area": "产情调查点",
   farmer: "农户",
   "family-farm": "家庭农场",
   cooperative: "合作社",
@@ -139,7 +157,7 @@ export const productionPeriodNames: Readonly<Record<string, string>> = {
 };
 
 export const productionReleaseVersionNames: Readonly<Record<string, string>> = {
-  "METRIC-2026-W31-V3": "2026年第31周正式指标第3版",
+  "METRIC-2026-W31-V3": "2026年第31周已核定数据（当前采用）",
 };
 
 export function governedProductionName(

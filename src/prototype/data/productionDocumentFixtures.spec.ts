@@ -73,7 +73,22 @@ describe("production document fixtures", () => {
     ]);
   });
 
-  it("preserves quality, cost, policy support, insurance, collection channels and validation details", () => {
+  it("keeps the object total output consistent with harvest area and regional yield", () => {
+    const fields = productionDocumentFixtures[0].fieldGroups.flatMap(
+      ({ fields }) => fields,
+    );
+    expect(fields.find(({ fieldId }) => fieldId === "harvestArea")?.value).toBe(
+      "4,590 亩",
+    );
+    expect(
+      fields.find(({ fieldId }) => fieldId === "regionalEstimate")?.value,
+    ).toBe("468.2 公斤/亩");
+    expect(fields.find(({ fieldId }) => fieldId === "output")?.value).toBe(
+      "2,149.0 吨",
+    );
+  });
+
+  it("keeps each product's quality fields exact while preserving costs and collection governance", () => {
     const document = productionDocumentFixtures[0];
     const labels = document.fieldGroups.flatMap(({ fields }) =>
       fields.map(({ label }) => label),
@@ -85,9 +100,6 @@ describe("production document fixtures", () => {
       "杂质",
       "不完善粒",
       "霉变",
-      "大豆蛋白",
-      "稻谷出糙率",
-      "稻谷出米率",
       "地租",
       "种子费用",
       "农药费用",
@@ -101,6 +113,19 @@ describe("production document fixtures", () => {
     ]) {
       expect(labels).toContain(label);
     }
+    expect(labels).not.toEqual(
+      expect.arrayContaining(["蛋白", "出油率", "出糙率", "出米率"]),
+    );
+    expect(
+      productionDocumentFixtures[1].fieldGroups
+        .find(({ groupId }) => groupId === "quality-evidence")
+        ?.fields.map(({ label }) => label),
+    ).toEqual(["蛋白", "出油率", "不完善粒", "水分", "杂质", "现场证据"]);
+    expect(
+      productionDocumentFixtures[2].fieldGroups
+        .find(({ groupId }) => groupId === "quality-evidence")
+        ?.fields.map(({ label }) => label),
+    ).toEqual(["水分", "出米率", "出糙率", "杂质", "现场证据"]);
     expect(document.collectionChannels.map(({ mode }) => mode)).toEqual([
       "online",
       "excel",
@@ -135,29 +160,33 @@ describe("production document fixtures", () => {
       createElement(ProductionDocumentWorkbench, {
         document: productionDocumentFixtures[0],
         item: businessWorkFixtures[0],
-        itemTitle: "讷河市玉米长势与测产调查",
+        actor: {
+          userId: businessWorkFixtures[0].responsibleUserId,
+          displayName: businessWorkFixtures[0].responsiblePerson,
+        },
       }),
     );
-    for (const action of ["在线填报", "Excel批量导入", "授权系统接入"]) {
+    for (const action of ["在线填报", "电子表格批量导入", "授权系统接入"]) {
       expect(screen.getByRole("button", { name: action })).toBeVisible();
     }
     for (const heading of [
-      "具体品种",
-      "面积与地块位置",
-      "长势、生育阶段与灾情",
-      "测产、单产与产量",
-      "质量与证据",
-      "库存、销售、自用与损耗",
+      "种植与面积",
+      "长势与灾情",
+      "单产与总产",
+      "质量调查",
+      "余粮与销售",
       "种植意愿",
-      "成本、支持、补贴与保险",
-      "采集来源与校验",
+      "成本与保障",
+      "来源与校验",
     ]) {
       expect(screen.getByRole("heading", { name: heading })).toBeVisible();
     }
+    expect(document.body).not.toHaveTextContent("本单据不适用");
+    expect(document.body).not.toHaveTextContent("责任人已确认");
     expect(
       screen.getByRole("heading", { name: "单据与审核流程" }),
     ).toBeVisible();
-    expect(screen.getByText("质量检验依据需要补充")).toBeVisible();
+    expect(screen.getByText(/质量检验依据需要补充/)).toBeVisible();
     for (const state of [
       "进行中",
       "已退回",
@@ -167,5 +196,24 @@ describe("production document fixtures", () => {
     ]) {
       expect(screen.getByText(state)).toBeVisible();
     }
+  });
+
+  it("describes a superseded production release as a later published result", () => {
+    render(
+      createElement(ProductionDocumentWorkbench, {
+        document: productionDocumentFixtures[0],
+        item: {
+          ...businessWorkFixtures[0],
+          releaseStatus: "superseded",
+        },
+        actor: {
+          userId: businessWorkFixtures[0].responsibleUserId,
+          displayName: businessWorkFixtures[0].responsiblePerson,
+        },
+      }),
+    );
+
+    expect(screen.getByText("已由后续发布结果替代")).toBeVisible();
+    expect(document.body).not.toHaveTextContent("已被新版本替代");
   });
 });

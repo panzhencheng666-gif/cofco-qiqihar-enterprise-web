@@ -1,22 +1,49 @@
 import { useState } from "react";
 import { EnterpriseIcon } from "./EnterpriseIcon";
+import type { FormalApplication } from "./formalEnterpriseModel";
 
-export const managementApplications = [
+export const businessLauncherApplications: readonly {
+  key: FormalApplication;
+  label: string;
+  description: string;
+}[] = [
   {
-    key: "governance",
-    label: "数据治理",
-    description: "主数据、指标、公式、可比规则、质量与血缘",
-    permission: "治理管理员",
+    key: "work",
+    label: "我的工作",
+    description: "集中处理本人待填、待审、异常和待发布事项",
   },
   {
-    key: "system",
-    label: "系统管理",
-    description: "组织、岗位、权限、接入、运行配置与审计",
-    permission: "系统管理员",
+    key: "overview",
+    label: "经营总览",
+    description: "查看授权范围内的经营指标、风险与履责结果",
   },
-] as const;
+  {
+    key: "production",
+    label: "产情监测",
+    description: "管理种植调查任务、监测对象与产情分析",
+  },
+  {
+    key: "market",
+    label: "市场监测",
+    description: "管理价格、库存、加工、物流等市场调查",
+  },
+  {
+    key: "supply",
+    label: "供需与态势",
+    description: "开展供需测算、四年对比与核定记录查询",
+  },
+  {
+    key: "reporting",
+    label: "报表中心",
+    description: "编制、复核、分发并查询正式业务报告",
+  },
+];
 
-export function EnterpriseApplicationLauncher() {
+export function EnterpriseApplicationLauncher({
+  onSelect,
+}: {
+  onSelect?: (application: FormalApplication) => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -30,17 +57,27 @@ export function EnterpriseApplicationLauncher() {
         <EnterpriseIcon name="apps" />
       </button>
       {open && (
-        <section aria-label="应用启动器" className="formal-org-menu" role="dialog">
+        <section
+          aria-label="应用启动器"
+          className="formal-org-menu"
+          role="dialog"
+        >
           <header>
-            <strong>管理应用</strong>
-            <small>当前原型仅展示架构入口</small>
+            <strong>业务应用</strong>
           </header>
-          {managementApplications.map((application) => (
-            <div key={application.key}>
+          {businessLauncherApplications.map((application) => (
+            <button
+              aria-label={`打开${application.label}`}
+              key={application.key}
+              type="button"
+              onClick={() => {
+                onSelect?.(application.key);
+                setOpen(false);
+              }}
+            >
               <strong>{application.label}</strong>
               <p>{application.description}</p>
-              <small>{application.permission}</small>
-            </div>
+            </button>
           ))}
         </section>
       )}

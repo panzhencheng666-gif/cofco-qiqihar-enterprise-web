@@ -11,6 +11,7 @@ export type EnterpriseIconName =
   | "task"
   | "bell"
   | "help"
+  | "settings"
   | "collapse"
   | "expand"
   | "list"
@@ -55,6 +56,17 @@ const paths: Record<EnterpriseIconName, readonly string[]> = {
     "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z",
     "M10 9a2.4 2.4 0 1 1 3.5 2.1c-1 .6-1.5 1.1-1.5 2.2",
     "M12 17h.01",
+  ],
+  settings: [
+    "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z",
+    "M12 3v2",
+    "M12 19v2",
+    "M3 12h2",
+    "M19 12h2",
+    "M6.5 6.5 8 8",
+    "M16 16l1.5 1.5",
+    "M17.5 6.5 16 8",
+    "M8 16l-1.5 1.5",
   ],
   collapse: ["m14 6-6 6 6 6", "M20 4v16"],
   expand: ["m10 6 6 6-6 6", "M4 4v16"],

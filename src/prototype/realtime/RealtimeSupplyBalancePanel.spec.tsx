@@ -56,7 +56,7 @@ describe("RealtimeSupplyBalancePanel", () => {
   it("renders database-owned input roles and fail-closed actions", async () => {
     render(<RealtimeSupplyBalancePanel repository={repository()} />);
     expect(
-      await screen.findByRole("heading", { name: "本地实时供需平衡" }),
+      await screen.findByRole("heading", { name: "实时供需平衡" }),
     ).toBeVisible();
     expect(screen.getByText("期初库存")).toBeVisible();
     expect(screen.getByRole("button", { name: "批准手工来源" })).toBeVisible();

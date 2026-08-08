@@ -61,6 +61,8 @@ export interface BusinessWorkItem {
         objectId: string;
         objectName: string;
         objectTypeId: string;
+        /** 监测对象的最细行政区划；任务 regionId 仍保留授权汇总口径。 */
+        locationRegionId?: string;
       }
     | {
         kind: "supply-account";

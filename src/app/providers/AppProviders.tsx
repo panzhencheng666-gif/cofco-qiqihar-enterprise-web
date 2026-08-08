@@ -5,27 +5,30 @@ import zhCN from "antd/locale/zh_CN";
 import type { ReactNode } from "react";
 import { enterpriseTheme } from "@/app/theme/theme";
 import { createEnterpriseDataProvider } from "@/platform/api/enterpriseDataProvider";
-import { mockEnterpriseGateway } from "@/platform/api/mock/mockEnterpriseGateway";
-import { accessControlProvider } from "./accessControlProvider";
+import { EnterpriseGatewayProvider } from "@/workflows/enterprise-gateway/context";
+import type { EnterpriseGateway } from "@/workflows/enterprise-gateway/port";
+import { createAccessControlProvider } from "./accessControlProvider";
 
 interface AppProvidersProps {
   children: ReactNode;
   resources: IResourceItem[];
+  gateway: EnterpriseGateway;
   disableRouteChangeHandler?: boolean;
 }
 
 export function AppProviders({
   children,
   resources,
+  gateway,
   disableRouteChangeHandler = false,
 }: AppProvidersProps) {
   return (
     <ConfigProvider locale={zhCN} theme={enterpriseTheme}>
       <App>
         <Refine
-          dataProvider={createEnterpriseDataProvider(mockEnterpriseGateway)}
+          dataProvider={createEnterpriseDataProvider(gateway)}
           routerProvider={routerProvider}
-          accessControlProvider={accessControlProvider}
+          accessControlProvider={createAccessControlProvider(gateway)}
           resources={resources}
           options={{
             syncWithLocation: true,
@@ -34,7 +37,9 @@ export function AppProviders({
             disableRouteChangeHandler,
           }}
         >
-          {children}
+          <EnterpriseGatewayProvider gateway={gateway}>
+            {children}
+          </EnterpriseGatewayProvider>
         </Refine>
       </App>
     </ConfigProvider>

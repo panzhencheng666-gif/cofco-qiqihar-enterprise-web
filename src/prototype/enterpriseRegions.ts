@@ -177,8 +177,9 @@ export function getEnterpriseRegionOptions(): readonly EnterpriseRegion[] {
 export function isStatisticalEnterpriseRegionId(
   id: string,
 ): id is Exclude<EnterpriseRegionId, typeof authorizedScopeRegionId> {
-  return id !== authorizedScopeRegionId && getEnterpriseRegionOptions().some(
-    (region) => region.id === id,
+  return (
+    id !== authorizedScopeRegionId &&
+    getEnterpriseRegionOptions().some((region) => region.id === id)
   );
 }
 

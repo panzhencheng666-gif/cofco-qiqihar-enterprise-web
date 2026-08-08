@@ -1,4 +1,6 @@
 import type { BusinessClassification } from "./businessClassification";
+import { businessClassifications } from "./businessClassification";
+import type { BusinessWorkItem } from "./businessWork";
 import {
   buildComparisonSet,
   type PublishedMetricPoint,
@@ -8,20 +10,27 @@ import type { MetricDefinition } from "./metricCatalog";
 import type { MetricComparisonViewModel } from "./metricComparisonViewModel";
 import { createMetricComparisonViewModel } from "./metricComparisonViewModel";
 import type { OperationalScope } from "./operationalScope";
+import { platformCultivars, platformProducts } from "./platformMasterData";
+import type { BusinessReportRecord } from "../businessReportWorkflow";
 import {
-  aggregateRegionMembershipSnapshots,
   enterpriseMetricDefinitions,
   enterpriseMetricPoints,
   queryPrototypeMetricComparisons,
 } from "../data/enterpriseMetricFixtures";
 import {
+  executiveAggregateRegionMembershipFixtures,
   executiveDutyFixtures,
   executiveReleaseFixtures,
   executiveRiskFixtures,
   prototypeExecutiveSupportedPeriodKeys,
-  temporaryExecutiveSupplyReleasePoints,
+  executiveSupplyReleasePoints,
+  type ExecutiveAggregateRegionMembershipFixture,
   type ExecutiveFixtureCoordinates,
 } from "../data/executiveLedgerFixtures";
+import {
+  authorizedScopeRegion,
+  getEnterpriseRegionOptions,
+} from "../enterpriseRegions";
 
 export interface ExecutiveLedgerQuery {
   view: "operations" | "risks" | "duty" | "releases";
@@ -156,6 +165,19 @@ export type ExecutiveLedgerResult =
   | { view: "duty"; duties: readonly ExecutiveDutyRow[] }
   | { view: "releases"; releases: readonly ExecutiveReleaseRow[] };
 
+export interface ExecutiveLedgerProjectionInput {
+  /**
+   * Current business-work snapshot. Supplying an empty array intentionally
+   * produces no workflow risks or duties; omitting it keeps the seed ledger.
+   */
+  workItems?: readonly BusinessWorkItem[];
+  /**
+   * Current report-workflow snapshot. Supplying an empty array intentionally
+   * produces no release rows; omitting it keeps the seed release ledger.
+   */
+  reportRecords?: readonly BusinessReportRecord[];
+}
+
 const domains = [
   "production",
   "market",
@@ -235,15 +257,43 @@ function parseCurrentYear(periodKey: string): number | null {
     : null;
 }
 
-function authorizedAggregate(scope: OperationalScope): boolean {
-  const effective = [...scope.authorization.authorizedRegionIds].sort();
-  return aggregateRegionMembershipSnapshots.some(({ memberRegionIds }) => {
-    const members = [...memberRegionIds].sort();
-    return (
-      members.length === effective.length &&
-      members.every((regionId, index) => regionId === effective[index])
-    );
-  });
+function sameRegionMembers(
+  authorizedRegionIds: readonly string[],
+  memberRegionIds: readonly string[],
+): boolean {
+  const effective = new Set(authorizedRegionIds);
+  const members = new Set(memberRegionIds);
+  if (
+    effective.size !== authorizedRegionIds.length ||
+    members.size !== memberRegionIds.length ||
+    effective.size !== members.size
+  ) {
+    return false;
+  }
+  return [...effective].every((regionId) => members.has(regionId));
+}
+
+export function resolveExecutiveAggregateMembership(
+  scope: OperationalScope,
+  query: ExecutiveLedgerQuery,
+): ExecutiveAggregateRegionMembershipFixture | null {
+  if (query.regionId !== "authorized-all") return null;
+  const matches = executiveAggregateRegionMembershipFixtures.filter(
+    (fixture) =>
+      fixture.aggregateRegionId === query.regionId &&
+      fixture.periodKey === query.periodKey &&
+      fixture.dataLayer === query.dataLayer &&
+      (query.releaseVersion === null ||
+        fixture.releaseVersion === query.releaseVersion) &&
+      scope.authorization.authorizedReleaseVersionIds.includes(
+        fixture.releaseVersion,
+      ) &&
+      sameRegionMembers(
+        scope.authorization.authorizedRegionIds,
+        fixture.memberRegionIds,
+      ),
+  );
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function queryIsAuthorized(
@@ -295,22 +345,24 @@ function queryIsAuthorized(
   ) {
     return false;
   }
-  return query.regionId !== "authorized-all" || authorizedAggregate(scope);
+  return (
+    query.regionId !== "authorized-all" ||
+    resolveExecutiveAggregateMembership(scope, query) !== null
+  );
 }
 
 function pointRegionMatches(
   scope: OperationalScope,
-  queryRegionId: string,
+  query: ExecutiveLedgerQuery,
   pointRegionId: string,
 ): boolean {
-  if (queryRegionId !== "authorized-all")
-    return pointRegionId === queryRegionId;
-  if (!authorizedAggregate(scope)) return false;
+  if (query.regionId !== "authorized-all")
+    return pointRegionId === query.regionId;
+  const membership = resolveExecutiveAggregateMembership(scope, query);
+  if (!membership) return false;
   return (
     pointRegionId === "authorized-all" ||
-    scope.authorization.authorizedRegionIds.some(
-      (authorizedRegionId) => authorizedRegionId === pointRegionId,
-    )
+    membership.memberRegionIds.some((regionId) => regionId === pointRegionId)
   );
 }
 
@@ -329,7 +381,7 @@ function fixtureMatches(
     (subtypeDomain === null || fixture.domain === subtypeDomain) &&
     (query.businessSubtype === null ||
       fixture.businessSubtype === query.businessSubtype) &&
-    pointRegionMatches(scope, query.regionId, fixture.regionId) &&
+    pointRegionMatches(scope, query, fixture.regionId) &&
     (query.productId === null || fixture.productId === query.productId) &&
     (query.cultivarId === null || fixture.cultivarId === query.cultivarId) &&
     fixture.periodKey === query.periodKey &&
@@ -466,42 +518,36 @@ function operationsRows(
     ) {
       return [];
     }
-    const supplyPoints = temporaryExecutiveSupplyReleasePoints.filter(
-      (point) => {
-        const governedProductIds = [
-          point.coordinate.cropId,
-          point.coordinate.commodityId,
-          point.coordinate.productAccountId,
-        ].filter((id): id is string => id !== null);
-        const productAuthorized =
-          governedProductIds.length === 0 ||
-          governedProductIds.some((id) =>
-            scope.authorization.authorizedProductIds.includes(id),
-          );
-        const cultivarAuthorized =
-          point.coordinate.cultivarId === null ||
-          scope.authorization.authorizedCultivarIds.includes(
-            point.coordinate.cultivarId,
-          );
-        return (
-          productAuthorized &&
-          cultivarAuthorized &&
-          point.coordinate.period.year >= currentYear - 3 &&
-          point.coordinate.period.year <= currentYear &&
-          pointRegionMatches(
-            scope,
-            query.regionId,
-            point.coordinate.regionId,
-          ) &&
-          point.coordinate.dataLayer === query.dataLayer &&
-          (query.productId === null ||
-            point.coordinate.cropId === query.productId ||
-            point.coordinate.productAccountId === query.productId) &&
-          (query.cultivarId === null ||
-            point.coordinate.cultivarId === query.cultivarId)
+    const supplyPoints = executiveSupplyReleasePoints.filter((point) => {
+      const governedProductIds = [
+        point.coordinate.cropId,
+        point.coordinate.commodityId,
+        point.coordinate.productAccountId,
+      ].filter((id): id is string => id !== null);
+      const productAuthorized =
+        governedProductIds.length === 0 ||
+        governedProductIds.some((id) =>
+          scope.authorization.authorizedProductIds.includes(id),
         );
-      },
-    );
+      const cultivarAuthorized =
+        point.coordinate.cultivarId === null ||
+        scope.authorization.authorizedCultivarIds.includes(
+          point.coordinate.cultivarId,
+        );
+      return (
+        productAuthorized &&
+        cultivarAuthorized &&
+        point.coordinate.period.year >= currentYear - 3 &&
+        point.coordinate.period.year <= currentYear &&
+        pointRegionMatches(scope, query, point.coordinate.regionId) &&
+        point.coordinate.dataLayer === query.dataLayer &&
+        (query.productId === null ||
+          point.coordinate.cropId === query.productId ||
+          point.coordinate.productAccountId === query.productId) &&
+        (query.cultivarId === null ||
+          point.coordinate.cultivarId === query.cultivarId)
+      );
+    });
     const points = tupleOfFour(supplyPoints);
     if (!points) return [];
     const current = points[3];
@@ -534,9 +580,412 @@ function emptyResult(
   }
 }
 
+function workflowSnapshotVersion(
+  periodKey: string,
+  source: "business" | "report",
+): string {
+  const prefix = source === "business" ? "WORKFLOW" : "REPORT-WORKFLOW";
+  return `${prefix}-${periodKey}-CURRENT`;
+}
+
+function businessWorkTarget(
+  domain: BusinessWorkItem["domain"],
+): ExecutiveDrillDownTarget {
+  if (domain === "production")
+    return { application: "production", section: "tasks" };
+  if (domain === "market") return { application: "market", section: "tasks" };
+  if (domain === "supply")
+    return { application: "supply", section: "calculation" };
+  return { application: "reporting", section: "review-distribution" };
+}
+
+function businessDomainLabel(domain: BusinessWorkItem["domain"]): string {
+  const labels: Readonly<Record<BusinessWorkItem["domain"], string>> = {
+    production: "产情监测",
+    market: "市场监测",
+    supply: "供需核算",
+    reporting: "报告发布",
+  };
+  return labels[domain];
+}
+
+function businessWorkMatches(
+  scope: OperationalScope,
+  query: ExecutiveLedgerQuery,
+  item: BusinessWorkItem,
+): boolean {
+  if (query.dataLayer !== "official") return false;
+  if (query.domain !== "all" && query.domain !== item.domain) return false;
+  if (
+    query.businessSubtype !== null &&
+    query.businessSubtype !== item.businessSubtypeId
+  )
+    return false;
+  if (item.periodKey !== query.periodKey) return false;
+  if (!pointRegionMatches(scope, query, item.regionId)) return false;
+  if (query.productId !== null && query.productId !== item.productId)
+    return false;
+  if (query.cultivarId !== null && !item.cultivarIds.includes(query.cultivarId))
+    return false;
+  if (
+    !scope.authorization.authorizedBusinessClassificationIds.includes(
+      item.businessSubtypeId,
+    ) ||
+    !scope.authorization.authorizedRegionIds.includes(
+      item.regionId as OperationalScope["authorization"]["authorizedRegionIds"][number],
+    ) ||
+    (item.productId !== null &&
+      !scope.authorization.authorizedProductIds.includes(item.productId)) ||
+    item.cultivarIds.some(
+      (cultivarId) =>
+        !scope.authorization.authorizedCultivarIds.includes(cultivarId),
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function latestBusinessWorkTimestamp(item: BusinessWorkItem): string {
+  const timestamps = [
+    ...item.obligationHistory.map(({ at }) => at),
+    ...item.submissionHistory.map(({ submittedAt }) => submittedAt),
+    ...item.reviewHistory.map(({ at }) => at),
+    ...item.qualityHistory.map(({ at }) => at),
+    ...item.releaseHistory.map(({ at }) => at),
+  ].filter((value) => Number.isFinite(Date.parse(value)));
+  return (
+    timestamps.sort((left, right) => Date.parse(right) - Date.parse(left))[0] ??
+    item.deadline
+  );
+}
+
+function workRisk(
+  item: BusinessWorkItem,
+): Pick<ExecutiveRiskRow, "impact" | "currentState" | "riskState"> | null {
+  if (item.inputVersionState === "stale") {
+    return {
+      impact: "阻断当前版本继续审核与发布",
+      currentState: "上游数据已更新",
+      riskState: "blocking",
+    };
+  }
+  if (item.qualityStatus === "blocking") {
+    return {
+      impact: "阻断正式发布",
+      currentState: "质量阻断",
+      riskState: "blocking",
+    };
+  }
+  if (item.obligationStatus === "missed") {
+    return {
+      impact: "影响本期汇总与发布覆盖",
+      currentState: "截止未提交",
+      riskState: "warning",
+    };
+  }
+  if (item.reviewStatus === "returned" || item.documentStatus === "returned") {
+    return {
+      impact: "需要更正后重新提交",
+      currentState: "审核退回",
+      riskState: "warning",
+    };
+  }
+  if (item.qualityStatus === "awaiting-explanation") {
+    return {
+      impact: "质量说明通过前不可正式发布",
+      currentState: "等待质量说明复核",
+      riskState: "warning",
+    };
+  }
+  if (item.qualityStatus === "warning") {
+    return {
+      impact: "需要补充或复核质量依据",
+      currentState: "质量警告",
+      riskState: "warning",
+    };
+  }
+  return null;
+}
+
+function projectWorkRisks(
+  scope: OperationalScope,
+  query: ExecutiveLedgerQuery,
+  workItems: readonly BusinessWorkItem[],
+): readonly ExecutiveRiskRow[] {
+  return workItems.flatMap((item) => {
+    if (!businessWorkMatches(scope, query, item)) return [];
+    const risk = workRisk(item);
+    if (
+      !risk ||
+      (query.riskState !== "all" && query.riskState !== risk.riskState)
+    )
+      return [];
+    return [
+      {
+        id: `risk-work-${item.workId}`,
+        riskItem: item.title,
+        business: businessDomainLabel(item.domain),
+        region: item.regionLabel,
+        ...risk,
+        sourceVersionId: workflowSnapshotVersion(query.periodKey, "business"),
+        cutoff: latestBusinessWorkTimestamp(item),
+        coverage: `${item.regionLabel} · ${item.businessLabel}`,
+        drillDownTarget: businessWorkTarget(item.domain),
+      },
+    ];
+  });
+}
+
+function obligationStatusLabel(
+  status: BusinessWorkItem["obligationStatus"],
+): string {
+  const labels: Readonly<Record<BusinessWorkItem["obligationStatus"], string>> =
+    {
+      "not-due": "未到期",
+      "in-progress": "进行中",
+      "on-time": "已按时完成",
+      "overdue-completed": "逾期完成",
+      missed: "截止未提交",
+      exempt: "已免报",
+    };
+  return labels[status];
+}
+
+function reviewStatusLabel(status: BusinessWorkItem["reviewStatus"]): string {
+  const labels: Readonly<Record<BusinessWorkItem["reviewStatus"], string>> = {
+    pending: "待审核",
+    reviewing: "审核中",
+    approved: "审核通过",
+    returned: "审核退回",
+  };
+  return labels[status];
+}
+
+function formatChineseTimestamp(value: string | number): string {
+  const date = typeof value === "number" ? new Date(value) : new Date(value);
+  if (Number.isNaN(date.getTime())) return "时间待核定";
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+  return `${part("year")}年${Number(part("month"))}月${Number(part("day"))}日 ${part("hour")}:${part("minute")}`;
+}
+
+function firstQualifiedSubmission(item: BusinessWorkItem): string {
+  const approvedSubmissionIds = new Set(
+    item.reviewHistory
+      .filter(({ action }) => action === "approved")
+      .map(({ submissionVersionId }) => submissionVersionId),
+  );
+  const submission = item.submissionHistory.find(({ submissionVersionId }) =>
+    approvedSubmissionIds.has(submissionVersionId),
+  );
+  return submission
+    ? formatChineseTimestamp(submission.submittedAt)
+    : "尚未形成合格提交";
+}
+
+function overdueLabel(item: BusinessWorkItem): string {
+  if (item.obligationStatus === "missed") return "已逾期";
+  if (item.obligationStatus === "overdue-completed") return "逾期后完成";
+  return "未逾期";
+}
+
+function projectWorkDuties(
+  scope: OperationalScope,
+  query: ExecutiveLedgerQuery,
+  workItems: readonly BusinessWorkItem[],
+): readonly ExecutiveDutyRow[] {
+  return workItems
+    .filter((item) => businessWorkMatches(scope, query, item))
+    .map((item) => {
+      const status = obligationStatusLabel(item.obligationStatus);
+      return {
+        id: `duty-work-${item.workId}`,
+        assignment: {
+          id: item.responsibilityId,
+          region: item.regionLabel,
+          businessItem: item.title,
+          frequency: item.frequency,
+          responsibleUserId: item.responsibleUserId,
+          person: item.responsiblePerson,
+          post: item.responsiblePost,
+          reviewer: item.reviewer,
+          deadlineRule: item.deadlineRule,
+          effectivePeriod: item.effectivePeriod,
+          status,
+        },
+        weekly: {
+          person: item.responsiblePerson,
+          region: item.regionLabel,
+          item: item.title,
+          deadline: formatChineseTimestamp(item.deadline),
+          firstQualifiedSubmission: firstQualifiedSubmission(item),
+          status,
+          overdueDuration: overdueLabel(item),
+          review: reviewStatusLabel(item.reviewStatus),
+        },
+        monthly: null,
+        sourceVersionId: workflowSnapshotVersion(query.periodKey, "business"),
+        cutoff: latestBusinessWorkTimestamp(item),
+        coverage: `${item.regionLabel} · ${item.businessLabel}`,
+        drillDownTarget: businessWorkTarget(item.domain),
+      };
+    });
+}
+
+function reportRegionId(regionLabel: string): string | null {
+  if (regionLabel === authorizedScopeRegion.label)
+    return authorizedScopeRegion.id;
+  return (
+    getEnterpriseRegionOptions().find(({ label }) => label === regionLabel)
+      ?.id ?? null
+  );
+}
+
+function reportProductId(productLabel: string): string | null {
+  return (
+    platformProducts.find(({ label }) => label === productLabel)?.id ?? null
+  );
+}
+
+function reportCultivarId(cultivarLabel: string): string | null {
+  if (cultivarLabel === "不按具体品种拆分") return null;
+  return (
+    platformCultivars.find(({ label }) => label === cultivarLabel)?.id ?? null
+  );
+}
+
+function reportRecordMatches(
+  scope: OperationalScope,
+  query: ExecutiveLedgerQuery,
+  report: BusinessReportRecord,
+): boolean {
+  const classification = businessClassifications.find(
+    ({ id }) => id === report.scope.businessClassificationId,
+  );
+  const regionId = reportRegionId(report.scope.region);
+  const productId = reportProductId(report.scope.product);
+  const cultivarId = reportCultivarId(report.scope.cultivar);
+  const currentYear = parseCurrentYear(query.periodKey);
+  if (!classification || !regionId || currentYear === null) return false;
+  if (!report.scope.period.includes(String(currentYear))) return false;
+  if (query.domain !== "all" && query.domain !== report.scope.application)
+    return false;
+  if (
+    query.businessSubtype !== null &&
+    query.businessSubtype !== classification.id
+  )
+    return false;
+  if (!pointRegionMatches(scope, query, regionId)) return false;
+  if (query.productId !== null && query.productId !== productId) return false;
+  if (query.cultivarId !== null && query.cultivarId !== cultivarId)
+    return false;
+  if (
+    query.releaseVersion !== null &&
+    query.releaseVersion !== report.scope.dataBatchId
+  )
+    return false;
+  return (
+    scope.authorization.authorizedBusinessClassificationIds.includes(
+      classification.id,
+    ) &&
+    (productId === null ||
+      scope.authorization.authorizedProductIds.includes(productId)) &&
+    (cultivarId === null ||
+      scope.authorization.authorizedCultivarIds.includes(cultivarId))
+  );
+}
+
+function reportCutoff(value: string): string {
+  const normalized = value.trim().replace(" ", "T");
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalized)
+    ? `${normalized}:00+08:00`
+    : normalized;
+}
+
+function projectReportReleases(
+  scope: OperationalScope,
+  query: ExecutiveLedgerQuery,
+  reports: readonly BusinessReportRecord[],
+): readonly ExecutiveReleaseRow[] {
+  const reportById = new Map(reports.map((report) => [report.id, report]));
+  return reports.flatMap((report) => {
+    if (!reportRecordMatches(scope, query, report)) return [];
+    const classification = businessClassifications.find(
+      ({ id }) => id === report.scope.businessClassificationId,
+    );
+    if (!classification) return [];
+    const publishAudit = [...report.auditTrail]
+      .reverse()
+      .find(({ action }) => action === "发布报告");
+    const publicationLabel =
+      report.status === "已发布"
+        ? report.revisionOfReportId
+          ? "修订报告正式发布"
+          : "报告正式发布"
+        : report.status === "已替代"
+          ? "历史报告已被修订替代"
+          : `报告流程：${report.status}`;
+    return [
+      {
+        id: `release-report-${report.id}`,
+        domain: "reporting",
+        businessSubtype: classification.id,
+        sourceBusinessDomain: report.scope.application,
+        sourceBusinessSubtype: classification.id,
+        publicationId: report.id,
+        publicationLabel,
+        replacesPublicationId: report.replacesReportId ?? null,
+        replacesPublicationLabel:
+          (report.replacesReportId
+            ? reportById.get(report.replacesReportId)?.title
+            : null) ?? null,
+        replacedByPublicationId: report.replacedByReportId ?? null,
+        replacedByPublicationLabel:
+          (report.replacedByReportId
+            ? reportById.get(report.replacedByReportId)?.title
+            : null) ?? null,
+        reportName: report.title,
+        frequency: report.scope.frequency,
+        scope: `${report.scope.region} · ${report.scope.product} · ${report.scope.cultivar}`,
+        period: report.scope.period,
+        dataVersion: report.dataBatchLabel,
+        publicationStatus: report.status,
+        owner:
+          report.status === "已发布" || report.status === "已替代"
+            ? report.publisherPost
+            : report.currentHandlerPost,
+        publishedAt: publishAudit
+          ? formatChineseTimestamp(publishAudit.occurredAt)
+          : "尚未发布",
+        sourceVersionId: workflowSnapshotVersion(query.periodKey, "report"),
+        cutoff: reportCutoff(report.scope.dataCutoff),
+        coverage: `${report.scope.region} · ${report.scope.product}`,
+        drillDownTarget: {
+          application: "reporting",
+          section:
+            report.status === "已发布" || report.status === "已替代"
+              ? "ledger"
+              : "review-distribution",
+        },
+      },
+    ];
+  });
+}
+
 export function queryExecutiveLedger(
   scope: OperationalScope,
   query: ExecutiveLedgerQuery,
+  projection: ExecutiveLedgerProjectionInput = {},
 ): ExecutiveLedgerResult {
   const currentYear = parseCurrentYear(query.periodKey);
   const periodSupported = prototypeExecutiveSupportedPeriodKeys.some(
@@ -561,53 +1010,63 @@ export function queryExecutiveLedger(
     case "risks":
       return {
         view: "risks",
-        risks: executiveRiskFixtures.filter(
-          (fixture) =>
-            fixtureMatches(scope, query, fixture) &&
-            (query.riskState === "all" ||
-              fixture.riskState === query.riskState),
-        ),
+        risks:
+          projection.workItems === undefined
+            ? executiveRiskFixtures.filter(
+                (fixture) =>
+                  fixtureMatches(scope, query, fixture) &&
+                  (query.riskState === "all" ||
+                    fixture.riskState === query.riskState),
+              )
+            : projectWorkRisks(scope, query, projection.workItems),
       };
     case "duty":
       return {
         view: "duty",
-        duties: executiveDutyFixtures.filter((fixture) =>
-          fixtureMatches(scope, query, fixture),
-        ),
+        duties:
+          projection.workItems === undefined
+            ? executiveDutyFixtures.filter((fixture) =>
+                fixtureMatches(scope, query, fixture),
+              )
+            : projectWorkDuties(scope, query, projection.workItems),
       };
     case "releases":
       return {
         view: "releases",
-        releases: executiveReleaseFixtures.filter((fixture) => {
-          const subtypeDomain = query.businessSubtype?.split(".")[0] ?? null;
-          const requestedSourceDomain =
-            query.domain === "all" && subtypeDomain !== null
-              ? subtypeDomain
-              : query.domain;
-          const domainMatches =
-            requestedSourceDomain === "all" ||
-            requestedSourceDomain === "reporting" ||
-            fixture.sourceBusinessDomain === requestedSourceDomain;
-          const subtypeMatches =
-            query.businessSubtype === null ||
-            (subtypeDomain === "reporting"
-              ? fixture.businessSubtype === query.businessSubtype
-              : fixture.sourceBusinessSubtype === query.businessSubtype);
-          const sourceAuthorized =
-            scope.authorization.authorizedBusinessClassificationIds.includes(
-              fixture.sourceBusinessSubtype,
-            );
-          return (
-            domainMatches &&
-            subtypeMatches &&
-            sourceAuthorized &&
-            fixtureMatches(
-              scope,
-              { ...query, domain: "reporting", businessSubtype: null },
-              fixture,
-            )
-          );
-        }),
+        releases:
+          projection.reportRecords === undefined
+            ? executiveReleaseFixtures.filter((fixture) => {
+                const subtypeDomain =
+                  query.businessSubtype?.split(".")[0] ?? null;
+                const requestedSourceDomain =
+                  query.domain === "all" && subtypeDomain !== null
+                    ? subtypeDomain
+                    : query.domain;
+                const domainMatches =
+                  requestedSourceDomain === "all" ||
+                  requestedSourceDomain === "reporting" ||
+                  fixture.sourceBusinessDomain === requestedSourceDomain;
+                const subtypeMatches =
+                  query.businessSubtype === null ||
+                  (subtypeDomain === "reporting"
+                    ? fixture.businessSubtype === query.businessSubtype
+                    : fixture.sourceBusinessSubtype === query.businessSubtype);
+                const sourceAuthorized =
+                  scope.authorization.authorizedBusinessClassificationIds.includes(
+                    fixture.sourceBusinessSubtype,
+                  );
+                return (
+                  domainMatches &&
+                  subtypeMatches &&
+                  sourceAuthorized &&
+                  fixtureMatches(
+                    scope,
+                    { ...query, domain: "reporting", businessSubtype: null },
+                    fixture,
+                  )
+                );
+              })
+            : projectReportReleases(scope, query, projection.reportRecords),
       };
   }
 }

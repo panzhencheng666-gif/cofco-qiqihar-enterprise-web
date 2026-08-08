@@ -1,18 +1,23 @@
-import { useCan, useOne } from "@refinedev/core";
-import { Alert, Breadcrumb, Button, Result, Space, Typography } from "antd";
 import { useState } from "react";
 import { useParams } from "react-router";
-import type { MonitoringObject } from "@/domains/monitoring-object/model";
-import { DocumentWorkspace } from "@/shared/ui/DocumentWorkspace";
-import { ObjectDrawer } from "@/shared/ui/ObjectDrawer";
-import { ReviewPanel } from "@/shared/ui/ReviewPanel";
+import {
+  EnterpriseBlocked,
+  EnterpriseDocumentWorkspace,
+  EnterpriseFailure,
+  EnterpriseLoading,
+  EnterpriseNotFound,
+  EnterpriseObjectDrawer,
+  EnterprisePage,
+  EnterpriseReviewPanel,
+  EnterpriseTextAction,
+} from "@/shared/enterprise-ui";
 import type {
   BusinessDocument,
   DocumentMode,
 } from "@/workflows/document-workspace/model";
 import { fieldValueDisplay } from "@/workflows/document-workspace/model";
 import { resolveDocumentViewState } from "@/workflows/document-workspace/view-state";
-import type { EnterpriseQueryError } from "@/workflows/enterprise-gateway/errors";
+import { useObjectDocument } from "@/workflows/document-workspace/useObjectDocument";
 
 function documentMode(
   document: BusinessDocument,
@@ -33,93 +38,61 @@ function documentMode(
 export function ObjectDocumentPage() {
   const { objectId = "", documentId = "" } = useParams();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const objectQuery = useOne<MonitoringObject, EnterpriseQueryError>({
-    resource: "objects",
-    id: objectId,
-  });
-  const documentQuery = useOne<BusinessDocument, EnterpriseQueryError>({
-    resource: "documents",
-    id: documentId,
-  });
-  const editAccess = useCan({
-    resource: "documents",
-    action: "edit",
-    params: { id: documentId },
-  });
-  const reviewAccess = useCan({
-    resource: "documents",
-    action: "review",
-    params: { id: documentId },
-  });
+  const query = useObjectDocument(objectId, documentId);
   const viewState = resolveDocumentViewState({
     requestedObjectId: objectId,
     requestedDocumentId: documentId,
-    object: objectQuery.result,
-    document: documentQuery.result,
-    objectLoading: objectQuery.query.isLoading,
-    documentLoading: documentQuery.query.isLoading,
-    accessLoading: editAccess.isLoading || reviewAccess.isLoading,
-    objectError: objectQuery.query.error,
-    documentError: documentQuery.query.error,
-    accessError: editAccess.error ?? reviewAccess.error,
+    object: query.object,
+    document: query.document,
+    objectLoading: query.isLoading,
+    documentLoading: query.isLoading,
+    accessLoading: query.isLoading,
+    objectError: query.objectError,
+    documentError: query.documentError,
+    accessError: query.accessError,
+    accessDenied: query.accessDenied,
   });
 
   if (viewState.kind === "loading") {
-    return <Result status="info" title="正在加载规范业务单据" />;
+    return <EnterpriseLoading title="正在加载规范业务单据" />;
   }
   if (viewState.kind === "query-error") {
     return (
-      <Alert
-        role="alert"
-        type="error"
-        showIcon
-        message="业务单据加载失败"
-        description="服务暂时不可用，已保留当前对象和单据地址，未修改任何业务数据。"
-        action={
-          <Button
-            onClick={() => {
-              void Promise.allSettled([
-                objectQuery.query.refetch(),
-                documentQuery.query.refetch(),
-                editAccess.refetch(),
-                reviewAccess.refetch(),
-              ]);
-            }}
-          >
-            重新加载
-          </Button>
-        }
+      <EnterpriseFailure
+        title="业务单据加载失败"
+        description="暂时无法加载，请稍后重试"
+        onRetry={query.reload}
+      />
+    );
+  }
+  if (viewState.kind === "forbidden") {
+    return (
+      <EnterpriseBlocked
+        title="当前账号无权查看此业务单据"
+        description="请联系责任管理员核对有效任职、责任范围和单据授权。"
       />
     );
   }
   if (viewState.kind === "not-found") {
     return (
-      <Result
-        status="404"
+      <EnterpriseNotFound
         title={
           viewState.target === "object" ? "监测对象不存在" : "业务单据不存在"
         }
-        subTitle="请从任务、对象档案或审核队列重新进入规范业务单据。"
+        description="请从本人工作或对象档案重新进入规范业务单据。"
       />
     );
   }
   if (viewState.kind === "mismatch") {
     return (
-      <Alert
-        role="alert"
-        type="error"
-        showIcon
-        message="对象与业务单据坐标不一致"
+      <EnterpriseBlocked
+        title="对象与业务单据坐标不一致"
         description="系统已阻止显示，未修改任何业务数据。"
       />
     );
   }
   const { object, document } = viewState;
-  const mode = documentMode(
-    document,
-    editAccess.data?.can === true,
-    reviewAccess.data?.can === true,
-  );
+  const mode = documentMode(document, query.canEdit, query.canReview);
   const workspaceDocument = {
     commodity: document.commodity,
     reportingPeriod: document.reportingPeriod,
@@ -142,29 +115,30 @@ export function ObjectDocumentPage() {
   };
 
   return (
-    <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      <Breadcrumb
-        items={[
-          { title: "对象档案" },
-          { title: object.name },
-          { title: document.id },
-        ]}
-      />
-      <Space>
-        <Typography.Title level={2} style={{ margin: 0 }}>
-          {object.name}
-        </Typography.Title>
-        <Button onClick={() => setDrawerOpen(true)}>查看对象全景</Button>
-      </Space>
+    <EnterprisePage
+      eyebrow="业务工作"
+      title={object.name}
+      description="当前规范业务单据与监测对象、报告期、表单版本和责任范围唯一关联；所有填报、审核和发布动作均以该业务坐标为准。"
+      actions={
+        <EnterpriseTextAction onClick={() => setDrawerOpen(true)}>
+          查看对象全景
+        </EnterpriseTextAction>
+      }
+    >
       <div className="document-grid">
-        <DocumentWorkspace document={workspaceDocument} mode={mode} />
-        <ReviewPanel quality={document.quality} />
+        <EnterpriseDocumentWorkspace document={workspaceDocument} mode={mode} />
+        <EnterpriseReviewPanel quality={document.quality} />
       </div>
-      <ObjectDrawer
-        object={object}
+      <EnterpriseObjectDrawer
+        object={{
+          name: object.name,
+          regionPath: object.regionPath,
+          contextLabel: "有效业务能力",
+          contextValues: object.capabilities,
+        }}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
       />
-    </Space>
+    </EnterprisePage>
   );
 }

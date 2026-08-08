@@ -17,7 +17,7 @@ function workItem(overrides: Partial<BusinessWorkItem> = {}): BusinessWorkItem {
     subject: {
       kind: "monitoring-object",
       objectId: "OBJ-SURVEY-01",
-      objectName: "讷河市同义镇调查片区",
+      objectName: "讷河市同义镇产情调查点",
       objectTypeId: "survey-area",
     },
     regionId: "qiqihar-nehe",

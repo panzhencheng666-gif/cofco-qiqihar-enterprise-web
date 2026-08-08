@@ -5,6 +5,7 @@ import type { BusinessDocument } from "./model";
 export type DocumentViewState =
   | { kind: "loading" }
   | { kind: "query-error" }
+  | { kind: "forbidden" }
   | { kind: "not-found"; target: "object" | "document" }
   | { kind: "mismatch" }
   | {
@@ -24,6 +25,7 @@ export interface DocumentViewStateInput {
   objectError: unknown;
   documentError: unknown;
   accessError: unknown;
+  accessDenied?: boolean;
 }
 
 export function resolveDocumentViewState({
@@ -37,6 +39,7 @@ export function resolveDocumentViewState({
   objectError,
   documentError,
   accessError,
+  accessDenied = false,
 }: DocumentViewStateInput): DocumentViewState {
   if (objectLoading || documentLoading || accessLoading) {
     return { kind: "loading" };
@@ -50,6 +53,7 @@ export function resolveDocumentViewState({
   if (objectError || documentError || accessError) {
     return { kind: "query-error" };
   }
+  if (accessDenied) return { kind: "forbidden" };
   if (!object) return { kind: "not-found", target: "object" };
   if (!document) return { kind: "not-found", target: "document" };
   if (

@@ -84,6 +84,53 @@ function project(item: BusinessWorkItem): BusinessWorkProjection {
   };
 }
 
+type WorkAssignmentNode = "responsible" | "reviewer" | "publisher" | "history";
+
+function assignmentNodeFor(item: BusinessWorkItem): WorkAssignmentNode {
+  if (item.releaseStatus === "pending") return "publisher";
+  if (
+    item.releaseStatus === "published" ||
+    item.releaseStatus === "superseded"
+  ) {
+    return "history";
+  }
+  if (
+    item.documentStatus === "returned" ||
+    item.reviewStatus === "returned" ||
+    item.qualityStatus === "blocking"
+  ) {
+    return "responsible";
+  }
+  if (item.qualityStatus === "awaiting-explanation") {
+    const latestQualityAction = item.qualityHistory.at(-1)?.action;
+    return latestQualityAction === "explanation-submitted"
+      ? "reviewer"
+      : "responsible";
+  }
+  if (
+    (item.reviewStatus === "pending" || item.reviewStatus === "reviewing") &&
+    (item.documentStatus === "submitted" || item.documentStatus === "corrected")
+  ) {
+    return "reviewer";
+  }
+  return "responsible";
+}
+
+function itemIsAssignedAtCurrentNode(
+  item: BusinessWorkItem,
+  userId: string,
+): boolean {
+  const node = assignmentNodeFor(item);
+  if (node === "responsible") return item.responsibleUserId === userId;
+  if (node === "reviewer") return item.reviewerUserId === userId;
+  if (node === "history") {
+    return item.responsibleUserId === userId || item.reviewerUserId === userId;
+  }
+  // 发布岗目前没有治理到 BusinessWorkItem 的人员指派字段。不能把待发布
+  // 事项继续投给已经办结审核的审核人，也不能猜测一个发布责任人。
+  return false;
+}
+
 export function projectMyWork(
   items: readonly BusinessWorkItem[],
   query: MyWorkProjectionQuery,
@@ -91,8 +138,7 @@ export function projectMyWork(
   return items
     .filter(
       (item) =>
-        (item.responsibleUserId === query.userId ||
-          item.reviewerUserId === query.userId) &&
+        itemIsAssignedAtCurrentNode(item, query.userId) &&
         itemIsAuthorized(item, {
           domain: item.domain,
           scope: query.scope,
@@ -108,6 +154,12 @@ function itemIsAuthorized(
   query: DomainTaskProjectionQuery,
 ): boolean {
   const { scope } = query;
+  const governedProductId =
+    item.productId ??
+    (item.subject.kind === "supply-account" &&
+    item.subject.productAccountId === "PRODUCT-ACCOUNT-CORN-2026"
+      ? "corn"
+      : null);
   if (!query.queryAllowed) return false;
   if (!scope.authorization.permissionKeys.includes("prototype:read"))
     return false;
@@ -142,13 +194,13 @@ function itemIsAuthorized(
   )
     return false;
   if (
-    item.productId !== null &&
-    !scope.authorization.authorizedProductIds.includes(item.productId)
+    governedProductId !== null &&
+    !scope.authorization.authorizedProductIds.includes(governedProductId)
   )
     return false;
   if (
     scope.coordinates.productId &&
-    item.productId !== scope.coordinates.productId
+    governedProductId !== scope.coordinates.productId
   )
     return false;
   if (

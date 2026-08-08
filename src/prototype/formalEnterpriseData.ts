@@ -7,8 +7,10 @@ import type {
 import { createFormalRoute } from "./formalEnterpriseModel";
 import type { OperationalScopeIdentity } from "./core/operationalScope";
 import { businessClassificationOptionSources } from "./core/businessClassification";
+import { prototypeMasterDataAuthorization } from "./core/platformMasterData";
 
-export const businessClassificationFixtures = businessClassificationOptionSources;
+export const businessClassificationFixtures =
+  businessClassificationOptionSources;
 
 export interface FormalShellIdentity {
   platformName: string;
@@ -27,30 +29,44 @@ export const prototypeShellIdentity: FormalShellIdentity = {
     currentUnitLabel: "经营部本部",
     units: ["经营部本部", "讷河库", "克山库", "克东库", "龙镇库", "成吉思汗库"],
   },
-  account: { displayName: "王洋", menuItems: ["个人资料", "岗位与数据权限", "账号安全", "操作与登录记录", "退出登录"] },
+  account: {
+    displayName: "王洋",
+    menuItems: [
+      "个人中心",
+      "组织、岗位与责任范围",
+      "代理与工作交接",
+      "常用条件与显示偏好",
+      "账号安全与登录设备",
+      "切换账号 / 退出登录",
+    ],
+  },
 };
 
 export const prototypeOperationalIdentity: OperationalScopeIdentity = {
-  workUnit: { organizationId: "qiqihar-operation", unitId: "operation-hq", label: "齐齐哈尔经营部本部" },
-  identity: { userId: "wang-yang", postId: "regional-data-admin" },
+  workUnit: {
+    organizationId: "qiqihar-operation",
+    unitId: "operation-hq",
+    label: "齐齐哈尔经营部本部",
+  },
+  identity: {
+    userId: "wang-yang",
+    postId: "regional-data-admin",
+    displayName: "王洋",
+  },
   authorization: {
-    authorizedRegionIds: ["qiqihar-all", "qiqihar-nehe"],
-    authorizedBusinessClassificationIds: [
-      "production.planting-production",
-      "market.quote-trade",
-      "supply.supply",
-      "operations.obligation-performance",
-      "operations.data-quality",
-      "reporting.production",
-      "reporting.market",
-      "reporting.supply",
-      "reporting.cross-business",
-      "reporting.duty",
+    ...prototypeMasterDataAuthorization,
+    permissionKeys: [
+      "prototype:read",
+      "market:object:manage",
+      "production:object:manage",
+      "business-work:review",
+      "business-work:quality-review",
+      "report.draft.save",
+      "report.review.submit",
+      "report.audit.read",
+      "report.export",
+      "system:settings",
     ],
-    authorizedProductIds: ["corn"],
-    authorizedCultivarIds: ["jingke-968"],
-    authorizedReleaseVersionIds: ["METRIC-2026-W31-V3"],
-    permissionKeys: ["prototype:read"],
   },
 };
 
@@ -66,12 +82,12 @@ export type FormalNavigationItemFor<A extends FormalApplication> = {
 
 export type FormalApplicationDefinition = {
   [A in FormalApplication]: {
-  key: A;
-  code: string;
-  label: string;
-  shortLabel: string;
-  note: string;
-  navigation: readonly FormalNavigationItemFor<A>[];
+    key: A;
+    code: string;
+    label: string;
+    shortLabel: string;
+    note: string;
+    navigation: readonly FormalNavigationItemFor<A>[];
   };
 }[FormalApplication];
 
@@ -208,20 +224,32 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       code: "01",
       label: "我的工作",
       shortLabel: "工作",
-      note: "统一处理本人待填报、待审核、逾期和发布事项",
-      navigation: [{ route: createFormalRoute("work", "tasks"), label: "我的任务" }],
+      note: "统一处理本人待填报、待审核、退回、异常和发布事项",
+      navigation: [
+        { route: createFormalRoute("work", "tasks"), label: "待我处理" },
+        { route: createFormalRoute("work", "submitted"), label: "待我填报" },
+        { route: createFormalRoute("work", "review"), label: "待我审核" },
+        {
+          route: createFormalRoute("work", "exceptions"),
+          label: "退回与异常",
+        },
+        { route: createFormalRoute("work", "completed"), label: "已办事项" },
+      ],
     },
     {
       key: "overview",
       code: "02",
-      label: "经营总览",
-      shortLabel: "总览",
-      note: "查看已授权正式指标、业务风险和最新发布结果",
+      label: "总揽监测",
+      shortLabel: "总揽",
+      note: "进入总揽监测地图；地图边界与指标按业务平台授权范围和已核定数据同步",
       navigation: [
-        { route: createFormalRoute("overview", "operations"), label: "经营运行" },
-        { route: createFormalRoute("overview", "risks"), label: "风险关注" },
-        { route: createFormalRoute("overview", "duty"), label: "履责情况" },
-        { route: createFormalRoute("overview", "releases"), label: "结果发布" },
+        {
+          route: createFormalRoute("overview", "map"),
+          label: "总揽监测",
+        },
+        { route: createFormalRoute("overview", "risks"), label: "风险事项" },
+        { route: createFormalRoute("overview", "duty"), label: "履责监督" },
+        { route: createFormalRoute("overview", "releases"), label: "发布成果" },
       ],
     },
     {
@@ -231,9 +259,28 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       shortLabel: "产情",
       note: "管理调查对象、产情采集、质量审核和结果发布",
       navigation: [
-        { route: createFormalRoute("production", "tasks"), label: "业务任务" },
-        { route: createFormalRoute("production", "objects"), label: "监测对象" },
-        { route: createFormalRoute("production", "analysis"), label: "监测分析" },
+        {
+          route: createFormalRoute("production", "corn-collection"),
+          label: "玉米产情填报",
+        },
+        {
+          route: createFormalRoute("production", "soybean-collection"),
+          label: "大豆产情填报",
+        },
+        {
+          route: createFormalRoute("production", "rice-collection"),
+          label: "稻谷产情填报",
+        },
+        { route: createFormalRoute("production", "tasks"), label: "产情任务" },
+        {
+          route: createFormalRoute("production", "objects"),
+          label: "调查对象",
+        },
+        { route: createFormalRoute("production", "review"), label: "数据审核" },
+        {
+          route: createFormalRoute("production", "analysis"),
+          label: "产情分析",
+        },
       ],
     },
     {
@@ -243,21 +290,48 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       shortLabel: "市场",
       note: "管理市场主体、行情、库存、加工和物流信息",
       navigation: [
-        { route: createFormalRoute("market", "tasks"), label: "业务任务" },
+        {
+          route: createFormalRoute("market", "corn-collection"),
+          label: "玉米市场采集",
+        },
+        {
+          route: createFormalRoute("market", "soybean-collection"),
+          label: "大豆市场采集",
+        },
+        {
+          route: createFormalRoute("market", "paddy-collection"),
+          label: "稻谷市场采集",
+        },
+        {
+          route: createFormalRoute("market", "logistics"),
+          label: "物流节点监测",
+        },
+        { route: createFormalRoute("market", "tasks"), label: "采集任务" },
         { route: createFormalRoute("market", "objects"), label: "监测对象" },
-        { route: createFormalRoute("market", "analysis"), label: "监测分析" },
+        { route: createFormalRoute("market", "review"), label: "数据审核" },
+        { route: createFormalRoute("market", "analysis"), label: "市场分析" },
       ],
     },
     {
       key: "supply",
       code: "05",
-      label: "供需与态势",
+      label: "供需分析",
       shortLabel: "供需",
       note: "按地区、产品和年度核对供给、使用与期末库存",
       navigation: [
-        { route: createFormalRoute("supply", "calculation"), label: "供需测算" },
-        { route: createFormalRoute("supply", "comparison"), label: "差异比对" },
-        { route: createFormalRoute("supply", "versions"), label: "版本记录" },
+        {
+          route: createFormalRoute("supply", "corn-balance"),
+          label: "玉米供需平衡",
+        },
+        {
+          route: createFormalRoute("supply", "soybean-balance"),
+          label: "大豆供需平衡",
+        },
+        {
+          route: createFormalRoute("supply", "paddy-balance"),
+          label: "稻谷供需平衡",
+        },
+        { route: createFormalRoute("supply", "records"), label: "计算记录" },
       ],
     },
     {
@@ -265,10 +339,17 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       code: "06",
       label: "报表中心",
       shortLabel: "报表",
-      note: "统一管理业务报告、履责报告、复核发布和历史版本",
+      note: "统一管理业务报告、履责报告、复核发布和修订记录",
       navigation: [
-        { route: createFormalRoute("reporting", "compose"), label: "报告编制" },
-        { route: createFormalRoute("reporting", "review-distribution"), label: "复核与分发" },
+        { route: createFormalRoute("reporting", "compose"), label: "业务报告" },
+        {
+          route: createFormalRoute("reporting", "comprehensive"),
+          label: "综合报告",
+        },
+        {
+          route: createFormalRoute("reporting", "review-distribution"),
+          label: "报告审核与发布",
+        },
         { route: createFormalRoute("reporting", "ledger"), label: "报告台账" },
       ],
     },
@@ -278,13 +359,14 @@ export const reportingNavigation: readonly ReportingNavigationGroup[] = [
   {
     label: "报告工作",
     items: [
-      { key: "compose", label: "报告编制" },
+      { key: "compose", label: "业务报告" },
+      { key: "comprehensive", label: "综合报告" },
     ],
   },
   {
     label: "发布管理",
     items: [
-      { key: "review-distribution", label: "复核与分发" },
+      { key: "review-distribution", label: "报告审核与发布" },
       { key: "ledger", label: "报告台账" },
     ],
   },

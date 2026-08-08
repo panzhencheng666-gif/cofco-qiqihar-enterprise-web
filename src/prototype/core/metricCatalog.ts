@@ -25,7 +25,8 @@ export interface MetricDefinition {
     | "rule-derived";
   definitionVersionId: string;
   displayScale: number;
-  trendDirection: "higher-is-better" | "lower-is-better" | "neutral" | "rule-derived";
+  trendDirection:
+    "higher-is-better" | "lower-is-better" | "neutral" | "rule-derived";
   priceStatisticId: string | null;
   comparisonPolicy: {
     relativeChange: "allowed" | "absolute-only" | "percentage-points";
@@ -35,8 +36,13 @@ export interface MetricDefinition {
   anomalyRuleVersionId: string;
 }
 
-export function validateMetricDefinition(definition: MetricDefinition): MetricDefinition {
-  if (!Number.isSafeInteger(definition.displayScale) || definition.displayScale < 0) {
+export function validateMetricDefinition(
+  definition: MetricDefinition,
+): MetricDefinition {
+  if (
+    !Number.isSafeInteger(definition.displayScale) ||
+    definition.displayScale < 0
+  ) {
     throw new Error("指标显示精度无效");
   }
   for (const [label, value] of [
@@ -51,10 +57,16 @@ export function validateMetricDefinition(definition: MetricDefinition): MetricDe
   ] as const) {
     if (!value.trim()) throw new Error(`${label}不能为空`);
   }
-  if (definition.measureType === "price" && definition.priceStatisticId === null) {
+  if (
+    definition.measureType === "price" &&
+    definition.priceStatisticId === null
+  ) {
     throw new Error("价格指标必须声明统计量口径");
   }
-  if (definition.priceStatisticId !== null && !definition.priceStatisticId.trim()) {
+  if (
+    definition.priceStatisticId !== null &&
+    !definition.priceStatisticId.trim()
+  ) {
     throw new Error("价格统计口径不能为空");
   }
   if (!definition.businessSubtype.startsWith(`${definition.domain}.`)) {
@@ -63,7 +75,10 @@ export function validateMetricDefinition(definition: MetricDefinition): MetricDe
   if (!definition.metricId.startsWith(`${definition.domain}.`)) {
     throw new Error("指标编号与业务域不一致");
   }
-  if (definition.comparisonPolicy.cagr === "allowed" && definition.comparisonPolicy.relativeChange !== "allowed") {
+  if (
+    definition.comparisonPolicy.cagr === "allowed" &&
+    definition.comparisonPolicy.relativeChange !== "allowed"
+  ) {
     throw new Error("复合增长率仅适用于允许相对变化的指标");
   }
   return definition;

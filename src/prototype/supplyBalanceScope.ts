@@ -1,3 +1,9 @@
+import type { EnterpriseRegionId } from "./enterpriseRegions";
+import {
+  formatSupplyAccountAmount,
+  qiqiharCornSupplyAccountSnapshot,
+} from "./data/supplyAccountSnapshot";
+
 export type SupplyBalanceScopeKey =
   "qiqihar" | "nehe" | "longjiang" | "gannan" | "tailai";
 
@@ -37,34 +43,42 @@ export const supplyBalanceScopes: readonly SupplyBalanceScope[] = [
     level: "市级合并",
     coverage: "16 / 16 个县区",
     internalFlowElimination: "42.6 万吨",
-    version: "2026/27 年度市级合并账户",
+    version: qiqiharCornSupplyAccountSnapshot.accountLabel,
     status: "已核定",
     metrics: [
       {
         label: "总供给",
-        value: "763.1",
+        value: formatSupplyAccountAmount(
+          qiqiharCornSupplyAccountSnapshot.equation.totalSupply,
+        ),
         unit: "万吨",
         note: "期初库存＋产量＋市外净调入",
       },
       {
         label: "总使用与市外流出",
-        value: "659.2",
+        value: formatSupplyAccountAmount(
+          qiqiharCornSupplyAccountSnapshot.equation.totalUse,
+        ),
         unit: "万吨",
         note: "消费＋加工＋损耗＋市外净调出",
       },
       {
         label: "期末库存",
-        value: "103.9",
+        value: formatSupplyAccountAmount(
+          qiqiharCornSupplyAccountSnapshot.equation.adoptedEnding,
+        ),
         unit: "万吨",
         note: "作为下一年度期初库存",
         tone: "good",
       },
       {
         label: "平衡差额",
-        value: "1.7",
+        value: formatSupplyAccountAmount(
+          qiqiharCornSupplyAccountSnapshot.equation.inventoryDifference,
+        ),
         unit: "万吨",
-        note: "超过 0.5 万吨说明线",
-        tone: "danger",
+        note: `处于 0.5 万吨说明线以内；${qiqiharCornSupplyAccountSnapshot.reconciliationDecision.explanationLabel}`,
+        tone: "good",
       },
     ],
   },
@@ -216,11 +230,10 @@ export const supplyBalanceScopes: readonly SupplyBalanceScope[] = [
   },
 ];
 
-export function getSupplyBalanceScope(key: string | null | undefined) {
-  return (
-    supplyBalanceScopes.find((scope) => scope.key === key) ??
-    supplyBalanceScopes[0]
-  );
+export function getSupplyBalanceScope(
+  key: string | null | undefined,
+): SupplyBalanceScope | null {
+  return supplyBalanceScopes.find((scope) => scope.key === key) ?? null;
 }
 
 const enterpriseRegionSupplyScope: Partial<
@@ -239,7 +252,7 @@ export function getSupplyBalanceScopeForRegion(regionId: EnterpriseRegionId) {
 }
 
 export function getSupplyBalanceMetrics(key: string | null | undefined) {
-  return getSupplyBalanceScope(key).metrics;
+  return getSupplyBalanceScope(key)?.metrics ?? null;
 }
 
 const supplyBalanceEquations: Record<
@@ -247,13 +260,27 @@ const supplyBalanceEquations: Record<
   SupplyBalanceEquation
 > = {
   qiqihar: {
-    totalSupply: "763.1",
-    totalUse: "659.2",
-    bookEnding: "103.9",
-    approvedAdjustment: "0.0",
-    adoptedEnding: "103.9",
-    surveyEnding: "105.6",
-    inventoryDifference: "1.7",
+    totalSupply: formatSupplyAccountAmount(
+      qiqiharCornSupplyAccountSnapshot.equation.totalSupply,
+    ),
+    totalUse: formatSupplyAccountAmount(
+      qiqiharCornSupplyAccountSnapshot.equation.totalUse,
+    ),
+    bookEnding: formatSupplyAccountAmount(
+      qiqiharCornSupplyAccountSnapshot.equation.bookEnding,
+    ),
+    approvedAdjustment: formatSupplyAccountAmount(
+      qiqiharCornSupplyAccountSnapshot.equation.approvedAdjustment,
+    ),
+    adoptedEnding: formatSupplyAccountAmount(
+      qiqiharCornSupplyAccountSnapshot.equation.adoptedEnding,
+    ),
+    surveyEnding: formatSupplyAccountAmount(
+      qiqiharCornSupplyAccountSnapshot.equation.surveyEnding,
+    ),
+    inventoryDifference: formatSupplyAccountAmount(
+      qiqiharCornSupplyAccountSnapshot.equation.inventoryDifference,
+    ),
   },
   nehe: {
     totalSupply: "121.8",
@@ -294,6 +321,6 @@ const supplyBalanceEquations: Record<
 };
 
 export function getSupplyBalanceEquation(key: string | null | undefined) {
-  return supplyBalanceEquations[getSupplyBalanceScope(key).key];
+  const scope = getSupplyBalanceScope(key);
+  return scope ? supplyBalanceEquations[scope.key] : null;
 }
-import type { EnterpriseRegionId } from "./enterpriseRegions";

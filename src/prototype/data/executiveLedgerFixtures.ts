@@ -1,5 +1,6 @@
 import type { BusinessClassification } from "../core/businessClassification";
 import type { PublishedMetricPoint } from "../core/comparableSeries";
+import type { EnterpriseRegionId } from "../enterpriseRegions";
 import type {
   ExecutiveDrillDownTarget,
   ExecutiveDutyRow,
@@ -13,6 +14,7 @@ import {
   dutyWeeklyRows,
   responsibilityAssignments,
 } from "../formalEnterpriseData";
+import { qiqiharCornSupplyAccountSnapshot } from "./supplyAccountSnapshot";
 
 export interface ExecutiveFixtureCoordinates {
   domain: "production" | "market" | "supply" | "operations" | "reporting";
@@ -37,6 +39,27 @@ export const prototypeExecutiveSupportedPeriodKeys = [
   prototypeExecutiveDefaultPeriodKey,
   "2025-W31",
 ] as const;
+
+export interface ExecutiveAggregateRegionMembershipFixture {
+  aggregateRegionId: "authorized-all";
+  periodKey: string;
+  dataLayer: "preliminary" | "official";
+  releaseVersion: string;
+  regionBoundaryVersionId: string;
+  memberRegionIds: readonly Exclude<EnterpriseRegionId, "authorized-all">[];
+}
+
+export const executiveAggregateRegionMembershipFixtures: readonly ExecutiveAggregateRegionMembershipFixture[] =
+  [
+    {
+      aggregateRegionId: "authorized-all",
+      periodKey: prototypeExecutiveDefaultPeriodKey,
+      dataLayer: "official",
+      releaseVersion: metricReleaseVersion,
+      regionBoundaryVersionId: "authorized-membership-2026-v1",
+      memberRegionIds: ["qiqihar-all", "qiqihar-nehe"],
+    },
+  ];
 
 export const executiveCoordinateOptions = {
   domains: [
@@ -365,14 +388,17 @@ export const executiveReleaseFixtures: readonly ReleaseFixture[] =
     };
   });
 
-const supplyValues = ["701.4", "722.8", "741.5", "763.1"] as const;
+const totalSupplyComparisonRow =
+  qiqiharCornSupplyAccountSnapshot.comparisonRows.find(
+    ({ label }) => label === "总供给",
+  );
 
-/**
- * Temporary immutable bridge for Task 4. Task 7 replaces these points with the
- * released supply-account result without changing the executive query contract.
- */
-export const temporaryExecutiveSupplyReleasePoints: readonly PublishedMetricPoint[] =
-  supplyValues.map((value, index) => {
+if (!totalSupplyComparisonRow) {
+  throw new Error("供需账户四年对比缺少总供给指标");
+}
+
+export const executiveSupplyReleasePoints: readonly PublishedMetricPoint[] =
+  totalSupplyComparisonRow.values.map((value, index) => {
     const year = 2023 + index;
     const current = year === 2026;
     return {
@@ -420,7 +446,7 @@ export const temporaryExecutiveSupplyReleasePoints: readonly PublishedMetricPoin
           resultReleaseVersionId: `SUPPLY-RESULT-${String(year)}-V1`,
         },
       },
-      value: fixedDecimal(value),
+      value: fixedDecimal(String(value)),
       unit: "万吨",
       coverageRate: fixedDecimal("96.8"),
       qualityStatus: "warning",

@@ -72,7 +72,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "本地实时产情业务" }),
+      await screen.findByRole("heading", { name: "实时产情业务" }),
     ).toBeVisible();
     expect(screen.getByLabelText("填报人")).toBeVisible();
     expect(screen.getByLabelText("样本点联系方式")).toBeVisible();

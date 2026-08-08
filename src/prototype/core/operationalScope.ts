@@ -4,7 +4,7 @@ import type { BusinessCoordinates } from "../formalEnterpriseModel";
 
 export interface OperationalScope {
   workUnit: { organizationId: string; unitId: string; label: string };
-  identity: { userId: string; postId: string };
+  identity: { userId: string; postId: string; displayName?: string };
   authorization: {
     authorizedRegionIds: readonly EnterpriseRegionId[];
     authorizedBusinessClassificationIds: readonly BusinessClassification["id"][];
@@ -86,9 +86,10 @@ export function readOperationalScope(
 
   const subtype = parameters.get(coordinateKeys.businessSubtypeId);
   if (subtype) {
-    const authorized = identity.authorization.authorizedBusinessClassificationIds.some(
-      (id) => id === subtype || id.endsWith(`.${subtype}`),
-    );
+    const authorized =
+      identity.authorization.authorizedBusinessClassificationIds.some(
+        (id) => id === subtype || id.endsWith(`.${subtype}`),
+      );
     if (!authorized) {
       issues.push({
         code: "unknown-or-unauthorized-business-subtype",
@@ -154,7 +155,12 @@ function readAuthorizedParameter(
   parameters: URLSearchParams,
   key: string,
   authorizedValues: readonly string[],
-  code: Exclude<OperationalScopeIssue["code"], "unknown-or-unauthorized-region" | "unknown-or-unauthorized-business-subtype" | "invalid-data-layer">,
+  code: Exclude<
+    OperationalScopeIssue["code"],
+    | "unknown-or-unauthorized-region"
+    | "unknown-or-unauthorized-business-subtype"
+    | "invalid-data-layer"
+  >,
   issues: OperationalScopeIssue[],
   assign: (value: string) => void,
 ) {
@@ -167,7 +173,9 @@ function readAuthorizedParameter(
   assign(value);
 }
 
-export function writeOperationalCoordinates(coordinates: BusinessCoordinates): string {
+export function writeOperationalCoordinates(
+  coordinates: BusinessCoordinates,
+): string {
   const parameters = new URLSearchParams();
   for (const [coordinate, key] of Object.entries(coordinateKeys) as [
     keyof BusinessCoordinates,

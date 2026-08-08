@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  normalizeFormalLocation,
   readFormalLocation,
   writeFormalLocation,
   type BusinessCoordinates,
@@ -13,95 +14,160 @@ import type { OperationalScope } from "./core/operationalScope";
 
 function readCurrentLocation(
   authority: FormalLocationAuthority,
-  search = window.location.search,
+  routeInput = window.location.href,
+  storedLocation?: FormalLocation,
 ): FormalLocationReadResult {
-  return readFormalLocation(search, authority);
+  const routeResult = readFormalLocation(routeInput, authority);
+  return storedLocation
+    ? normalizeFormalLocation(
+        { ...storedLocation, route: routeResult.location.route },
+        authority,
+      )
+    : routeResult;
 }
 
 function writeLocation(location: FormalLocation, mode: "push" | "replace") {
   const url = new URL(window.location.href);
-  const managed = new URLSearchParams(writeFormalLocation(location));
-  for (const key of [
-    "page", "section", "region", "regionLevel", "businessDomain",
-    "businessSubtype", "product", "cultivar", "period", "dataCutoff",
-    "dataLayer", "releaseVersion", "riskState", "selectedMetric",
-    "selectionType", "selectionId", "savedView",
-  ]) url.searchParams.delete(key);
-  managed.forEach((value, key) => url.searchParams.set(key, value));
-  window.history[mode === "push" ? "pushState" : "replaceState"]({}, "", url);
+  url.search = "";
+  url.hash = writeFormalLocation(location);
+  window.history[mode === "push" ? "pushState" : "replaceState"](
+    { formalLocation: location },
+    "",
+    url,
+  );
 }
 
 function defaultCoordinates(): BusinessCoordinates {
   return { regionId: "authorized-all" };
 }
 
+function historyFormalLocation(state: unknown): FormalLocation | undefined {
+  if (!state || typeof state !== "object" || !("formalLocation" in state)) {
+    return undefined;
+  }
+  const location = (state as { formalLocation?: unknown }).formalLocation;
+  return location && typeof location === "object"
+    ? (location as FormalLocation)
+    : undefined;
+}
+
 export function useFormalEnterpriseLocation(
   authority: FormalLocationAuthority,
   initialSearch?: string,
 ) {
-  const [result, setResult] = useState<FormalLocationReadResult>(() =>
-    readCurrentLocation(authority, initialSearch),
-  );
-  const coordinatesByApplication = useRef<Partial<Record<FormalRoute["application"], BusinessCoordinates>>>({
+  const [result, setResult] = useState<FormalLocationReadResult>(() => {
+    const storedLocation =
+      initialSearch === undefined
+        ? historyFormalLocation(window.history.state)
+        : undefined;
+    return readCurrentLocation(
+      authority,
+      initialSearch ?? window.location.href,
+      storedLocation,
+    );
+  });
+  const coordinatesByApplication = useRef<
+    Partial<Record<FormalRoute["application"], BusinessCoordinates>>
+  >({
     [result.location.route.application]: result.location.coordinates,
   });
+  const initialLocation = useRef(result.location);
 
-  const apply = useCallback((location: FormalLocation, mode?: "push" | "replace") => {
-    const next = readFormalLocation(writeFormalLocation(location), authority);
-    coordinatesByApplication.current[next.location.route.application] = next.location.coordinates;
-    if (mode) writeLocation(next.location, mode);
-    setResult(next);
-  }, [authority]);
+  const apply = useCallback(
+    (location: FormalLocation, mode?: "push" | "replace") => {
+      const next = normalizeFormalLocation(location, authority);
+      coordinatesByApplication.current[next.location.route.application] =
+        next.location.coordinates;
+      if (mode) writeLocation(next.location, mode);
+      setResult(next);
+    },
+    [authority],
+  );
 
   useEffect(() => {
-    const onPopState = () => {
-      const next = readCurrentLocation(authority);
-      coordinatesByApplication.current[next.location.route.application] = next.location.coordinates;
+    writeLocation(initialLocation.current, "replace");
+    const onPopState = (event: PopStateEvent) => {
+      const routeResult = readCurrentLocation(authority);
+      const stored = historyFormalLocation(event.state);
+      const next = stored
+        ? normalizeFormalLocation(
+            { ...stored, route: routeResult.location.route },
+            authority,
+          )
+        : {
+            ...routeResult,
+            location: {
+              ...routeResult.location,
+              coordinates:
+                coordinatesByApplication.current[
+                  routeResult.location.route.application
+                ] ?? defaultCoordinates(),
+            },
+          };
+      coordinatesByApplication.current[next.location.route.application] =
+        next.location.coordinates;
+      writeLocation(next.location, "replace");
       setResult(next);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [authority]);
+  }, [authority, initialSearch]);
 
-  const navigate = useCallback((route: FormalRoute, selection?: FormalSelection) => {
-    const current = result.location;
-    coordinatesByApplication.current[current.route.application] = current.coordinates;
-    const coordinates =
-      route.application === current.route.application
-        ? current.coordinates
-        : coordinatesByApplication.current[route.application] ?? defaultCoordinates();
-    apply(
-      {
-        route,
-        coordinates,
-        ...(selection ? { selection } : {}),
-      },
-      "push",
-    );
-  }, [apply, result.location]);
+  const navigate = useCallback(
+    (route: FormalRoute, selection?: FormalSelection) => {
+      const current = result.location;
+      coordinatesByApplication.current[current.route.application] =
+        current.coordinates;
+      const coordinates =
+        route.application === current.route.application
+          ? current.coordinates
+          : (coordinatesByApplication.current[route.application] ??
+            defaultCoordinates());
+      apply(
+        {
+          route,
+          coordinates,
+          ...(selection ? { selection } : {}),
+        },
+        "push",
+      );
+    },
+    [apply, result.location],
+  );
 
-  const updateCoordinates = useCallback((coordinates: Partial<BusinessCoordinates>) => {
-    apply(
-      {
+  const updateCoordinates = useCallback(
+    (coordinates: Partial<BusinessCoordinates>) => {
+      apply(
+        {
+          ...result.location,
+          coordinates: { ...result.location.coordinates, ...coordinates },
+        },
+        "replace",
+      );
+    },
+    [apply, result.location],
+  );
+
+  const setSavedViewId = useCallback(
+    (savedViewId?: string) => {
+      const next = {
         ...result.location,
-        coordinates: { ...result.location.coordinates, ...coordinates },
-      },
-      "replace",
-    );
-  }, [apply, result.location]);
-
-  const setSavedViewId = useCallback((savedViewId?: string) => {
-    const next = { ...result.location, ...(savedViewId ? { savedViewId } : {}) };
-    if (!savedViewId) delete next.savedViewId;
-    apply(next, "replace");
-  }, [apply, result.location]);
+        ...(savedViewId ? { savedViewId } : {}),
+      };
+      if (!savedViewId) delete next.savedViewId;
+      apply(next, "replace");
+    },
+    [apply, result.location],
+  );
 
   return {
     location: result.location,
-    scope: result.location && ({
-      ...toScope(authority, result.location.coordinates),
-      savedView: null,
-    } satisfies OperationalScope),
+    scope:
+      result.location &&
+      ({
+        ...toScope(authority, result.location.coordinates),
+        savedView: null,
+      } satisfies OperationalScope),
     issues: result.issues,
     queryAllowed: result.queryAllowed,
     navigate,
@@ -110,10 +176,17 @@ export function useFormalEnterpriseLocation(
   };
 }
 
-function toScope(authority: FormalLocationAuthority, coordinates: BusinessCoordinates) {
+function toScope(
+  authority: FormalLocationAuthority,
+  coordinates: BusinessCoordinates,
+) {
   if ("workUnit" in authority) return { ...authority, coordinates };
   return {
-    workUnit: { organizationId: "current-organization", unitId: "current-unit", label: "当前工作单位" },
+    workUnit: {
+      organizationId: "current-organization",
+      unitId: "current-unit",
+      label: "当前工作单位",
+    },
     identity: { userId: "current-user", postId: "current-post" },
     authorization: authority,
     coordinates,

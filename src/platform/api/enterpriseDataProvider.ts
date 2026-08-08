@@ -16,6 +16,10 @@ export function createEnterpriseDataProvider(
   const provider: DataProvider = {
     getApiUrl: () => "/api/v1",
     async getList<TData extends BaseRecord>({ resource }: GetListParams) {
+      if (resource === "my-work") {
+        const data = [...(await gateway.listMyWork())] as unknown as TData[];
+        return { data, total: data.length };
+      }
       if (resource === "tasks") {
         const data = [...(await gateway.listTasks())] as unknown as TData[];
         return { data, total: data.length };
@@ -29,6 +33,11 @@ export function createEnterpriseDataProvider(
       return unsupported(`getList(${resource})`);
     },
     async getOne<TData extends BaseRecord>({ resource, id }: GetOneParams) {
+      if (resource === "workspace" && id === "current") {
+        return {
+          data: (await gateway.getCurrentWorkspace()) as unknown as TData,
+        };
+      }
       if (resource === "objects") {
         return {
           data: (await gateway.getObject(String(id))) as unknown as TData,

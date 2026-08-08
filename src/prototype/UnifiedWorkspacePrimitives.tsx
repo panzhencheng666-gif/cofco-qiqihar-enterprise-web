@@ -1,7 +1,11 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+import {
+  RegionCascadeSelector,
+  type RegionCascadeValue,
+} from "./components/RegionCascadeSelector";
+import { getEnterpriseRegionPath } from "./data/enterpriseRegionHierarchy";
 import { useEnterpriseRegion } from "./EnterpriseRegionContext";
 import {
-  enterpriseRegionGroups,
   getEnterpriseRegionOptions,
   type EnterpriseRegionId,
 } from "./enterpriseRegions";
@@ -43,7 +47,9 @@ export function FormalWorkspaceScopeProvider({
   children,
 }: FormalWorkspaceScopeValue & { children: ReactNode }) {
   return (
-    <FormalWorkspaceScopeContext.Provider value={{ scope, onScopeChange, classificationOptions }}>
+    <FormalWorkspaceScopeContext.Provider
+      value={{ scope, onScopeChange, classificationOptions }}
+    >
       {children}
     </FormalWorkspaceScopeContext.Provider>
   );
@@ -53,8 +59,9 @@ export type WorkspaceTone = "normal" | "good" | "warning" | "danger";
 export type CollectionMode = "online" | "excel" | "system";
 
 function isWorkspaceRegionId(value: string): value is EnterpriseRegionId {
-  return value === "authorized-all" || getEnterpriseRegionOptions().some(
-    (region) => region.id === value,
+  return (
+    value === "authorized-all" ||
+    getEnterpriseRegionOptions().some((region) => region.id === value)
   );
 }
 
@@ -65,43 +72,42 @@ export function WorkspaceRegionSelect({
 }) {
   const formalScope = useFormalWorkspaceScope();
   const { regionId, setRegionId } = useWorkspaceRegion();
-  const authorizedRegions = formalScope
-    ? enterpriseRegionGroups.map((group) => ({
-        ...group,
-        regions: group.regions.filter((region) =>
-          formalScope.scope.authorization.authorizedRegionIds.includes(region.id),
-        ),
-      })).filter((group) => group.regions.length > 0)
-    : enterpriseRegionGroups;
+  const authorizedRegionIds = formalScope
+    ? formalScope.scope.authorization.authorizedRegionIds
+    : getEnterpriseRegionOptions().map(({ id }) => id);
+  const regionPath = getEnterpriseRegionPath(regionId);
+  const value: RegionCascadeValue = {
+    cityId: regionPath.find(({ level }) => level === "prefecture")?.id,
+    countyId: regionPath.find(({ level }) => level === "county")?.id,
+  };
+  const aggregateRegionByCity = {
+    qiqihar: "qiqihar-all",
+    heihe: "heihe-all",
+    hulunbuir: "hulunbuir-designated",
+  } as const;
+
+  const applyCascadeValue = (nextValue: RegionCascadeValue) => {
+    const nextRegionId =
+      nextValue.countyId ??
+      (nextValue.cityId
+        ? aggregateRegionByCity[
+            nextValue.cityId as keyof typeof aggregateRegionByCity
+          ]
+        : undefined);
+    if (nextRegionId && isWorkspaceRegionId(nextRegionId)) {
+      setRegionId(nextRegionId);
+    }
+  };
+
   return (
-    <select
-      aria-label={label}
-      className="workspace-region-select"
-      value={regionId}
-      onChange={(event) => {
-        const nextRegionId = event.target.value;
-        const isVisibleRegion = authorizedRegions.some((group) =>
-          group.regions.some((region) => region.id === nextRegionId),
-        );
-        if (
-          isWorkspaceRegionId(nextRegionId) &&
-          (nextRegionId === "authorized-all" || isVisibleRegion)
-        ) {
-          setRegionId(nextRegionId);
-        }
-      }}
-    >
-      {formalScope && <option value="authorized-all">全部已授权范围</option>}
-      {authorizedRegions.map((group) => (
-        <optgroup key={group.id} label={group.label}>
-          {group.regions.map((region) => (
-            <option key={region.id} value={region.id}>
-              {region.label}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
+    <div aria-label={label} className="workspace-region-cascade" role="group">
+      <RegionCascadeSelector
+        authorizedRegionIds={authorizedRegionIds}
+        maxLevel="county"
+        value={value}
+        onChange={applyCascadeValue}
+      />
+    </div>
   );
 }
 
@@ -157,62 +163,19 @@ export function BusinessContextBar({
 export function WorkspaceScopeBar({
   items,
 }: {
-  items: readonly (readonly [label: string, value: ReactNode])[];
+  items: readonly (readonly [label: string, value: string])[];
 }) {
-  const formalScope = useContext(FormalWorkspaceScopeContext);
-  const [productDraft, setProductDraft] = useState(
-    formalScope?.scope.coordinates.productId ?? "",
-  );
-
-  useEffect(() => {
-    setProductDraft(formalScope?.scope.coordinates.productId ?? "");
-  }, [formalScope?.scope.coordinates.productId]);
-
   return (
-    <section aria-label="工作区范围" className="unified-context-bar">
+    <section
+      aria-label="工作区范围"
+      className="unified-context-bar unified-scope-bar"
+    >
       {items.map(([label, value]) => (
         <div key={label}>
           <small>{label}</small>
-          {typeof value === "string" ? <strong>{value}</strong> : value}
+          <strong>{value}</strong>
         </div>
       ))}
-      {formalScope && (
-        <>
-          <label>
-            <small>产品</small>
-            <input aria-label="范围产品" value={productDraft} onChange={(event) => {
-              const productId = event.target.value;
-              setProductDraft(productId);
-              if (!productId || formalScope.scope.authorization.authorizedProductIds.includes(productId)) {
-                formalScope.onScopeChange({ productId: productId || undefined });
-              }
-            }} />
-          </label>
-          <label>
-            <small>期间</small>
-            <input aria-label="范围期间" value={formalScope.scope.coordinates.periodKey ?? ""} onChange={(event) => formalScope.onScopeChange({ periodKey: event.target.value || undefined })} />
-          </label>
-          <label>
-            <small>业务分类</small>
-            <select
-              aria-label="业务分类"
-              value={formalScope.scope.coordinates.businessSubtypeId ?? ""}
-              onChange={(event) => formalScope.onScopeChange({
-                businessSubtypeId: event.target.value || undefined,
-              })}
-            >
-              <option value="">全部已授权分类</option>
-              {formalScope.classificationOptions
-                .filter((item) => formalScope.scope.authorization.authorizedBusinessClassificationIds.includes(item.id))
-                .map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-            </select>
-          </label>
-        </>
-      )}
     </section>
   );
 }
@@ -301,10 +264,21 @@ export function WorkspaceTabs({
           onClick={() => onChange(tab.key)}
           onKeyDown={(event) => {
             const tabs = Array.from(
-              event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role=tab]") ?? [],
+              event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+                "[role=tab]",
+              ) ?? [],
             );
             const currentIndex = tabs.indexOf(event.currentTarget);
-            const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : event.key === "ArrowRight" ? (currentIndex + 1) % tabs.length : event.key === "ArrowLeft" ? (currentIndex - 1 + tabs.length) % tabs.length : null;
+            const nextIndex =
+              event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? tabs.length - 1
+                  : event.key === "ArrowRight"
+                    ? (currentIndex + 1) % tabs.length
+                    : event.key === "ArrowLeft"
+                      ? (currentIndex - 1 + tabs.length) % tabs.length
+                      : null;
             if (nextIndex === null) return;
             event.preventDefault();
             tabs[nextIndex].focus();
@@ -324,13 +298,18 @@ export function WorkspaceFilterBar({
   label,
   children,
   actions,
+  className = "",
 }: {
   label: string;
   children: ReactNode;
   actions?: ReactNode;
+  className?: string;
 }) {
   return (
-    <section aria-label={label} className="workspace-filter-bar">
+    <section
+      aria-label={label}
+      className={`workspace-filter-bar ${className}`.trim()}
+    >
       <div className="workspace-filter-fields">{children}</div>
       {actions && <div className="workspace-filter-actions">{actions}</div>}
     </section>
@@ -401,22 +380,34 @@ export function WorkspacePagination({
   end,
   page,
   pages,
+  onPageChange,
 }: {
   total: number;
   start: number;
   end: number;
   page: number;
   pages: number;
+  onPageChange: (page: number) => void;
 }) {
   return (
     <nav aria-label="表格分页" className="workspace-pagination">
       <span>{`共 ${String(total)} 条 · 当前 ${String(start)}–${String(end)}`}</span>
-      <button aria-label="上一页" disabled={page === 1} type="button">
+      <button
+        aria-label="上一页"
+        disabled={page === 1}
+        type="button"
+        onClick={() => onPageChange(page - 1)}
+      >
         ‹
       </button>
       <strong>{page}</strong>
       <span>/ {pages}</span>
-      <button aria-label="下一页" disabled={page === pages} type="button">
+      <button
+        aria-label="下一页"
+        disabled={page === pages}
+        type="button"
+        onClick={() => onPageChange(page + 1)}
+      >
         ›
       </button>
     </nav>
@@ -497,7 +488,7 @@ export function CollectionModeSwitch({
 }) {
   const modes: readonly [CollectionMode, string][] = [
     ["online", "在线填报"],
-    ["excel", "Excel批量导入"],
+    ["excel", "电子表格批量导入"],
     ["system", "授权系统接入"],
   ];
   return (

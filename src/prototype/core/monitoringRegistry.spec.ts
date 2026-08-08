@@ -19,9 +19,9 @@ import type { OperationalScope } from "./operationalScope";
 
 const monitoringObject: MonitoringObject = {
   objectId: "OBJ-SURVEY-01",
-  objectName: "讷河市同义镇调查片区",
+  objectName: "讷河市同义镇产情调查点",
   objectTypeId: "survey-area",
-  objectTypeLabel: "调查片区",
+  objectTypeLabel: "产情调查点",
   regionId: "qiqihar-nehe",
   regionLabel: "讷河市同义镇",
   productIds: ["corn", "soybean"],
@@ -49,6 +49,35 @@ const monitoringObject: MonitoringObject = {
       effectiveFrom: "2025-06-01",
       effectiveTo: "2025-12-31",
       capabilityTemplateVersionId: "CAPABILITY-QUALITY-1",
+    },
+  ],
+};
+
+const marketMonitoringObject: MonitoringObject = {
+  objectId: "OBJ-MARKET-RAIL-01",
+  objectName: "齐齐哈尔铁路货运站",
+  objectTypeId: "rail-node",
+  objectTypeLabel: "铁路站点",
+  regionId: "qiqihar-all",
+  regionLabel: "齐齐哈尔市",
+  productIds: ["corn"],
+  productLabels: ["玉米"],
+  cultivarIds: [],
+  cultivarLabels: [],
+  sourceChannelId: "rail-waybill-ledger",
+  sourceChannelLabel: "铁路运单与站点台账",
+  responsibleUserId: "wang-yang",
+  responsiblePerson: "王洋",
+  effectiveFrom: "2025-01-01",
+  effectiveTo: null,
+  validityStatus: "active",
+  roles: [
+    {
+      roleId: "rail-node",
+      label: "铁路站点",
+      effectiveFrom: "2025-01-01",
+      effectiveTo: null,
+      capabilityTemplateVersionId: "CAPABILITY-MARKET-RAIL-NODE",
     },
   ],
 };
@@ -84,21 +113,31 @@ describe("monitoring registry", () => {
     expect(monitoringObject.objectId).toBe("OBJ-SURVEY-01");
   });
 
-  it("derives capabilities only from active role template versions", () => {
-    expect(
-      getActiveObjectCapabilities(monitoringObject, templates, "2025-08-01"),
-    ).toEqual([
+  it("derives business capability labels without exposing template editions", () => {
+    const activeCapabilities = getActiveObjectCapabilities(
+      monitoringObject,
+      templates,
+      "2025-08-01",
+    );
+
+    expect(activeCapabilities).toEqual([
       {
         roleLabel: "产情调查对象",
-        templateLabel: "产情调查字段模板第2版",
+        templateLabel: "产情调查",
         capabilityLabels: ["种植面积填报", "长势与测产填报"],
       },
       {
         roleLabel: "质量样本对象",
-        templateLabel: "质量调查字段模板第1版",
+        templateLabel: "质量调查",
         capabilityLabels: ["质量检验依据填报"],
       },
     ]);
+    expect(
+      activeCapabilities.flatMap(({ capabilityLabels }) => capabilityLabels),
+    ).toEqual(["种植面积填报", "长势与测产填报", "质量检验依据填报"]);
+    expect(JSON.stringify(activeCapabilities)).not.toMatch(
+      /模板第[一二三四五六七八九十\d]+版/,
+    );
   });
 
   it("never falls back to an internal template code when governance is missing", () => {
@@ -107,7 +146,7 @@ describe("monitoring registry", () => {
     ).toEqual([
       {
         roleLabel: "产情调查对象",
-        templateLabel: "能力模板名称待维护",
+        templateLabel: "适用能力名称待维护",
         capabilityLabels: [],
       },
     ]);
@@ -121,9 +160,14 @@ describe("monitoring registry", () => {
           object,
           productionCapabilityTemplates,
           "2026-08-01",
-        ).every(({ templateLabel }) => templateLabel !== "能力模板名称待维护"),
+        ).every(({ templateLabel }) => templateLabel !== "适用能力名称待维护"),
       ).toBe(true);
     }
+    expect(
+      productionCapabilityTemplates.every(
+        ({ label }) => !/模板|第[一二三四五六七八九十\d]+版/.test(label),
+      ),
+    ).toBe(true);
     const task = businessWorkFixtures.find(
       ({ domain }) => domain === "production",
     );
@@ -205,6 +249,41 @@ describe("monitoring registry", () => {
     ).not.toEqual([]);
   });
 
+  it("projects truthful market object types and source channels through the shared registry", () => {
+    const scope: OperationalScope = {
+      ...prototypeOperationalIdentity,
+      authorization: {
+        ...prototypeOperationalIdentity.authorization,
+        authorizedRegionIds: ["qiqihar-all"],
+        authorizedBusinessClassificationIds: ["market.quote-trade"],
+        authorizedProductIds: ["corn"],
+        authorizedCultivarIds: [],
+      },
+      coordinates: {
+        regionId: "authorized-all",
+        businessDomainId: "market",
+      },
+      savedView: null,
+    };
+
+    expect(
+      projectMonitoringObjects([marketMonitoringObject], scope, true, "market"),
+    ).toEqual([marketMonitoringObject]);
+    expect(marketMonitoringObject.objectTypeId).toBe("rail-node");
+    expect(marketMonitoringObject.sourceChannelId).toBe("rail-waybill-ledger");
+    expect(
+      projectMonitoringObjects(
+        [marketMonitoringObject],
+        {
+          ...scope,
+          coordinates: { ...scope.coordinates, businessDomainId: "production" },
+        },
+        true,
+        "market",
+      ),
+    ).toEqual([]);
+  });
+
   it("rejects an explicit production subtype outside the authorized classification set", () => {
     const scope: OperationalScope = {
       ...prototypeOperationalIdentity,
@@ -250,6 +329,11 @@ describe("monitoring registry", () => {
   it("redacts mixed object coordinates to authorized product and cultivar arrays", () => {
     const scope = {
       ...prototypeOperationalIdentity,
+      authorization: {
+        ...prototypeOperationalIdentity.authorization,
+        authorizedProductIds: ["corn"],
+        authorizedCultivarIds: ["jingke-968"],
+      },
       coordinates: { regionId: "authorized-all" as const },
       savedView: null,
     };

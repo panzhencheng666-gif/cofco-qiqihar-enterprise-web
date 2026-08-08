@@ -5,11 +5,14 @@ import {
   executiveReleaseFixtures,
   executiveRiskFixtures,
 } from "../data/executiveLedgerFixtures";
+import { businessWorkFixtures } from "../data/businessWorkFixtures";
+import type { BusinessReportRecord } from "../businessReportWorkflow";
 import { prototypeOperationalIdentity } from "../formalEnterpriseData";
 import {
   createDefaultExecutiveLedgerQuery,
   getExecutiveScopeCoordinateIssues,
   queryExecutiveLedger,
+  resolveExecutiveAggregateMembership,
   type ExecutiveLedgerQuery,
   type ExecutiveLedgerResult,
 } from "./executiveLedger";
@@ -87,6 +90,67 @@ function expectStringFields<T extends object>(
 }
 
 describe("ExecutiveLedger", () => {
+  it("resolves an authorized aggregate only from one explicit coordinate-bound member snapshot", () => {
+    const currentScope = scope();
+    const membership = resolveExecutiveAggregateMembership(
+      currentScope,
+      query(currentScope),
+    );
+
+    expect(membership).toMatchObject({
+      aggregateRegionId: "authorized-all",
+      periodKey: "2026-W31",
+      dataLayer: "official",
+      releaseVersion: "METRIC-2026-W31-V3",
+      regionBoundaryVersionId: "authorized-membership-2026-v1",
+      memberRegionIds: ["qiqihar-all", "qiqihar-nehe"],
+    });
+  });
+
+  it("does not reuse a partial release when the identity is authorized for more regions", () => {
+    const expandedScope: OperationalScope = {
+      ...prototypeOperationalIdentity,
+      coordinates: {
+        regionId: "authorized-all",
+        periodKey: "2026-W31",
+      },
+      savedView: null,
+    };
+    const expandedQuery = createDefaultExecutiveLedgerQuery(expandedScope);
+
+    expect(
+      resolveExecutiveAggregateMembership(expandedScope, expandedQuery),
+    ).toBeNull();
+    expect(queryExecutiveLedger(expandedScope, expandedQuery)).toEqual({
+      view: "operations",
+      metrics: [],
+    });
+  });
+
+  it("does not use a member snapshot from another period, data state, or batch", () => {
+    const currentScope = scope();
+    const baseQuery = query(currentScope);
+
+    expect(
+      resolveExecutiveAggregateMembership(currentScope, {
+        ...baseQuery,
+        periodKey: "2025-W31",
+      }),
+    ).toBeNull();
+    expect(
+      resolveExecutiveAggregateMembership(currentScope, {
+        ...baseQuery,
+        dataLayer: "preliminary",
+      }),
+    ).toBeNull();
+    expect(
+      resolveExecutiveAggregateMembership(currentScope, {
+        ...baseQuery,
+        releaseVersion: "MARKET-2026-W31-APPROVED",
+      }),
+    ).toBeNull();
+  });
+
   it("keeps a missing governed period explicit until the URL or user supplies one", () => {
     const currentScope: OperationalScope = {
       ...prototypeOperationalIdentity,
@@ -117,12 +181,10 @@ describe("ExecutiveLedger", () => {
     if (governedResult.view !== "operations") {
       throw new Error("unexpected view");
     }
-    expect(new Set(governedResult.metrics.map(({ domain }) => domain))).toEqual(
-      new Set(["production", "market", "supply", "operations"]),
-    );
+    expect(governedResult.metrics).toEqual([]);
   });
 
-  it("defaults to the complete authorized aggregation and returns all four operating domains", () => {
+  it("keeps an authorized aggregate honest until an exact-region release exists", () => {
     const currentScope = scope();
     const defaultQuery = createDefaultExecutiveLedgerQuery(currentScope);
 
@@ -139,11 +201,51 @@ describe("ExecutiveLedger", () => {
     expect(result.view).toBe("operations");
     if (result.view !== "operations") throw new Error("unexpected view");
     expect(new Set(result.metrics.map(({ domain }) => domain))).toEqual(
-      new Set(["production", "market", "supply", "operations"]),
+      new Set(["supply"]),
     );
     expect(
       result.metrics.every(
         ({ comparison }) => comparison.yearCells.length === 4,
+      ),
+    ).toBe(true);
+
+    const cornResult = queryExecutiveLedger(
+      currentScope,
+      query(currentScope, { productId: "corn" }),
+    );
+    expect(cornResult.view).toBe("operations");
+    if (cornResult.view !== "operations") throw new Error("unexpected view");
+    expect(new Set(cornResult.metrics.map(({ domain }) => domain))).toEqual(
+      new Set(["supply"]),
+    );
+
+    const exactRegionResult = queryExecutiveLedger(
+      currentScope,
+      query(currentScope, {
+        regionId: "qiqihar-all",
+        productId: "corn",
+      }),
+    );
+    expect(exactRegionResult.view).toBe("operations");
+    if (exactRegionResult.view !== "operations") {
+      throw new Error("unexpected view");
+    }
+    expect(
+      new Set(exactRegionResult.metrics.map(({ domain }) => domain)),
+    ).toEqual(new Set(["production", "market", "operations"]));
+    expect(
+      exactRegionResult.metrics.every(
+        ({ comparison }) => comparison.yearCells.length === 4,
+      ),
+    ).toBe(true);
+    expect(
+      exactRegionResult.metrics.some(
+        ({ definition }) => definition.metricId === "market.purchase-price",
+      ),
+    ).toBe(true);
+    expect(
+      exactRegionResult.metrics.some(
+        ({ definition }) => definition.metricId === "production.planted-area",
       ),
     ).toBe(true);
   });
@@ -198,6 +300,178 @@ describe("ExecutiveLedger", () => {
       "frequency",
       "publicationStatus",
     ]);
+  });
+
+  it("projects risk and duty rows from the injected current work-item snapshot", () => {
+    const currentScope = scope({ regionId: "qiqihar-nehe" });
+    const source = businessWorkFixtures.find(
+      ({ workId }) => workId === "WORK-PRODUCTION-FILL-W31",
+    );
+    if (!source) throw new Error("missing production work fixture");
+    const riskyItem = { ...source, title: "动态产情复核任务" };
+    const baseQuery = query(currentScope, {
+      regionId: "qiqihar-nehe",
+      domain: "production",
+      productId: "corn",
+    });
+    const risks = queryExecutiveLedger(
+      currentScope,
+      { ...baseQuery, view: "risks" },
+      { workItems: [riskyItem] },
+    );
+    const duties = queryExecutiveLedger(
+      currentScope,
+      { ...baseQuery, view: "duty" },
+      { workItems: [riskyItem] },
+    );
+
+    expect(risks.view).toBe("risks");
+    expect(duties.view).toBe("duty");
+    if (risks.view !== "risks" || duties.view !== "duty") {
+      throw new Error("unexpected views");
+    }
+    expect(risks.risks).toMatchObject([
+      {
+        id: "risk-work-WORK-PRODUCTION-FILL-W31",
+        riskItem: "动态产情复核任务",
+        currentState: "质量阻断",
+        riskState: "blocking",
+      },
+    ]);
+    expect(duties.duties).toMatchObject([
+      {
+        id: "duty-work-WORK-PRODUCTION-FILL-W31",
+        assignment: {
+          businessItem: "动态产情复核任务",
+          status: "进行中",
+        },
+        weekly: {
+          status: "进行中",
+          review: "审核退回",
+        },
+      },
+    ]);
+
+    const completedItem = {
+      ...riskyItem,
+      obligationStatus: "on-time" as const,
+      documentStatus: "submitted" as const,
+      reviewStatus: "approved" as const,
+      qualityStatus: "passed" as const,
+    };
+    const completedRisks = queryExecutiveLedger(
+      currentScope,
+      { ...baseQuery, view: "risks" },
+      { workItems: [completedItem] },
+    );
+    const completedDuties = queryExecutiveLedger(
+      currentScope,
+      { ...baseQuery, view: "duty" },
+      { workItems: [completedItem] },
+    );
+    expect(completedRisks).toEqual({ view: "risks", risks: [] });
+    expect(completedDuties).toMatchObject({
+      view: "duty",
+      duties: [
+        {
+          assignment: { status: "已按时完成" },
+          weekly: { status: "已按时完成", review: "审核通过" },
+        },
+      ],
+    });
+  });
+
+  it("projects release rows from the injected current report-workflow snapshot", () => {
+    const currentScope = scope({ regionId: "qiqihar-all" });
+    currentScope.authorization = {
+      ...currentScope.authorization,
+      authorizedBusinessClassificationIds: [
+        ...currentScope.authorization.authorizedBusinessClassificationIds,
+        "supply.results",
+      ],
+    };
+    const report: BusinessReportRecord = {
+      id: "report-current-supply",
+      title: "动态玉米供需报告",
+      summary: "等待发布岗确认。",
+      scope: {
+        application: "supply",
+        businessClassificationId: "supply.results",
+        businessClassificationLabel: "结果",
+        region: "齐齐哈尔市全域",
+        product: "玉米",
+        cultivar: "不按具体品种拆分",
+        reportTemplate: "供需平衡分析报告",
+        period: "2026/27营销年度",
+        frequency: "月报",
+        dataCutoff: "2026-07-31 17:00",
+        dataBatchId: "SUPPLY-2026-MY-APPROVED",
+      },
+      dataBatchLabel: "2026/27营销年度供需已核定数据",
+      dataSourceLabel: "市级供需已核定账户",
+      status: "待发布",
+      currentHandlerPost: "报告发布岗",
+      authorPost: "供需分析岗",
+      reviewerPost: "报告复核岗",
+      publisherPost: "报告发布岗",
+      createdAt: new Date(2026, 6, 31, 16, 20).getTime(),
+      updatedAt: new Date(2026, 6, 31, 17, 20).getTime(),
+      auditTrail: [],
+    };
+    const releaseQuery = query(currentScope, {
+      view: "releases",
+      regionId: "qiqihar-all",
+      domain: "supply",
+      businessSubtype: "supply.results",
+      productId: "corn",
+    });
+    const pending = queryExecutiveLedger(currentScope, releaseQuery, {
+      reportRecords: [report],
+    });
+    const published = queryExecutiveLedger(currentScope, releaseQuery, {
+      reportRecords: [
+        {
+          ...report,
+          status: "已发布",
+          currentHandlerPost: "报告档案岗",
+          updatedAt: new Date(2026, 6, 31, 18, 0).getTime(),
+          auditTrail: [
+            {
+              id: "audit-published",
+              action: "发布报告",
+              fromStatus: "待发布",
+              toStatus: "已发布",
+              actorPost: "报告发布岗",
+              occurredAt: new Date(2026, 6, 31, 18, 0).getTime(),
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(pending).toMatchObject({
+      view: "releases",
+      releases: [
+        {
+          id: "release-report-report-current-supply",
+          reportName: "动态玉米供需报告",
+          publicationStatus: "待发布",
+          owner: "报告发布岗",
+          publishedAt: "尚未发布",
+        },
+      ],
+    });
+    expect(published).toMatchObject({
+      view: "releases",
+      releases: [
+        {
+          reportName: "动态玉米供需报告",
+          publicationStatus: "已发布",
+          owner: "报告发布岗",
+          publishedAt: "2026年7月31日 18:00",
+        },
+      ],
+    });
   });
 
   it("returns reporting publication and replacement rows for the reporting domain", () => {
@@ -332,7 +606,11 @@ describe("ExecutiveLedger", () => {
     const currentScope = scope();
     const production = queryExecutiveLedger(
       currentScope,
-      query(currentScope, { domain: "production" }),
+      query(currentScope, {
+        regionId: "qiqihar-all",
+        domain: "production",
+        productId: "corn",
+      }),
     );
     const incompatible = queryExecutiveLedger(
       currentScope,

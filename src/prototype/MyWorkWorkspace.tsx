@@ -7,6 +7,7 @@ import {
 import type { BusinessWorkItem } from "./core/businessWork";
 import { businessClassifications } from "./core/businessClassification";
 import type { OperationalScope } from "./core/operationalScope";
+import { platformProducts } from "./core/platformMasterData";
 import { businessWorkFixtures } from "./data/businessWorkFixtures";
 import { getEnterpriseScopeRegion } from "./enterpriseRegions";
 import type {
@@ -20,24 +21,31 @@ import {
   governedProductionName,
   productionCultivarNames,
   productionPeriodNames,
-  productionProductNames,
 } from "./productionMonitoringModel";
 import {
   FormalWorkspaceScopeProvider,
   WorkspaceHeader,
-  WorkspaceTabs,
+  WorkspacePagination,
 } from "./UnifiedWorkspacePrimitives";
 
-type MyWorkView = "全部工作" | BusinessWorkProjection["savedViewGroup"];
-
-const viewLabels: readonly MyWorkView[] = [
-  "全部工作",
-  "待填报",
-  "待审核",
-  "异常逾期",
-  "待发布",
-  "已办",
-];
+const myWorkViews: Readonly<
+  Record<
+    WorkSection,
+    {
+      label: string;
+      groups: readonly BusinessWorkProjection["savedViewGroup"][];
+    }
+  >
+> = {
+  tasks: {
+    label: "待我处理",
+    groups: ["待填报", "待审核", "异常逾期", "待发布"],
+  },
+  submitted: { label: "待我填报", groups: ["待填报"] },
+  review: { label: "待我审核", groups: ["待审核"] },
+  exceptions: { label: "退回与异常", groups: ["异常逾期"] },
+  completed: { label: "已办事项", groups: ["已办"] },
+};
 
 const domainLabels: Readonly<Record<BusinessWorkItem["domain"], string>> = {
   production: "产情监测",
@@ -89,31 +97,8 @@ const releaseLabels: Readonly<
   unreleased: "未发布",
   pending: "待发布",
   published: "已发布",
-  superseded: "已被新版本替代",
+  superseded: "已由新批次替代",
 };
-
-interface GovernedIdentity {
-  personName: string;
-  postName: string;
-}
-
-function resolveGovernedIdentity(scope: OperationalScope): GovernedIdentity {
-  const workResponsibility = businessWorkFixtures.find(
-    ({ responsibleUserId }) => responsibleUserId === scope.identity.userId,
-  );
-  const reviewAssignment = businessWorkFixtures.find(
-    ({ reviewerUserId }) => reviewerUserId === scope.identity.userId,
-  );
-  return {
-    personName:
-      workResponsibility?.responsiblePerson ||
-      reviewAssignment?.reviewer ||
-      "人员姓名待维护",
-    postName:
-      workResponsibility?.responsiblePost ||
-      (reviewAssignment ? "业务审核岗" : "岗位名称待维护"),
-  };
-}
 
 function governedPeriodName(item: BusinessWorkItem): string {
   const taskPeriod = governedProductionName(
@@ -139,10 +124,9 @@ function governedSubjectName(item: BusinessWorkItem): string {
 
 function governedProductName(item: BusinessWorkItem): string {
   if (item.productId) {
-    return governedProductionName(
-      productionProductNames,
-      item.productId,
-      "产品名称待维护",
+    return (
+      platformProducts.find(({ id }) => id === item.productId)?.label ??
+      "产品名称待维护"
     );
   }
   if (item.subject.kind === "supply-account") return "按产品账户";
@@ -180,6 +164,43 @@ function stateTone(label: string): string {
     return "is-good";
   }
   return "";
+}
+
+function currentProcessingNode(item: BusinessWorkItem): string {
+  if (
+    item.qualityStatus === "blocking" ||
+    item.qualityStatus === "awaiting-explanation"
+  ) {
+    return qualityLabels[item.qualityStatus];
+  }
+  if (item.reviewStatus === "returned") return reviewLabels.returned;
+  if (item.documentStatus === "returned") return documentLabels.returned;
+  if (
+    item.obligationStatus === "missed" ||
+    item.obligationStatus === "overdue-completed"
+  ) {
+    return obligationLabels[item.obligationStatus];
+  }
+  if (item.reviewStatus === "pending" || item.reviewStatus === "reviewing") {
+    return reviewLabels[item.reviewStatus];
+  }
+  if (item.documentStatus === "draft") return documentLabels.draft;
+  if (
+    item.obligationStatus === "not-due" ||
+    item.obligationStatus === "in-progress"
+  ) {
+    return obligationLabels[item.obligationStatus];
+  }
+  if (item.releaseStatus === "pending" || item.releaseStatus === "unreleased") {
+    return releaseLabels[item.releaseStatus];
+  }
+  if (
+    item.releaseStatus === "published" ||
+    item.releaseStatus === "superseded"
+  ) {
+    return releaseLabels[item.releaseStatus];
+  }
+  return "当前处理节点待确认";
 }
 
 function hasAuthorizedClassification(
@@ -230,26 +251,52 @@ function scopeAllowsQuery(
   );
 }
 
-function availablePeriodOptions(): readonly { id: string; label: string }[] {
+function workProductOptions(
+  workItems: readonly BusinessWorkItem[],
+): readonly { id: string; label: string }[] {
+  const productIds = new Set(
+    workItems
+      .filter((item) => item.productId !== null)
+      .map((item) => item.productId as string),
+  );
+  return [...productIds].flatMap((id) => {
+    const product = platformProducts.find((item) => item.id === id);
+    // The work ledger's “产品或作物” filter is deliberately sourced from
+    // current work items.  Non-grain business products are not crops and do
+    // not belong in this selector.
+    return product?.kind === "粮食作物"
+      ? [{ id: product.id, label: product.label }]
+      : [];
+  });
+}
+
+function workPeriodOptions(
+  workItems: readonly BusinessWorkItem[],
+): readonly { id: string; label: string }[] {
   const options = new Map<string, string>();
-  for (const item of businessWorkFixtures) {
-    if (!options.has(item.periodKey)) {
-      options.set(item.periodKey, governedPeriodName(item));
-    }
+  for (const item of workItems) {
+    if (!item.periodKey || options.has(item.periodKey)) continue;
+    const label = item.effectivePeriod.trim() || governedPeriodName(item);
+    options.set(
+      item.periodKey,
+      label === "任务期间名称待维护" ? item.periodKey : label,
+    );
   }
   return [...options].map(([id, label]) => ({ id, label }));
 }
 
-const myWorkPeriodOptions = availablePeriodOptions();
-const myWorkPeriodKeys = myWorkPeriodOptions.map(({ id }) => id);
-
 function Filters({
   scope,
   onScopeChange,
+  productOptions,
+  periodOptions,
 }: {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  productOptions: readonly { id: string; label: string }[];
+  periodOptions: readonly { id: string; label: string }[];
 }) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const domainOptions = Object.entries(domainLabels).filter(([domain]) =>
     businessClassifications.some(
       ({ id, domain: classificationDomain }) =>
@@ -275,11 +322,10 @@ function Filters({
     id,
     label: getEnterpriseScopeRegion(id)?.label ?? "地区名称待维护",
   }));
-  const productOptions = scope.authorization.authorizedProductIds.map((id) => ({
-    id,
-    label: governedProductionName(productionProductNames, id, "产品名称待维护"),
-  }));
-  const periods = myWorkPeriodOptions;
+  const products = productOptions.filter(({ id }) =>
+    scope.authorization.authorizedProductIds.includes(id),
+  );
+  const periods = periodOptions;
   const domainInvalid =
     scope.coordinates.businessDomainId !== undefined &&
     !domainOptions.some(([id]) => id === scope.coordinates.businessDomainId);
@@ -291,11 +337,12 @@ function Filters({
     !regionOptions.some(({ id }) => id === scope.coordinates.regionId);
   const productInvalid =
     scope.coordinates.productId !== undefined &&
-    !productOptions.some(({ id }) => id === scope.coordinates.productId);
+    !products.some(({ id }) => id === scope.coordinates.productId);
+  const activeAdvancedCount = scope.coordinates.businessSubtypeId ? 1 : 0;
 
   return (
     <section aria-label="我的工作筛选" className="my-work-task5-filter-surface">
-      <div className="my-work-task5-filter-grid">
+      <div className="my-work-task5-filter-grid my-work-task5-filter-grid--primary">
         <label>
           <span>业务域</span>
           <select
@@ -315,34 +362,6 @@ function Filters({
               </option>
             )}
             {domainOptions.map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>业务分类</span>
-          <select
-            aria-label="业务分类"
-            value={
-              selectedClassification ??
-              scope.coordinates.businessSubtypeId ??
-              ""
-            }
-            onChange={(event) =>
-              onScopeChange({
-                businessSubtypeId: event.target.value || undefined,
-              })
-            }
-          >
-            <option value="">全部已授权分类</option>
-            {classificationInvalid && (
-              <option disabled value={scope.coordinates.businessSubtypeId}>
-                业务分类无效（请重新选择）
-              </option>
-            )}
-            {classificationOptions.map(({ id, label }) => (
               <option key={id} value={id}>
                 {label}
               </option>
@@ -383,13 +402,13 @@ function Filters({
               })
             }
           >
-            <option value="">全部已授权产品</option>
+            <option value="">全部当前事项作物</option>
             {productInvalid && (
               <option disabled value={scope.coordinates.productId}>
                 产品名称无效（请重新选择）
               </option>
             )}
-            {productOptions.map(({ id, label }) => (
+            {products.map(({ id, label }) => (
               <option key={id} value={id}>
                 {label}
               </option>
@@ -420,6 +439,54 @@ function Filters({
           </select>
         </label>
       </div>
+      <div className="my-work-task5-filter-actions">
+        <button
+          aria-controls="my-work-more-filters"
+          aria-expanded={advancedOpen}
+          className="my-work-task5-filter-toggle"
+          type="button"
+          onClick={() => setAdvancedOpen((current) => !current)}
+        >
+          {activeAdvancedCount > 0
+            ? `更多筛选（已启用 ${activeAdvancedCount} 项）`
+            : "更多筛选"}
+        </button>
+      </div>
+      {advancedOpen && (
+        <div
+          className="my-work-task5-filter-grid my-work-task5-filter-grid--advanced"
+          id="my-work-more-filters"
+        >
+          <label>
+            <span>业务分类</span>
+            <select
+              aria-label="业务分类"
+              value={
+                selectedClassification ??
+                scope.coordinates.businessSubtypeId ??
+                ""
+              }
+              onChange={(event) =>
+                onScopeChange({
+                  businessSubtypeId: event.target.value || undefined,
+                })
+              }
+            >
+              <option value="">全部已授权分类</option>
+              {classificationInvalid && (
+                <option disabled value={scope.coordinates.businessSubtypeId}>
+                  业务分类无效（请重新选择）
+                </option>
+              )}
+              {classificationOptions.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
     </section>
   );
 }
@@ -429,11 +496,13 @@ export function FormalMyWorkWorkspace({
   scope,
   onScopeChange,
   onOpenBusiness,
+  workItems = businessWorkFixtures,
 }: {
   section: WorkSection;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
+  workItems?: readonly BusinessWorkItem[];
 }) {
   return (
     <FormalWorkspaceScopeProvider
@@ -446,6 +515,7 @@ export function FormalMyWorkWorkspace({
         onScopeChange={onScopeChange}
         scope={scope}
         section={section}
+        workItems={workItems}
       />
     </FormalWorkspaceScopeProvider>
   );
@@ -456,96 +526,86 @@ export function MyWorkWorkspace({
   scope,
   onScopeChange,
   onOpenBusiness,
+  workItems = businessWorkFixtures,
 }: {
   section: WorkSection;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
+  workItems?: readonly BusinessWorkItem[];
 }) {
-  if (section !== "tasks") return null;
   return (
     <MyWorkLedger
+      section={section}
       onOpenBusiness={onOpenBusiness}
       onScopeChange={onScopeChange}
       scope={scope}
+      workItems={workItems}
     />
   );
 }
 
 function MyWorkLedger({
+  section,
   scope,
   onScopeChange,
   onOpenBusiness,
+  workItems,
 }: {
+  section: WorkSection;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
+  workItems: readonly BusinessWorkItem[];
 }) {
-  const [activeView, setActiveView] = useState<MyWorkView>("全部工作");
-  const identity = resolveGovernedIdentity(scope);
-  const queryAllowed = scopeAllowsQuery(scope, myWorkPeriodKeys);
+  const [page, setPage] = useState(1);
+  const productOptions = workProductOptions(workItems);
+  const periodOptions = workPeriodOptions(workItems);
+  const periodKeys = useMemo(
+    () => periodOptions.map(({ id }) => id),
+    [periodOptions],
+  );
+  const queryAllowed = scopeAllowsQuery(scope, periodKeys);
   const projections = useMemo(
     () =>
-      projectMyWork(businessWorkFixtures, {
+      projectMyWork(workItems, {
         userId: scope.identity.userId,
         scope,
         queryAllowed,
-        availablePeriodKeys: myWorkPeriodKeys,
+        availablePeriodKeys: periodKeys,
       }),
-    [queryAllowed, scope],
+    [periodKeys, queryAllowed, scope, workItems],
   );
-  const counts = new Map<MyWorkView, number>([
-    ["全部工作", projections.length],
-  ]);
-  for (const view of viewLabels.slice(1)) {
-    counts.set(
-      view,
-      projections.filter(({ savedViewGroup }) => savedViewGroup === view)
-        .length,
-    );
-  }
-  const visible =
-    activeView === "全部工作"
-      ? projections
-      : projections.filter(
-          ({ savedViewGroup }) => savedViewGroup === activeView,
-        );
+  const view = myWorkViews[section];
+  const visible = projections.filter(({ savedViewGroup }) =>
+    view.groups.includes(savedViewGroup),
+  );
+  const pageSize = 10;
+  const pages = Math.max(1, Math.ceil(visible.length / pageSize));
+  const currentPage = Math.min(page, pages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const pageRows = visible.slice(startIndex, startIndex + pageSize);
 
   return (
     <div className="unified-workspace my-work-task5-workspace">
       <WorkspaceHeader
         eyebrow="统一工作门户 / 我的工作"
-        title="我的工作"
-        summary="汇集本人负责和本人审核的跨业务事项，状态独立、来源一致，并直达原业务单据。"
+        title={view.label}
+        summary="统一汇总本人待填报、待审核、待发布、退回、异常与逾期事项，按截止时间和风险排序，并直达原业务单据。"
       />
-      <section
-        aria-label="当前责任身份"
-        className="my-work-task5-identity-line"
-      >
-        <strong>{identity.personName}</strong>
-        <span>{identity.postName}</span>
-        <span>{scope.workUnit.label || "工作单位名称待维护"}</span>
-        <span>仅展示本人负责或审核事项</span>
-      </section>
-      <Filters onScopeChange={onScopeChange} scope={scope} />
-      <div className="my-work-task5-views">
-        <WorkspaceTabs
-          active={activeView}
-          label="我的工作状态视图"
-          onChange={(key) => setActiveView(key as MyWorkView)}
-          tabs={viewLabels.map((label) => ({
-            key: label,
-            label,
-            count: String(counts.get(label) ?? 0),
-          }))}
-        />
-      </div>
+      <Filters
+        onScopeChange={(coordinates) => {
+          setPage(1);
+          onScopeChange(coordinates);
+        }}
+        productOptions={productOptions}
+        periodOptions={periodOptions}
+        scope={scope}
+      />
       {!queryAllowed && (
         <div className="my-work-task5-alert" role="alert">
-          <strong>当前业务坐标无权查询</strong>
-          <span>
-            系统没有回落到其他地区、分类、产品或期间，请重新选择已授权范围。
-          </span>
+          <strong>当前筛选范围超出您的数据权限</strong>
+          <span>请重新选择已授权的地区、分类、产品或期间。</span>
         </div>
       )}
       <section
@@ -554,8 +614,10 @@ function MyWorkLedger({
       >
         <header>
           <div>
-            <h2>统一责任任务台账</h2>
-            <p>本人负责与本人审核事项共用同一业务来源，五类状态分别记录。</p>
+            <h2>{view.label}任务台账</h2>
+            <p>
+              汇总待填报、待审核、待发布、退回、异常和逾期事项；同一业务事项只保留一个当前处理节点。
+            </p>
           </div>
           <strong>{visible.length} 项</strong>
         </header>
@@ -568,72 +630,93 @@ function MyWorkLedger({
             <thead>
               <tr>
                 <th className="my-work-task5-sticky" scope="col">
-                  任务
+                  任务与业务对象
                 </th>
-                <th scope="col">业务域</th>
-                <th scope="col">业务分类</th>
-                <th scope="col">业务对象</th>
-                <th scope="col">业务地区</th>
-                <th scope="col">产品或作物</th>
-                <th scope="col">任务期间</th>
-                <th scope="col">截止时间</th>
-                <th scope="col">责任分工</th>
-                <th scope="col">字段完成</th>
-                <th scope="col">义务状态</th>
-                <th scope="col">单据状态</th>
-                <th scope="col">审核状态</th>
-                <th scope="col">质量状态</th>
-                <th scope="col">发布状态</th>
+                <th scope="col">业务与分类</th>
+                <th scope="col">地区与产品</th>
+                <th scope="col">期间与截止</th>
+                <th scope="col">责任与完成度</th>
+                <th scope="col">当前处理节点</th>
                 <th scope="col">操作</th>
               </tr>
             </thead>
             <tbody>
-              {visible.map((projection) => {
+              {pageRows.map((projection) => {
                 const { item } = projection;
                 const cultivars = governedCultivarNames(item);
                 const states = [
-                  obligationLabels[item.obligationStatus],
-                  documentLabels[item.documentStatus],
-                  reviewLabels[item.reviewStatus],
-                  qualityLabels[item.qualityStatus],
-                  releaseLabels[item.releaseStatus],
-                ];
+                  ["义务状态", obligationLabels[item.obligationStatus]],
+                  ["单据状态", documentLabels[item.documentStatus]],
+                  ["审核状态", reviewLabels[item.reviewStatus]],
+                  ["质量状态", qualityLabels[item.qualityStatus]],
+                  ["发布状态", releaseLabels[item.releaseStatus]],
+                ] as const;
+                const currentNode = currentProcessingNode(item);
                 const isResponsible =
                   item.responsibleUserId === scope.identity.userId;
                 return (
                   <tr key={item.workId}>
                     <th className="my-work-task5-sticky" scope="row">
-                      {item.title || "任务名称待维护"}
+                      <span className="my-work-task5-cell-stack">
+                        <strong>{item.title || "任务名称待维护"}</strong>
+                        <small>{governedSubjectName(item)}</small>
+                      </span>
                     </th>
-                    <td>{domainLabels[item.domain]}</td>
-                    <td>{item.businessLabel || "业务分类名称待维护"}</td>
-                    <td>{governedSubjectName(item)}</td>
-                    <td>{item.regionLabel || "地区名称待维护"}</td>
                     <td>
-                      {governedProductName(item)}
-                      {cultivars ? ` · ${cultivars}` : ""}
-                    </td>
-                    <td>{governedPeriodName(item)}</td>
-                    <td>{formatProductionDateTime(item.deadline)}</td>
-                    <td>
-                      <strong>
-                        {item.responsiblePerson || "责任人待维护"} ·{" "}
-                        {item.responsiblePost || "责任岗位待维护"}
-                      </strong>
-                      <small>{isResponsible ? "本人负责" : "本人审核"}</small>
+                      <span className="my-work-task5-cell-stack">
+                        <strong>{domainLabels[item.domain]}</strong>
+                        <small>
+                          {item.businessLabel || "业务分类名称待维护"}
+                        </small>
+                      </span>
                     </td>
                     <td>
-                      {item.completedFields}/{item.applicableFields} 项
+                      <span className="my-work-task5-cell-stack">
+                        <strong>{item.regionLabel || "地区名称待维护"}</strong>
+                        <small>
+                          {governedProductName(item)}
+                          {cultivars ? ` · ${cultivars}` : ""}
+                        </small>
+                      </span>
                     </td>
-                    {states.map((label, index) => (
-                      <td key={`${item.workId}-state-${String(index)}`}>
-                        <span
-                          className={`my-work-task5-state ${stateTone(label)}`.trim()}
-                        >
-                          {label}
-                        </span>
-                      </td>
-                    ))}
+                    <td>
+                      <span className="my-work-task5-cell-stack">
+                        <strong>{governedPeriodName(item)}</strong>
+                        <small>
+                          截止：{formatProductionDateTime(item.deadline)}
+                        </small>
+                      </span>
+                    </td>
+                    <td>
+                      <span className="my-work-task5-cell-stack">
+                        <strong>
+                          {item.responsiblePerson || "责任人待维护"} ·{" "}
+                          {item.responsiblePost || "责任岗位待维护"}
+                        </strong>
+                        <small>
+                          {isResponsible ? "本人负责" : "本人审核"} · 已完成{" "}
+                          {item.completedFields}/{item.applicableFields} 项
+                        </small>
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className={`my-work-task5-state ${stateTone(currentNode)}`.trim()}
+                      >
+                        {currentNode}
+                      </span>
+                      <details className="my-work-task5-state-details">
+                        <summary>查看全部状态</summary>
+                        <dl>
+                          {states.map(([label, value]) => (
+                            <div key={`${item.workId}-${label}`}>
+                              <dt>{label}</dt>
+                              <dd>{value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </details>
+                    </td>
                     <td>
                       <button
                         className="my-work-task5-row-action"
@@ -654,9 +737,21 @@ function MyWorkLedger({
             </tbody>
           </table>
         </div>
+        <WorkspacePagination
+          end={
+            visible.length === 0
+              ? 0
+              : Math.min(startIndex + pageSize, visible.length)
+          }
+          onPageChange={setPage}
+          page={currentPage}
+          pages={pages}
+          start={visible.length === 0 ? 0 : startIndex + 1}
+          total={visible.length}
+        />
         {queryAllowed && visible.length === 0 && (
           <div className="my-work-task5-empty" role="status">
-            当前筛选或状态视图下没有本人事项，系统未改变任何业务坐标。
+            当前筛选条件或状态视图下没有本人事项，请调整筛选条件后重试。
           </div>
         )}
       </section>

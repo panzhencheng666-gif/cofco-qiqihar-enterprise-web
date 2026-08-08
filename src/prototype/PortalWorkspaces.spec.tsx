@@ -8,11 +8,13 @@ import { ExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { MyWorkWorkspace } from "./MyWorkWorkspace";
 import type { OperationalScope } from "./core/operationalScope";
 import { businessWorkFixtures } from "./data/businessWorkFixtures";
+import type { BusinessWorkItem } from "./core/businessWork";
 import type {
   BusinessCoordinates,
   FormalRoute,
   FormalSelection,
   OverviewSection,
+  WorkSection,
 } from "./formalEnterpriseModel";
 import { prototypeOperationalIdentity } from "./formalEnterpriseData";
 
@@ -65,12 +67,14 @@ function ExecutiveHarness({
 }
 
 function MyWorkHarness({
+  initialSection = "tasks",
   initialCoordinates = {},
   authorization = {},
   identity = prototypeOperationalIdentity.identity,
   onCoordinateChange = vi.fn(),
   onOpenBusiness = vi.fn(),
 }: {
+  initialSection?: WorkSection;
   initialCoordinates?: Partial<OperationalScope["coordinates"]>;
   authorization?: Partial<OperationalScope["authorization"]>;
   identity?: OperationalScope["identity"];
@@ -92,7 +96,7 @@ function MyWorkHarness({
   });
   return (
     <MyWorkWorkspace
-      section="tasks"
+      section={initialSection}
       scope={scope}
       onScopeChange={(coordinates) => {
         onCoordinateChange(coordinates);
@@ -118,6 +122,25 @@ describe("enterprise portal workspaces", () => {
       /\.executive-ledger-scroll\s*\{[^}]*overflow-x:\s*auto/s,
     );
     expect(marker).toMatch(
+      /\.executive-ledger-workspace\s*\{[^}]*contain:\s*inline-size[^}]*overflow-x:\s*clip/s,
+    );
+    expect(marker).toMatch(
+      /\.executive-filter-grid--primary\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s,
+    );
+    expect(marker).toMatch(
+      /\.executive-filter-grid\s*>\s*label\s*>\s*span\s*\{[^}]*font-size:\s*12px/s,
+    );
+    expect(marker).toMatch(
+      /\.executive-filter-grid\s+select\s*\{[^}]*min-height:\s*36px[^}]*font-size:\s*13px/s,
+    );
+    expect(marker).toContain(".executive-more-filters");
+    expect(marker).toMatch(
+      /\.executive-ledger-primary\s*\{[^}]*overflow:\s*hidden/s,
+    );
+    expect(marker).toMatch(
+      /\.executive-result-summary\s*\{[^}]*flex-wrap:\s*wrap/s,
+    );
+    expect(marker).toMatch(
       /\.executive-ledger-table--operations\s*\{[^}]*min-width:\s*1780px/s,
     );
     expect(marker).toMatch(
@@ -127,6 +150,7 @@ describe("enterprise portal workspaces", () => {
       /\.executive-ledger-select:focus-visible\s*\{[^}]*outline:\s*3px/s,
     );
     expect(marker).toMatch(/@media \(max-width:\s*1024px\)/);
+    expect(marker).toMatch(/@media \(max-width:\s*1280px\)/);
     expect(marker).not.toMatch(/font-size:\s*9px/);
     expect(marker).not.toContain("#6f8795");
   });
@@ -171,56 +195,213 @@ describe("enterprise portal workspaces", () => {
     );
   });
 
-  it("renders an authorized-all ledger with explicit filters instead of a card wall", () => {
-    const { container } = render(<ExecutiveHarness />);
+  it("renders the mature title-view-filter-summary-ledger hierarchy without a card wall", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <ExecutiveHarness
+        authorization={{
+          authorizedRegionIds: ["qiqihar-all", "qiqihar-nehe"],
+          authorizedProductIds: ["corn"],
+          authorizedCultivarIds: ["jingke-968"],
+          authorizedReleaseVersionIds: ["METRIC-2026-W31-V3"],
+        }}
+        initialCoordinates={{ productId: "corn" }}
+      />,
+    );
 
-    expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
+    expect(screen.getByRole("combobox", { name: "授权地区" })).toHaveValue(
       "authorized-all",
     );
-    expect(screen.getByRole("tab", { name: "经营态势" })).toBeVisible();
-    expect(screen.getByRole("tab", { name: "异常风险" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "经营运行" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "风险事项" })).toBeVisible();
     expect(screen.getByRole("tab", { name: "履责监督" })).toBeVisible();
     expect(screen.getByRole("tab", { name: "发布成果" })).toBeVisible();
-    expect(
-      screen.getByRole("table", { name: "经营指标趋势台账" }),
-    ).toBeVisible();
-    for (const label of [
-      "业务域",
-      "业务分类",
-      "地区层级",
-      "业务地区",
-      "产品或作物",
-      "具体品种",
-      "经营期间",
-      "数据层",
-      "指标数据版本",
-      "风险状态",
-    ]) {
+    expect(screen.getByRole("table", { name: "经营运行台账" })).toBeVisible();
+    for (const label of ["业务域", "授权地区", "经营期间", "产品或作物"]) {
       expect(screen.getByRole("combobox", { name: label })).toBeVisible();
     }
-    const ledger = screen.getByRole("table", { name: "经营指标趋势台账" });
     expect(
-      within(ledger).getByRole("columnheader", { name: "指标数据版本" }),
+      container.querySelectorAll(".executive-filter-grid--primary > label"),
+    ).toHaveLength(4);
+    const moreFilters = screen.getByText("更多筛选").closest("details");
+    expect(moreFilters).not.toHaveAttribute("open");
+    for (const label of [
+      "业务分类",
+      "地区层级",
+      "具体品种",
+      "数据状态",
+      "采用数据",
+      "风险状态",
+    ]) {
+      expect(
+        screen.getByRole("combobox", { name: label, hidden: true }),
+      ).not.toBeVisible();
+    }
+    await user.click(screen.getByText("更多筛选"));
+    expect(moreFilters).toHaveAttribute("open");
+    expect(screen.getByRole("combobox", { name: "业务分类" })).toBeVisible();
+
+    const pageHeader = container.querySelector(".unified-page-header")!;
+    const tabs = container.querySelector(".workspace-tabs")!;
+    const filters = container.querySelector(".executive-filter-surface")!;
+    const resultSummary = screen.getByRole("status", {
+      name: "查询结果摘要",
+    });
+    const primaryLedger = container.querySelector(".executive-ledger-primary")!;
+    expect(
+      pageHeader.compareDocumentPosition(tabs) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      tabs.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      filters.compareDocumentPosition(resultSummary) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    expect(
+      resultSummary.compareDocumentPosition(primaryLedger) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+    const ledger = screen.getByRole("table", { name: "经营运行台账" });
+    for (const header of [
+      "2023",
+      "2024",
+      "2024同比",
+      "2025",
+      "2025同比",
+      "2026",
+      "2026同比",
+    ]) {
+      expect(
+        within(ledger).getByRole("columnheader", { name: header }),
+      ).toBeVisible();
+    }
+    expect(
+      within(ledger).getByRole("columnheader", { name: "采用数据" }),
     ).toBeVisible();
-    expect(ledger).toHaveTextContent("2026年第31周正式指标第3版");
-    expect(ledger).toHaveTextContent("质量校验通过");
+    expect(ledger).toHaveTextContent("2026年第31周已核定数据（当前采用）");
     expect(ledger).toHaveTextContent("存在质量提醒");
     expect(ledger).not.toHaveTextContent(/METRIC|passed|warning/);
-    for (const domain of ["产情监测", "市场监测", "供需核算", "经营履责"]) {
-      expect(within(ledger).getAllByText(domain).length).toBeGreaterThan(0);
-    }
-    expect(screen.getByLabelText("已应用业务坐标")).toHaveTextContent(
-      "授权汇总 · 全部已授权范围",
-    );
-    expect(screen.getByLabelText("已应用业务坐标")).toHaveTextContent(
-      "全部已授权版本 · 全部风险状态",
-    );
+    expect(resultSummary).toHaveTextContent("全部已授权范围");
+    expect(resultSummary).toHaveTextContent("2026 年第 31 周");
+    expect(screen.queryByLabelText("已应用筛选条件")).not.toBeInTheDocument();
+    const pagination = screen.getByRole("navigation", { name: "经营总览分页" });
+    expect(pagination).toHaveTextContent("共 1 条 · 当前 1–1");
+    expect(
+      within(pagination).getByRole("button", { name: "上一页" }),
+    ).toBeDisabled();
+    expect(
+      within(pagination).getByRole("button", { name: "下一页" }),
+    ).toBeDisabled();
     expect(screen.queryByLabelText("经营核心摘要")).not.toBeInTheDocument();
     expect(container.querySelectorAll(".workspace-inline-stats")).toHaveLength(
       0,
     );
     expect(container.querySelector(".unified-context-state")).toBeNull();
     expect(container.querySelector(".executive-card-grid")).toBeNull();
+    expect(container.querySelector(".unified-metric-card")).toBeNull();
+  });
+
+  it("re-renders executive risk and duty views from the supplied current workflow state", () => {
+    const source = businessWorkFixtures.find(
+      ({ workId }) => workId === "WORK-PRODUCTION-FILL-W31",
+    );
+    if (!source) throw new Error("missing production work fixture");
+    const createScope = (): OperationalScope => ({
+      ...prototypeOperationalIdentity,
+      authorization: {
+        ...prototypeOperationalIdentity.authorization,
+        authorizedRegionIds: ["qiqihar-all", "qiqihar-nehe"],
+        authorizedProductIds: ["corn"],
+        authorizedCultivarIds: ["jingke-968"],
+        authorizedReleaseVersionIds: ["METRIC-2026-W31-V3"],
+      },
+      coordinates: {
+        regionId: "qiqihar-nehe",
+        periodKey: "2026-W31",
+        businessDomainId: "production",
+        productId: "corn",
+      },
+      savedView: null,
+    });
+    const renderOverview = (
+      section: OverviewSection,
+      workItems: readonly BusinessWorkItem[],
+    ) => (
+      <ExecutiveOverviewWorkspace
+        section={section}
+        scope={createScope()}
+        workItems={workItems}
+        onOpenRoute={vi.fn()}
+        onScopeChange={vi.fn()}
+      />
+    );
+    const { rerender } = render(
+      renderOverview("risks", [{ ...source, title: "动态风险事项" }]),
+    );
+    expect(screen.getByText("动态风险事项")).toBeVisible();
+
+    rerender(
+      renderOverview("risks", [
+        {
+          ...source,
+          title: "动态风险事项",
+          obligationStatus: "on-time",
+          documentStatus: "submitted",
+          reviewStatus: "approved",
+          qualityStatus: "passed",
+        },
+      ]),
+    );
+    expect(screen.queryByText("动态风险事项")).not.toBeInTheDocument();
+    expect(screen.getByText("当前筛选范围没有经营风险记录")).toBeVisible();
+
+    rerender(
+      renderOverview("duty", [
+        {
+          ...source,
+          title: "动态履责事项",
+          obligationStatus: "on-time",
+          documentStatus: "submitted",
+          reviewStatus: "approved",
+          qualityStatus: "passed",
+        },
+      ]),
+    );
+    const dutyRow = screen.getByRole("row", { name: /动态履责事项/ });
+    expect(dutyRow).toHaveTextContent("已按时完成");
+    expect(dutyRow).toHaveTextContent("审核通过");
+  });
+
+  it("explains incomplete published coverage for the complete authorized scope", () => {
+    render(<ExecutiveHarness />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "当前授权范围内部分地区尚无已发布数据",
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "系统没有改用齐齐哈尔或其他首个地区的数据",
+    );
+    expect(screen.getByText("当前筛选范围没有可用经营指标")).toBeVisible();
+    expect(
+      screen.queryByRole("table", { name: "经营运行台账" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("explains why the all-product view only contains cross-product indicators", () => {
+    render(
+      <ExecutiveHarness initialCoordinates={{ regionId: "qiqihar-all" }} />,
+    );
+
+    expect(
+      screen.getByRole("status", { name: "查询结果摘要" }),
+    ).toHaveTextContent(
+      "当前未选择具体产品，仅展示跨产品经营指标；选择产品后可查看对应的产情、市场和供需指标。",
+    );
+    expect(
+      screen.getByRole("table", { name: "经营运行台账" }),
+    ).toHaveTextContent("质量阻断率");
   });
 
   it("never exposes an unmapped internal product or version code as visible text", () => {
@@ -250,8 +431,11 @@ describe("enterprise portal workspaces", () => {
       screen.getByRole("option", { name: "产品名称待维护" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("option", { name: "数据版本名称待维护" }),
-    ).toBeVisible();
+      screen.getByRole("option", {
+        name: "采用数据名称待维护",
+        hidden: true,
+      }),
+    ).not.toBeVisible();
     expect(document.body).not.toHaveTextContent(
       /INTERNAL-PRODUCT-42|INTERNAL-VERSION-42/,
     );
@@ -261,7 +445,16 @@ describe("enterprise portal workspaces", () => {
     const user = userEvent.setup();
     const onCoordinateChange = vi.fn();
     const { container } = render(
-      <ExecutiveHarness onCoordinateChange={onCoordinateChange} />,
+      <ExecutiveHarness
+        authorization={{
+          authorizedRegionIds: ["qiqihar-all", "qiqihar-nehe"],
+          authorizedProductIds: ["corn"],
+          authorizedCultivarIds: ["jingke-968"],
+          authorizedReleaseVersionIds: ["METRIC-2026-W31-V3"],
+        }}
+        initialCoordinates={{ regionId: "qiqihar-all", productId: "corn" }}
+        onCoordinateChange={onCoordinateChange}
+      />,
     );
 
     expect(container.querySelectorAll("svg")).toHaveLength(0);
@@ -276,25 +469,38 @@ describe("enterprise portal workspaces", () => {
     expect(screen.getAllByRole("img")).toHaveLength(2);
     expect(container.querySelectorAll("svg")).toHaveLength(2);
     expect(
-      screen.getByRole("complementary", { name: "指标口径与来源" }),
-    ).toHaveTextContent("2026年第31周正式指标第3版");
+      screen.getByRole("complementary", { name: "统计口径与数据来源" }),
+    ).toHaveTextContent("2026年第31周已核定数据（当前采用）");
     expect(
-      screen.getByRole("complementary", { name: "指标口径与来源" }),
-    ).toHaveTextContent("播种面积指标定义第1版");
+      screen.getByRole("complementary", { name: "统计口径与数据来源" }),
+    ).toHaveTextContent("播种面积统计公式");
     expect(
-      screen.getByRole("complementary", { name: "指标口径与来源" }),
-    ).toHaveTextContent("跨年度可比规则第1版");
+      screen.getByRole("complementary", { name: "统计口径与数据来源" }),
+    ).toHaveTextContent("四年统计口径连续可比");
     expect(screen.getByLabelText("播种面积选中指标分析")).not.toHaveTextContent(
       /METRIC|metric-|definition|comparability|passed/,
+    );
+    expect(document.body).not.toHaveTextContent(
+      /指标数据版本|数据层|业务坐标|治理口径与发布血缘|口径定义版本|可比规则版本|有效治理值|有效治理期间/,
     );
   });
 
   it("keeps domain and cascading region-level filters URL-owned without fallback", async () => {
     const user = userEvent.setup();
     const onCoordinateChange = vi.fn();
-    render(<ExecutiveHarness onCoordinateChange={onCoordinateChange} />);
+    render(
+      <ExecutiveHarness
+        authorization={{
+          authorizedRegionIds: ["qiqihar-all", "qiqihar-nehe"],
+        }}
+        initialCoordinates={{ productId: "corn" }}
+        onCoordinateChange={onCoordinateChange}
+      />,
+    );
 
-    expect(screen.getByRole("button", { name: "分析播种面积" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "分析播种面积" }),
+    ).not.toBeInTheDocument();
     await user.selectOptions(
       screen.getByRole("combobox", { name: "业务域" }),
       "market",
@@ -305,8 +511,23 @@ describe("enterprise portal workspaces", () => {
     expect(
       screen.queryByRole("button", { name: "分析播种面积" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "分析采购价" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("当前筛选范围没有可用经营指标")).toBeVisible();
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "授权地区" }),
+      "qiqihar-all",
+    );
+    expect(onCoordinateChange).toHaveBeenLastCalledWith({
+      regionId: "qiqihar-all",
+      regionLevel: "city",
+      selectedMetricId: undefined,
+    });
     expect(screen.getByRole("button", { name: "分析采购价" })).toBeVisible();
 
+    await user.click(screen.getByText("更多筛选"));
     const level = screen.getByRole("combobox", { name: "地区层级" });
     expect(
       within(level)
@@ -317,18 +538,66 @@ describe("enterprise portal workspaces", () => {
     expect(onCoordinateChange).toHaveBeenCalledWith(
       expect.objectContaining({
         regionLevel: "county",
-        regionId: "qiqihar-nehe",
+        regionId: "",
       }),
     );
-    expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
-      "qiqihar-nehe",
+    expect(screen.getByRole("combobox", { name: "授权地区" })).toHaveValue("");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "地区层级已更新，请重新选择授权地区",
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "当前业务坐标没有可用经营指标",
+    expect(screen.getByText("当前筛选范围没有可用经营指标")).toBeVisible();
+  });
+
+  it("keeps cultivars cascaded to the selected product and explains every cleared mismatch", async () => {
+    const user = userEvent.setup();
+    const onCoordinateChange = vi.fn();
+    render(
+      <ExecutiveHarness
+        authorization={{
+          authorizedRegionIds: ["qiqihar-all", "qiqihar-nehe"],
+          authorizedProductIds: ["corn", "soybean"],
+          authorizedCultivarIds: ["jingke-968", "heinong-84"],
+        }}
+        initialCoordinates={{
+          productId: "corn",
+          cultivarId: "jingke-968",
+        }}
+        onCoordinateChange={onCoordinateChange}
+      />,
+    );
+
+    await user.click(screen.getByText("更多筛选"));
+    const cultivar = screen.getByRole("combobox", { name: "具体品种" });
+    expect(
+      within(cultivar).getByRole("option", { name: "京科968" }),
+    ).toBeVisible();
+    expect(
+      within(cultivar).queryByRole("option", { name: "黑农84" }),
+    ).not.toBeInTheDocument();
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "产品或作物" }),
+      "soybean",
+    );
+
+    expect(onCoordinateChange).toHaveBeenLastCalledWith({
+      productId: "soybean",
+      cultivarId: undefined,
+      selectedMetricId: undefined,
+    });
+    expect(cultivar).toHaveValue("");
+    expect(
+      within(cultivar).getByRole("option", { name: "黑农84" }),
+    ).toBeVisible();
+    expect(
+      within(cultivar).queryByRole("option", { name: "京科968" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "已移除与大豆不适用的品种：京科968",
     );
   });
 
-  it("presents My Work as one authorized four-domain ledger with governed filters", async () => {
+  it("presents My Work as one current-node ledger with governed filters", async () => {
     const user = userEvent.setup();
     const onCoordinateChange = vi.fn();
     const { container } = render(
@@ -336,21 +605,38 @@ describe("enterprise portal workspaces", () => {
     );
 
     const ledger = screen.getByRole("table", { name: "本人工作台账" });
+    expect(
+      screen.getByRole("navigation", { name: "表格分页" }),
+    ).toHaveTextContent(/共 [1-9]\d* 条/);
     expect(container.querySelectorAll("table")).toHaveLength(1);
-    for (const label of [
-      "业务域",
-      "业务分类",
-      "业务地区",
-      "产品或作物",
-      "任务期间",
-    ]) {
+    for (const label of ["业务域", "业务地区", "产品或作物", "任务期间"]) {
       expect(screen.getByRole("combobox", { name: label })).toBeVisible();
     }
+    expect(
+      screen.queryByRole("combobox", { name: "业务分类" }),
+    ).not.toBeInTheDocument();
+    const moreFilters = screen.getByRole("button", { name: "更多筛选" });
+    expect(moreFilters).toHaveAttribute("aria-expanded", "false");
+    await user.click(moreFilters);
+    expect(screen.getByRole("combobox", { name: "业务分类" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
       "authorized-all",
     );
     expect(screen.getByRole("combobox", { name: "任务期间" })).toHaveValue("");
-    for (const column of [
+    expect(
+      within(ledger)
+        .getAllByRole("columnheader")
+        .map(({ textContent }) => textContent),
+    ).toEqual([
+      "任务与业务对象",
+      "业务与分类",
+      "地区与产品",
+      "期间与截止",
+      "责任与完成度",
+      "当前处理节点",
+      "操作",
+    ]);
+    for (const removedColumn of [
       "义务状态",
       "单据状态",
       "审核状态",
@@ -358,21 +644,34 @@ describe("enterprise portal workspaces", () => {
       "发布状态",
     ]) {
       expect(
-        within(ledger).getByRole("columnheader", { name: column }),
-      ).toBeVisible();
+        within(ledger).queryByRole("columnheader", { name: removedColumn }),
+      ).not.toBeInTheDocument();
     }
-    for (const domain of ["产情监测", "市场监测", "供需核算", "报告中心"]) {
-      expect(within(ledger).getByText(domain)).toBeVisible();
+    for (const domain of ["产情监测", "市场监测", "供需核算"]) {
+      expect(within(ledger).getAllByText(domain).length).toBeGreaterThan(0);
     }
-    for (const view of ["待填报", "待审核", "异常逾期", "待发布", "已办"]) {
-      expect(
-        screen.getByRole("tab", { name: new RegExp(`^${view}`) }),
-      ).toBeVisible();
-    }
+    expect(within(ledger).queryByText("报告中心")).not.toBeInTheDocument();
+    expect(ledger).not.toHaveTextContent("第 31 周粮食商情报告审核与分发");
+    expect(screen.getByRole("heading", { name: "待我处理" })).toBeVisible();
+    expect(
+      screen.queryByRole("tablist", { name: "我的工作状态视图" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("责任岗位有效")).not.toBeInTheDocument();
     expect(screen.queryByText("今日重点事项")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("本人工作摘要")).not.toBeInTheDocument();
     expect(container.querySelector(".workspace-inline-stats")).toBeNull();
+
+    const filters = screen.getByRole("region", { name: "我的工作筛选" });
+    const ledgerRegion = screen.getByRole("region", {
+      name: "本人工作台账区域",
+    });
+    expect(
+      filters.compareDocumentPosition(ledgerRegion) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("region", { name: "当前责任身份" }),
+    ).not.toBeInTheDocument();
 
     await user.selectOptions(
       screen.getByRole("combobox", { name: "业务域" }),
@@ -382,7 +681,7 @@ describe("enterprise portal workspaces", () => {
       businessDomainId: "market",
       businessSubtypeId: undefined,
     });
-    expect(within(ledger).getByText("市场监测")).toBeVisible();
+    expect(within(ledger).getAllByText("市场监测").length).toBeGreaterThan(0);
     expect(within(ledger).queryByText("产情监测")).not.toBeInTheDocument();
   });
 
@@ -393,29 +692,29 @@ describe("enterprise portal workspaces", () => {
       />,
     );
 
-    expect(screen.getByRole("alert")).toHaveTextContent("当前业务坐标无权查询");
-    expect(
-      screen.getByRole("combobox", { name: "业务分类" }),
-    ).toHaveDisplayValue("业务分类无效（请重新选择）");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "当前筛选范围超出您的数据权限",
+    );
+    expect(screen.getByRole("alert")).not.toHaveTextContent("业务坐标");
+    expect(screen.getByRole("button", { name: /更多筛选/ })).toHaveTextContent(
+      "已启用 1 项",
+    );
     expect(
       screen.queryByRole("row", { name: /讷河市玉米长势/ }),
     ).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("unauthorized-work-type");
   });
 
-  it("resolves a reviewer-only governed identity without defaulting to another person", () => {
+  it("uses current-node assignments for a governed reviewer identity", () => {
     render(
       <MyWorkHarness
         identity={{ userId: "zhao-chen", postId: "business-reviewer" }}
       />,
     );
 
-    const identity = screen.getByRole("region", { name: "当前责任身份" });
-    expect(identity).toHaveTextContent("赵晨");
-    expect(identity).toHaveTextContent("业务审核岗");
     const ledger = screen.getByRole("table", { name: "本人工作台账" });
-    expect(ledger).toHaveTextContent("讷河市玉米长势与测产调查");
-    expect(ledger).toHaveTextContent("齐齐哈尔市玉米市场运行周填报");
+    expect(ledger).toHaveTextContent("龙江北方粮贸玉米市场周填报");
+    expect(ledger).not.toHaveTextContent("讷河市玉米长势与测产调查");
     expect(ledger).not.toHaveTextContent("2026 年玉米供需差额说明复核");
     expect(ledger).not.toHaveTextContent("第 31 周粮食商情报告审核与分发");
   });
@@ -427,14 +726,18 @@ describe("enterprise portal workspaces", () => {
       />,
     );
 
-    const identity = screen.getByRole("region", { name: "当前责任身份" });
-    expect(identity).toHaveTextContent("人员姓名待维护");
-    expect(identity).toHaveTextContent("岗位名称待维护");
+    expect(
+      screen.queryByRole("region", { name: "当前责任身份" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("table", { name: "本人工作台账" }),
     ).not.toHaveTextContent(
       /讷河市玉米长势与测产调查|齐齐哈尔市玉米市场运行周填报/,
     );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "当前筛选条件或状态视图下没有本人事项，请调整筛选条件后重试",
+    );
+    expect(screen.getByRole("status")).not.toHaveTextContent("业务坐标");
   });
 
   it("keeps the Task 5 My Work ledger responsive, internally scrollable, and keyboard visible", () => {
@@ -452,7 +755,14 @@ describe("enterprise portal workspaces", () => {
       /\.my-work-task5-sticky\s*\{[^}]*position:\s*sticky/s,
     );
     expect(marker).toMatch(
-      /\.my-work-task5-filter-grid[^}]*grid-template-columns:\s*repeat\(5,/s,
+      /\.my-work-task5-filter-grid--primary\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s,
+    );
+    expect(marker).toMatch(
+      /\.my-work-task5-workspace\s*\{[^}]*contain:\s*inline-size/s,
+    );
+    expect(marker).not.toMatch(/overflow-x:\s*clip/);
+    expect(marker).toMatch(
+      /\.my-work-task5-ledger\s*\{[^}]*min-width:\s*1120px/s,
     );
     expect(marker).toMatch(/@media \(max-width:\s*1280px\)/);
     expect(marker).toMatch(/@media \(max-width:\s*1024px\)/);
@@ -469,16 +779,20 @@ describe("enterprise portal workspaces", () => {
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     expect(marker).toMatch(
-      /\.production-task5-workspace\s*\{[^}]*overflow-x:\s*clip/s,
+      /\.production-task5-workspace\s*\{[^}]*contain:\s*inline-size/s,
     );
+    expect(marker).not.toMatch(/overflow-x:\s*clip/);
     expect(marker).toMatch(
-      /\.production-task5-filter-grid\s*\{[^}]*grid-template-columns:\s*repeat\(5,/s,
+      /\.production-task5-filter-grid--task-primary\s*\{[^}]*grid-template-columns:\s*repeat\(4,/s,
     );
     expect(marker).toMatch(
       /\.production-task5-ledger-scroll\s*\{[^}]*overflow-x:\s*auto/s,
     );
     expect(marker).toMatch(
       /\.production-task5-sticky\s*\{[^}]*position:\s*sticky/s,
+    );
+    expect(marker).toMatch(
+      /\.production-task5-task-ledger\s*\{[^}]*min-width:\s*1120px/s,
     );
     expect(marker).toMatch(
       /\.production-task5-lifecycle-states\s*\{[^}]*grid-template-columns:\s*repeat\(5,/s,
@@ -500,16 +814,28 @@ describe("enterprise portal workspaces", () => {
   it("removes the legacy hard-coded My Work structures", () => {
     const source = readFileSync("src/prototype/MyWorkWorkspace.tsx", "utf8");
     expect(source).not.toMatch(
-      /personalTasks|BusinessContextBar|WorkspaceScopeBar|WorkspaceInlineStats|今日重点事项/,
+      /personalTasks|BusinessContextBar|WorkspaceScopeBar|WorkspaceInlineStats|今日重点事项|业务坐标|已被新版本替代/,
     );
+    expect(source).toContain("已由新批次替代");
   });
 
   it("routes among four materially different executive ledgers", async () => {
     const user = userEvent.setup();
     const onRouteChange = vi.fn();
-    render(<ExecutiveHarness onRouteChange={onRouteChange} />);
+    render(
+      <ExecutiveHarness
+        authorization={{
+          authorizedRegionIds: ["qiqihar-all", "qiqihar-nehe"],
+          authorizedProductIds: ["corn"],
+          authorizedCultivarIds: ["jingke-968"],
+          authorizedReleaseVersionIds: ["METRIC-2026-W31-V3"],
+        }}
+        initialCoordinates={{ productId: "corn" }}
+        onRouteChange={onRouteChange}
+      />,
+    );
 
-    await user.click(screen.getByRole("tab", { name: "异常风险" }));
+    await user.click(screen.getByRole("tab", { name: "风险事项" }));
     expect(onRouteChange).toHaveBeenLastCalledWith({
       application: "overview",
       section: "risks",
@@ -518,12 +844,15 @@ describe("enterprise portal workspaces", () => {
     expect(
       within(risks).getByRole("columnheader", { name: "风险事项" }),
     ).toBeVisible();
+    expect(
+      within(risks).getByRole("columnheader", { name: "风险识别依据" }),
+    ).toBeVisible();
     expect(within(risks).getByText("待解释")).toHaveAttribute(
       "data-risk-state",
       "warning",
     );
     expect(within(risks).getByText("待解释")).toHaveClass("is-warning");
-    expect(risks).toHaveTextContent("2026年第31周正式指标第3版");
+    expect(risks).toHaveTextContent("2026年第31周已核定数据（当前采用）");
     expect(risks).not.toHaveTextContent(/METRIC|T17:/);
     await user.click(
       within(risks).getAllByRole("button", {
@@ -535,55 +864,87 @@ describe("enterprise portal workspaces", () => {
       section: "tasks",
     });
     expect(
-      screen.queryByRole("table", { name: "经营指标趋势台账" }),
+      screen.queryByRole("table", { name: "经营运行台账" }),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "履责监督" }));
     const duty = screen.getByRole("table", { name: "经营履责监督台账" });
     expect(
-      within(duty).getByRole("columnheader", { name: "责任岗位" }),
+      within(duty).getByRole("columnheader", { name: "责任人及岗位" }),
     ).toBeVisible();
     expect(
       within(duty).getByRole("columnheader", { name: "履责事项" }),
     ).toBeVisible();
+    expect(within(duty).getAllByRole("columnheader")).toHaveLength(8);
     expect(
-      within(duty).getByRole("columnheader", { name: "月度按时率" }),
-    ).toBeVisible();
-    expect(duty).toHaveTextContent("2026年第31周履责台账第1版");
+      within(duty).queryByRole("columnheader", { name: "月度按时率" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      within(duty).getAllByText("查看完整履责记录", {
+        selector: "summary",
+      })[0],
+    );
+    for (const preservedField of [
+      "填报频率",
+      "复核人",
+      "有效期",
+      "责任状态",
+      "首次合格提交",
+      "月度应报",
+      "月度按时",
+      "月度逾期",
+      "月度缺报",
+      "月度退回",
+      "月度按时率",
+      "月度趋势",
+      "数据截止",
+      "履责统计依据",
+    ]) {
+      expect(duty).toHaveTextContent(preservedField);
+    }
+    expect(duty).toHaveTextContent("2026年第31周履责已核定数据");
     expect(duty).not.toHaveTextContent(/DUTY-|T17:|resp-/);
 
     await user.click(screen.getByRole("tab", { name: "发布成果" }));
     const releases = screen.getByRole("table", { name: "经营发布成果台账" });
     expect(
-      within(releases).getByRole("columnheader", { name: "成果发布版本" }),
+      within(releases).getByRole("columnheader", { name: "发布成果" }),
     ).toBeVisible();
     expect(
-      within(releases).getByRole("columnheader", { name: "替代关系" }),
+      within(releases).getByRole("columnheader", { name: "来源业务" }),
     ).toBeVisible();
+    expect(within(releases).getAllByRole("columnheader")).toHaveLength(9);
     expect(
-      within(releases).getByRole("columnheader", { name: "来源业务域" }),
-    ).toBeVisible();
-    expect(
-      within(releases).getByRole("columnheader", { name: "来源业务分类" }),
-    ).toBeVisible();
-    expect(
-      within(releases).getByRole("columnheader", { name: "成果发布版本" }),
-    ).toBeVisible();
-    expect(
-      within(releases).getByRole("columnheader", { name: "采用数据批次" }),
-    ).toBeVisible();
-    expect(
-      within(releases).getByRole("columnheader", { name: "上游指标版本" }),
-    ).toBeVisible();
-    expect(releases).toHaveTextContent("2026年7月31日市场日报第1版");
-    expect(releases).toHaveTextContent("已由 2026年7月供需分析月报第2版 替代");
-    expect(releases).not.toHaveTextContent(/PUB-|METRIC|T17:/);
+      within(releases).queryByRole("columnheader", { name: "修订记录" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      within(releases).getAllByText("查看完整发布记录", {
+        selector: "summary",
+      })[0],
+    );
+    for (const preservedField of [
+      "发布频率",
+      "来源业务分类",
+      "采用数据",
+      "修订记录",
+      "数据截止",
+      "数据来源",
+    ]) {
+      expect(releases).toHaveTextContent(preservedField);
+    }
+    expect(releases).toHaveTextContent("2026年7月31日市场日报（初次发布）");
+    expect(releases).toHaveTextContent(
+      "2026年7月供需分析月报（第1次修订发布）",
+    );
+    expect(releases).toHaveTextContent("修订替代");
+    expect(releases).not.toHaveTextContent(/PUB-|METRIC|T17:|版本|第\d+版/);
   });
 
   it("renders an authorized blocking risk from its typed state", () => {
     render(
       <ExecutiveHarness
         authorization={{
+          authorizedRegionIds: ["qiqihar-all", "qiqihar-nehe"],
           authorizedBusinessClassificationIds: [
             ...prototypeOperationalIdentity.authorization
               .authorizedBusinessClassificationIds,

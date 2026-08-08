@@ -158,7 +158,7 @@ describe("business work fixture lifecycle invariants", () => {
 });
 
 describe("business work projections", () => {
-  it("matches reviewer assignments by governed user identity instead of display name", () => {
+  it("matches governed user identity only at the current processing node", () => {
     const reviewerWork = projectMyWork(businessWorkFixtures, {
       userId: "zhao-chen",
       scope,
@@ -166,10 +166,39 @@ describe("business work projections", () => {
       availablePeriodKeys: ["2026-W31", "2026"],
     });
 
-    expect(reviewerWork.map(({ item }) => item.domain)).toEqual([
-      "production",
+    expect([...new Set(reviewerWork.map(({ item }) => item.domain))]).toEqual([
       "market",
     ]);
+    expect(
+      reviewerWork.find(
+        ({ item }) => item.workId === "WORK-PRODUCTION-FILL-W31",
+      ),
+    ).toBeUndefined();
+    expect(
+      reviewerWork.every(
+        ({ item }) =>
+          item.responsibleUserId === "zhao-chen" ||
+          item.reviewerUserId === "zhao-chen",
+      ),
+    ).toBe(true);
+  });
+
+  it("stops assigning an approved pending-release report to its former reviewer", () => {
+    const reviewerWork = projectMyWork(businessWorkFixtures, {
+      userId: "wang-yang",
+      scope,
+      queryAllowed: true,
+      availablePeriodKeys: ["2026-W31", "2026"],
+    });
+
+    expect(
+      reviewerWork.find(({ item }) => item.workId === "WORK-REPORT-REVIEW-W31"),
+    ).toBeUndefined();
+    expect(
+      reviewerWork.find(
+        ({ item }) => item.workId === "WORK-SUPPLY-EXPLANATION-2026",
+      )?.savedViewGroup,
+    ).toBe("待审核");
   });
 
   it("uses the same source object and stable work identity in My Work and production tasks", () => {
@@ -216,7 +245,7 @@ describe("business work projections", () => {
     });
   });
 
-  it("includes responsible and reviewer work across production, market, supply and reporting", () => {
+  it("includes responsible and reviewer work only while their node is active", () => {
     const projections = projectMyWork(businessWorkFixtures, {
       userId: "wang-yang",
       scope,
@@ -224,14 +253,14 @@ describe("business work projections", () => {
       availablePeriodKeys: ["2026-W31", "2026"],
     });
     expect(new Set(projections.map(({ item }) => item.domain))).toEqual(
-      new Set(["production", "market", "supply", "reporting"]),
+      new Set(["production", "market", "supply"]),
     );
     expect(
       projections.find(({ item }) => item.domain === "supply")?.actionLabel,
     ).toBe("复核供需说明");
     expect(
-      projections.find(({ item }) => item.domain === "reporting")?.actionLabel,
-    ).toBe("审核并分发报告");
+      projections.find(({ item }) => item.domain === "reporting"),
+    ).toBeUndefined();
   });
 
   it("enforces authorization before returning assigned or reviewer My Work items", () => {

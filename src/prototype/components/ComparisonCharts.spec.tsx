@@ -236,8 +236,12 @@ describe("ComparisonCharts", () => {
       2,
     );
     expect(
-      within(table).getByRole("cell", { name: "M-AREA-V1" }),
-    ).toBeVisible();
+      within(table).getAllByRole("cell", {
+        name: "已核定数据（当前采用）",
+      }),
+    ).toHaveLength(4);
+    expect(table).not.toHaveTextContent("M-AREA-V1");
+    expect(table).not.toHaveTextContent("指标版本");
     expect(
       within(table).getAllByRole("cell", { name: "口径可比" }),
     ).toHaveLength(6);
@@ -696,7 +700,7 @@ describe("ComparisonCharts", () => {
       container.querySelector(
         '[data-change-state="coordinate-not-comparable"]',
       ),
-    ).toHaveTextContent("行政区划边界版本不同");
+    ).toHaveTextContent("各年度统计范围发生变化，暂不可直接比较");
     expect(
       container.querySelector('[data-change-state="formula-unavailable"]'),
     ).toHaveTextContent("基期为零，无法计算增长率");

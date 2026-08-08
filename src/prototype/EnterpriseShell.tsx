@@ -1,110 +1,554 @@
 import { useState, type ReactNode } from "react";
-import { EnterpriseApplicationLauncher } from "./EnterpriseApplicationLauncher";
-import { EnterpriseIcon, type EnterpriseIconName } from "./EnterpriseIcon";
+
+import { BusinessNavigationTree } from "./components/BusinessNavigationTree";
+import type { BusinessWorkItem } from "./core/businessWork";
+import type { MonitoringObject } from "./core/monitoringRegistry";
+import type { OperationalScope } from "./core/operationalScope";
+import { businessWorkFixtures } from "./data/businessWorkFixtures";
+import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
+import {
+  marketMonitoringObjects,
+  productionMonitoringObjects,
+} from "./data/monitoringRegistryFixtures";
 import {
   formalApplicationDefinitions,
   type FormalShellIdentity,
 } from "./formalEnterpriseData";
-import { type FormalLocation, type FormalRoute } from "./formalEnterpriseModel";
+import { EnterpriseIcon } from "./EnterpriseIcon";
+import {
+  createFormalRoute,
+  type FormalLocation,
+  type FormalRoute,
+  type FormalSelection,
+} from "./formalEnterpriseModel";
 
-const sectionIcons: Partial<Record<string, EnterpriseIconName>> = {
-  tasks: "entry",
-  operations: "overview",
-  risks: "exception",
-  duty: "review",
-  releases: "upload",
-  objects: "list",
-  analysis: "report",
-  calculation: "list",
-  comparison: "review",
-  versions: "history",
-  compose: "entry",
-  "review-distribution": "upload",
-  ledger: "history",
+const primaryBusinessApplications = [
+  {
+    key: "production",
+    label: "产情监测",
+    route: createFormalRoute("production", "corn-collection"),
+  },
+  {
+    key: "market",
+    label: "市场监测",
+    route: createFormalRoute("market", "corn-collection"),
+  },
+  {
+    key: "logistics",
+    label: "物流监测",
+    route: createFormalRoute("market", "logistics"),
+  },
+  {
+    key: "supply",
+    label: "供需分析",
+    route: createFormalRoute("supply", "corn-balance"),
+  },
+  {
+    key: "reporting",
+    label: "报表中心",
+    route: createFormalRoute("reporting", "compose"),
+  },
+  {
+    key: "work",
+    label: "我的工作",
+    route: createFormalRoute("work", "tasks"),
+  },
+] as const;
+
+type SearchResult = {
+  id: string;
+  label: string;
+  detail: string;
+  kind: "业务页面" | "监测对象" | "业务任务" | "风险异常" | "报告数据";
+  route: FormalRoute;
+  selection?: FormalSelection;
 };
+
+function productWorkRoute(item: BusinessWorkItem): FormalRoute {
+  if (item.domain === "reporting") {
+    return createFormalRoute("reporting", "review-distribution");
+  }
+  if (item.domain === "supply") {
+    return createFormalRoute(
+      "supply",
+      item.productId === "soybean"
+        ? "soybean-balance"
+        : item.productId === "paddy"
+          ? "paddy-balance"
+          : "corn-balance",
+    );
+  }
+  if (item.domain === "market") {
+    if (item.businessSubtypeId === "market.logistics") {
+      return createFormalRoute("market", "logistics");
+    }
+    return createFormalRoute(
+      "market",
+      item.productId === "soybean"
+        ? "soybean-collection"
+        : item.productId === "paddy"
+          ? "paddy-collection"
+          : "corn-collection",
+    );
+  }
+  return createFormalRoute("production", "tasks");
+}
+
+function businessPeriod(periodKey: string): string {
+  const matched = /^([0-9]{4})-W([0-9]{1,2})$/u.exec(periodKey);
+  return matched ? `${matched[1]}年第${Number(matched[2])}周` : periodKey;
+}
+
+function isPrimaryApplicationActive(
+  key: (typeof primaryBusinessApplications)[number]["key"],
+  route: FormalRoute,
+): boolean {
+  if (key === "logistics")
+    return route.application === "market" && route.section === "logistics";
+  if (key === "market")
+    return route.application === "market" && route.section !== "logistics";
+  return route.application === key;
+}
 
 export function EnterpriseShell({
   location,
   onNavigate,
   shellIdentity,
+  workItems = businessWorkFixtures,
+  productionObjects = productionMonitoringObjects,
+  marketObjects = marketMonitoringObjects,
+  scope,
+  queryAllowed = true,
   children,
 }: {
   location: FormalLocation;
-  onNavigate: (route: FormalRoute) => void;
+  onNavigate: (route: FormalRoute, selection?: FormalSelection) => void;
   shellIdentity: FormalShellIdentity;
+  workItems?: readonly BusinessWorkItem[];
+  productionObjects?: readonly MonitoringObject[];
+  marketObjects?: readonly MonitoringObject[];
+  scope?: OperationalScope;
+  queryAllowed?: boolean;
   children: ReactNode;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const currentUnit = shellIdentity.workUnit.currentUnitLabel;
-  const [workUnitOpen, setWorkUnitOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const application = formalApplicationDefinitions.find(
-    (item) => item.key === location.route.application,
-  );
+  const [workUnitOpen, setWorkUnitOpen] = useState(false);
+  const [accountPanel, setAccountPanel] = useState<string | null>(null);
+  const [utilityPanel, setUtilityPanel] = useState<
+    "notifications" | "help" | "settings" | null
+  >(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const currentApplication =
+    formalApplicationDefinitions.find(
+      ({ key }) => key === location.route.application,
+    ) ?? formalApplicationDefinitions.find(({ key }) => key === "market")!;
+  const searchablePages: SearchResult[] = formalApplicationDefinitions
+    .filter(
+      ({ key }) =>
+        key === "production" ||
+        key === "market" ||
+        key === "supply" ||
+        key === "reporting",
+    )
+    .flatMap((application) =>
+      application.navigation.map((item) => ({
+        id: `page:${item.route.application}:${item.route.section}`,
+        label: `${application.label} · ${item.label}`,
+        detail: "进入业务页面",
+        kind: "业务页面" as const,
+        route: item.route,
+      })),
+    );
+  const allowedRegionIds = scope?.authorization.authorizedRegionIds;
+  const regionAllowed = (regionId: string) =>
+    !allowedRegionIds ||
+    allowedRegionIds.includes("authorized-all") ||
+    allowedRegionIds.some(
+      (authorizedRegionId) => authorizedRegionId === regionId,
+    );
+  const searchableObjects: SearchResult[] = queryAllowed
+    ? [...productionObjects, ...marketObjects]
+        .filter(({ regionId }) => regionAllowed(regionId))
+        .map((object) => ({
+          id: `object:${object.objectId}`,
+          label: object.objectName,
+          detail: `${object.regionLabel} · ${object.productLabels.join("、")}`,
+          kind: "监测对象" as const,
+          route: object.objectId.includes("PRODUCTION")
+            ? createFormalRoute("production", "objects")
+            : createFormalRoute("market", "objects"),
+          selection: { type: "object" as const, id: object.objectId },
+        }))
+    : [];
+  const searchableTasks: SearchResult[] = queryAllowed
+    ? workItems
+        .filter(({ regionId }) => regionAllowed(regionId))
+        .flatMap((item) => {
+          const base: SearchResult = {
+            id: `task:${item.workId}`,
+            label: item.title,
+            detail: `${businessPeriod(item.periodKey)} · ${item.regionLabel}`,
+            kind: "业务任务",
+            route: productWorkRoute(item),
+            selection: { type: "work-item", id: item.workId },
+          };
+          const risk =
+            item.qualityStatus === "blocking" ||
+            item.reviewStatus === "returned"
+              ? ({
+                  ...base,
+                  id: `risk:${item.workId}`,
+                  label: `质量阻断 · ${item.title}`,
+                  detail: `${item.regionLabel} · 需要补充或复核`,
+                  kind: "风险异常" as const,
+                } satisfies SearchResult)
+              : null;
+          return risk ? [base, risk] : [base];
+        })
+    : [];
+  const searchableReports: SearchResult[] = queryAllowed
+    ? approvedBusinessReportDatasets
+        .filter(({ region }) =>
+          region.includes("齐齐哈尔") ? regionAllowed("qiqihar-all") : true,
+        )
+        .map((report) => ({
+          id: `report:${report.application}:${report.product}:${report.dataBatchId}`,
+          label: `${report.region}${report.product}${report.reportTemplate}`,
+          detail: `${report.period} · ${report.frequency}`,
+          kind: "报告数据" as const,
+          route: createFormalRoute("reporting", "compose"),
+          selection: {
+            type: "report" as const,
+            id: `${report.dataBatchId}::${report.application}::${report.product}`,
+          },
+        }))
+    : [];
+  const normalizedQuery = searchQuery.trim();
+  const searchResults = normalizedQuery
+    ? [
+        ...searchablePages,
+        ...searchableObjects,
+        ...searchableTasks,
+        ...searchableReports,
+      ]
+        .filter(({ label, detail, kind }) =>
+          `${label}${detail}${kind}`.includes(normalizedQuery),
+        )
+        .slice(0, 12)
+    : [];
+  const pendingCount = workItems.filter(
+    (item) =>
+      item.obligationStatus === "in-progress" ||
+      item.obligationStatus === "missed" ||
+      item.reviewStatus === "pending",
+  ).length;
+  const notificationCount = workItems.filter(
+    (item) =>
+      item.qualityStatus === "blocking" || item.reviewStatus === "returned",
+  ).length;
+  const canOpenSettings =
+    scope?.authorization.permissionKeys.includes("system:settings") ?? false;
+
+  if (
+    location.route.application === "overview" &&
+    location.route.section === "map"
+  ) {
+    return <div className="overview-monitoring-fullscreen">{children}</div>;
+  }
+
+  const closePanels = () => {
+    setAccountOpen(false);
+    setWorkUnitOpen(false);
+    setAccountPanel(null);
+    setUtilityPanel(null);
+    setSearchQuery("");
+  };
+  const openSearchResult = (result: SearchResult) => {
+    if (result.selection) onNavigate(result.route, result.selection);
+    else onNavigate(result.route);
+    closePanels();
+  };
 
   return (
-    <div className={`formal-enterprise${collapsed ? " is-sidebar-collapsed" : ""}`}>
+    <div
+      className="formal-enterprise reference-enterprise-shell"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") closePanels();
+      }}
+    >
       <header className="formal-header formal-global-header">
         <div className="formal-header-primary">
-          <EnterpriseApplicationLauncher />
-          <div className="formal-brand"><span>企</span><strong>{shellIdentity.platformName}</strong></div>
-          <div className="formal-org-switcher">
-            <button aria-expanded={workUnitOpen} aria-label={`当前工作单位：${shellIdentity.workUnit.organizationLabel}，${currentUnit}`} className="formal-org-selector" type="button" onClick={() => { setWorkUnitOpen((value) => !value); setAccountOpen(false); }}>
-              <EnterpriseIcon name="home" />
-              <span><small>{shellIdentity.workUnit.organizationLabel}</small><strong>{currentUnit}</strong></span>
-            </button>
-            {workUnitOpen && <div aria-label="工作单位选择" className="formal-org-menu" role="menu"><small>当前原型工作单位只读</small>
-              {shellIdentity.workUnit.units.map((unit) => <button aria-current={unit === currentUnit ? "true" : undefined} aria-readonly="true" key={unit} role="menuitem" type="button" onClick={() => setWorkUnitOpen(false)}>{unit}</button>)}
-            </div>}
-          </div>
-          <label className="formal-global-search">
-            <EnterpriseIcon name="search" />
-            <input aria-label="搜索应用和业务对象" placeholder="搜索应用和业务对象" />
-          </label>
-          <div className="formal-header-spacer" />
-          <button aria-label="任务中心" className="formal-header-tool" type="button"><EnterpriseIcon name="task" /></button>
-          <button aria-label="通知" className="formal-header-tool" type="button"><EnterpriseIcon name="bell" /></button>
-          <button aria-label="帮助" className="formal-header-tool" type="button"><EnterpriseIcon name="help" /></button>
-          <button aria-expanded={accountOpen} aria-label={`个人账户：${shellIdentity.account.displayName}`} className="formal-user" type="button" onClick={() => { setAccountOpen((value) => !value); setWorkUnitOpen(false); }}>
-            <span>{shellIdentity.account.displayName.slice(0, 1)}</span><strong>{shellIdentity.account.displayName}</strong>
+          <button
+            aria-label="返回市场采集首页"
+            className="formal-brand"
+            type="button"
+            onClick={() =>
+              onNavigate(createFormalRoute("market", "corn-collection"))
+            }
+          >
+            <span>齐</span>
+            <strong>{shellIdentity.platformName}</strong>
           </button>
-          {accountOpen && <div aria-label="个人账户菜单" className="formal-personal-menu" role="menu">{shellIdentity.account.menuItems.map((item) => <button key={item} role="menuitem" type="button">{item}</button>)}</div>}
-        </div>
-        <nav aria-label="业务应用" className="formal-application-nav">
-          {formalApplicationDefinitions.map((item) => (
-            <button
-              aria-current={item.key === location.route.application ? "page" : undefined}
-              className={item.key === location.route.application ? "is-active" : ""}
-              key={item.key}
-              type="button"
-              onClick={() => onNavigate(item.navigation[0].route)}
+
+          <nav aria-label="业务应用" className="formal-application-nav">
+            {primaryBusinessApplications.map((item) => (
+              <button
+                aria-current={
+                  isPrimaryApplicationActive(item.key, location.route)
+                    ? "page"
+                    : undefined
+                }
+                className={
+                  isPrimaryApplicationActive(item.key, location.route)
+                    ? "is-active"
+                    : ""
+                }
+                key={item.key}
+                type="button"
+                onClick={() => {
+                  onNavigate(item.route);
+                  closePanels();
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
+          <button
+            aria-expanded={workUnitOpen}
+            aria-label={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`}
+            className="formal-work-unit"
+            type="button"
+            onClick={() => {
+              setWorkUnitOpen((value) => !value);
+              setAccountOpen(false);
+              setUtilityPanel(null);
+            }}
+          >
+            <EnterpriseIcon name="home" />
+            <span>{shellIdentity.workUnit.currentUnitLabel}</span>
+          </button>
+          {workUnitOpen && (
+            <div
+              aria-label="工作单位选择"
+              className="formal-personal-menu"
+              role="menu"
             >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      </header>
-      <div className="formal-enterprise-shell">
-        <aside className="formal-sidebar">
-          <nav aria-label={`${application?.label ?? "业务应用"}模块`} className="formal-sidebar-navigation">
-            <div className="formal-nav-group">
-              <span>业务工作</span>
-              {application?.navigation.map((item) => (
-                <button
-                  className={item.route.section === location.route.section ? "is-active" : ""}
-                  key={`${item.route.application}:${item.route.section}`}
-                  type="button"
-                  onClick={() => onNavigate(item.route)}
-                >
-                  <EnterpriseIcon name={sectionIcons[item.route.section] ?? "list"} />
-                  <b>{item.label}</b>
+              <header>
+                <div>
+                  <strong>当前工作单位（只读）</strong>
+                  <small>{shellIdentity.workUnit.organizationLabel}</small>
+                </div>
+              </header>
+              {shellIdentity.workUnit.units.map((unit) => (
+                <button key={unit} role="menuitem" type="button">
+                  {unit}
                 </button>
               ))}
             </div>
-          </nav>
-          <button aria-label={collapsed ? "展开左侧导航" : "收起左侧导航"} className="formal-sidebar-collapse" type="button" onClick={() => setCollapsed((value) => !value)}>
-            <EnterpriseIcon name={collapsed ? "expand" : "collapse"} />
+          )}
+
+          <form
+            className="formal-global-search"
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const first = searchResults[0];
+              if (!first) return;
+              openSearchResult(first);
+            }}
+          >
+            <EnterpriseIcon name="search" />
+            <input
+              aria-label="全局搜索"
+              placeholder="搜索地区、企业、任务和报告"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            {searchQuery && (
+              <div className="formal-search-results" role="listbox">
+                {searchResults.length > 0 ? (
+                  searchResults.map((result) => (
+                    <button
+                      key={result.id}
+                      role="option"
+                      type="button"
+                      onClick={() => {
+                        openSearchResult(result);
+                      }}
+                    >
+                      <strong>{result.label}</strong>
+                      <span>{result.detail}</span>
+                      <small>{result.kind}</small>
+                    </button>
+                  ))
+                ) : (
+                  <p>未找到匹配的业务页面</p>
+                )}
+              </div>
+            )}
+          </form>
+
+          <button
+            className="formal-header-tool"
+            type="button"
+            onClick={() => onNavigate(createFormalRoute("work", "tasks"))}
+          >
+            <span>待办</span>
+            <b>{pendingCount}</b>
           </button>
+          <button
+            className="formal-header-tool"
+            type="button"
+            onClick={() =>
+              setUtilityPanel(
+                utilityPanel === "notifications" ? null : "notifications",
+              )
+            }
+          >
+            <span>通知</span>
+            <b>{notificationCount}</b>
+          </button>
+          <button
+            className="formal-header-tool"
+            type="button"
+            onClick={() =>
+              setUtilityPanel(utilityPanel === "help" ? null : "help")
+            }
+          >
+            <span>帮助</span>
+          </button>
+          {canOpenSettings && (
+            <button
+              aria-label="系统设置"
+              className="formal-header-tool"
+              type="button"
+              onClick={() =>
+                setUtilityPanel(utilityPanel === "settings" ? null : "settings")
+              }
+            >
+              <span>设置</span>
+            </button>
+          )}
+          <button
+            aria-expanded={accountOpen}
+            aria-label={`个人账户：${shellIdentity.account.displayName}`}
+            className="formal-user"
+            type="button"
+            onClick={() => {
+              setAccountOpen((value) => !value);
+              setUtilityPanel(null);
+            }}
+          >
+            <span>{shellIdentity.account.displayName.slice(0, 1)}</span>
+            <strong>{shellIdentity.account.displayName}⌄</strong>
+          </button>
+
+          {accountOpen && (
+            <div
+              aria-label="个人账户菜单"
+              className="formal-personal-menu"
+              role="menu"
+            >
+              <header>
+                <span>{shellIdentity.account.displayName.slice(0, 1)}</span>
+                <div>
+                  <strong>{shellIdentity.account.displayName}</strong>
+                  <small>
+                    {shellIdentity.workUnit.organizationLabel} · 区域数据管理员
+                  </small>
+                  <small>当前责任范围：齐齐哈尔市指定范围</small>
+                </div>
+              </header>
+              {shellIdentity.account.menuItems.map((item) => (
+                <button
+                  key={item}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => {
+                    setAccountPanel(item);
+                    setAccountOpen(false);
+                  }}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {accountPanel && (
+            <section
+              aria-label={accountPanel}
+              className="formal-header-information-panel"
+              role="dialog"
+            >
+              <header>
+                <strong>{accountPanel}</strong>
+                <button type="button" onClick={() => setAccountPanel(null)}>
+                  ×
+                </button>
+              </header>
+              <p>
+                当前工作单位：{shellIdentity.workUnit.organizationLabel} ·{" "}
+                {shellIdentity.workUnit.currentUnitLabel}
+              </p>
+              <p>
+                当前账号：{shellIdentity.account.displayName}
+                ；操作范围以岗位授权为准。
+              </p>
+            </section>
+          )}
+
+          {utilityPanel && (
+            <section
+              aria-label={
+                utilityPanel === "notifications"
+                  ? "业务通知"
+                  : utilityPanel === "help"
+                    ? "当前页面帮助"
+                    : "系统设置"
+              }
+              className="formal-header-information-panel"
+              role="dialog"
+            >
+              <header>
+                <strong>
+                  {utilityPanel === "notifications"
+                    ? "业务通知"
+                    : utilityPanel === "help"
+                      ? "当前页面帮助"
+                      : "系统设置"}
+                </strong>
+                <button type="button" onClick={() => setUtilityPanel(null)}>
+                  ×
+                </button>
+              </header>
+              <p>
+                {utilityPanel === "notifications"
+                  ? notificationCount > 0
+                    ? `业务通知待查看：${notificationCount} 条，需要从对应业务表格进入处理。`
+                    : "暂无未读业务通知"
+                  : utilityPanel === "help"
+                    ? `${currentApplication.label} · ${currentApplication.navigation.find(({ route }) => route.section === location.route.section)?.label ?? "当前业务"}。先使用紧凑查询定位记录，再从表格进入查看或填报。`
+                    : "仅授权管理员可以维护系统公共配置。"}
+              </p>
+            </section>
+          )}
+        </div>
+      </header>
+
+      <div className="formal-enterprise-shell">
+        <aside className="formal-sidebar">
+          <BusinessNavigationTree
+            application={currentApplication}
+            currentRoute={location.route}
+            onNavigate={(route) => {
+              onNavigate(route);
+              closePanels();
+            }}
+          />
         </aside>
         <main className="formal-main">{children}</main>
       </div>

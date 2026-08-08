@@ -27,7 +27,7 @@ function display(value: string | null | undefined): string {
 function formatError(error: unknown): string {
   return error instanceof Error
     ? error.message
-    : "供需账户请求失败，请检查本地业务服务。";
+    : "供需账户请求失败，请检查业务数据服务。";
 }
 
 function initialSelections(
@@ -69,10 +69,10 @@ export function RealtimeSupplyBalancePanel({
     {},
   );
   const [inputSetReason, setInputSetReason] =
-    useState("本地业务工作台确认当前供需输入");
+    useState("业务工作台确认当前供需输入");
   const [adjustmentValue, setAdjustmentValue] = useState("0");
   const [adjustmentReason, setAdjustmentReason] =
-    useState("本地业务工作台供需平衡调整说明");
+    useState("业务工作台供需平衡调整说明");
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -227,10 +227,7 @@ export function RealtimeSupplyBalancePanel({
 
   if (loading && !workspace) {
     return (
-      <section
-        className="realtime-business-panel"
-        aria-label="本地实时供需账户"
-      >
+      <section className="realtime-business-panel" aria-label="实时供需账户">
         <p>正在读取供需输入与结果……</p>
       </section>
     );
@@ -239,14 +236,14 @@ export function RealtimeSupplyBalancePanel({
   return (
     <section
       className="realtime-business-panel realtime-supply-panel"
-      aria-label="本地实时供需账户"
+      aria-label="实时供需账户"
     >
       <header>
         <div>
-          <h2>本地实时供需平衡</h2>
+          <h2>实时供需平衡</h2>
           <p>
             {productCode} · {regionCode} · {marketingYear}
-            。来源、输入集和计算结果均来自业务数据库。
+            。来源、输入集和计算结果均来自业务数据服务。
           </p>
         </div>
         <button
@@ -269,7 +266,7 @@ export function RealtimeSupplyBalancePanel({
       )}
       {!workspace ? (
         <p className="realtime-business-empty">
-          供需输入工作区不可用。系统未使用演示账户替代真实结果。
+          供需输入工作区不可用。系统未使用其他账户替代当前结果。
         </p>
       ) : (
         <>

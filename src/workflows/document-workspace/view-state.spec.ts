@@ -91,6 +91,15 @@ describe("resolveDocumentViewState", () => {
     expect(resolveDocumentViewState(base)).toMatchObject({ kind: "ready" });
   });
 
+  it("fails closed when the current workspace has no exact document grant", () => {
+    expect(
+      resolveDocumentViewState({
+        ...base,
+        accessDenied: true,
+      }),
+    ).toEqual({ kind: "forbidden" });
+  });
+
   it("blocks a different document returned for the requested document coordinate", () => {
     expect(
       resolveDocumentViewState({

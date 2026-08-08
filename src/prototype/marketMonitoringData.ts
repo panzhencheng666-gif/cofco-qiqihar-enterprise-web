@@ -1,3 +1,7 @@
+import {
+  marketRegistryLegacyProfiles,
+  marketMonitoringObjects,
+} from "./data/monitoringRegistryFixtures";
 import type { MarketRegionCoverage, MarketTask } from "./marketMonitoringModel";
 
 export const marketRegionCoverage: readonly MarketRegionCoverage[] = [
@@ -29,7 +33,22 @@ export const marketRegionCoverage: readonly MarketRegionCoverage[] = [
 
 export const marketTasks: readonly MarketTask[] = [
   {
+    id: "MK-2026-31017",
+    workId: "WORK-MARKET-FILL-W31",
+    target: "subject",
+    targetName: "龙江县玉米贸易监测组",
+    role: "trader",
+    grain: "corn",
+    region: "齐齐哈尔市",
+    owner: "王洋",
+    deadline: "今天 17:00",
+    status: "填写中",
+    completedFields: 18,
+    applicableFields: 26,
+  },
+  {
     id: "MK-2026-31018",
+    workId: "WORK-MARKET-RICE-W31",
     target: "subject",
     targetName: "讷河恒泰米业",
     role: "rice-mill",
@@ -43,6 +62,7 @@ export const marketTasks: readonly MarketTask[] = [
   },
   {
     id: "MK-2026-31021",
+    workId: "WORK-MARKET-TRADER-W31",
     target: "subject",
     targetName: "龙江北方粮贸有限公司",
     role: "trader",
@@ -56,6 +76,7 @@ export const marketTasks: readonly MarketTask[] = [
   },
   {
     id: "MK-2026-31023",
+    workId: "WORK-MARKET-SOY-W31",
     target: "subject",
     targetName: "北安大豆蛋白有限公司",
     role: "soy-protein",
@@ -69,6 +90,7 @@ export const marketTasks: readonly MarketTask[] = [
   },
   {
     id: "MK-2026-31025",
+    workId: "WORK-MARKET-AGRI-W31",
     target: "subject",
     targetName: "梅里斯惠农农资服务部",
     role: "agri-dealer",
@@ -82,6 +104,7 @@ export const marketTasks: readonly MarketTask[] = [
   },
   {
     id: "MK-2026-31027",
+    workId: "WORK-MARKET-RAIL-W31",
     target: "logistics",
     targetName: "齐齐哈尔铁路货运站",
     role: "rail-node",
@@ -95,6 +118,7 @@ export const marketTasks: readonly MarketTask[] = [
   },
   {
     id: "MK-2026-31031",
+    workId: "WORK-MARKET-ROAD-W31",
     target: "logistics",
     targetName: "扎兰屯公路物流监测点",
     role: "road-node",
@@ -108,74 +132,50 @@ export const marketTasks: readonly MarketTask[] = [
   },
 ];
 
-export const marketSubjectRows = [
-  {
-    name: "讷河恒泰米业",
-    roles: "米厂 · 贸易 · 仓储",
-    grain: "稻谷",
-    varieties: "龙粳31 · 绥粳18",
-    qualityScope: "水分、杂质、不完善粒、出糙率、出米率",
-    region: "讷河市",
-    owner: "王洋",
-    status: "正常监测",
-  },
-  {
-    name: "龙江北方粮贸有限公司",
-    roles: "贸易商",
-    grain: "玉米 · 大豆",
-    varieties: "德美亚3号 · 黑农84",
-    qualityScope: "按玉米 / 大豆模板采集",
-    region: "龙江县",
-    owner: "赵晨",
-    status: "正常监测",
-  },
-  {
-    name: "北安大豆蛋白有限公司",
-    roles: "大豆蛋白加工",
-    grain: "大豆",
-    varieties: "黑农84 · 东生22",
-    qualityScope: "蛋白、水分、杂质、不完善粒",
-    region: "黑河市北安市",
-    owner: "孙悦",
-    status: "资料待补",
-  },
-  {
-    name: "莫旗国家粮食储备库",
-    roles: "承储 · 储备库",
-    grain: "玉米 · 大豆",
-    varieties: "样本填报后形成清单",
-    qualityScope: "按品类与库存批次采集",
-    region: "莫力达瓦旗",
-    owner: "刘宇",
-    status: "正常监测",
-  },
-  {
-    name: "梅里斯惠农农资服务部",
-    roles: "农资经销商",
-    grain: "种子 · 农药 · 化肥",
-    varieties: "种子品种与农资商品名称由样本填报",
-    qualityScope: "规格、有效成分、养分含量与计量单位",
-    region: "梅里斯达斡尔族区",
-    owner: "周楠",
-    status: "正常监测",
-  },
+export const marketSubjectRows = marketMonitoringObjects.flatMap((object) => {
+  const profile = marketRegistryLegacyProfiles.find(
+    ({ objectId }) => objectId === object.objectId,
+  )?.profile;
+  if (!profile || profile.target !== "subject") return [];
+  return [
+    {
+      name: object.objectName,
+      roles: profile.roles,
+      grain: profile.grain,
+      varieties: profile.varieties,
+      qualityScope: profile.qualityScope,
+      region: object.regionLabel,
+      owner: object.responsiblePerson,
+      status: profile.status,
+    },
+  ];
+});
+
+export const marketLogisticsRows = marketMonitoringObjects.flatMap((object) => {
+  const profile = marketRegistryLegacyProfiles.find(
+    ({ objectId }) => objectId === object.objectId,
+  )?.profile;
+  if (!profile || profile.target !== "logistics") return [];
+  return [
+    {
+      name: object.objectName,
+      type: profile.type,
+      coverage: profile.coverage,
+      monitoring: profile.monitoring,
+      owner: object.responsiblePerson,
+      status: profile.status,
+    },
+  ];
+});
+
+export const marketTaskPeriods = [
+  { id: "2026-W31", label: "2026 年第 31 周" },
 ] as const;
 
-export const marketLogisticsRows = [
-  {
-    name: "齐齐哈尔铁路货运站",
-    type: "铁路站点",
-    coverage: "齐齐哈尔及周边县区",
-    monitoring: "包粮 / 散粮、到达 / 发运、即期报价 / 成交价",
-    owner: "王洋",
-    status: "正常监测",
-  },
-  {
-    name: "扎兰屯公路物流监测点",
-    type: "公路物流节点",
-    coverage: "扎兰屯南部通道",
-    monitoring: "包粮 / 散粮、流入 / 流出、运单 / 过磅",
-    owner: "陈佳",
-    status: "正常监测",
-  },
-] as const;
+export const marketAnalysisCoordinateOptions = {
+  periods: [{ id: "2026-W31", label: "2026 年第 31 周（与前三年同期）" }],
+  dataLayers: [{ id: "official", label: "正式发布数据" }],
+  releaseVersions: [
+    { id: "METRIC-2026-W31-V3", label: "2026年第31周已核定数据（当前采用）" },
+  ],
+} as const;

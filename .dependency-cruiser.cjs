@@ -31,11 +31,25 @@ module.exports = {
       to: { path: "^src/(app|pages)" },
     },
     {
-      name: "procomponents-only-through-shared-ui",
+      name: "pages-do-not-depend-on-platform-adapters",
       severity: "error",
-      from: { path: "^src/(?!shared/ui(?:/|$)).*" },
+      from: { path: "^src/pages" },
+      to: { path: "^src/platform" },
+    },
+    {
+      name: "pages-do-not-use-legacy-shared-ui",
+      severity: "error",
+      from: { path: "^src/pages" },
+      to: { path: "^src/shared/ui" },
+    },
+    {
+      name: "third-party-enterprise-ui-only-through-adapter-or-composition",
+      severity: "error",
+      from: {
+        path: "^src/(?!shared/enterprise-ui(?:/|$)|app/(?:providers|theme|error)(?:/|$)).*",
+      },
       to: {
-        path: "^node_modules/@ant-design/(?:pro-components|pro-[^/]+)",
+        path: "^node_modules/(?:antd|@ant-design/(?:icons|pro-components|pro-[^/]+))",
       },
     },
   ],

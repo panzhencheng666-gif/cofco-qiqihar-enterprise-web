@@ -1,28 +1,65 @@
-import { navigationItems } from "./navigation";
 import { describe, expect, it } from "vitest";
+import { projectNavigation } from "./navigation";
 
 describe("enterprise navigation", () => {
-  it("contains the eight approved top-level modules exactly once", () => {
-    expect(navigationItems.map((item) => item.label)).toEqual([
+  it("only exposes implemented capabilities granted by the workspace", () => {
+    const navigation = projectNavigation([
+      "my-work:view",
+      "business-overview:view",
+      "production-monitoring:view",
+      "market-monitoring:view",
+      "supply-situation:view",
+      "report-center:view",
+      "data-governance:view",
+      "system-administration:view",
+      "account-security:view",
+    ]);
+
+    expect(navigation.map((item) => item.label)).toEqual([
+      "我的工作",
       "经营总览",
       "产情监测",
       "市场监测",
-      "供需平衡",
-      "态势监控",
-      "审核中心",
+      "供需与态势",
+      "报表中心",
       "数据治理",
       "系统管理",
     ]);
+    expect(navigation.map((item) => item.label)).not.toContain("账号与安全");
   });
 
-  it("preserves real-time monitoring and the regional map", () => {
-    const monitoring = navigationItems.find(
-      (item) => item.label === "态势监控",
+  it("does not expose an implemented page without the required capability", () => {
+    expect(projectNavigation([])).toEqual([]);
+  });
+
+  it("does not put technical compatibility pages in business navigation", () => {
+    const labels = projectNavigation([
+      "my-work:view",
+      "account-security:view",
+    ]).map((item) => item.label);
+
+    expect(labels).not.toContain("技术兼容门禁");
+  });
+
+  it("keeps market facts complete without binding inventory to processing or duplicating quality and price", () => {
+    const market = projectNavigation(["market-monitoring:view"]).find(
+      (item) => item.key === "market-monitoring",
     );
 
-    expect(monitoring?.children?.map((item) => item.label)).toEqual([
-      "实时监控平台",
-      "区域地图",
+    expect(market?.contextItems.map((item) => item.label)).toEqual([
+      "监测总览",
+      "市场主体全景",
+      "行情与交易",
+      "库存与仓储",
+      "加工与转化",
+      "物流流向",
+      "农资市场",
     ]);
+    expect(market?.contextItems.map((item) => item.label)).not.toContain(
+      "库存与加工",
+    );
+    expect(market?.contextItems.map((item) => item.label)).not.toContain(
+      "质量与价格",
+    );
   });
 });

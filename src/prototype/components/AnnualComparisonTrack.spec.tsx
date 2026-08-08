@@ -205,7 +205,8 @@ describe("AnnualComparisonTrack", () => {
     expect(screen.getByText("2023")).toBeVisible();
     expect(screen.getByText("2026")).toBeVisible();
     expect(screen.getByText("2026/2025同比 +2.8%")).toBeVisible();
-    expect(screen.getByText("指标版本 M-AREA-V4")).toBeVisible();
+    expect(screen.getByText("数据状态：已核定（当前采用）")).toBeVisible();
+    expect(track).not.toHaveTextContent(/指标版本|M-AREA-V\d|METRIC/i);
     expect(screen.getByText("四年口径连续可比")).toBeVisible();
 
     await user.click(track);
@@ -334,12 +335,41 @@ describe("AnnualComparisonTrack", () => {
     );
     expect(cagr).toBeVisible();
     expect(cagr).toHaveClass("enterprise-comparison-track__cagr");
-    expect(screen.getByText("指标版本 M-AREA-V4")).toHaveClass(
+    expect(screen.getByText("数据状态：已核定（当前采用）")).toHaveClass(
       "enterprise-comparison-track__version",
     );
     expect(screen.getByText("四年口径连续可比")).toHaveClass(
       "enterprise-comparison-track__comparability",
     );
+  });
+
+  it("keeps internal traceability codes out of visible text and accessibility attributes", () => {
+    const model = areaModel();
+    model.yearCells = model.yearCells.map((cell, index) => ({
+      ...cell,
+      releaseVersionLabel:
+        index === model.yearCells.length - 1
+          ? "METRIC-2026-W31-V3"
+          : `M-AREA-V${index + 1}`,
+    }));
+
+    const { container } = render(
+      <AnnualComparisonTrack
+        model={model}
+        selected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(container).toHaveTextContent("数据状态：已核定（当前采用）");
+    expect(container.textContent).not.toMatch(
+      /指标版本|METRIC-2026-W31-V3|M-AREA-V\d/i,
+    );
+    for (const element of container.querySelectorAll("[aria-label]")) {
+      expect(element.getAttribute("aria-label")).not.toMatch(
+        /指标版本|METRIC-2026-W31-V3|M-AREA-V\d/i,
+      );
+    }
   });
 
   it("distinguishes a coordinate break from a formula-unavailable comparison", () => {
@@ -385,7 +415,9 @@ describe("AnnualComparisonTrack", () => {
     );
 
     expect(
-      screen.getByText("2024 与 2023 口径不可比：行政区划边界版本不同"),
+      screen.getByText(
+        "2024 与 2023 口径不可比：各年度统计范围发生变化，暂不可直接比较",
+      ),
     ).toHaveClass("is-coordinate-not-comparable");
     expect(
       screen.getByText("2026/2025同比 基期为零，无法计算增长率"),

@@ -8,6 +8,10 @@ import {
   subtractFixedDecimal,
   type FixedDecimal,
 } from "../core/fixedDecimal";
+import {
+  businessComparisonReason,
+  businessDataBatchLabel,
+} from "../core/businessDisplayPolicy";
 import type { MetricComparisonViewModel } from "../core/metricComparisonViewModel";
 import { getMetricComparisonModelError } from "./AnnualComparisonTrack";
 
@@ -208,7 +212,7 @@ export function ComparisonCharts({
           >
             <title id={levelTitleId}>{model.metricLabel}四年数值趋势</title>
             <desc id={levelDescriptionId}>
-              按年度展示四个已治理指标值，单位为{model.unit}。
+              按年度展示四个已核定指标值，单位为{model.unit}。
             </desc>
             <defs>
               <pattern
@@ -278,7 +282,8 @@ export function ComparisonCharts({
                       x={LEVEL_X[index]}
                       y="180"
                     >
-                      {year.reason ?? year.availabilityLabel}
+                      {businessComparisonReason(year.reason) ??
+                        year.availabilityLabel}
                     </text>
                     <text
                       className="enterprise-comparison-chart__period-label"
@@ -396,7 +401,9 @@ export function ComparisonCharts({
                       x={CHANGE_X[index]}
                       y="194"
                     >
-                      {pair.reason ?? change.reason ?? change.changeText}
+                      {businessComparisonReason(
+                        pair.reason ?? change.reason ?? change.changeText,
+                      )}
                     </text>
                     <text
                       className="enterprise-comparison-chart__period-label"
@@ -485,7 +492,9 @@ export function ComparisonCharts({
               <span>
                 {signedChangeText(comparison.changeText, comparison.rawChange)}
               </span>
-              {comparison.reason && <small>{comparison.reason}</small>}
+              {comparison.reason && (
+                <small>{businessComparisonReason(comparison.reason)}</small>
+              )}
             </li>
           ))}
         </ul>
@@ -502,8 +511,8 @@ export function ComparisonCharts({
               <th scope="col">期间或比较</th>
               <th scope="col">结果</th>
               <th scope="col">状态</th>
-              <th scope="col">指标版本</th>
-              <th scope="col">治理说明</th>
+              <th scope="col">数据状态</th>
+              <th scope="col">业务说明</th>
             </tr>
           </thead>
           <tbody>
@@ -518,8 +527,13 @@ export function ComparisonCharts({
                     {point.rawValue === null ? "" : ` ${model.unit}`}
                   </td>
                   <td>{year.availabilityLabel}</td>
-                  <td>{year.releaseVersionLabel}</td>
-                  <td>{year.reason ?? "—"}</td>
+                  <td>
+                    {businessDataBatchLabel(
+                      year.releaseVersionLabel,
+                      year.availabilityLabel === "可用",
+                    )}
+                  </td>
+                  <td>{businessComparisonReason(year.reason) ?? "—"}</td>
                 </tr>
               );
             })}
@@ -538,9 +552,20 @@ export function ComparisonCharts({
                   </td>
                   <td>{comparisonState(pair.state, change.rawChange)}</td>
                   <td>
-                    {from.releaseVersionLabel} → {to.releaseVersionLabel}
+                    {businessDataBatchLabel(
+                      from.releaseVersionLabel,
+                      from.availabilityLabel === "可用",
+                    )}{" "}
+                    →{" "}
+                    {businessDataBatchLabel(
+                      to.releaseVersionLabel,
+                      to.availabilityLabel === "可用",
+                    )}
                   </td>
-                  <td>{pair.reason ?? change.reason ?? "—"}</td>
+                  <td>
+                    {businessComparisonReason(pair.reason ?? change.reason) ??
+                      "—"}
+                  </td>
                 </tr>
               );
             })}
@@ -561,10 +586,17 @@ export function ComparisonCharts({
                     {comparisonState(comparison.state, comparison.rawChange)}
                   </td>
                   <td>
-                    {baseline.releaseVersionLabel} →{" "}
-                    {current.releaseVersionLabel}
+                    {businessDataBatchLabel(
+                      baseline.releaseVersionLabel,
+                      baseline.availabilityLabel === "可用",
+                    )}{" "}
+                    →{" "}
+                    {businessDataBatchLabel(
+                      current.releaseVersionLabel,
+                      current.availabilityLabel === "可用",
+                    )}
                   </td>
-                  <td>{comparison.reason ?? "—"}</td>
+                  <td>{businessComparisonReason(comparison.reason) ?? "—"}</td>
                 </tr>
               );
             })}
