@@ -219,6 +219,7 @@ function scopeAllowsQuery(
   availablePeriodKeys: readonly string[],
 ): boolean {
   const { authorization, coordinates } = scope;
+  const serverAuthoritative = authorization.serverAuthoritative === true;
   const domainIds = Object.keys(domainLabels);
   const classificationKnown = coordinates.businessSubtypeId
     ? businessClassifications.some(
@@ -228,23 +229,29 @@ function scopeAllowsQuery(
       )
     : true;
   return (
-    authorization.permissionKeys.includes("prototype:read") &&
+    (serverAuthoritative ||
+      authorization.permissionKeys.includes("prototype:read")) &&
     (coordinates.regionId === "authorized-all" ||
+      serverAuthoritative ||
       authorization.authorizedRegionIds.includes(
         coordinates.regionId as (typeof authorization.authorizedRegionIds)[number],
       )) &&
     (!coordinates.businessDomainId ||
       domainIds.includes(coordinates.businessDomainId)) &&
     classificationKnown &&
-    (!coordinates.businessSubtypeId ||
+    (serverAuthoritative ||
+      !coordinates.businessSubtypeId ||
       hasAuthorizedClassification(scope, coordinates.businessSubtypeId)) &&
-    (!coordinates.productId ||
+    (serverAuthoritative ||
+      !coordinates.productId ||
       authorization.authorizedProductIds.includes(coordinates.productId)) &&
-    (!coordinates.cultivarId ||
+    (serverAuthoritative ||
+      !coordinates.cultivarId ||
       authorization.authorizedCultivarIds.includes(coordinates.cultivarId)) &&
     (!coordinates.periodKey ||
       availablePeriodKeys.includes(coordinates.periodKey)) &&
-    (!coordinates.releaseVersion ||
+    (serverAuthoritative ||
+      !coordinates.releaseVersion ||
       authorization.authorizedReleaseVersionIds.includes(
         coordinates.releaseVersion,
       ))

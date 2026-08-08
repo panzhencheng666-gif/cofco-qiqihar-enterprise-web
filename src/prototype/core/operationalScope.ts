@@ -6,6 +6,7 @@ export interface OperationalScope {
   workUnit: { organizationId: string; unitId: string; label: string };
   identity: { userId: string; postId: string; displayName?: string };
   authorization: {
+    serverAuthoritative?: boolean;
     authorizedRegionIds: readonly EnterpriseRegionId[];
     authorizedBusinessClassificationIds: readonly BusinessClassification["id"][];
     authorizedProductIds: readonly string[];

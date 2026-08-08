@@ -457,9 +457,14 @@ export function EnterpriseShell({
                 <div>
                   <strong>{shellIdentity.account.displayName}</strong>
                   <small>
-                    {shellIdentity.workUnit.organizationLabel} · 区域数据管理员
+                    {shellIdentity.workUnit.organizationLabel} ·{" "}
+                    {shellIdentity.account.roleLabel ?? "区域数据管理员"}
                   </small>
-                  <small>当前责任范围：齐齐哈尔市指定范围</small>
+                  <small>
+                    当前责任范围：
+                    {shellIdentity.account.responsibilityLabel ??
+                      "齐齐哈尔市指定范围"}
+                  </small>
                 </div>
               </header>
               {shellIdentity.account.menuItems.map((item) => (

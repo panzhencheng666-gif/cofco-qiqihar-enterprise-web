@@ -138,7 +138,8 @@ export function projectMyWork(
   return items
     .filter(
       (item) =>
-        itemIsAssignedAtCurrentNode(item, query.userId) &&
+        (query.scope.authorization.serverAuthoritative === true ||
+          itemIsAssignedAtCurrentNode(item, query.userId)) &&
         itemIsAuthorized(item, {
           domain: item.domain,
           scope: query.scope,
@@ -154,6 +155,7 @@ function itemIsAuthorized(
   query: DomainTaskProjectionQuery,
 ): boolean {
   const { scope } = query;
+  const serverAuthoritative = scope.authorization.serverAuthoritative === true;
   const governedProductId =
     item.productId ??
     (item.subject.kind === "supply-account" &&
@@ -161,7 +163,10 @@ function itemIsAuthorized(
       ? "corn"
       : null);
   if (!query.queryAllowed) return false;
-  if (!scope.authorization.permissionKeys.includes("prototype:read"))
+  if (
+    !serverAuthoritative &&
+    !scope.authorization.permissionKeys.includes("prototype:read")
+  )
     return false;
   if (item.domain !== query.domain) return false;
   if (
@@ -170,6 +175,7 @@ function itemIsAuthorized(
   )
     return false;
   if (
+    !serverAuthoritative &&
     !scope.authorization.authorizedBusinessClassificationIds.includes(
       item.businessSubtypeId,
     )
@@ -188,12 +194,14 @@ function itemIsAuthorized(
   )
     return false;
   if (
+    !serverAuthoritative &&
     !scope.authorization.authorizedRegionIds.includes(
       item.regionId as OperationalScope["authorization"]["authorizedRegionIds"][number],
     )
   )
     return false;
   if (
+    !serverAuthoritative &&
     governedProductId !== null &&
     !scope.authorization.authorizedProductIds.includes(governedProductId)
   )
@@ -204,6 +212,7 @@ function itemIsAuthorized(
   )
     return false;
   if (
+    !serverAuthoritative &&
     item.cultivarIds.some(
       (cultivarId) =>
         !scope.authorization.authorizedCultivarIds.includes(cultivarId),

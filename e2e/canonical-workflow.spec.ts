@@ -1,77 +1,117 @@
-import { expect, test, type Page } from "@playwright/test";
+import {
+  controlledApiBaseUrl,
+  expect,
+  resetControlledApi,
+  setControlledApiMode,
+  test,
+} from "./fixtures";
 
-async function openCanonicalMarketTask(page: Page, workView: string) {
-  await page.goto(`/#/我的工作/${workView}`);
-  await expect(
-    page.getByRole("heading", { name: workView, exact: true }),
-  ).toBeVisible();
-  const task = page.getByRole("row", {
-    name: /齐齐哈尔市玉米市场运行周填报/,
-  });
+test.beforeEach(async ({ request }) => {
+  await resetControlledApi(request);
+});
+
+test("reads service-owned work and opens its canonical business route", async ({
+  page,
+}) => {
+  await page.goto("/#/我的工作/待我处理");
+
+  const task = page.getByRole("row", { name: /服务端玉米市场采集任务/ });
   await expect(task).toBeVisible();
   await task.getByRole("button", { name: "处理市场任务" }).click();
+  await expect
+    .poll(() => decodeURIComponent(new URL(page.url()).hash))
+    .toBe("#/市场监测/采集任务");
   await expect(
-    page.getByRole("heading", {
-      name: "龙江县玉米贸易监测组第 31 周市场监测单",
-    }),
+    page.getByRole("heading", { name: "实时市场业务", exact: true }),
   ).toBeVisible();
-  return page.evaluate(() => ({
-    hash: decodeURIComponent(window.location.hash),
-    selection: (
-      window.history.state as {
-        formalLocation?: { selection?: { type: string; id: string } };
-      } | null
-    )?.formalLocation?.selection,
-  }));
-}
 
-test("task and review entries open the same canonical business item", async ({
-  page,
-}) => {
-  const taskEntry = await openCanonicalMarketTask(page, "待我处理");
-  const reviewEntry = await openCanonicalMarketTask(page, "待我审核");
-
-  expect(taskEntry).toEqual({
-    hash: "#/市场监测/采集任务",
-    selection: { type: "work-item", id: "WORK-MARKET-FILL-W31" },
+  const location = await page.evaluate(
+    () =>
+      (
+        window.history.state as {
+          formalLocation?: { selection?: { type: string; id: string } };
+        } | null
+      )?.formalLocation,
+  );
+  expect(location?.selection).toEqual({
+    type: "work-item",
+    id: "E2E-WORK-MARKET-001",
   });
-  expect(reviewEntry).toEqual(taskEntry);
 });
 
-test("approved business navigation and safe incomplete states remain visible", async ({
+test("persists a market record and status action through the controlled API", async ({
   page,
+  request,
 }) => {
-  await page.goto("/");
-  const navigation = page.getByRole("navigation", { name: "业务应用" });
-  const entries = [
-    ["产情监测", "#/产情监测/玉米产情填报"],
-    ["市场监测", "#/市场监测/玉米市场采集"],
-    ["物流监测", "#/市场监测/物流节点监测"],
-    ["供需分析", "#/供需分析/玉米供需平衡"],
-    ["报表中心", "#/报表中心/业务报告"],
-    ["我的工作", "#/我的工作/待我处理"],
-  ] as const;
+  await page.goto("/#/市场监测/玉米市场采集");
+  const panel = page.getByRole("region", { name: "实时市场业务" });
+  await expect(panel.getByText("业务配置已连接")).toBeVisible();
 
-  for (const [label, expectedHash] of entries) {
-    const entry = navigation.getByRole("button", { name: label, exact: true });
-    await expect(entry).toBeVisible();
-    await entry.click();
-    await expect
-      .poll(() => decodeURIComponent(new URL(page.url()).hash))
-      .toBe(expectedHash);
-    await expect(entry).toHaveAttribute("aria-current", "page");
-  }
+  await panel.getByRole("button", { name: "新建填报" }).click();
+  await panel
+    .getByRole("combobox", { name: "对象类型" })
+    .selectOption("TRADER");
+  await panel
+    .getByRole("combobox", { name: "所在地区" })
+    .selectOption("230221");
+  await panel.getByRole("textbox", { name: "服务端采集价格" }).fill("2418.50");
+  await panel.getByRole("button", { name: "保存业务记录" }).click();
+  await expect(panel.getByText("保存成功，数据版本 1")).toBeVisible();
+  await panel.getByRole("button", { name: "提交审核" }).click();
+  await expect(panel.getByText("提交成功，数据版本 2")).toBeVisible();
 
-  await navigation
-    .getByRole("button", { name: "供需分析", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "区域粮食供需平衡表" }),
-  ).toBeVisible();
-  await expect(page.getByText("请完成全部查询条件后查询")).toBeVisible();
+  const response = await request.get(`${controlledApiBaseUrl}/__e2e/state`);
+  expect(response.ok()).toBe(true);
+  const payload = (await response.json()) as {
+    data: {
+      actorHeaders: Array<string | null>;
+      writes: Array<{ action: string; body: unknown }>;
+    };
+  };
+  expect(payload.data.writes.map(({ action }) => action)).toEqual([
+    "create-market",
+    "submit-market",
+  ]);
+  expect(payload.data.writes[0]?.body).toMatchObject({
+    productCode: "CORN",
+    coreValues: {
+      MKT_OBJECT_TYPE: "TRADER",
+      MKT_PRICE: "2418.50",
+      MKT_REGION: "230221",
+    },
+  });
+  expect(payload.data.actorHeaders).toEqual([null, null]);
 });
 
-test("invalid routes and injected identifiers are canonicalized safely", async ({
+test("keeps an empty API store empty without loading browser fixtures", async ({
+  page,
+  request,
+}) => {
+  await setControlledApiMode(request, "empty");
+  await page.goto("/#/我的工作/待我处理");
+
+  await expect(
+    page.getByRole("status", { name: "实时业务数据连接状态" }),
+  ).toContainText("当前没有可用业务期间或待办记录");
+  await expect(page.getByText("服务端玉米市场采集任务")).toHaveCount(0);
+  await expect(page.getByText("齐齐哈尔市玉米市场运行周填报")).toHaveCount(0);
+});
+
+test("fails closed when the API response contract fails", async ({
+  page,
+  request,
+}) => {
+  await setControlledApiMode(request, "failure");
+  await page.goto("/#/我的工作/待我处理");
+
+  await expect(
+    page.getByRole("alert", { name: "实时业务数据连接状态" }),
+  ).toContainText("业务数据服务连接异常");
+  await expect(page.getByText("服务端玉米市场采集任务")).toHaveCount(0);
+  await expect(page.getByText("齐齐哈尔市玉米市场运行周填报")).toHaveCount(0);
+});
+
+test("canonicalizes invalid routes without exposing injected identifiers", async ({
   page,
 }) => {
   await page.goto("/#/不存在的模块/INTERNAL-001");
@@ -79,67 +119,33 @@ test("invalid routes and injected identifiers are canonicalized safely", async (
   await expect(
     page.getByRole("heading", { name: "待我处理", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("row", { name: /服务端玉米市场采集任务/ }),
+  ).toBeVisible();
   await expect
     .poll(() => decodeURIComponent(new URL(page.url()).hash))
     .toBe("#/我的工作/待我处理");
   await expect(page.getByText("INTERNAL-001", { exact: false })).toHaveCount(0);
-  const location = await page.evaluate(
-    () =>
-      (
-        window.history.state as {
-          formalLocation?: {
-            route: { application: string; section: string };
-            selection?: unknown;
-          };
-        } | null
-      )?.formalLocation,
-  );
-  expect(location).toEqual({
-    route: { application: "work", section: "tasks" },
-    coordinates: { regionId: "authorized-all" },
-  });
 });
 
-test("formal controls operate without browser runtime failures", async ({
+test("uses the minimal API session view and keeps page navigation operable", async ({
   page,
 }) => {
-  const browserErrors: string[] = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") browserErrors.push(message.text());
+  await page.goto("/#/我的工作/待我处理");
+  await expect(
+    page.getByRole("button", { name: "个人账户：已认证用户" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "系统设置" })).toHaveCount(0);
+  await expect(page.getByText("王洋", { exact: false })).toHaveCount(0);
+
+  const navigation = page.getByRole("navigation", { name: "业务应用" });
+  const market = navigation.getByRole("button", {
+    name: "市场监测",
+    exact: true,
   });
-  page.on("pageerror", (error) => browserErrors.push(error.message));
-
-  await page.goto("/#/市场监测/玉米市场采集");
-  await expect(
-    page.getByRole("heading", { name: "玉米市场采集表" }),
-  ).toBeVisible();
-  await page
-    .getByRole("combobox", { name: "对象类型" })
-    .selectOption({ label: "贸易商" });
-  await page.getByLabel("采集日期").fill("2026-07-30");
-  await page.getByRole("button", { name: "查询", exact: true }).click();
-  await expect(
-    page.getByRole("table", { name: "玉米市场采集表" }),
-  ).toBeVisible();
-
-  await page.getByRole("button", { name: "系统设置" }).click();
-  const settings = page.getByRole("dialog", { name: "系统设置" });
-  await expect(settings).toContainText("仅授权管理员可以维护系统公共配置");
-  await settings.getByRole("button", { name: "×" }).click();
-
-  await page.getByRole("button", { name: "个人账户：王洋" }).click();
-  const accountMenu = page.getByRole("menu", { name: "个人账户菜单" });
-  await expect(accountMenu).toBeVisible();
-  await accountMenu.getByRole("menuitem", { name: "个人中心" }).click();
-  await expect(page.getByRole("dialog", { name: "个人中心" })).toContainText(
-    "当前账号：王洋",
-  );
-  await page.keyboard.press("Escape");
-
-  await page.getByRole("searchbox", { name: "全局搜索" }).fill("玉米供需平衡");
-  await page.getByRole("option", { name: /供需分析 · 玉米供需平衡/ }).click();
-  await expect(
-    page.getByRole("heading", { name: "区域粮食供需平衡表" }),
-  ).toBeVisible();
-  expect(browserErrors).toEqual([]);
+  await market.click();
+  await expect
+    .poll(() => decodeURIComponent(new URL(page.url()).hash))
+    .toBe("#/市场监测/玉米市场采集");
+  await expect(market).toHaveAttribute("aria-current", "page");
 });

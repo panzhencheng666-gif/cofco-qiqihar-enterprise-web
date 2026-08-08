@@ -30,17 +30,24 @@ import {
 import { projectReportWorkflowIntoWorkItems } from "./application/reportWorkItemProjection";
 import { projectRealtimeWorkItems } from "./application/realtimeWorkItemProjection";
 import { realtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
-import {
-  applyBackendCultivarMasterData,
-  applyBackendProductMasterData,
-} from "./core/platformMasterData";
+import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeBusinessOperationsPanel } from "./realtime/RealtimeBusinessOperationsPanel";
 import { RealtimeSupplyBalancePanel } from "./realtime/RealtimeSupplyBalancePanel";
 import { RealtimeLogisticsOperationsPanel } from "./realtime/RealtimeLogisticsOperationsPanel";
+import {
+  resolveRuntimeDataMode,
+  type RuntimeDataMode,
+} from "./runtimeDataMode";
+import {
+  apiPendingOperationalIdentity,
+  apiPendingShellIdentity,
+} from "./runtimeIdentity";
 
-interface FormalEnterprisePrototypeProps {
+export interface FormalEnterprisePrototypeProps {
   initialSearch?: string;
   operationalIdentity?: OperationalScopeIdentity;
+  dataMode?: RuntimeDataMode;
+  repository?: RealtimeBusinessRepository;
 }
 
 const reportActorPosts: Readonly<Record<string, string>> = {
@@ -102,19 +109,37 @@ function scopeIssueSummary(issues: readonly OperationalScopeIssue[]): string {
 
 export function FormalEnterprisePrototype({
   initialSearch,
-  operationalIdentity = prototypeOperationalIdentity,
+  operationalIdentity,
+  dataMode,
+  repository = realtimeBusinessRepository,
 }: FormalEnterprisePrototypeProps) {
   const environment = import.meta.env as unknown as Readonly<
     Record<string, unknown>
   >;
-  const realtimeDataMode = environment["VITE_REALTIME_DATA_MODE"];
-  const realtimeMode =
-    realtimeDataMode === "api" ||
-    (realtimeDataMode !== "demo" &&
-      typeof window !== "undefined" &&
-      window.location.port === "63182");
+  const runtimeDataMode =
+    dataMode ??
+    resolveRuntimeDataMode({
+      environmentMode:
+        typeof environment["MODE"] === "string"
+          ? environment["MODE"]
+          : "production",
+      requestedMode: environment["VITE_REALTIME_DATA_MODE"],
+    });
+  const realtimeMode = runtimeDataMode === "api";
+  const effectiveOperationalIdentity =
+    operationalIdentity ??
+    (realtimeMode
+      ? apiPendingOperationalIdentity
+      : prototypeOperationalIdentity);
+  const shellIdentity = realtimeMode
+    ? apiPendingShellIdentity
+    : prototypeShellIdentity;
   const { location, scope, issues, queryAllowed, navigate, updateCoordinates } =
-    useFormalEnterpriseLocation(operationalIdentity, initialSearch);
+    useFormalEnterpriseLocation(effectiveOperationalIdentity, initialSearch);
+  const currentDisplayName =
+    "displayName" in scope.identity
+      ? (scope.identity.displayName ?? "当前填报人")
+      : "当前填报人";
   const [reportContext, setReportContext] =
     useState<BusinessReportContext | null>(null);
   const [reportWorkflow] = useState(() =>
@@ -180,8 +205,8 @@ export function FormalEnterprisePrototype({
     if (!realtimeMode) return;
     let cancelled = false;
     void Promise.all([
-      realtimeBusinessRepository.loadMasterData(),
-      realtimeBusinessRepository.listWorkItems({
+      repository.loadMasterData(),
+      repository.listWorkItems({
         scope: "PENDING",
         page: 0,
         pageSize: 100,
@@ -189,14 +214,6 @@ export function FormalEnterprisePrototype({
     ])
       .then(([masterData, workPage]) => {
         if (cancelled) return;
-        applyBackendProductMasterData(masterData.products);
-        void Promise.all(
-          masterData.products.map((product) =>
-            realtimeBusinessRepository.listCultivars(product.code),
-          ),
-        ).then((cultivars) => {
-          if (!cancelled) applyBackendCultivarMasterData(cultivars.flat());
-        });
         const workItems = projectRealtimeWorkItems(
           workPage.items,
           masterData.products,
@@ -223,7 +240,7 @@ export function FormalEnterprisePrototype({
     return () => {
       cancelled = true;
     };
-  }, [realtimeMode, realtimeRefreshToken]);
+  }, [realtimeMode, realtimeRefreshToken, repository]);
 
   useEffect(() => {
     if (!realtimeMode) return;
@@ -303,8 +320,9 @@ export function FormalEnterprisePrototype({
           <>
             {realtimeMode && (
               <RealtimeBusinessOperationsPanel
-                actorName={scope.identity.displayName ?? "当前填报人"}
+                actorName={currentDisplayName}
                 domain="production"
+                repository={repository}
                 onRecordsChanged={() =>
                   setRealtimeRefreshToken((value) => value + 1)
                 }
@@ -343,8 +361,9 @@ export function FormalEnterprisePrototype({
           <>
             {realtimeMode && (
               <RealtimeBusinessOperationsPanel
-                actorName={scope.identity.displayName ?? "当前填报人"}
+                actorName={currentDisplayName}
                 domain="market"
+                repository={repository}
                 onRecordsChanged={() =>
                   setRealtimeRefreshToken((value) => value + 1)
                 }
@@ -440,7 +459,7 @@ export function FormalEnterprisePrototype({
       marketObjects={marketRegistryObjects}
       onNavigate={navigate}
       productionObjects={productionRegistryObjects}
-      shellIdentity={prototypeShellIdentity}
+      shellIdentity={shellIdentity}
       scope={scope}
       queryAllowed={queryAllowed}
       workItems={currentWorkItems}

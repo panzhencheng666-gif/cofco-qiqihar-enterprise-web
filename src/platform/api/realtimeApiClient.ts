@@ -2,7 +2,6 @@ export interface RealtimeApiClientOptions {
   baseUrl?: string;
   fetcher?: typeof fetch;
   timeoutMs?: number;
-  actor?: string;
 }
 
 export interface ApiErrorShape {
@@ -76,6 +75,16 @@ function queryString(
   return serialized ? `?${serialized}` : "";
 }
 
+function withoutActorHeader(
+  headers: Readonly<Record<string, string>>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(headers).filter(
+      ([name]) => name.toLowerCase() !== "x-actor",
+    ),
+  );
+}
+
 function traceId(response: Response): string | undefined {
   return (
     response.headers.get("X-Trace-Id") ??
@@ -143,7 +152,6 @@ export function createRealtimeApiClient(
             ...(body === undefined
               ? {}
               : { "Content-Type": "application/json" }),
-            ...(options.actor ? { "X-Actor": options.actor } : {}),
             "X-Client": "qiqihar-enterprise-web",
           },
           ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -195,8 +203,7 @@ export function createRealtimeApiClient(
         signal: controller.signal,
         headers: {
           Accept: "application/json",
-          ...extraHeaders,
-          ...(options.actor ? { "X-Actor": options.actor } : {}),
+          ...withoutActorHeader(extraHeaders),
           "X-Client": "qiqihar-enterprise-web",
         },
         body: form,
@@ -241,14 +248,4 @@ export function createRealtimeApiClient(
   };
 }
 
-export const realtimeApiClient = createRealtimeApiClient({
-  actor: (() => {
-    const environment = import.meta.env as unknown as Readonly<
-      Record<string, unknown>
-    >;
-    const actor = environment["VITE_ACTOR"];
-    return typeof actor === "string" && actor.trim()
-      ? actor.trim()
-      : "wang-yang";
-  })(),
-});
+export const realtimeApiClient = createRealtimeApiClient();

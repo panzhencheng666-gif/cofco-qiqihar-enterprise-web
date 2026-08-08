@@ -8,7 +8,10 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import { FormalEnterprisePrototype } from "./FormalEnterprisePrototype";
+import {
+  FormalEnterprisePrototype as RuntimeFormalEnterprisePrototype,
+  type FormalEnterprisePrototypeProps,
+} from "./FormalEnterprisePrototype";
 import type { OperationalScopeIdentity } from "./core/operationalScope";
 import { prototypeOperationalIdentity } from "./formalEnterpriseData";
 import {
@@ -16,6 +19,16 @@ import {
   prototypeOperationalStateStorageKey,
   savePrototypeOperationalState,
 } from "./prototypeOperationalState";
+import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
+
+function FormalEnterprisePrototype(props: FormalEnterprisePrototypeProps) {
+  return (
+    <RuntimeFormalEnterprisePrototype
+      {...props}
+      dataMode={props.dataMode ?? "fixtures"}
+    />
+  );
+}
 
 afterEach(() => {
   cleanup();
@@ -24,6 +37,78 @@ afterEach(() => {
 });
 
 describe("formal enterprise prototype", () => {
+  it("keeps API empty data fail-closed and uses an authorization-pending identity", async () => {
+    savePrototypeOperationalState(
+      window.localStorage,
+      createDefaultPrototypeOperationalState(),
+    );
+    const repository = {
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [{ code: "CORN", name: "服务端玉米" }],
+          periods: [],
+          regions: [],
+        }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      listCultivars: () => Promise.resolve([]),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("status", {
+        name: "实时业务数据连接状态",
+      }),
+    ).toHaveTextContent("当前没有可用业务期间或待办记录");
+    expect(document.body).not.toHaveTextContent("齐齐哈尔市玉米市场运行周填报");
+    expect(
+      screen.getByRole("button", { name: "个人账户：已认证用户" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "系统设置" }),
+    ).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("王洋");
+  });
+
+  it("keeps API failures fail-closed without restoring stored fixtures", async () => {
+    savePrototypeOperationalState(
+      window.localStorage,
+      createDefaultPrototypeOperationalState(),
+    );
+    const repository = {
+      loadMasterData: () => Promise.reject(new Error("受控服务不可用")),
+      listWorkItems: () => Promise.reject(new Error("受控服务不可用")),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("alert", {
+        name: "实时业务数据连接状态",
+      }),
+    ).toHaveTextContent("业务数据服务连接异常");
+    expect(document.body).not.toHaveTextContent("齐齐哈尔市玉米市场运行周填报");
+  });
+
   it("keeps developer terminology and internal identifiers off business screens", async () => {
     const user = userEvent.setup();
     render(

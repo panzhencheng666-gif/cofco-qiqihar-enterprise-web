@@ -30,7 +30,7 @@ describe("realtime API client", () => {
     );
   });
 
-  it("sends the configured local actor for authenticated business writes", async () => {
+  it("never sends a browser-asserted actor identity", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
       .mockResolvedValue(
@@ -38,7 +38,6 @@ describe("realtime API client", () => {
       );
     const client = createRealtimeApiClient({
       baseUrl: "",
-      actor: "wang-yang",
       fetcher,
     });
 
@@ -46,7 +45,26 @@ describe("realtime API client", () => {
 
     const [url, init] = fetcher.mock.calls[0] ?? [];
     expect(url).toBe("/api/v1/production-records");
-    expect(new Headers(init?.headers).get("X-Actor")).toBe("wang-yang");
+    expect(new Headers(init?.headers).has("X-Actor")).toBe(false);
+  });
+
+  it("strips an actor identity from upload extension headers", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: { ok: true } }), { status: 200 }),
+      );
+    const client = createRealtimeApiClient({ baseUrl: "", fetcher });
+
+    await client.upload("/api/v1/imports/production", new FormData(), {
+      "X-Actor": "browser-asserted-user",
+      "Idempotency-Key": "request-1",
+    });
+
+    const [, init] = fetcher.mock.calls[0] ?? [];
+    const headers = new Headers(init?.headers);
+    expect(headers.has("X-Actor")).toBe(false);
+    expect(headers.get("Idempotency-Key")).toBe("request-1");
   });
 
   it("normalizes backend validation errors and retains trace ids", async () => {

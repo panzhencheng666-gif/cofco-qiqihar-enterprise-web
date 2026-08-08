@@ -19,7 +19,12 @@ export interface FormalShellIdentity {
     currentUnitLabel: string;
     units: readonly string[];
   };
-  account: { displayName: string; menuItems: readonly string[] };
+  account: {
+    displayName: string;
+    menuItems: readonly string[];
+    roleLabel?: string;
+    responsibilityLabel?: string;
+  };
 }
 
 export const prototypeShellIdentity: FormalShellIdentity = {
