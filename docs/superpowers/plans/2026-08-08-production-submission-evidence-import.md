@@ -23,6 +23,7 @@
 ### Task 1: Private Evidence Upload
 
 **Files:**
+
 - Create: `src/main/resources/db/migration/V58__create_private_evidence_photos.sql`
 - Create: `src/main/java/com/cofco/qiqihar/graintrade/evidence/application/EvidencePhotoView.java`
 - Create: `src/main/java/com/cofco/qiqihar/graintrade/evidence/application/EvidencePhotoRepository.java`
@@ -32,6 +33,7 @@
 - Test: `src/test/java/com/cofco/qiqihar/graintrade/evidence/interfaceadapter/EvidencePhotoRestIntegrationTest.java`
 
 **Interfaces:**
+
 - Produces: `EvidencePhotoService.upload(String filename, String mediaType, byte[] bytes, OffsetDateTime capturedAt, String latitude, String longitude, String watermarkText)`.
 - Produces: `EvidencePhotoService.content(UUID photoId, boolean watermarked)` and uploader-scoped staged reads.
 
@@ -65,6 +67,7 @@ Assert non-image bytes return `400 INVALID_EVIDENCE_PHOTO`, another principal ca
 ### Task 2: Require and Attach Evidence on Production Writes
 
 **Files:**
+
 - Modify: `src/main/java/com/cofco/qiqihar/graintrade/production/application/ProductionDraft.java`
 - Modify: `src/main/java/com/cofco/qiqihar/graintrade/production/application/ProductionRecordView.java`
 - Modify: `src/main/java/com/cofco/qiqihar/graintrade/production/application/ProductionRecordService.java`
@@ -73,6 +76,7 @@ Assert non-image bytes return `400 INVALID_EVIDENCE_PHOTO`, another principal ca
 - Test: `src/test/java/com/cofco/qiqihar/graintrade/production/interfaceadapter/ProductionEvidenceIntegrationTest.java`
 
 **Interfaces:**
+
 - Consumes: staged photo IDs from Task 1.
 - Produces: `EvidencePhotoService.validateAvailable(List<UUID> ids, String subjectId)` and `attachToProduction(List<UUID> ids, String recordId, String subjectId)`.
 - Produces: `DraftRequest.evidencePhotoIds` and response evidence metadata without binary content.
@@ -106,6 +110,7 @@ Update production API integration fixtures to upload or seed one staged photo pe
 ### Task 3: Atomic CSV and XLSX Import
 
 **Files:**
+
 - Create: `src/main/java/com/cofco/qiqihar/graintrade/importing/domain/XlsxTable.java`
 - Modify: `src/main/java/com/cofco/qiqihar/graintrade/importing/application/ProductionImportTemplate.java`
 - Modify: `src/main/java/com/cofco/qiqihar/graintrade/importing/application/ProductionImportService.java`
@@ -116,6 +121,7 @@ Update production API integration fixtures to upload or seed one staged photo pe
 - Test: `src/test/java/com/cofco/qiqihar/graintrade/importing/domain/XlsxTableTest.java`
 
 **Interfaces:**
+
 - Produces: `ProductionImportService.importFile(String idempotencyKey, String filename, String mediaType, byte[] bytes)`.
 - Produces: `ProductionImportPort.validateImportDraft(ProductionDraft draft)` followed by `importDraft` only after every row validates.
 - Produces: common header `evidencePhotoId` for CSV and XLSX.
@@ -153,9 +159,11 @@ Run `mvn -Dtest=XlsxTableTest,ProductionImportFormatIntegrationTest,ProductionIm
 ### Task 4: Approved Data Read-Through
 
 **Files:**
+
 - Test: `src/test/java/com/cofco/qiqihar/graintrade/overview/interfaceadapter/ProductionSubmissionReadThroughIntegrationTest.java`
 
 **Interfaces:**
+
 - Consumes: production create/submit/approve and evidence APIs from Tasks 1–3.
 - Verifies: existing production list/detail projections and `/api/v1/overview/dashboard` approved-only aggregation.
 
@@ -174,6 +182,7 @@ Run the four new focused classes plus existing production/import/overview integr
 ### Task 5: Full Verification and Exact Delivery
 
 **Files:**
+
 - Create: `.superpowers/sdd/phase-2-production-submission-evidence-report.md` in `cofco-qiqihar-enterprise-web`
 
 - [ ] **Step 1: Run full verification**
