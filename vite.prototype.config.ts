@@ -23,10 +23,7 @@ export default defineConfig({
     },
   },
   server: {
-    // Bind to all local interfaces so the local deployment can be opened by
-    // other computers on the same LAN. The browser still uses relative `/api`
-    // requests, which Vite proxies to the backend on this host.
-    host: "0.0.0.0",
+    host: "127.0.0.1",
     port: 63182,
     strictPort: true,
     allowedHosts: ["all"],
