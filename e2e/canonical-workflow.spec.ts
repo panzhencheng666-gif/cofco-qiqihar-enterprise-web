@@ -1,63 +1,106 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("task and review entries open the same canonical document", async ({
+async function openCanonicalMarketTask(page: Page, workView: string) {
+  await page.goto(`/#/我的工作/${workView}`);
+  await expect(
+    page.getByRole("heading", { name: workView, exact: true }),
+  ).toBeVisible();
+  const task = page.getByRole("row", {
+    name: /齐齐哈尔市玉米市场运行周填报/,
+  });
+  await expect(task).toBeVisible();
+  await task.getByRole("button", { name: "处理市场任务" }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "龙江县玉米贸易监测组第 31 周市场监测单",
+    }),
+  ).toBeVisible();
+  return page.evaluate(() => ({
+    hash: decodeURIComponent(window.location.hash),
+    selection: (
+      window.history.state as {
+        formalLocation?: { selection?: { type: string; id: string } };
+      } | null
+    )?.formalLocation?.selection,
+  }));
+}
+
+test("task and review entries open the same canonical business item", async ({
   page,
 }) => {
-  await page.goto("/market/tasks");
-  await expect(
-    page.getByRole("heading", { name: "市场监测 · 我的任务" }),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: "市场监测" })).toHaveAttribute(
-    "aria-expanded",
-    "true",
-  );
-  await expect(page.getByRole("button", { name: "我的任务" })).toBeVisible();
-  await page.getByRole("button", { name: "打开单据" }).click();
-  await expect(page).toHaveURL(
-    /\/objects\/site-qqhr-001\/documents\/doc-market-20260730-001$/,
-  );
-  await expect(page.getByText("审核模式")).toBeVisible();
-  await expect(page.getByText("实际收购价格")).toBeVisible();
+  const taskEntry = await openCanonicalMarketTask(page, "待我处理");
+  const reviewEntry = await openCanonicalMarketTask(page, "待我审核");
 
-  await page.goto("/review");
-  await page.getByRole("button", { name: "进入审核" }).click();
-  await expect(page).toHaveURL(
-    /\/objects\/site-qqhr-001\/documents\/doc-market-20260730-001$/,
-  );
+  expect(taskEntry).toEqual({
+    hash: "#/市场监测/采集任务",
+    selection: { type: "work-item", id: "WORK-MARKET-FILL-W31" },
+  });
+  expect(reviewEntry).toEqual(taskEntry);
 });
 
-test("approved navigation and safe module states remain visible", async ({
+test("approved business navigation and safe incomplete states remain visible", async ({
   page,
 }) => {
   await page.goto("/");
-  for (const label of [
-    "经营总览",
-    "产情监测",
-    "市场监测",
-    "供需平衡",
-    "态势监控",
-    "审核中心",
-    "数据治理",
-    "系统管理",
-  ]) {
-    await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
+  const navigation = page.getByRole("navigation", { name: "业务应用" });
+  const entries = [
+    ["产情监测", "#/产情监测/玉米产情填报"],
+    ["市场监测", "#/市场监测/玉米市场采集"],
+    ["物流监测", "#/市场监测/物流节点监测"],
+    ["供需分析", "#/供需分析/玉米供需平衡"],
+    ["报表中心", "#/报表中心/业务报告"],
+    ["我的工作", "#/我的工作/待我处理"],
+  ] as const;
+
+  for (const [label, expectedHash] of entries) {
+    const entry = navigation.getByRole("button", { name: label, exact: true });
+    await expect(entry).toBeVisible();
+    await entry.click();
+    await expect
+      .poll(() => decodeURIComponent(new URL(page.url()).hash))
+      .toBe(expectedHash);
+    await expect(entry).toHaveAttribute("aria-current", "page");
   }
-  await page.getByText("态势监控", { exact: true }).click();
-  await page.getByText("实时监控平台", { exact: true }).click();
-  await expect(page.getByText("该能力尚未接入正式数据")).toBeVisible();
+
+  await navigation
+    .getByRole("button", { name: "供需分析", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "区域粮食供需平衡表" }),
+  ).toBeVisible();
+  await expect(page.getByText("请完成全部查询条件后查询")).toBeVisible();
 });
 
-test("cross-object document coordinates are blocked safely", async ({
+test("invalid routes and injected identifiers are canonicalized safely", async ({
   page,
 }) => {
-  await page.goto("/objects/farmer-neh-017/documents/doc-market-20260730-001");
-  const alert = page.getByRole("alert");
-  await expect(alert).toContainText("对象与业务单据坐标不一致");
-  await expect(alert).toContainText("未修改任何业务数据");
-  await expect(page.getByText("实际收购价格")).not.toBeVisible();
+  await page.goto("/#/不存在的模块/INTERNAL-001");
+
+  await expect(
+    page.getByRole("heading", { name: "待我处理", exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(() => decodeURIComponent(new URL(page.url()).hash))
+    .toBe("#/我的工作/待我处理");
+  await expect(page.getByText("INTERNAL-001", { exact: false })).toHaveCount(0);
+  const location = await page.evaluate(
+    () =>
+      (
+        window.history.state as {
+          formalLocation?: {
+            route: { application: string; section: string };
+            selection?: unknown;
+          };
+        } | null
+      )?.formalLocation,
+  );
+  expect(location).toEqual({
+    route: { application: "work", section: "tasks" },
+    coordinates: { regionId: "authorized-all" },
+  });
 });
 
-test("React 19 compatibility controls operate without static API failures", async ({
+test("formal controls operate without browser runtime failures", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -66,54 +109,37 @@ test("React 19 compatibility controls operate without static API failures", asyn
   });
   page.on("pageerror", (error) => browserErrors.push(error.message));
 
-  await page.goto("/system/compatibility");
-  const valueEditor = page.getByRole("spinbutton").first();
-  await expect(valueEditor).toBeVisible();
-  await valueEditor.fill("120.5");
-
-  await page.getByLabel("企业简称").fill("齐齐哈尔兼容样本企业");
-  await page.getByLabel("主要能力").click();
-  await page
-    .locator(".ant-select-dropdown:visible")
-    .getByText("贸易", { exact: true })
-    .click();
-  await page.getByRole("button", { name: "验证企业表单" }).click();
-  await expect(page.getByText("企业表单验证通过")).toBeVisible();
-
-  const themePreview = page.getByRole("region", { name: "主题兼容预览" });
-  await expect(themePreview).toHaveAttribute("data-theme", "light");
-  await page.getByRole("switch", { name: "暗色模式" }).click();
-  await expect(themePreview).toHaveAttribute("data-theme", "dark");
-
-  const virtualTable = page.getByRole("region", { name: "虚拟滚动表格" });
-  await expect(virtualTable.getByText("120 条模拟记录")).toBeVisible();
-  await virtualTable
-    .locator(".ant-table-tbody-virtual-holder")
-    .evaluate((element) => {
-      element.scrollTop = element.scrollHeight;
-      element.dispatchEvent(new Event("scroll"));
-    });
-  await expect(virtualTable.getByText("兼容样本 120")).toBeVisible();
-
-  const proTable = page.getByRole("region", {
-    name: "ProTable 运行时兼容表格",
-  });
-  await expect(proTable.getByText("ProTable 真实组件")).toBeVisible();
-  const proTableRowSelection = proTable.getByRole("checkbox").last();
-  await proTableRowSelection.check();
-  await expect(proTableRowSelection).toBeChecked();
-
-  await page.getByRole("button", { name: "测试 Modal" }).click();
+  await page.goto("/#/市场监测/玉米市场采集");
   await expect(
-    page.getByRole("dialog", { name: "React 19 Modal" }),
+    page.getByRole("heading", { name: "玉米市场采集表" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /取\s*消/ }).click();
-  await page.getByRole("button", { name: "测试 Drawer" }).click();
-  await expect(page.getByText("React 19 Drawer")).toBeVisible();
-  await page.getByRole("button", { name: "Close", exact: true }).click();
-  await page.getByRole("button", { name: "测试 Message" }).click();
-  await expect(page.getByText("Message 正常")).toBeVisible();
-  await page.getByRole("button", { name: "测试 Notification" }).click();
-  await expect(page.getByText("Notification 正常")).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "对象类型" })
+    .selectOption({ label: "贸易商" });
+  await page.getByLabel("采集日期").fill("2026-07-30");
+  await page.getByRole("button", { name: "查询", exact: true }).click();
+  await expect(
+    page.getByRole("table", { name: "玉米市场采集表" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "系统设置" }).click();
+  const settings = page.getByRole("dialog", { name: "系统设置" });
+  await expect(settings).toContainText("仅授权管理员可以维护系统公共配置");
+  await settings.getByRole("button", { name: "×" }).click();
+
+  await page.getByRole("button", { name: "个人账户：王洋" }).click();
+  const accountMenu = page.getByRole("menu", { name: "个人账户菜单" });
+  await expect(accountMenu).toBeVisible();
+  await accountMenu.getByRole("menuitem", { name: "个人中心" }).click();
+  await expect(page.getByRole("dialog", { name: "个人中心" })).toContainText(
+    "当前账号：王洋",
+  );
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("searchbox", { name: "全局搜索" }).fill("玉米供需平衡");
+  await page.getByRole("option", { name: /供需分析 · 玉米供需平衡/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "区域粮食供需平衡表" }),
+  ).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
