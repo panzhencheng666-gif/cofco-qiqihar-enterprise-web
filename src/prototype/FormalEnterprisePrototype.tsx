@@ -6,7 +6,10 @@ import type {
 import type { BusinessWorkItem } from "./core/businessWork";
 import { BusinessReportComposer } from "./BusinessReportComposer";
 import type { BusinessReportContext } from "./businessReportModel";
-import { createPrototypeBusinessReportWorkflow } from "./businessReportWorkflow";
+import {
+  createEmptyBusinessReportWorkflow,
+  createPrototypeBusinessReportWorkflow,
+} from "./businessReportWorkflow";
 import { EnterpriseShell } from "./EnterpriseShell";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
@@ -42,6 +45,7 @@ import {
   apiPendingOperationalIdentity,
   apiPendingShellIdentity,
 } from "./runtimeIdentity";
+import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
 
 export interface FormalEnterprisePrototypeProps {
   initialSearch?: string;
@@ -107,6 +111,28 @@ function scopeIssueSummary(issues: readonly OperationalScopeIssue[]): string {
   );
 }
 
+function ApiReportServiceUnavailable() {
+  return (
+    <div className="unified-workspace">
+      <header className="unified-page-header">
+        <div>
+          <span>报表中心</span>
+          <h1>报表服务尚未配置</h1>
+          <p>报告查询、编制、复核、发布和导出将在服务配置完成后开放。</p>
+        </div>
+      </header>
+      <section
+        aria-label="报表服务状态"
+        className="report-generation-blocker"
+        role="status"
+      >
+        <strong>当前暂无可用报告数据</strong>
+        <p>系统未加载本地报告或预置报告。</p>
+      </section>
+    </div>
+  );
+}
+
 export function FormalEnterprisePrototype({
   initialSearch,
   operationalIdentity,
@@ -143,9 +169,11 @@ export function FormalEnterprisePrototype({
   const [reportContext, setReportContext] =
     useState<BusinessReportContext | null>(null);
   const [reportWorkflow] = useState(() =>
-    createPrototypeBusinessReportWorkflow(
-      typeof window === "undefined" ? undefined : window.localStorage,
-    ),
+    realtimeMode
+      ? createEmptyBusinessReportWorkflow()
+      : createPrototypeBusinessReportWorkflow(
+          typeof window === "undefined" ? undefined : window.localStorage,
+        ),
   );
   const reportRecords = useSyncExternalStore(
     reportWorkflow.subscribe,
@@ -419,6 +447,7 @@ export function FormalEnterprisePrototype({
           />
         );
       case "reporting":
+        if (realtimeMode) return <ApiReportServiceUnavailable />;
         return (
           <FormalReportCenterWorkspace
             queryAllowed={queryAllowed}
@@ -459,6 +488,7 @@ export function FormalEnterprisePrototype({
       marketObjects={marketRegistryObjects}
       onNavigate={navigate}
       productionObjects={productionRegistryObjects}
+      reportDatasets={realtimeMode ? [] : approvedBusinessReportDatasets}
       shellIdentity={shellIdentity}
       scope={scope}
       queryAllowed={queryAllowed}
@@ -534,7 +564,7 @@ export function FormalEnterprisePrototype({
         </section>
       )}
       {workspace}
-      {reportContext && (
+      {!realtimeMode && reportContext && (
         <BusinessReportComposer
           actorPost={reportActorPosts[scope.identity.postId] ?? "当前登录岗位"}
           context={reportContext}

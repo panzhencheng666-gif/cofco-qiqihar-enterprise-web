@@ -111,6 +111,52 @@ test("fails closed when the API response contract fails", async ({
   await expect(page.getByText("齐齐哈尔市玉米市场运行周填报")).toHaveCount(0);
 });
 
+test("keeps reports fail-closed when the report API is not implemented", async ({
+  page,
+  request,
+}) => {
+  const reportResponse = await request.get(
+    `${controlledApiBaseUrl}/api/v1/reports`,
+  );
+  expect(reportResponse.status()).toBe(404);
+  await expect(reportResponse.json()).resolves.toMatchObject({
+    code: "API_ROUTE_NOT_IMPLEMENTED",
+  });
+
+  const storageKey = "齐齐哈尔粮食商情业务报告工作流-业务真值三";
+  const storedSeed = JSON.stringify({
+    title: "第31周粮食商情周报",
+    source: "browser-fixture",
+  });
+  await page.addInitScript(
+    ({ key, value }) => window.localStorage.setItem(key, value),
+    { key: storageKey, value: storedSeed },
+  );
+  await page.goto("/#/报表中心/业务报告");
+
+  await expect(
+    page.getByRole("heading", { name: "报表服务尚未配置" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("status", { name: "报表服务状态" }),
+  ).toContainText("当前暂无可用报告数据");
+  await expect(page.getByText("第31周粮食商情周报")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /生成报告|导出/ })).toHaveCount(
+    0,
+  );
+
+  await page
+    .getByRole("searchbox", { name: "全局搜索" })
+    .fill("齐齐哈尔市全域玉米供需平衡分析报告");
+  await expect(page.getByRole("option")).toHaveCount(0);
+  await expect(page.getByText("未找到匹配的业务页面")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate((key) => window.localStorage.getItem(key), storageKey),
+    )
+    .toBe(storedSeed);
+});
+
 test("canonicalizes invalid routes without exposing injected identifiers", async ({
   page,
 }) => {

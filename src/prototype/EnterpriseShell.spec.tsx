@@ -2,6 +2,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { businessWorkFixtures } from "./data/businessWorkFixtures";
+import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
 import { productionMonitoringObjects } from "./data/monitoringRegistryFixtures";
 import { prototypeOperationalIdentity } from "./formalEnterpriseData";
 import { createFormalRoute } from "./formalEnterpriseModel";
@@ -128,6 +129,7 @@ describe("EnterpriseShell", () => {
         }}
         onNavigate={vi.fn()}
         queryAllowed
+        reportDatasets={approvedBusinessReportDatasets}
         scope={restrictedScope}
         shellIdentity={{
           platformName: "平台名称",
@@ -239,6 +241,7 @@ describe("EnterpriseShell", () => {
           coordinates: { regionId: "authorized-all" },
         }}
         onNavigate={onNavigate}
+        reportDatasets={approvedBusinessReportDatasets}
         shellIdentity={{
           platformName: "平台名称",
           workUnit: {

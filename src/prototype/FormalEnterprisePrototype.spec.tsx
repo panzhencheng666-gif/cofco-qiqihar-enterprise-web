@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   FormalEnterprisePrototype as RuntimeFormalEnterprisePrototype,
   type FormalEnterprisePrototypeProps,
@@ -20,6 +20,10 @@ import {
   savePrototypeOperationalState,
 } from "./prototypeOperationalState";
 import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
+import { createPrototypeBusinessReportSeeds } from "./businessReportWorkflow";
+
+const prototypeBusinessReportStorageKey =
+  "齐齐哈尔粮食商情业务报告工作流-业务真值三";
 
 function FormalEnterprisePrototype(props: FormalEnterprisePrototypeProps) {
   return (
@@ -34,9 +38,77 @@ afterEach(() => {
   cleanup();
   window.history.replaceState({}, "", "/");
   window.localStorage.removeItem(prototypeOperationalStateStorageKey);
+  window.localStorage.removeItem(prototypeBusinessReportStorageKey);
 });
 
 describe("formal enterprise prototype", () => {
+  it("keeps API reporting empty without reading report seeds or search fixtures", async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      prototypeBusinessReportStorageKey,
+      JSON.stringify(createPrototypeBusinessReportSeeds()),
+    );
+    const getItem = vi.spyOn(Storage.prototype, "getItem");
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const repository = {
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [{ code: "CORN", name: "服务端玉米" }],
+          periods: [
+            {
+              code: "2026-W32",
+              name: "2026 年第 32 周",
+              startsOn: "2026-08-03",
+              endsOn: "2026-08-09",
+            },
+          ],
+          regions: [],
+        }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=reporting&section=compose"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "报表服务尚未配置" }),
+    ).toBeVisible();
+    expect(screen.getByText("当前暂无可用报告数据")).toBeVisible();
+    expect(document.body).not.toHaveTextContent("第31周粮食商情周报");
+    expect(
+      screen.queryByRole("button", { name: /生成报告|导出/ }),
+    ).not.toBeInTheDocument();
+
+    await user.type(
+      screen.getByRole("searchbox", { name: "全局搜索" }),
+      "齐齐哈尔市全域玉米供需平衡分析报告",
+    );
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    expect(screen.getByText("未找到匹配的业务页面")).toBeVisible();
+    expect(
+      getItem.mock.calls.some(
+        ([key]) => key === prototypeBusinessReportStorageKey,
+      ),
+    ).toBe(false);
+    expect(
+      setItem.mock.calls.some(
+        ([key]) => key === prototypeBusinessReportStorageKey,
+      ),
+    ).toBe(false);
+  });
+
   it("keeps API empty data fail-closed and uses an authorization-pending identity", async () => {
     savePrototypeOperationalState(
       window.localStorage,

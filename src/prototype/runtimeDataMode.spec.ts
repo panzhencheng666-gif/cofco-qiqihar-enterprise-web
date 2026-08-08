@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { resolveRuntimeDataMode } from "./runtimeDataMode";
 
 describe("formal prototype runtime data mode", () => {
+  it("exposes only the supported API and fixtures environment values", () => {
+    expectTypeOf<
+      NonNullable<ImportMetaEnv["VITE_REALTIME_DATA_MODE"]>
+    >().toEqualTypeOf<"api" | "fixtures">();
+  });
+
   it.each([
     [undefined, "production"],
     ["api", "production"],

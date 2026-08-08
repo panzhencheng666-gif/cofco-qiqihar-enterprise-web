@@ -5,7 +5,7 @@ import type { BusinessWorkItem } from "./core/businessWork";
 import type { MonitoringObject } from "./core/monitoringRegistry";
 import type { OperationalScope } from "./core/operationalScope";
 import { businessWorkFixtures } from "./data/businessWorkFixtures";
-import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
+import type { ApprovedBusinessReportDataset } from "./data/businessReportDatasets";
 import {
   marketMonitoringObjects,
   productionMonitoringObjects,
@@ -117,6 +117,7 @@ export function EnterpriseShell({
   workItems = businessWorkFixtures,
   productionObjects = productionMonitoringObjects,
   marketObjects = marketMonitoringObjects,
+  reportDatasets = [],
   scope,
   queryAllowed = true,
   children,
@@ -127,6 +128,7 @@ export function EnterpriseShell({
   workItems?: readonly BusinessWorkItem[];
   productionObjects?: readonly MonitoringObject[];
   marketObjects?: readonly MonitoringObject[];
+  reportDatasets?: readonly ApprovedBusinessReportDataset[];
   scope?: OperationalScope;
   queryAllowed?: boolean;
   children: ReactNode;
@@ -207,7 +209,7 @@ export function EnterpriseShell({
         })
     : [];
   const searchableReports: SearchResult[] = queryAllowed
-    ? approvedBusinessReportDatasets
+    ? reportDatasets
         .filter(({ region }) =>
           region.includes("齐齐哈尔") ? regionAllowed("qiqihar-all") : true,
         )

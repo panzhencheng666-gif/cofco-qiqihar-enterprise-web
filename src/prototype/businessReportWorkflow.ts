@@ -1032,6 +1032,10 @@ export function createPrototypeBusinessReportWorkflow(
   }
 }
 
+export function createEmptyBusinessReportWorkflow(): BusinessReportWorkflow {
+  return new BusinessReportWorkflow(createMemoryBusinessReportRepository());
+}
+
 let fallbackPrototypeWorkflow: BusinessReportWorkflow | null = null;
 
 export function getFallbackPrototypeBusinessReportWorkflow() {
