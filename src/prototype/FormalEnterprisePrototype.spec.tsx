@@ -19,7 +19,10 @@ import {
   prototypeOperationalStateStorageKey,
   savePrototypeOperationalState,
 } from "./prototypeOperationalState";
-import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
+import type {
+  BusinessNotificationRow,
+  RealtimeBusinessRepository,
+} from "@/platform/api/realtimeBusinessRepository";
 import { createPrototypeBusinessReportSeeds } from "./businessReportWorkflow";
 
 const prototypeBusinessReportStorageKey =
@@ -45,18 +48,7 @@ describe("formal enterprise prototype", () => {
   it("refreshes authorized business data from the durable event stream without polling", async () => {
     const user = userEvent.setup();
     let receiveBusinessEvent:
-      | ((event: {
-          id: string;
-          sequence: number;
-          aggregateType: string;
-          aggregateId: string;
-          actionCode: string;
-          productCode: string | null;
-          regionCodes: readonly string[];
-          occurredAt: string;
-          read: boolean;
-        }) => void)
-      | undefined;
+      ((event: BusinessNotificationRow) => void) | undefined;
     const unsubscribe = vi.fn();
     const listWorkItems = vi.fn(() =>
       Promise.resolve({
@@ -98,10 +90,15 @@ describe("formal enterprise prototype", () => {
         read: true,
       }),
     );
-    const subscribeBusinessEvents = vi.fn((_afterSequence, onChange) => {
-      receiveBusinessEvent = onChange;
-      return unsubscribe;
-    });
+    const subscribeBusinessEvents = vi.fn(
+      (
+        _afterSequence: number,
+        onChange: (event: BusinessNotificationRow) => void,
+      ) => {
+        receiveBusinessEvent = onChange;
+        return unsubscribe;
+      },
+    );
     const repository = {
       loadCurrentSession: () =>
         Promise.resolve({

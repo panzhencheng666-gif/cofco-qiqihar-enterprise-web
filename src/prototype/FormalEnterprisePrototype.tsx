@@ -306,6 +306,10 @@ export function FormalEnterprisePrototype({
   >([]);
   const [businessNotificationUnreadCount, setBusinessNotificationUnreadCount] =
     useState(0);
+  const notificationsConfigured =
+    realtimeMode &&
+    typeof repository.listNotifications === "function" &&
+    typeof repository.subscribeBusinessEvents === "function";
   const [realtimeEntryDomain, setRealtimeEntryDomain] = useState<
     "production" | "market" | "logistics" | null
   >(null);
@@ -408,15 +412,7 @@ export function FormalEnterprisePrototype({
   }, [realtimeMode, realtimeRefreshToken, repository]);
 
   useEffect(() => {
-    if (!realtimeMode) return;
-    if (
-      typeof repository.listNotifications !== "function" ||
-      typeof repository.subscribeBusinessEvents !== "function"
-    ) {
-      setBusinessNotifications([]);
-      setBusinessNotificationUnreadCount(0);
-      return;
-    }
+    if (!notificationsConfigured) return;
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     const subscribeFrom = (afterSequence: number) => {
@@ -448,7 +444,7 @@ export function FormalEnterprisePrototype({
       cancelled = true;
       unsubscribe?.();
     };
-  }, [realtimeMode, repository]);
+  }, [notificationsConfigured, repository]);
 
   useEffect(() => {
     if (
@@ -746,9 +742,19 @@ export function FormalEnterprisePrototype({
       onNavigate={navigateAndCloseEntry}
       productionObjects={productionRegistryObjects}
       reportDatasets={realtimeMode ? [] : approvedBusinessReportDatasets}
-      businessNotifications={realtimeMode ? businessNotifications : undefined}
+      businessNotifications={
+        realtimeMode
+          ? notificationsConfigured
+            ? businessNotifications
+            : []
+          : undefined
+      }
       businessNotificationUnreadCount={
-        realtimeMode ? businessNotificationUnreadCount : undefined
+        realtimeMode
+          ? notificationsConfigured
+            ? businessNotificationUnreadCount
+            : 0
+          : undefined
       }
       onBusinessNotificationRead={markBusinessNotificationRead}
       shellIdentity={shellIdentity}
