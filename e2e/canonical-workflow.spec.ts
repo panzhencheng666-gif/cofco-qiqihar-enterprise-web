@@ -103,6 +103,165 @@ test("persists a market record and returns to its service-owned list", async ({
   expect(payload.data.actorHeaders).toEqual([null]);
 });
 
+test("keeps product-owned entry and workbook contracts aligned across business domains", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/#/产情监测/大豆产情填报");
+  await expect(
+    page.getByRole("table", { name: "大豆产情调查表" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "新建调查记录" }).click();
+
+  const productionDialog = page.getByRole("dialog", {
+    name: "新建产情填报",
+  });
+  const productionPanel = productionDialog.getByRole("region", {
+    name: "产情填报",
+  });
+  await expect(productionPanel.getByText("已加载业务填报规则")).toBeVisible();
+  await expect(
+    productionPanel.getByRole("combobox", { name: "品种" }),
+  ).toHaveCount(0);
+  await productionPanel
+    .getByRole("combobox", { name: "地级市" })
+    .selectOption("230200");
+  await productionPanel
+    .getByRole("combobox", { name: "区县" })
+    .selectOption("230221");
+  await productionPanel
+    .getByRole("combobox", { name: "乡镇" })
+    .selectOption("230221101");
+  await productionPanel
+    .getByRole("combobox", { name: "行政村" })
+    .selectOption("230221101001");
+  await productionPanel
+    .getByRole("textbox", { name: "具体品种" })
+    .fill("黑农84");
+  await productionPanel.getByLabel("调查日期").fill("2026-08-09");
+  await productionPanel.getByLabel("种植面积").fill("120");
+  await productionPanel.getByLabel("权威采用单产").fill("310");
+  await productionPanel
+    .getByRole("textbox", { name: "填报对象", exact: true })
+    .fill("通齐村第一调查户");
+  await productionPanel.getByLabel("期初库存").fill("18");
+  await productionPanel.getByLabel("销售数量").fill("4");
+  await productionPanel.getByLabel("自用数量").fill("2");
+  await productionPanel.getByLabel("期末余粮").fill("12");
+  await productionPanel.getByLabel("填报人联系方式").fill("13800000000");
+  await productionPanel.getByLabel("填报对象联系方式").fill("13900000000");
+  await productionPanel.getByLabel("填报对象纬度").fill("47.3543");
+  await productionPanel.getByLabel("填报对象经度").fill("123.9182");
+  await productionPanel.getByLabel("现场水印照片").setInputFiles({
+    name: "soybean-scene.png",
+    mimeType: "image/png",
+    buffer: Buffer.from([137, 80, 78, 71]),
+  });
+  await productionPanel.getByRole("button", { name: "保存业务记录" }).click();
+  await expect(productionDialog).toHaveCount(0);
+  await expect(
+    page.getByRole("table", { name: "大豆产情调查表" }).getByText("黑农84"),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("table", { name: "大豆产情调查表" })
+      .getByRole("cell", { name: "18", exact: true }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("combobox", { name: "对象类型" })
+    .selectOption({ label: "农户" });
+  const productionDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "下载 XLSX 模板" }).click();
+  await productionDownload;
+  await page.getByLabel("批量导入产情记录").setInputFiles({
+    name: "soybean-production.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from("SOYBEAN-WORKBOOK"),
+  });
+  await expect(page.getByText(/导入完成：成功 1 条/)).toBeVisible();
+
+  await page.goto("/#/市场监测/大豆市场采集");
+  const marketDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "下载 XLSX 模板" }).click();
+  await marketDownload;
+  await page.getByLabel("批量导入市场采集记录").setInputFiles({
+    name: "soybean-market.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from("SOYBEAN-WORKBOOK"),
+  });
+  await expect(page.getByText(/导入完成：成功 1 条/)).toBeVisible();
+
+  await page.goto("/#/市场监测/大豆物流监测");
+  const logisticsDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "下载 XLSX 模板" }).click();
+  await logisticsDownload;
+  await page.getByLabel("批量导入物流记录").setInputFiles({
+    name: "soybean-logistics.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from("SOYBEAN-WORKBOOK"),
+  });
+  await expect(page.getByText("已导入 1 条物流记录。")).toBeVisible();
+
+  const response = await request.get(`${controlledApiBaseUrl}/__e2e/state`);
+  expect(response.ok()).toBe(true);
+  const payload = (await response.json()) as {
+    data: {
+      templateDownloads: Array<{ domain: string; productCode: string }>;
+      workbookImports: Array<{
+        domain: string;
+        embeddedProduct: string;
+        productCode: string;
+      }>;
+      writes: Array<{ action: string; body: unknown }>;
+    };
+  };
+  expect(payload.data.writes).toContainEqual(
+    expect.objectContaining({
+      action: "create-production",
+      body: expect.objectContaining({
+        productCode: "SOYBEAN",
+        submissionMetadata: expect.objectContaining({
+          PROD_CULTIVAR_NAME: "黑农84",
+          PROD_OPENING_INVENTORY: "18",
+        }),
+      }),
+    }),
+  );
+  expect(payload.data.templateDownloads).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ domain: "production", productCode: "SOYBEAN" }),
+      expect.objectContaining({ domain: "market", productCode: "SOYBEAN" }),
+      expect.objectContaining({ domain: "logistics", productCode: "SOYBEAN" }),
+    ]),
+  );
+  expect(payload.data.workbookImports).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        domain: "production",
+        embeddedProduct: "SOYBEAN",
+        productCode: "SOYBEAN",
+      }),
+      expect.objectContaining({
+        domain: "market",
+        embeddedProduct: "SOYBEAN",
+        productCode: "SOYBEAN",
+      }),
+      expect.objectContaining({
+        domain: "logistics",
+        embeddedProduct: "SOYBEAN",
+        productCode: "SOYBEAN",
+      }),
+    ]),
+  );
+  await expect(page.locator("body")).not.toContainText(
+    /localhost|127\.0\.0\.1|后端|数据库|fixture|demo|VITE/u,
+  );
+});
+
 test("keeps an empty API store empty without loading browser fixtures", async ({
   page,
   request,

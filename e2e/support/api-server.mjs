@@ -3,7 +3,11 @@ import { createServer } from "node:http";
 const host = "127.0.0.1";
 const port = 63181;
 
-const products = [{ code: "CORN", name: "服务端玉米" }];
+const products = [
+  { code: "CORN", name: "玉米" },
+  { code: "SOYBEAN", name: "大豆" },
+  { code: "RICE", name: "稻谷" },
+];
 const periods = [
   {
     code: "2026-W32",
@@ -55,7 +59,12 @@ const workItems = [
     responsibleParty: "服务端授权用户",
   },
 ];
-const objectTypes = [{ code: "TRADER", name: "贸易商", domain: "MARKET" }];
+const marketObjectTypes = [
+  { code: "TRADER", name: "贸易商", domain: "MARKET" },
+];
+const productionObjectTypes = [
+  { code: "FARMER", name: "农户", domain: "PRODUCTION" },
+];
 const cultivars = [
   {
     code: "E2E-CORN-CULTIVAR",
@@ -123,10 +132,123 @@ const marketDefinition = {
   groups: [],
 };
 
+function productionDefinition(productCode, objectTypeCode) {
+  return {
+    productCode,
+    objectTypeCode,
+    groups: [
+      {
+        category: "DETAIL",
+        label: "调查明细",
+        sortOrder: 10,
+        fields: [
+          factField("PROD_SAMPLE_NAME", "填报对象", "TEXT", null, 10),
+          factField("PROD_OPENING_INVENTORY", "期初库存", "DECIMAL", "吨", 20),
+          factField("PROD_SALES_VOLUME", "销售数量", "DECIMAL", "吨", 30),
+          factField("PROD_SELF_USE", "自用数量", "DECIMAL", "吨", 40),
+          factField("PROD_ENDING_INVENTORY", "期末余粮", "DECIMAL", "吨", 50),
+        ],
+      },
+      {
+        category: "QUALITY",
+        label: "质量指标",
+        sortOrder: 20,
+        fields: [factField("MOISTURE", "水分", "DECIMAL", "%", 10)],
+      },
+    ],
+  };
+}
+
+function factField(code, label, valueType, unit, sortOrder) {
+  return {
+    code,
+    label,
+    valueType,
+    unit,
+    description: null,
+    precision: 18,
+    scale: 4,
+    sortOrder,
+  };
+}
+
+function logisticsDefinition(productCode) {
+  return {
+    productCode,
+    fields: [
+      logisticsField("LOG_PERIOD", "物流监测期", "TEXT", true, false, 10),
+      logisticsField(
+        "LOG_COLLECTION_DATE",
+        "采集日期",
+        "DATE",
+        true,
+        false,
+        20,
+      ),
+      logisticsField("LOG_ORIGIN", "起运节点", "TEXT", true, false, 30),
+      logisticsField("LOG_DESTINATION", "到达节点", "TEXT", true, false, 40),
+      logisticsField(
+        "LOG_ROUTE_VOLUME",
+        "运输数量",
+        "DECIMAL",
+        true,
+        false,
+        50,
+        "吨",
+      ),
+      logisticsField("LOG_REPORTER", "填报人", "TEXT", true, false, 60),
+      logisticsField(
+        "LOG_REPORTED_AT",
+        "填报时间",
+        "READONLY_DATETIME",
+        false,
+        true,
+        70,
+      ),
+      logisticsField(
+        "LOG_STATUS",
+        "业务状态",
+        "READONLY_STATUS",
+        false,
+        true,
+        80,
+      ),
+    ],
+    actions: [],
+  };
+}
+
+function logisticsField(
+  code,
+  label,
+  controlType,
+  required,
+  readOnly,
+  sortOrder,
+  unit = null,
+) {
+  return {
+    code,
+    label,
+    controlType,
+    unit,
+    precision: controlType === "DECIMAL" ? 18 : null,
+    scale: controlType === "DECIMAL" ? 4 : null,
+    required,
+    readOnly,
+    sortOrder,
+    options: [],
+  };
+}
+
 let mode = "normal";
 let marketRecords = [];
+let productionRecords = [];
+let logisticsRecords = [];
 let writes = [];
 let actorHeaders = [];
+let templateDownloads = [];
+let workbookImports = [];
 
 function json(response, status, payload) {
   const body = JSON.stringify(payload);
@@ -158,6 +280,20 @@ async function readBody(request) {
   return text ? JSON.parse(text) : {};
 }
 
+async function readBytes(request) {
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
+function binary(response, bytes, contentType) {
+  response.writeHead(200, {
+    "content-length": bytes.length,
+    "content-type": contentType,
+  });
+  response.end(bytes);
+}
+
 function listItem(record) {
   return {
     id: record.id,
@@ -171,11 +307,39 @@ function listItem(record) {
   };
 }
 
+function productionListItem(record) {
+  return {
+    id: record.id,
+    values: {
+      PROD_OBJECT_TYPE: record.objectTypeCode,
+      PROD_REGION: record.regionCode,
+      PROD_SURVEY_DATE: record.surveyDate,
+      PROD_CULTIVAR: record.submissionMetadata.PROD_CULTIVAR_NAME,
+      PROD_AREA_MU: record.cultivatedAreaMu,
+      PROD_YIELD_PER_MU: record.yieldPerMuKilograms,
+      PROD_ESTIMATED_OUTPUT: record.estimatedOutputKilograms,
+      PROD_REPORTED_AT: record.reportedAt,
+      PROD_STATUS: record.status,
+      ...record.submissionMetadata,
+      ...record.quality,
+      ...record.costs,
+      ...record.insurance,
+      ...record.subsidies,
+    },
+    allowedActions: record.allowedActions,
+    version: record.version,
+  };
+}
+
 function reset() {
   mode = "normal";
   marketRecords = [];
+  productionRecords = [];
+  logisticsRecords = [];
   writes = [];
   actorHeaders = [];
+  templateDownloads = [];
+  workbookImports = [];
 }
 
 const server = createServer(async (request, response) => {
@@ -205,7 +369,13 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (method === "GET" && url.pathname === "/__e2e/state") {
-    data(response, { actorHeaders, mode, writes });
+    data(response, {
+      actorHeaders,
+      mode,
+      templateDownloads,
+      workbookImports,
+      writes,
+    });
     return;
   }
 
@@ -276,14 +446,39 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (method === "GET" && url.pathname === "/api/v1/master-data/object-types") {
-    data(response, empty ? [] : objectTypes);
+    const domain = url.searchParams.get("domain");
+    data(
+      response,
+      empty
+        ? []
+        : domain === "PRODUCTION"
+          ? productionObjectTypes
+          : marketObjectTypes,
+    );
+    return;
+  }
+  if (
+    method === "GET" &&
+    url.pathname === "/api/v1/production-record-definitions"
+  ) {
+    data(
+      response,
+      productionDefinition(
+        url.searchParams.get("productCode") ?? "CORN",
+        url.searchParams.get("objectTypeCode") ?? "FARMER",
+      ),
+    );
     return;
   }
   if (
     method === "GET" &&
     url.pathname === "/api/v1/market-record-definitions"
   ) {
-    data(response, marketDefinition);
+    data(response, {
+      ...marketDefinition,
+      productCode: url.searchParams.get("productCode") ?? "CORN",
+      objectTypeCode: url.searchParams.get("objectTypeCode") ?? "TRADER",
+    });
     return;
   }
   if (method === "POST" && url.pathname === "/api/v1/evidence-photos") {
@@ -303,6 +498,55 @@ const server = createServer(async (request, response) => {
       longitude: "",
       watermarkText: "通齐村 市场采集 已认证用户",
     });
+    return;
+  }
+  if (method === "GET" && url.pathname === "/api/v1/production-records") {
+    const productCode = url.searchParams.get("productCode");
+    data(
+      response,
+      page(
+        productionRecords
+          .filter(
+            (record) => !productCode || record.productCode === productCode,
+          )
+          .map(productionListItem),
+      ),
+    );
+    return;
+  }
+  if (method === "POST" && url.pathname === "/api/v1/production-records") {
+    const body = await readBody(request);
+    const record = {
+      id: `E2E-PRODUCTION-${productionRecords.length + 1}`,
+      productCode: body.productCode,
+      objectTypeCode: body.objectTypeCode,
+      regionCode: body.regionCode,
+      cultivarCode: null,
+      surveyDate: body.surveyDate,
+      cultivatedAreaMu: body.cultivatedAreaMu,
+      yieldPerMuKilograms: body.yieldPerMuKilograms,
+      estimatedOutputKilograms: String(
+        Number(body.cultivatedAreaMu) * Number(body.yieldPerMuKilograms),
+      ),
+      quality: body.quality,
+      costs: body.costs,
+      insurance: body.insurance,
+      subsidies: body.subsidies,
+      submissionMetadata: {
+        ...body.submissionMetadata,
+        PROD_REPORTER_NAME: "已认证用户",
+      },
+      evidencePhotos: [],
+      reportedAt: "2026-08-09T08:00:00Z",
+      status: "DRAFT",
+      returnReason: null,
+      allowedActions: ["SUBMIT"],
+      version: 1,
+    };
+    productionRecords.push(record);
+    writes.push({ action: "create-production", body });
+    actorHeaders.push(request.headers["x-actor"] ?? null);
+    json(response, 201, { data: record });
     return;
   }
   if (method === "GET" && url.pathname === "/api/v1/market-records") {
@@ -325,6 +569,114 @@ const server = createServer(async (request, response) => {
     writes.push({ action: "create-market", body });
     actorHeaders.push(request.headers["x-actor"] ?? null);
     data(response, record);
+    return;
+  }
+  if (
+    method === "GET" &&
+    url.pathname === "/api/v1/logistics-record-definitions"
+  ) {
+    data(
+      response,
+      logisticsDefinition(url.searchParams.get("productCode") ?? "CORN"),
+    );
+    return;
+  }
+  if (method === "GET" && url.pathname === "/api/v1/logistics-records") {
+    const productCode = url.searchParams.get("productCode");
+    data(
+      response,
+      page(
+        logisticsRecords.filter(
+          (record) => !productCode || record.productCode === productCode,
+        ),
+      ),
+    );
+    return;
+  }
+  if (method === "POST" && url.pathname === "/api/v1/logistics-records") {
+    const body = await readBody(request);
+    const record = {
+      id: `E2E-LOGISTICS-${logisticsRecords.length + 1}`,
+      productCode: body.productCode,
+      values: {
+        ...body.values,
+        LOG_REPORTER: "已认证用户",
+        LOG_REPORTED_AT: "2026-08-09T08:00:00Z",
+        LOG_STATUS: "DRAFT",
+      },
+      displayValues: {
+        ...body.values,
+        LOG_REPORTER: "已认证用户",
+        LOG_REPORTED_AT: "2026-08-09 16:00",
+        LOG_STATUS: "草稿",
+      },
+      status: "DRAFT",
+      returnReason: null,
+      allowedActions: ["SUBMIT"],
+      version: 1,
+    };
+    logisticsRecords.push(record);
+    writes.push({ action: "create-logistics", body });
+    actorHeaders.push(request.headers["x-actor"] ?? null);
+    json(response, 201, { data: record });
+    return;
+  }
+
+  const template =
+    /^\/api\/v1\/imports\/(production|market|logistics)\/template$/u.exec(
+      url.pathname,
+    );
+  if (method === "GET" && template) {
+    const [, domain] = template;
+    templateDownloads.push({
+      domain,
+      objectTypeCode: url.searchParams.get("objectTypeCode"),
+      productCode: url.searchParams.get("productCode"),
+    });
+    binary(
+      response,
+      Buffer.from(
+        `${domain.toUpperCase()}-${url.searchParams.get("productCode")}-WORKBOOK`,
+      ),
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    return;
+  }
+
+  const workbookImport =
+    /^\/api\/v1\/imports\/(production|market|logistics)$/u.exec(url.pathname);
+  if (method === "POST" && workbookImport) {
+    const [, domain] = workbookImport;
+    const bytes = await readBytes(request);
+    const body = bytes.toString("utf8");
+    const productCode = url.searchParams.get("productCode");
+    const embeddedProduct = ["CORN", "SOYBEAN", "RICE"].find((code) =>
+      body.includes(`${code}-WORKBOOK`),
+    );
+    workbookImports.push({
+      domain,
+      embeddedProduct,
+      objectTypeCode: url.searchParams.get("objectTypeCode"),
+      productCode,
+    });
+    if (embeddedProduct && embeddedProduct !== productCode) {
+      json(response, 400, {
+        error: {
+          code: "IMPORT_CONTEXT_MISMATCH",
+          message: "工作簿与当前菜单品种不一致",
+        },
+      });
+      return;
+    }
+    json(response, 201, {
+      data: {
+        id: `E2E-IMPORT-${workbookImports.length}`,
+        domainCode: domain.toUpperCase(),
+        statusCode: "COMPLETED",
+        importedRows: 1,
+        failedRows: 0,
+      },
+    });
     return;
   }
 
