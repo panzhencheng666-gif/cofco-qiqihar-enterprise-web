@@ -20,7 +20,7 @@ test("reads service-owned work and opens its canonical business route", async ({
   await task.getByRole("button", { name: "处理市场任务" }).click();
   await expect
     .poll(() => decodeURIComponent(new URL(page.url()).hash))
-    .toBe("#/市场监测/采集任务");
+    .toBe("#/市场监测/玉米市场采集");
   await expect(
     page.getByRole("heading", { name: "市场采集", exact: true }),
   ).toBeVisible();

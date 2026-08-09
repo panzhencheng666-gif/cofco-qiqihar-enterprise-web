@@ -56,6 +56,7 @@ import {
   apiPendingShellIdentity,
 } from "./runtimeIdentity";
 import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
+import { createFormalRoute } from "./formalEnterpriseModel";
 
 export interface FormalEnterprisePrototypeProps {
   initialSearch?: string;
@@ -77,6 +78,37 @@ function routeProductCode(section: string): RealtimeProductCode | null {
   if (section.startsWith("rice-") || section.startsWith("paddy-"))
     return "RICE";
   return null;
+}
+
+function realtimeEntryRoute(
+  application: "production" | "market",
+  productId: string | null,
+) {
+  const normalizedProduct = productId?.toUpperCase();
+  if (
+    normalizedProduct !== "CORN" &&
+    normalizedProduct !== "SOYBEAN" &&
+    normalizedProduct !== "RICE"
+  )
+    return null;
+  const product =
+    normalizedProduct === "SOYBEAN"
+      ? "soybean"
+      : normalizedProduct === "RICE"
+        ? "paddy"
+        : "corn";
+  if (application === "production") {
+    if (product === "soybean")
+      return createFormalRoute("production", "soybean-collection");
+    if (product === "paddy")
+      return createFormalRoute("production", "rice-collection");
+    return createFormalRoute("production", "corn-collection");
+  }
+  if (product === "soybean")
+    return createFormalRoute("market", "soybean-collection");
+  if (product === "paddy")
+    return createFormalRoute("market", "paddy-collection");
+  return createFormalRoute("market", "corn-collection");
 }
 
 const scopeIssueLabels: Readonly<
@@ -281,20 +313,32 @@ export function FormalEnterprisePrototype({
   };
   const openBusinessWork = (...parameters: Parameters<typeof navigate>) => {
     const [route, selection] = parameters;
-    const productCode = routeProductCode(route.section);
+    const selectedWorkItem =
+      realtimeMode && selection?.type === "work-item"
+        ? operationalState.workItems.find(
+            ({ workId }) => workId === selection.id,
+          )
+        : undefined;
+    const resolvedEntryRoute =
+      selectedWorkItem &&
+      (route.application === "production" || route.application === "market")
+        ? realtimeEntryRoute(route.application, selectedWorkItem.productId)
+        : null;
+    const effectiveRoute = resolvedEntryRoute ?? route;
+    const productCode = routeProductCode(effectiveRoute.section);
     if (productCode) setRealtimeEntryProductCode(productCode);
     setRealtimeEntryDomain(
       realtimeMode && selection?.type === "work-item" && productCode
-        ? route.application === "production"
+        ? effectiveRoute.application === "production"
           ? "production"
-          : route.application === "market"
-            ? route.section.endsWith("-logistics")
+          : effectiveRoute.application === "market"
+            ? effectiveRoute.section.endsWith("-logistics")
               ? "logistics"
               : "market"
             : null
         : null,
     );
-    navigate(...parameters);
+    navigate(effectiveRoute, selection);
   };
   const {
     workItems,
