@@ -383,6 +383,15 @@ const server = createServer(async (request, response) => {
     json(response, 404, { code: "NOT_FOUND", message: "Not found" });
     return;
   }
+  if (method === "GET" && url.pathname === "/api/v1/business-events/stream") {
+    response.writeHead(200, {
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "Content-Type": "text/event-stream",
+    });
+    response.write(": controlled stream ready\n\n");
+    return;
+  }
   if (mode === "failure") {
     json(response, 200, {
       error: {
@@ -394,6 +403,10 @@ const server = createServer(async (request, response) => {
   }
 
   const empty = mode === "empty";
+  if (method === "GET" && url.pathname === "/api/v1/notifications") {
+    data(response, { items: [], unreadCount: 0 });
+    return;
+  }
   if (method === "GET" && url.pathname === "/api/v1/session/me") {
     data(response, {
       subjectId: "server-user",
