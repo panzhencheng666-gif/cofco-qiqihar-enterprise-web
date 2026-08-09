@@ -52,15 +52,18 @@ function client() {
   });
   const post = vi.fn(() => Promise.resolve({ id: "1", version: 0 }));
   const download = vi.fn(() => Promise.resolve(new Blob(["report"])));
-  const upload = vi.fn((path: string, body: FormData) => {
-    void path;
-    void body;
-    return Promise.resolve({
-      id: "photo-1",
-      state: "STAGED",
-      originalFilename: "field.png",
-    });
-  });
+  const upload = vi.fn(
+    (path: string, body: FormData, headers?: Record<string, string>) => {
+      void path;
+      void body;
+      void headers;
+      return Promise.resolve({
+        id: "photo-1",
+        state: "STAGED",
+        originalFilename: "field.png",
+      });
+    },
+  );
   const api = {
     get,
     post,
@@ -199,24 +202,17 @@ describe("realtime business repository", () => {
     await repository.importMarketWorkbook?.(workbook, "SOYBEAN", "TRADER");
     await repository.importLogisticsWorkbook?.(workbook, "RICE");
 
-    expect(upload).toHaveBeenNthCalledWith(
-      1,
+    const expectedPaths = [
       "/api/v1/imports/production?productCode=CORN&objectTypeCode=FARMER",
-      expect.any(FormData),
-      expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
-    );
-    expect(upload).toHaveBeenNthCalledWith(
-      2,
       "/api/v1/imports/market?productCode=SOYBEAN&objectTypeCode=TRADER",
-      expect.any(FormData),
-      expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
-    );
-    expect(upload).toHaveBeenNthCalledWith(
-      3,
       "/api/v1/imports/logistics?productCode=RICE",
-      expect.any(FormData),
-      expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
-    );
+    ];
+    expectedPaths.forEach((path, index) => {
+      const call = upload.mock.calls[index];
+      expect(call?.[0]).toBe(path);
+      expect(call?.[1]).toBeInstanceOf(FormData);
+      expect(call?.[2]?.["Idempotency-Key"]).toMatch(/^[0-9a-f-]{36}$/u);
+    });
   });
 
   it("creates a scoped report preview before exporting its immutable result", async () => {
