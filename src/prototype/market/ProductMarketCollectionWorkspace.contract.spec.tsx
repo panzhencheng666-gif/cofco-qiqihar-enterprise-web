@@ -17,7 +17,8 @@ describe("市场列表字段契约", () => {
         core("MKT_SAMPLE_NAME", "填报对象/客户名称"),
         core("MKT_REPORTER_NAME", "填报人"),
         core("MKT_REPORTER_PHONE", "填报人联系方式"),
-        core("MKT_ACTUAL_TRADE_PRICE", "实际成交价", "元/吨"),
+        core("MKT_PURCHASE_BASE_PRICE", "对象采购价格", "元/吨"),
+        core("MKT_SALE_BASE_PRICE", "对象销售价格", "元/吨"),
       ],
       groups: [
         {
@@ -37,7 +38,8 @@ describe("市场列表字段契约", () => {
     expect(groups.flatMap(({ fields }) => fields.map(({ id }) => id))).toEqual([
       "MKT_REPORTER_NAME",
       "MKT_REPORTER_PHONE",
-      "MKT_ACTUAL_TRADE_PRICE",
+      "MKT_PURCHASE_BASE_PRICE",
+      "MKT_SALE_BASE_PRICE",
       "OPENING_INVENTORY",
       "STOCK_OUTFLOW",
       "ENDING_INVENTORY",
@@ -60,7 +62,9 @@ function core(code: string, label: string, unit: string | null = null) {
     code,
     label,
     controlType:
-      code === "MKT_ACTUAL_TRADE_PRICE" ? "READONLY_DECIMAL" : "TEXT",
+      code === "MKT_PURCHASE_BASE_PRICE" || code === "MKT_SALE_BASE_PRICE"
+        ? "DECIMAL"
+        : "TEXT",
     unit,
     description: null,
     capability: null,

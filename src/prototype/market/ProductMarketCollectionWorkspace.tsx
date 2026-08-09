@@ -180,7 +180,6 @@ function marketValue(workId: string, fieldId: string): string {
 
 const marketFieldCodeByCapability: Readonly<Record<string, string>> = {
   purchasePrice: "MKT_PURCHASE_BASE_PRICE",
-  transactionPrice: "MKT_ACTUAL_TRADE_PRICE",
   salesPrice: "MKT_SALE_BASE_PRICE",
   purchaseVolume: "PURCHASE_VOLUME",
   salesVolume: "SALES_VOLUME",

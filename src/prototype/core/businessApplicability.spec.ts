@@ -93,8 +93,8 @@ describe("grain business applicability", () => {
       expect(fields.map(({ id }) => id)).toEqual(
         expect.arrayContaining([
           "purchasePrice",
+          "salesPrice",
           "purchaseVolume",
-          "transactionPrice",
           "wagonPrice",
           "freight",
           "packaging",
@@ -108,7 +108,7 @@ describe("grain business applicability", () => {
     },
   );
 
-  it("makes the transaction-price composition explicit for every procurement object", () => {
+  it("captures both surveyed-object prices for every procurement object", () => {
     for (const objectType of [
       "trader",
       "deep-processing",
@@ -119,9 +119,9 @@ describe("grain business applicability", () => {
         ({ id }) => id === "procurement",
       );
       expect(procurement?.fields.map(({ label }) => label)).toEqual([
-        "采购价",
+        "对象采购价格",
+        "对象销售价格",
         "采购量",
-        "实际成交价",
         "车板价",
         "运费",
         "包装形态",
@@ -129,7 +129,7 @@ describe("grain business applicability", () => {
     }
   });
 
-  it("keeps base sales price separate from the all-in transaction price", () => {
+  it("keeps both surveyed-object prices visible without a direction field", () => {
     const traderFields = getMarketCapabilityGroups("corn", "trader").flatMap(
       ({ fields }) => fields,
     );
@@ -141,13 +141,14 @@ describe("grain business applicability", () => {
     for (const fields of [traderFields, wholesaleFields]) {
       expect(fields.map(({ id }) => id)).toEqual(
         expect.arrayContaining([
+          "purchasePrice",
           "salesPrice",
-          "transactionPrice",
           "wagonPrice",
           "freight",
           "packaging",
         ]),
       );
+      expect(fields.map(({ id }) => id)).not.toContain("transactionPrice");
     }
   });
 

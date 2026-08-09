@@ -112,7 +112,8 @@ describe("market monitoring workspace", () => {
     );
     const table = screen.getByRole("table", { name: "稻谷市场采集表" });
     for (const label of [
-      "采购价",
+      "对象采购价格",
+      "对象销售价格",
       "采购量",
       "水分",
       "出米率",
@@ -127,19 +128,19 @@ describe("market monitoring workspace", () => {
     }
   });
 
-  it("explains base prices and the all-in transaction price in the worktable header", () => {
+  it("explains both surveyed-object prices in the worktable header", () => {
     renderWorkspace("corn-collection");
 
     const table = screen.getByRole("table", { name: "玉米市场采集表" });
     expect(
-      within(table).getByRole("columnheader", { name: "采购价" }),
+      within(table).getByRole("columnheader", { name: "对象采购价格" }),
     ).toHaveTextContent("未含车板、包装、运费");
     expect(
-      within(table).getByRole("columnheader", { name: "销售价" }),
+      within(table).getByRole("columnheader", { name: "对象销售价格" }),
     ).toHaveTextContent("未含车板、包装、运费");
     expect(
-      within(table).getByRole("columnheader", { name: "实际成交价" }),
-    ).toHaveTextContent("含车板、包装、运费");
+      within(table).queryByRole("columnheader", { name: "实际成交价" }),
+    ).not.toBeInTheDocument();
     for (const condition of ["车板价", "运费", "包装形态"]) {
       expect(
         within(table).getByRole("columnheader", { name: condition }),
@@ -174,7 +175,10 @@ describe("market monitoring workspace", () => {
         within(table).getByText(new RegExp(`${productLabel}质量`)),
       ).toBeVisible();
       expect(
-        within(table).getByRole("columnheader", { name: "采购价" }),
+        within(table).getByRole("columnheader", { name: "对象采购价格" }),
+      ).toBeVisible();
+      expect(
+        within(table).getByRole("columnheader", { name: "对象销售价格" }),
       ).toBeVisible();
       expect(
         within(table).getByRole("columnheader", { name: "期末库存" }),

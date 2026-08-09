@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   definitionFields,
+  marketPayloadFromValues,
   productionCoreFields,
   productionMetadataFields,
   productionPayloadFromValues,
@@ -176,7 +177,56 @@ describe("realtime record form model", () => {
       subsidies: { SUBSIDY_AMOUNT: "800" },
     });
   });
+
+  it("submits both surveyed-object prices without a platform trade direction", () => {
+    const definition = {
+      productCode: "CORN",
+      objectTypeCode: "TRADER",
+      coreFields: [
+        marketCoreField("MKT_PURCHASE_BASE_PRICE", "对象采购价格"),
+        marketCoreField("MKT_SALE_BASE_PRICE", "对象销售价格"),
+      ],
+      groups: [],
+    };
+
+    expect(
+      marketPayloadFromValues(
+        {
+          MKT_PURCHASE_BASE_PRICE: "4380",
+          MKT_SALE_BASE_PRICE: "4420",
+          MKT_TRADE_DIRECTION: "SALE",
+          MKT_ACTUAL_TRADE_PRICE: "4420",
+        },
+        "CORN",
+        definition,
+      ),
+    ).toEqual({
+      productCode: "CORN",
+      coreValues: {
+        MKT_PURCHASE_BASE_PRICE: "4380",
+        MKT_SALE_BASE_PRICE: "4420",
+      },
+      facts: {},
+      evidencePhotoIds: [],
+    });
+  });
 });
+
+function marketCoreField(code: string, label: string) {
+  return {
+    code,
+    label,
+    controlType: "DECIMAL" as const,
+    unit: "元/吨",
+    description: null,
+    capability: null,
+    required: true,
+    precision: 18,
+    scale: 4,
+    sortOrder: 10,
+    options: [],
+  };
+}
 
 function definitionField(code: string, label: string) {
   return {
