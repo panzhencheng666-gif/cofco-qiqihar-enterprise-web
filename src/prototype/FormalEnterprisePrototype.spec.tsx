@@ -45,6 +45,266 @@ afterEach(() => {
 });
 
 describe("formal enterprise prototype", () => {
+  it("opens a pending production item as an administrator review of its source record", async () => {
+    const user = userEvent.setup();
+    const getProduction = vi.fn(() =>
+      Promise.resolve({
+        id: "production-source-17",
+        productCode: "CORN",
+        objectTypeCode: "FARMER",
+        regionCode: "230221101001",
+        cultivarCode: null,
+        surveyDate: "2026-08-09",
+        cultivatedAreaMu: "120",
+        yieldPerMuKilograms: "475",
+        quality: {},
+        costs: {},
+        insurance: {},
+        subsidies: {},
+        submissionMetadata: {},
+        reportedAt: "2026-08-09T10:00:00+08:00",
+        estimatedOutputKilograms: "57000",
+        status: "PENDING_REVIEW",
+        returnReason: null,
+        allowedActions: ["APPROVE", "RETURN"],
+        evidencePhotos: [],
+        version: 1,
+      }),
+    );
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.resolve({
+          subjectId: "employee-17",
+          displayName: "业务员工",
+          workUnitCode: "QIQIHAR_BUSINESS",
+          permissions: ["BUSINESS_APPROVE", "BUSINESS_RETURN"],
+          regionCodes: ["230221101001"],
+        }),
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [{ code: "CORN", name: "玉米" }],
+          periods: [
+            {
+              code: "2026-W32",
+              name: "2026 年第 32 周",
+              startsOn: "2026-08-03",
+              endsOn: "2026-08-09",
+            },
+          ],
+          regions: [],
+        }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [
+            {
+              id: "work-item-17",
+              task: "玉米产情待处理单据",
+              domain: "PRODUCTION",
+              regionCode: "230221101001",
+              region: "通齐村",
+              product: "玉米",
+              businessPeriod: "2026-W32",
+              dueAt: null,
+              workflowNode: "审核",
+              statusCode: "PENDING_REVIEW",
+              status: "待审核",
+              responsiblePartyCode: "employee-17",
+              responsibleParty: "业务员工",
+              sourceType: "PRODUCTION",
+              sourceId: "production-source-17",
+            },
+          ],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 1,
+          totalPages: 1,
+        }),
+      listObjectTypes: () =>
+        Promise.resolve([
+          { code: "FARMER", name: "农户", domain: "PRODUCTION" },
+        ]),
+      listProduction: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      loadProductionDefinition: () =>
+        Promise.resolve({
+          productCode: "CORN",
+          objectTypeCode: "FARMER",
+          groups: [],
+        }),
+      getProduction,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "审核产情单据" }),
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "产情单据审核",
+    });
+    expect(dialog).toBeVisible();
+    await waitFor(() =>
+      expect(getProduction).toHaveBeenCalledWith("production-source-17"),
+    );
+    expect(within(dialog).getByLabelText("调查日期")).toHaveValue("2026-08-09");
+    expect(within(dialog).getByLabelText("调查日期")).toBeDisabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "保存业务记录" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens a pending logistics work item against the original logistics record", async () => {
+    const user = userEvent.setup();
+    const getLogistics = vi.fn(() =>
+      Promise.resolve({
+        id: "logistics-source-17",
+        productCode: "CORN",
+        values: {
+          LOG_REPORTER: "物流填报员",
+          ROUTE_VOLUME: "120.0000",
+        },
+        displayValues: {
+          LOG_REPORTER: "物流填报员",
+          ROUTE_VOLUME: "120.0000",
+        },
+        status: "PENDING_REVIEW",
+        returnReason: null,
+        allowedActions: ["APPROVE", "RETURN"],
+        version: 2,
+      }),
+    );
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.resolve({
+          subjectId: "logistics-reviewer",
+          displayName: "物流审核员",
+          workUnitCode: "QIQIHAR_BUSINESS",
+          permissions: ["BUSINESS_APPROVE", "BUSINESS_RETURN"],
+          regionCodes: ["230202"],
+        }),
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [{ code: "CORN", name: "玉米" }],
+          periods: [
+            {
+              code: "2026-W32",
+              name: "2026 年第 32 周",
+              startsOn: "2026-08-03",
+              endsOn: "2026-08-09",
+            },
+          ],
+          regions: [],
+        }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [
+            {
+              id: "work-logistics-17",
+              task: "物流监测 · logistics-source-17",
+              domain: "MARKET",
+              regionCode: "230202",
+              region: "龙沙区",
+              product: "玉米",
+              businessPeriod: "2026-W32",
+              dueAt: null,
+              workflowNode: "审核",
+              statusCode: "TO_REVIEW",
+              status: "待审核",
+              responsiblePartyCode: "logistics-reviewer",
+              responsibleParty: "物流审核员",
+              sourceType: "LOGISTICS",
+              sourceId: "logistics-source-17",
+            },
+          ],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 1,
+          totalPages: 1,
+        }),
+      loadLogisticsDefinition: () =>
+        Promise.resolve({
+          productCode: "CORN",
+          fields: [
+            {
+              code: "LOG_REPORTER",
+              label: "填报人",
+              controlType: "TEXT",
+              unit: null,
+              precision: null,
+              scale: null,
+              required: true,
+              readOnly: false,
+              sortOrder: 10,
+              options: [],
+            },
+            {
+              code: "ROUTE_VOLUME",
+              label: "运输数量",
+              controlType: "DECIMAL",
+              unit: "吨",
+              precision: 18,
+              scale: 4,
+              required: true,
+              readOnly: false,
+              sortOrder: 20,
+              options: [],
+            },
+          ],
+          actions: [],
+        }),
+      listLogistics: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      getLogistics,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "审核物流单据" }),
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "物流监测单据审核",
+    });
+    expect(dialog).toBeVisible();
+    await waitFor(() =>
+      expect(getLogistics).toHaveBeenCalledWith("logistics-source-17"),
+    );
+    const routeVolume = within(dialog).getByRole("spinbutton", {
+      name: /运输数量/,
+    });
+    expect(routeVolume).toHaveValue(120);
+    expect(routeVolume).toBeDisabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "保存物流记录" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("refreshes authorized business data from the durable event stream without polling", async () => {
     const user = userEvent.setup();
     let receiveBusinessEvent:
@@ -660,9 +920,7 @@ describe("formal enterprise prototype", () => {
       <FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />,
     );
 
-    await user.click(
-      screen.getAllByRole("button", { name: "处理产情单据" })[0],
-    );
+    await user.click(screen.getByRole("button", { name: "补充产情填报" }));
     const forbidden = [
       /METRIC-/i,
       /VERSION-/i,
@@ -1313,7 +1571,7 @@ describe("formal enterprise prototype", () => {
         screen.getByRole("row", {
           name: /齐齐哈尔市玉米市场运行周填报/,
         }),
-      ).getByRole("button", { name: "处理市场任务" }),
+      ).getByRole("button", { name: "继续市场填报" }),
     );
     expect(window.location.search).toBe("");
     expect(decodeURIComponent(window.location.hash)).toBe(
@@ -1341,9 +1599,7 @@ describe("formal enterprise prototype", () => {
     act(() => {
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
-    await user.click(
-      screen.getAllByRole("button", { name: "处理产情单据" })[0],
-    );
+    await user.click(screen.getByRole("button", { name: "补充产情填报" }));
     expect(window.location.search).toBe("");
     expect(decodeURIComponent(window.location.hash)).toBe(
       "#/产情监测/产情任务",
@@ -1453,7 +1709,7 @@ describe("formal enterprise prototype", () => {
         screen.getByRole("row", {
           name: /齐齐哈尔市玉米市场运行周填报/,
         }),
-      ).getByRole("button", { name: "处理市场任务" }),
+      ).getByRole("button", { name: "继续市场填报" }),
     );
 
     while (
@@ -1505,9 +1761,7 @@ describe("formal enterprise prototype", () => {
       <FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />,
     );
 
-    await user.click(
-      screen.getAllByRole("button", { name: "处理产情单据" })[0],
-    );
+    await user.click(screen.getByRole("button", { name: "补充产情填报" }));
     const yieldInput = screen.getByRole("textbox", { name: "预计单产" });
     await user.clear(yieldInput);
     await user.type(yieldInput, "470.0 公斤/亩");
@@ -1565,9 +1819,7 @@ describe("formal enterprise prototype", () => {
       <FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />,
     );
 
-    await user.click(
-      screen.getAllByRole("button", { name: "处理产情单据" })[0],
-    );
+    await user.click(screen.getByRole("button", { name: "补充产情填报" }));
     const yieldInput = screen.getByRole("textbox", { name: "预计单产" });
     await user.clear(yieldInput);
     await user.type(yieldInput, "472.5 公斤/亩");
@@ -1578,7 +1830,11 @@ describe("formal enterprise prototype", () => {
       <FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />,
     );
     await user.click(
-      screen.getAllByRole("button", { name: "处理产情单据" })[0],
+      within(
+        screen.getByRole("row", {
+          name: /讷河市玉米长势与测产调查/,
+        }),
+      ).getByRole("button", { name: "继续产情填报" }),
     );
     expect(screen.getByRole("textbox", { name: "预计单产" })).toHaveValue(
       "472.5 公斤/亩",

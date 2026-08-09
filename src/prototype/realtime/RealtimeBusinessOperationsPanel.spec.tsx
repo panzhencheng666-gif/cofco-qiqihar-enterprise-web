@@ -17,6 +17,8 @@ afterEach(cleanup);
 
 function repository() {
   const createProduction = vi.fn();
+  const getProduction = vi.fn();
+  const transitionProduction = vi.fn();
   const uploadEvidencePhoto = vi.fn(() =>
     Promise.resolve({
       id: "photo-1",
@@ -166,10 +168,10 @@ function repository() {
         totalPages: 0,
       }),
     ),
-    getProduction: vi.fn(),
+    getProduction,
     createProduction,
     updateProduction: vi.fn(),
-    transitionProduction: vi.fn(),
+    transitionProduction,
     listMarket: vi.fn(),
     getMarket: vi.fn(),
     createMarket: vi.fn(),
@@ -177,7 +179,13 @@ function repository() {
     transitionMarket: vi.fn(),
     uploadEvidencePhoto,
   } as unknown as RealtimeBusinessRepository;
-  return { api, createProduction, uploadEvidencePhoto };
+  return {
+    api,
+    createProduction,
+    getProduction,
+    transitionProduction,
+    uploadEvidencePhoto,
+  };
 }
 
 function fillRequiredProductionFields() {
@@ -220,6 +228,218 @@ function fillRequiredProductionFields() {
 }
 
 describe("RealtimeBusinessOperationsPanel", () => {
+  it("reviews the existing source record read-only and limits decisions to assigned permissions", async () => {
+    const { api, createProduction, getProduction, transitionProduction } =
+      repository();
+    const pending = {
+      id: "production-review-1",
+      productCode: "CORN",
+      objectTypeCode: "FARMER",
+      regionCode: "230221101001",
+      cultivarCode: null,
+      surveyDate: "2026-08-08",
+      cultivatedAreaMu: "100",
+      yieldPerMuKilograms: "650",
+      quality: {},
+      costs: {},
+      insurance: {},
+      subsidies: {},
+      submissionMetadata: { PROD_SAMPLE_NAME: "龙东村样本户" },
+      reportedAt: "2026-08-08T10:00:00+08:00",
+      estimatedOutputKilograms: "65000",
+      status: "PENDING_REVIEW",
+      returnReason: null,
+      allowedActions: ["APPROVE", "RETURN"],
+      evidencePhotos: [
+        {
+          id: "photo-review-1",
+          originalFilename: "field.png",
+          mediaType: "image/png",
+          byteLength: 12,
+          sha256: "a".repeat(64),
+          capturedAt: "2026-08-08T10:00:00+08:00",
+          latitude: "47.3543",
+          longitude: "123.9182",
+          watermarkText: "龙东村 王洋",
+          state: "ATTACHED",
+        },
+      ],
+      version: 3,
+    };
+    getProduction.mockResolvedValue(pending);
+    transitionProduction.mockResolvedValue({
+      ...pending,
+      status: "APPROVED",
+      allowedActions: [],
+      version: 4,
+    });
+    const onSaved = vi.fn();
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="系统管理员"
+        domain="production"
+        editorOnly
+        initialRecordId={pending.id}
+        lockedProductCode="CORN"
+        mode="review"
+        onSaved={onSaved}
+        permissions={["BUSINESS_APPROVE", "BUSINESS_RETURN"]}
+        repository={api}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "产情单据审核" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("调查日期")).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "保存业务记录" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("新建填报")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "field.png" })).toHaveAttribute(
+      "href",
+      "/api/v1/evidence-photos/photo-review-1/content",
+    );
+    expect(screen.getByRole("button", { name: "审核通过" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "退回补充" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "审核通过" }));
+    await waitFor(() =>
+      expect(transitionProduction).toHaveBeenCalledWith(
+        pending.id,
+        "approve",
+        3,
+        undefined,
+      ),
+    );
+    expect(createProduction).not.toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not expose review decisions without assigned review permissions", async () => {
+    const { api, getProduction } = repository();
+    getProduction.mockResolvedValue({
+      id: "production-review-2",
+      productCode: "CORN",
+      objectTypeCode: "FARMER",
+      regionCode: "230221101001",
+      cultivarCode: null,
+      surveyDate: "2026-08-08",
+      cultivatedAreaMu: "100",
+      yieldPerMuKilograms: "650",
+      quality: {},
+      costs: {},
+      insurance: {},
+      subsidies: {},
+      submissionMetadata: {},
+      reportedAt: "2026-08-08T10:00:00+08:00",
+      estimatedOutputKilograms: "65000",
+      status: "PENDING_REVIEW",
+      returnReason: null,
+      allowedActions: ["APPROVE", "RETURN"],
+      evidencePhotos: [],
+      version: 1,
+    });
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="未授权审核岗位员工"
+        domain="production"
+        editorOnly
+        initialRecordId="production-review-2"
+        lockedProductCode="CORN"
+        mode="review"
+        permissions={["BUSINESS_CREATE", "BUSINESS_UPDATE"]}
+        repository={api}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "产情单据审核" });
+    expect(
+      screen.queryByRole("button", { name: "审核通过" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "退回补充" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/当前账号无可执行的审核操作/)).toBeVisible();
+  });
+
+  it("does not expose editable actions after a record leaves an editable state", async () => {
+    const { api, getProduction } = repository();
+    getProduction.mockResolvedValue({
+      id: "production-pending-locked-1",
+      productCode: "CORN",
+      objectTypeCode: "FARMER",
+      regionCode: "230221101001",
+      cultivarCode: null,
+      surveyDate: "2026-08-08",
+      cultivatedAreaMu: "100",
+      yieldPerMuKilograms: "650",
+      quality: {},
+      costs: {},
+      insurance: {},
+      subsidies: {},
+      submissionMetadata: {},
+      reportedAt: "2026-08-08T10:00:00+08:00",
+      estimatedOutputKilograms: "65000",
+      status: "PENDING_REVIEW",
+      returnReason: null,
+      allowedActions: ["APPROVE", "RETURN"],
+      evidencePhotos: [],
+      version: 1,
+    });
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="产情填报员"
+        domain="production"
+        editorOnly
+        initialRecordId="production-pending-locked-1"
+        lockedProductCode="CORN"
+        mode="entry"
+        repository={api}
+      />,
+    );
+
+    expect(await screen.findByLabelText("调查日期")).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "保存业务记录" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "提交审核" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("fails closed when an existing source record cannot be loaded", async () => {
+    const { api, createProduction, getProduction } = repository();
+    getProduction.mockRejectedValue(new Error("record unavailable"));
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="张三"
+        domain="production"
+        editorOnly
+        initialRecordId="production-source-missing"
+        lockedProductCode="CORN"
+        repository={api}
+      />,
+    );
+
+    expect(
+      screen.queryByText("新建填报", { selector: "strong" }),
+    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "业务记录读取失败",
+    );
+    expect(
+      screen.getByText("原业务记录读取失败", { selector: "strong" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "保存业务记录" })).toBeDisabled();
+    expect(screen.queryByLabelText("现场水印照片")).not.toBeInTheDocument();
+    expect(createProduction).not.toHaveBeenCalled();
+  });
+
   it("does not poll because durable business events own refresh timing", async () => {
     const interval = vi.spyOn(window, "setInterval");
     render(
@@ -238,6 +458,66 @@ describe("RealtimeBusinessOperationsPanel", () => {
       false,
     );
     interval.mockRestore();
+  });
+
+  it("does not overwrite unsaved production edits when a business event arrives", async () => {
+    const { api, getProduction } = repository();
+    const listProduction = vi.spyOn(api, "listProduction");
+    const record = {
+      id: "production-live-dirty-1",
+      productCode: "CORN",
+      objectTypeCode: "FARMER",
+      regionCode: "230221101001",
+      cultivarCode: "龙单86",
+      surveyDate: "2026-08-08",
+      cultivatedAreaMu: "100",
+      yieldPerMuKilograms: "650",
+      quality: {},
+      costs: {},
+      insurance: {},
+      subsidies: {},
+      submissionMetadata: { PROD_OPENING_INVENTORY: "10" },
+      reportedAt: "2026-08-08T10:00:00+08:00",
+      estimatedOutputKilograms: "65000",
+      status: "RETURNED",
+      returnReason: "请补充库存",
+      allowedActions: ["SAVE", "SUBMIT"],
+      evidencePhotos: [],
+      version: 2,
+    } as const;
+    getProduction.mockResolvedValue(record);
+
+    const view = render(
+      <RealtimeBusinessOperationsPanel
+        actorName="产情填报员"
+        domain="production"
+        editorOnly
+        initialRecordId={record.id}
+        lockedProductCode="CORN"
+        mode="entry"
+        refreshToken={0}
+        repository={api}
+      />,
+    );
+    const inventory = await screen.findByLabelText(/期初库存/);
+    fireEvent.change(inventory, { target: { value: "25" } });
+
+    view.rerender(
+      <RealtimeBusinessOperationsPanel
+        actorName="产情填报员"
+        domain="production"
+        editorOnly
+        initialRecordId={record.id}
+        lockedProductCode="CORN"
+        mode="entry"
+        refreshToken={1}
+        repository={api}
+      />,
+    );
+
+    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
+    expect(getProduction).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText(/期初库存/)).toHaveValue("25");
   });
 
   it("captures both surveyed-object prices without a direction selector", async () => {
@@ -410,7 +690,10 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "该记录不属于当前菜单品种，无法打开",
     );
-    expect(screen.getByText("新建填报", { selector: "strong" })).toBeVisible();
+    expect(
+      screen.getByText("原业务记录读取失败", { selector: "strong" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "保存业务记录" })).toBeDisabled();
   });
 
   it("searches the authorized region list before selecting a region", async () => {

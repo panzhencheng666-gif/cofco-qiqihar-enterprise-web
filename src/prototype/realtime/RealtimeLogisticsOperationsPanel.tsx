@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -17,6 +18,8 @@ import {
   awaitBusinessImport,
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
+
+type PanelMode = "entry" | "view" | "review";
 
 function statusLabel(status: string): string {
   return (
@@ -43,6 +46,9 @@ export function RealtimeLogisticsOperationsPanel({
   actorName = "当前登录员工",
   repository = realtimeBusinessRepository,
   editorOnly = false,
+  mode = "entry",
+  permissions = [],
+  refreshToken = 0,
   initialRecordId,
   onCancel,
   onRecordsChanged,
@@ -52,6 +58,9 @@ export function RealtimeLogisticsOperationsPanel({
   actorName?: string;
   repository?: RealtimeBusinessRepository;
   editorOnly?: boolean;
+  mode?: PanelMode;
+  permissions?: readonly string[];
+  refreshToken?: number;
   initialRecordId?: string;
   onCancel?: () => void;
   onRecordsChanged?: () => void;
@@ -62,6 +71,11 @@ export function RealtimeLogisticsOperationsPanel({
   );
   const [records, setRecords] = useState<readonly LogisticsRecordRow[]>([]);
   const [selected, setSelected] = useState<LogisticsRecordRow | null>(null);
+  const selectedRecordId = useRef<string | undefined>(initialRecordId);
+  const formDirty = useRef(false);
+  const [recordLoadState, setRecordLoadState] = useState<
+    "new" | "loading" | "loaded" | "failed"
+  >(initialRecordId ? "loading" : "new");
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -103,7 +117,10 @@ export function RealtimeLogisticsOperationsPanel({
   }, [productCode, repository]);
 
   function newRecord() {
+    formDirty.current = false;
     setSelected(null);
+    selectedRecordId.current = undefined;
+    setRecordLoadState("new");
     setValues(
       Object.fromEntries(
         editableFields.map((field) => [
@@ -118,28 +135,68 @@ export function RealtimeLogisticsOperationsPanel({
 
   const openRecord = useCallback(
     async (id: string) => {
+      selectedRecordId.current = id;
+      setRecordLoadState("loading");
+      setSelected(null);
       setBusy(true);
       setError("");
       try {
         const record = await repository.getLogistics(id);
+        if (record.productCode.trim().toUpperCase() !== productCode) {
+          setRecordLoadState("failed");
+          setError("该物流记录不属于当前菜单品种，无法打开。");
+          return;
+        }
         setSelected(record);
+        formDirty.current = false;
+        setRecordLoadState("loaded");
         setValues(record.values);
         setMessage("已读取物流记录");
       } catch {
+        setRecordLoadState("failed");
         setError("物流记录读取失败，请稍后重试。");
       } finally {
         setBusy(false);
       }
     },
-    [repository],
+    [productCode, repository],
   );
 
   useEffect(() => {
-    if (initialRecordId) void openRecord(initialRecordId);
+    let cancelled = false;
+    if (initialRecordId) {
+      void Promise.resolve().then(() => {
+        if (!cancelled) return openRecord(initialRecordId);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
   }, [initialRecordId, openRecord]);
+
+  useEffect(() => {
+    if (refreshToken < 1) return;
+    const recordId = selectedRecordId.current ?? initialRecordId;
+    void Promise.resolve().then(async () => {
+      await reload();
+      if (recordId && !formDirty.current) await openRecord(recordId);
+    });
+  }, [initialRecordId, openRecord, refreshToken, reload]);
 
   async function save(event: FormEvent) {
     event.preventDefault();
+    if (mode !== "entry") {
+      setError("当前为只读处理界面，不能修改或新建物流记录。");
+      return;
+    }
+    if (selected && !actions.has("SAVE")) {
+      setError("该物流单据当前状态不允许修改，请按服务端分配的业务动作处理。");
+      return;
+    }
+    if (recordLoadState === "loading" || recordLoadState === "failed") {
+      setError("原物流记录尚未成功读取，不能按新建记录保存。");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -157,6 +214,7 @@ export function RealtimeLogisticsOperationsPanel({
             values: editableValues,
           });
       setSelected(record);
+      formDirty.current = false;
       setValues(record.values);
       await reload();
       onRecordsChanged?.();
@@ -171,6 +229,13 @@ export function RealtimeLogisticsOperationsPanel({
 
   async function transition(action: "submit" | "approve" | "return") {
     if (!selected) return;
+    if (
+      (action === "approve" && !permissions.includes("BUSINESS_APPROVE")) ||
+      (action === "return" && !permissions.includes("BUSINESS_RETURN"))
+    ) {
+      setError("当前账号没有该业务审核权限。");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -181,11 +246,14 @@ export function RealtimeLogisticsOperationsPanel({
         action === "return" ? returnReason : undefined,
       );
       setSelected(record);
+      formDirty.current = false;
       setValues(record.values);
       await reload();
       setMessage(
         `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : "退回"}成功`,
       );
+      onRecordsChanged?.();
+      if (mode === "review" && action !== "submit") onSaved?.();
     } catch {
       setError("物流记录处理失败，请稍后重试。");
     } finally {
@@ -279,15 +347,55 @@ export function RealtimeLogisticsOperationsPanel({
   const actions = new Set(
     selected?.allowedActions.map((action) => action.toUpperCase()) ?? [],
   );
+  const canSave = mode === "entry" && (!selected || actions.has("SAVE"));
+  const readOnlyMode =
+    mode === "view" || mode === "review" || (Boolean(selected) && !canSave);
+  const canApprove =
+    mode === "review" &&
+    permissions.includes("BUSINESS_APPROVE") &&
+    actions.has("APPROVE");
+  const canReturn =
+    mode === "review" &&
+    permissions.includes("BUSINESS_RETURN") &&
+    actions.has("RETURN");
+  const existingRecordUnavailable =
+    recordLoadState === "loading" || recordLoadState === "failed";
   return (
-    <section className="realtime-business-panel" aria-label="物流监测填报">
+    <section
+      className="realtime-business-panel"
+      aria-label={
+        mode === "review"
+          ? "物流监测单据审核"
+          : mode === "view"
+            ? "物流监测记录详情"
+            : "物流监测填报"
+      }
+    >
       <header>
         <div>
-          <span>业务填报</span>
-          <h2>物流监测填报</h2>
-          <p>按当前产品和业务范围填写物流记录，提交后进入审核流程。</p>
+          <span>
+            {mode === "review"
+              ? "业务审核"
+              : mode === "view"
+                ? "业务查看"
+                : "业务填报"}
+          </span>
+          <h2>
+            {mode === "review"
+              ? "物流监测单据审核"
+              : mode === "view"
+                ? "物流监测记录详情"
+                : "物流监测填报"}
+          </h2>
+          <p>
+            {mode === "review"
+              ? "只读核对原物流单据和当前状态，通过或填写原因退回；审核不会新建记录。"
+              : mode === "view"
+                ? "只读查看原物流记录，不会修改或新建记录。"
+                : "按当前产品和业务范围填写物流记录，提交后进入审核流程。"}
+          </p>
         </div>
-        {!editorOnly && (
+        {!editorOnly && mode === "entry" && (
           <div className="realtime-business-header-actions">
             <button
               disabled={busy || importing}
@@ -366,77 +474,95 @@ export function RealtimeLogisticsOperationsPanel({
             <strong>
               {selected
                 ? `${selected.id} · ${statusLabel(selected.status)}`
-                : "新建物流记录"}
+                : recordLoadState === "loading"
+                  ? "正在读取原物流记录"
+                  : recordLoadState === "failed"
+                    ? "原物流记录读取失败"
+                    : "新建物流记录"}
             </strong>
           </header>
-          <div className="realtime-business-fields">
-            {fields.map((field) => {
-              const identityLocked = field.code === "LOG_REPORTER";
-              const readOnly = identityLocked || field.readOnly;
-              const readOnlyValue = selected
-                ? (selected.displayValues[field.code] ??
-                  values[field.code] ??
-                  (field.code === "LOG_STATUS"
-                    ? statusLabel(selected.status)
-                    : "—"))
-                : identityLocked
-                  ? actorName
-                  : "保存后由系统生成";
-              return (
-                <label key={field.code}>
-                  <span>
-                    {field.label}
-                    {field.required ? " *" : ""}
-                    {field.unit ? `（${field.unit}）` : ""}
-                  </span>
-                  {readOnly ? (
-                    <output aria-label={field.label}>{readOnlyValue}</output>
-                  ) : field.options.length > 0 ? (
-                    <select
-                      required={field.required}
-                      value={values[field.code] ?? ""}
-                      onChange={(event) =>
-                        setValues((current) => ({
-                          ...current,
-                          [field.code]: event.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">请选择</option>
-                      {field.options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      required={field.required}
-                      readOnly={field.readOnly}
-                      type={fieldInputType(field.controlType)}
-                      value={values[field.code] ?? ""}
-                      onChange={(event) =>
-                        setValues((current) => ({
-                          ...current,
-                          [field.code]: event.target.value,
-                        }))
-                      }
-                    />
-                  )}
-                </label>
-              );
-            })}
-          </div>
+          <fieldset disabled={existingRecordUnavailable || readOnlyMode}>
+            <legend>物流业务信息</legend>
+            <div className="realtime-business-fields">
+              {fields.map((field) => {
+                const identityLocked = field.code === "LOG_REPORTER";
+                const readOnly = identityLocked || field.readOnly;
+                const readOnlyValue = selected
+                  ? (selected.displayValues[field.code] ??
+                    values[field.code] ??
+                    (field.code === "LOG_STATUS"
+                      ? statusLabel(selected.status)
+                      : "—"))
+                  : identityLocked
+                    ? actorName
+                    : "保存后由系统生成";
+                return (
+                  <label key={field.code}>
+                    <span>
+                      {field.label}
+                      {field.required ? " *" : ""}
+                      {field.unit ? `（${field.unit}）` : ""}
+                    </span>
+                    {readOnly ? (
+                      <output aria-label={field.label}>{readOnlyValue}</output>
+                    ) : field.options.length > 0 ? (
+                      <select
+                        required={field.required}
+                        value={values[field.code] ?? ""}
+                        onChange={(event) =>
+                          setValues((current) => {
+                            formDirty.current = true;
+                            return {
+                              ...current,
+                              [field.code]: event.target.value,
+                            };
+                          })
+                        }
+                      >
+                        <option value="">请选择</option>
+                        {field.options.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        required={field.required}
+                        readOnly={field.readOnly}
+                        type={fieldInputType(field.controlType)}
+                        value={values[field.code] ?? ""}
+                        onChange={(event) =>
+                          setValues((current) => {
+                            formDirty.current = true;
+                            return {
+                              ...current,
+                              [field.code]: event.target.value,
+                            };
+                          })
+                        }
+                      />
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
           <div className="realtime-business-actions">
             {editorOnly && (
               <button disabled={busy} type="button" onClick={onCancel}>
                 取消并返回
               </button>
             )}
-            <button disabled={busy || !definition} type="submit">
-              保存物流记录
-            </button>
-            {selected && actions.has("SUBMIT") && (
+            {canSave && (
+              <button
+                disabled={busy || !definition || existingRecordUnavailable}
+                type="submit"
+              >
+                保存物流记录
+              </button>
+            )}
+            {mode === "entry" && selected && actions.has("SUBMIT") && (
               <button
                 disabled={busy}
                 type="button"
@@ -445,7 +571,7 @@ export function RealtimeLogisticsOperationsPanel({
                 提交审核
               </button>
             )}
-            {selected && actions.has("APPROVE") && (
+            {selected && canApprove && (
               <button
                 disabled={busy}
                 type="button"
@@ -454,7 +580,7 @@ export function RealtimeLogisticsOperationsPanel({
                 审核通过
               </button>
             )}
-            {selected && actions.has("RETURN") && (
+            {selected && canReturn && (
               <>
                 <input
                   aria-label="物流退回原因"
@@ -470,6 +596,11 @@ export function RealtimeLogisticsOperationsPanel({
                   退回补充
                 </button>
               </>
+            )}
+            {mode === "review" && selected && !canApprove && !canReturn && (
+              <p role="status">
+                当前账号无可执行的审核操作，或该单据已离开待审核状态。
+              </p>
             )}
           </div>
           <p aria-live="polite" role={error ? "alert" : "status"}>

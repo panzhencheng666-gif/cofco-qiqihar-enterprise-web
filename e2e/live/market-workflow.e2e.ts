@@ -13,18 +13,22 @@ const validPng = Buffer.from(
   "base64",
 );
 
-function recordRow(page: import("@playwright/test").Page) {
+function recordRow(page: Page) {
   return page
     .getByRole("table", { name: "大豆市场采集表" })
     .getByRole("row")
     .filter({ hasText: marketObject });
 }
 
-async function openRecord(
-  page: import("@playwright/test").Page,
-  dialogName = "市场记录处理",
+async function openWorkItem(
+  page: Page,
+  recordId: string,
+  actionName: "继续市场填报" | "补充市场填报" | "审核市场单据",
+  dialogName: "补充市场填报" | "市场单据审核",
 ) {
-  await recordRow(page).getByRole("button", { name: "查看" }).click();
+  const row = page.getByRole("row", { name: new RegExp(recordId, "u") });
+  await expect(row).toBeVisible({ timeout: 10_000 });
+  await row.getByRole("button", { name: actionName }).click();
   const dialog = page.getByRole("dialog", { name: dialogName });
   await expect(dialog).toBeVisible();
   await expect(dialog.locator("form > header strong")).toContainText(
@@ -38,26 +42,6 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   page,
   request,
 }) => {
-  const operatorListStatuses: string[] = [];
-  page.on("response", async (response) => {
-    if (
-      response.request().method() !== "GET" ||
-      !response.url().includes("/api/v1/market-records?")
-    )
-      return;
-    try {
-      const body = (await response.json()) as {
-        data?: { items?: Array<{ values?: Record<string, string> }> };
-      };
-      const status = body.data?.items?.find(
-        ({ values }) => values?.["MKT_SAMPLE_NAME"] === marketObject,
-      )?.values?.["MKT_STATUS"];
-      if (status) operatorListStatuses.push(status);
-    } catch {
-      // A malformed list response is asserted by the business UI and is not
-      // converted into test fixture data here.
-    }
-  });
   await page.addInitScript(() => {
     const NativeEventSource = window.EventSource;
     const observed: string[] = [];
@@ -69,7 +53,7 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
       constructor(url: string | URL, eventSourceInitDict?: EventSourceInit) {
         super(url, eventSourceInitDict);
         this.addEventListener("business-change", (event) => {
-          observed.push(String((event as MessageEvent).data));
+          observed.push(String(event.data));
         });
       }
     };
@@ -126,28 +110,54 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   await expect(createDialog).toHaveCount(0);
   await expect(recordRow(page)).toBeVisible();
 
-  await reviewerPage.goto(
-    `${liveBrowserAccounts.reviewer.url}/#/市场监测/大豆市场采集`,
+  const createdResponse = await request.get(
+    "/api/v1/market-records?productCode=SOYBEAN&pageKind=MONITORING&pageNumber=0&pageSize=100",
   );
-  await expect(recordRow(reviewerPage)).toBeVisible();
+  expect(createdResponse.ok()).toBe(true);
+  const createdList = (await createdResponse.json()) as {
+    data: { items: Array<{ id: string; values: Record<string, string> }> };
+  };
+  const recordId =
+    createdList.data.items.find(
+      ({ values }) => values["MKT_SAMPLE_NAME"] === marketObject,
+    )?.id ?? "";
+  expect(recordId).not.toBe("");
 
-  let operatorDialog = await openRecord(page);
+  await recordRow(page).getByRole("button", { name: "查看" }).click();
+  const viewDialog = page.getByRole("dialog", { name: "市场记录详情" });
+  await expect(viewDialog).toBeVisible();
+  await expect(viewDialog.getByLabel("来源说明")).toBeDisabled();
+  await expect(
+    viewDialog.getByRole("button", { name: "保存业务记录" }),
+  ).toHaveCount(0);
+  await viewDialog.getByRole("button", { name: "关闭市场记录详情" }).click();
+
+  await page.goto("/#/我的工作/待我处理");
+  let operatorDialog = await openWorkItem(
+    page,
+    recordId,
+    "继续市场填报",
+    "补充市场填报",
+  );
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
   await expect(operatorDialog.getByText("提交成功")).toBeVisible();
   await operatorDialog
-    .getByRole("button", { name: "关闭市场记录处理" })
+    .getByRole("button", { name: "关闭补充市场填报" })
     .click();
 
-  await expect(recordRow(reviewerPage)).toContainText("待审核", {
-    timeout: 10_000,
-  });
-  let reviewerDialog = await openRecord(reviewerPage);
+  await reviewerPage.goto(
+    `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
+  );
+  let reviewerDialog = await openWorkItem(
+    reviewerPage,
+    recordId,
+    "审核市场单据",
+    "市场单据审核",
+  );
+  await expect(reviewerDialog.getByLabel("来源说明")).toBeDisabled();
   await reviewerDialog.getByLabel("退回原因").fill("请补充采购量现场核验说明");
   await reviewerDialog.getByRole("button", { name: "退回补充" }).click();
-  await expect(reviewerDialog.getByText("退回成功")).toBeVisible();
-  await reviewerDialog
-    .getByRole("button", { name: "关闭市场记录处理" })
-    .click();
+  await expect(reviewerDialog).toHaveCount(0);
 
   await expect
     .poll(() =>
@@ -161,29 +171,35 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
       ),
     )
     .toBeGreaterThan(0);
-  await expect
-    .poll(() => operatorListStatuses.at(-1), {
-      message: `operator market list responses: ${operatorListStatuses.join(",")}`,
-    })
-    .toBe("退回补充");
-  await expect(recordRow(page)).toContainText("需补充", { timeout: 10_000 });
-  operatorDialog = await openRecord(page);
+  operatorDialog = await openWorkItem(
+    page,
+    recordId,
+    "补充市场填报",
+    "补充市场填报",
+  );
   await operatorDialog.getByLabel("来源说明").fill("已补充现场采购量台账核验");
   await operatorDialog.getByRole("button", { name: "保存业务记录" }).click();
   await expect(operatorDialog).toHaveCount(0);
-  operatorDialog = await openRecord(page);
+  operatorDialog = await openWorkItem(
+    page,
+    recordId,
+    "补充市场填报",
+    "补充市场填报",
+  );
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
   await expect(operatorDialog.getByText("提交成功")).toBeVisible();
   await operatorDialog
-    .getByRole("button", { name: "关闭市场记录处理" })
+    .getByRole("button", { name: "关闭补充市场填报" })
     .click();
 
-  await expect(recordRow(reviewerPage)).toContainText("待审核", {
-    timeout: 10_000,
-  });
-  reviewerDialog = await openRecord(reviewerPage);
+  reviewerDialog = await openWorkItem(
+    reviewerPage,
+    recordId,
+    "审核市场单据",
+    "市场单据审核",
+  );
   await reviewerDialog.getByRole("button", { name: "审核通过" }).click();
-  await expect(reviewerDialog.getByText("审核通过成功")).toBeVisible();
+  await expect(reviewerDialog).toHaveCount(0);
 
   const listResponse = await request.get(
     "/api/v1/market-records?productCode=SOYBEAN&pageKind=MONITORING&pageNumber=0&pageSize=100",
@@ -196,7 +212,7 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
     ({ values }) => values["MKT_SAMPLE_NAME"] === marketObject,
   );
   expect(row).toBeDefined();
-  const recordId = row?.id ?? "";
+  expect(row?.id).toBe(recordId);
   const detail = await request.get(`/api/v1/market-records/${recordId}`);
   expect(detail.ok()).toBe(true);
   expect(await detail.json()).toMatchObject({
@@ -232,3 +248,4 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   reviewerErrors.assertClean();
   await reviewerContext.close();
 });
+import type { Page } from "@playwright/test";

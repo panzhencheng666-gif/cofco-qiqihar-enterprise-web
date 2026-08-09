@@ -149,13 +149,16 @@ export interface WorkItemRow {
   regionCode: string;
   region: string;
   product: string;
+  businessPeriodCode?: string;
   businessPeriod: string;
   dueAt: string | null;
   workflowNode: string;
   statusCode: string | null;
-  status: string;
+  status: string | null;
   responsiblePartyCode: string;
   responsibleParty: string;
+  sourceType: string | null;
+  sourceId: string | null;
 }
 
 export interface Page<T> {

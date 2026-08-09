@@ -5,12 +5,27 @@ import {
   test,
   trackBrowserErrors,
 } from "./fixtures";
+import type { Page } from "@playwright/test";
 
 const recordMarker = "E2E-20260809-大豆产情-黑农验收1号";
 const validPng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
 );
+
+async function openProductionWorkItem(
+  page: Page,
+  recordId: string,
+  actionName: "继续产情填报" | "补充产情填报" | "审核产情单据",
+  dialogName: "补充产情填报" | "产情单据审核",
+) {
+  const row = page.getByRole("row", { name: new RegExp(recordId, "u") });
+  await expect(row).toBeVisible({ timeout: 10_000 });
+  await row.getByRole("button", { name: actionName }).click();
+  const dialog = page.getByRole("dialog", { name: dialogName });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
 
 test("persists production data, refreshes a colleague, and enforces region access", async ({
   browser,
@@ -122,6 +137,104 @@ test("persists production data, refreshes a colleague, and enforces region acces
       ),
     ),
   ).toBeGreaterThanOrEqual(1);
+
+  await page.goto("/#/我的工作/待我处理");
+  let operatorDialog = await openProductionWorkItem(
+    page,
+    recordId,
+    "继续产情填报",
+    "补充产情填报",
+  );
+  await expect(
+    operatorDialog.getByRole("button", { name: "审核通过" }),
+  ).toHaveCount(0);
+  await operatorDialog.getByRole("button", { name: "提交审核" }).click();
+  await expect(operatorDialog.getByText("提交成功")).toBeVisible();
+  await operatorDialog
+    .getByRole("button", { name: "关闭补充产情填报" })
+    .click();
+
+  const reviewerContext = await browser.newContext();
+  const reviewerPage = await reviewerContext.newPage();
+  const reviewerErrors = trackBrowserErrors(reviewerPage);
+  await reviewerPage.goto(
+    `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
+  );
+  let reviewerDialog = await openProductionWorkItem(
+    reviewerPage,
+    recordId,
+    "审核产情单据",
+    "产情单据审核",
+  );
+  await expect(
+    reviewerDialog.getByRole("button", { name: "保存业务记录" }),
+  ).toHaveCount(0);
+  await reviewerDialog.getByLabel("退回原因").fill("请补充期初库存核验数据");
+  await reviewerDialog.getByRole("button", { name: "退回补充" }).click();
+  await expect(reviewerDialog).toHaveCount(0);
+
+  operatorDialog = await openProductionWorkItem(
+    page,
+    recordId,
+    "补充产情填报",
+    "补充产情填报",
+  );
+  await operatorDialog.getByLabel("期初库存").fill("25");
+  await operatorDialog.getByRole("button", { name: "保存业务记录" }).click();
+  await expect(operatorDialog).toHaveCount(0);
+  operatorDialog = await openProductionWorkItem(
+    page,
+    recordId,
+    "补充产情填报",
+    "补充产情填报",
+  );
+  await operatorDialog.getByRole("button", { name: "提交审核" }).click();
+  await expect(
+    operatorDialog.getByRole("button", { name: "提交审核" }),
+  ).toHaveCount(0);
+  await expect(operatorDialog.locator("form > header strong")).toContainText(
+    "待审核",
+  );
+  await expect(
+    operatorDialog.getByRole("button", { name: "保存业务记录" }),
+  ).toHaveCount(0);
+  await operatorDialog
+    .getByRole("button", { name: "关闭补充产情填报" })
+    .click();
+
+  reviewerDialog = await openProductionWorkItem(
+    reviewerPage,
+    recordId,
+    "审核产情单据",
+    "产情单据审核",
+  );
+  await reviewerDialog.getByRole("button", { name: "审核通过" }).click();
+  await expect(reviewerDialog).toHaveCount(0);
+
+  expect(
+    queryE2eDatabase(
+      `SELECT status_code FROM production.production_record WHERE record_id = '${recordId}'`,
+    ),
+  ).toBe("APPROVED");
+  expect(
+    queryE2eDatabase(
+      `SELECT value FROM production.production_record_submission_metadata WHERE record_id = '${recordId}' AND field_code = 'PROD_OPENING_INVENTORY'`,
+    ),
+  ).toBe("25");
+  expect(
+    queryE2eDatabase(
+      `SELECT count(*) FROM platform.business_audit_event WHERE aggregate_id = '${recordId}'`,
+    ),
+  ).toBe("6");
+  expect(
+    Number(
+      queryE2eDatabase(
+        `SELECT count(*) FROM platform.business_event_outbox WHERE aggregate_id = '${recordId}'`,
+      ),
+    ),
+  ).toBeGreaterThanOrEqual(6);
+  reviewerErrors.assertClean();
+  await reviewerContext.close();
 
   const outside = await playwright.request.newContext({
     baseURL: "http://127.0.0.1:63183",

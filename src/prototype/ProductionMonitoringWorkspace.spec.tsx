@@ -352,7 +352,7 @@ describe("production monitoring workspace", () => {
       />,
     );
     await user.click(
-      screen.getAllByRole("button", { name: "处理产情单据" })[0],
+      screen.getAllByRole("button", { name: "补充产情填报" })[0],
     );
 
     expect(
@@ -405,7 +405,7 @@ describe("production monitoring workspace", () => {
       />,
     );
     await user.click(
-      screen.getAllByRole("button", { name: "处理产情单据" })[0],
+      screen.getAllByRole("button", { name: "补充产情填报" })[0],
     );
 
     const yieldInput = screen.getByRole("textbox", { name: "预计单产" });

@@ -45,6 +45,8 @@ const regions = [
 const workItems = [
   {
     id: "E2E-WORK-MARKET-001",
+    sourceType: "MARKET",
+    sourceId: "E2E-MARKET-WORK-001",
     task: "服务端玉米市场采集任务",
     domain: "MARKET",
     regionCode: "230221",
@@ -59,6 +61,21 @@ const workItems = [
     responsibleParty: "服务端授权用户",
   },
 ];
+const marketWorkRecord = {
+  id: "E2E-MARKET-WORK-001",
+  productCode: "CORN",
+  coreValues: {
+    MKT_OBJECT_TYPE: "TRADER",
+    MKT_REGION: "230221101001",
+    MKT_PRICE: "2410.00",
+    MKT_REPORTER_NAME: "已认证用户",
+  },
+  facts: {},
+  status: "DRAFT",
+  returnReason: null,
+  allowedActions: ["SAVE", "SUBMIT"],
+  version: 1,
+};
 const marketObjectTypes = [
   { code: "TRADER", name: "贸易商", domain: "MARKET" },
 ];
@@ -564,6 +581,25 @@ const server = createServer(async (request, response) => {
   }
   if (method === "GET" && url.pathname === "/api/v1/market-records") {
     data(response, page(marketRecords.map(listItem)));
+    return;
+  }
+  const marketRecordDetail = /^\/api\/v1\/market-records\/([^/]+)$/u.exec(
+    url.pathname,
+  );
+  if (method === "GET" && marketRecordDetail) {
+    const [, id] = marketRecordDetail;
+    const record =
+      id === marketWorkRecord.id
+        ? marketWorkRecord
+        : marketRecords.find((candidate) => candidate.id === id);
+    if (!record) {
+      json(response, 404, {
+        code: "MARKET_RECORD_NOT_FOUND",
+        message: "Market record not found",
+      });
+      return;
+    }
+    data(response, record);
     return;
   }
   if (method === "POST" && url.pathname === "/api/v1/market-records") {

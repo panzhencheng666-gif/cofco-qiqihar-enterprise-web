@@ -27,6 +27,9 @@
     "vite.config.ts",
     "vite.prototype.config.ts",
     "vite.prototype.config.spec.ts",
+    "vite.live-e2e.config.ts",
+    "vite.live-e2e.config.spec.ts",
+    "playwright.live.config.ts",
     "playwright.config.ts"
   ]
 }

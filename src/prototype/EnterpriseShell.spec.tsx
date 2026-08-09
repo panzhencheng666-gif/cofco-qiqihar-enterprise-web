@@ -303,6 +303,15 @@ describe("EnterpriseShell", () => {
     expect(
       screen.getByRole("dialog", { name: "当前页面帮助" }),
     ).toHaveTextContent("市场监测 · 监测对象");
+    expect(
+      screen.getByRole("dialog", { name: "当前页面帮助" }),
+    ).toHaveTextContent("操作步骤");
+    expect(
+      screen.getByRole("dialog", { name: "当前页面帮助" }),
+    ).toHaveTextContent("权限与数据规则");
+    expect(
+      screen.getByRole("dialog", { name: "当前页面帮助" }),
+    ).toHaveTextContent("异常处理");
   });
 
   it("renders durable API notifications without falling back to work-item fixtures", async () => {

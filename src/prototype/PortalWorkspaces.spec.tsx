@@ -185,7 +185,7 @@ describe("enterprise portal workspaces", () => {
       expect(row).toHaveTextContent(state);
     }
 
-    await user.click(within(row).getByRole("button", { name: "处理产情单据" }));
+    await user.click(within(row).getByRole("button", { name: "补充产情填报" }));
     expect(onOpenBusiness).toHaveBeenCalledWith(
       { application: "production", section: "tasks" },
       { type: "work-item", id: source!.workId },

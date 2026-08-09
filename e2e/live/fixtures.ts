@@ -49,7 +49,8 @@ export function trackBrowserErrors(page: Page): {
 
 export function queryE2eDatabase(sql: string): string {
   const databaseUser = process.env.QIQIHAR_E2E_DB_USERNAME ?? process.env.USER;
-  if (!databaseUser) throw new Error("A PostgreSQL E2E database user is required");
+  if (!databaseUser)
+    throw new Error("A PostgreSQL E2E database user is required");
   return execFileSync(
     "psql",
     [

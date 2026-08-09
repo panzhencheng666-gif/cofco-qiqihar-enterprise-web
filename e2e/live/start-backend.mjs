@@ -18,7 +18,8 @@ const jarPath = resolve(
 );
 const seedPath = resolve(import.meta.dirname, "seed-identities.sql");
 
-if (!databaseUser) throw new Error("A PostgreSQL E2E database user is required");
+if (!databaseUser)
+  throw new Error("A PostgreSQL E2E database user is required");
 
 const processEnvironment = {
   ...process.env,
@@ -63,7 +64,9 @@ async function waitForHealth() {
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 250));
   }
-  throw new Error(`Live E2E backend did not become healthy: ${String(lastError)}`);
+  throw new Error(
+    `Live E2E backend did not become healthy: ${String(lastError)}`,
+  );
 }
 
 await access(seedPath);
@@ -71,7 +74,13 @@ await run("mvn", ["-q", "-DskipTests", "package"], {
   cwd: backendDirectory,
 });
 await access(jarPath);
-await run("dropdb", ["--if-exists", "--force", "--username", databaseUser, databaseName]);
+await run("dropdb", [
+  "--if-exists",
+  "--force",
+  "--username",
+  databaseUser,
+  databaseName,
+]);
 await run("createdb", ["--username", databaseUser, databaseName]);
 
 const backend = spawn(`${javaHome}/bin/java`, ["-jar", jarPath], {
@@ -94,7 +103,9 @@ async function stop(exitCode) {
   if (stopping) return;
   stopping = true;
   if (readinessServer) {
-    await new Promise((resolvePromise) => readinessServer.close(resolvePromise));
+    await new Promise((resolvePromise) =>
+      readinessServer.close(resolvePromise),
+    );
   }
   if (backend.exitCode === null && backend.signalCode === null) {
     backend.kill("SIGTERM");
@@ -131,19 +142,16 @@ backend.once("exit", (code, signal) => {
 
 try {
   await waitForHealth();
-  await run(
-    "psql",
-    [
-      "--username",
-      databaseUser,
-      "--dbname",
-      databaseName,
-      "--set",
-      "ON_ERROR_STOP=1",
-      "--file",
-      seedPath,
-    ],
-  );
+  await run("psql", [
+    "--username",
+    databaseUser,
+    "--dbname",
+    databaseName,
+    "--set",
+    "ON_ERROR_STOP=1",
+    "--file",
+    seedPath,
+  ]);
   readinessServer = createServer((request, response) => {
     if (request.url === "/health") {
       response.writeHead(200, { "content-type": "application/json" });
@@ -159,7 +167,9 @@ try {
   });
   process.stdout.write("Live E2E backend and identities are ready\n");
 } catch (error) {
-  process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? error.stack : String(error)}\n`,
+  );
   await stop(1);
 }
 

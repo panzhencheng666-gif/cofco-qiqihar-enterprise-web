@@ -48,8 +48,19 @@ function destinationFor(
 function actionLabelFor(item: BusinessWorkItem): string {
   if (item.domain === "supply") return "复核供需说明";
   if (item.domain === "reporting") return "审核并分发报告";
-  if (item.domain === "production") return "处理产情单据";
-  return "处理市场任务";
+  const pendingReview =
+    item.documentStatus === "submitted" &&
+    (item.reviewStatus === "pending" || item.reviewStatus === "reviewing");
+  if (item.domain === "production") {
+    if (pendingReview) return "审核产情单据";
+    return item.documentStatus === "returned" ? "补充产情填报" : "继续产情填报";
+  }
+  if (item.businessSubtypeId === "market.logistics") {
+    if (pendingReview) return "审核物流单据";
+    return item.documentStatus === "returned" ? "补充物流填报" : "继续物流填报";
+  }
+  if (pendingReview) return "审核市场单据";
+  return item.documentStatus === "returned" ? "补充市场填报" : "继续市场填报";
 }
 
 function savedViewGroupFor(

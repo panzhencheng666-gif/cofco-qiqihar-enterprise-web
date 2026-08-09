@@ -158,6 +158,35 @@ describe("business work fixture lifecycle invariants", () => {
 });
 
 describe("business work projections", () => {
+  it("uses logistics-specific fill and review actions for logistics work", () => {
+    const marketSeed = businessWorkFixtures.find(
+      ({ domain }) => domain === "market",
+    );
+    expect(marketSeed).toBeDefined();
+    if (!marketSeed) return;
+    const logisticsReview = {
+      ...marketSeed,
+      workId: "WORK-LOGISTICS-REVIEW",
+      businessSubtypeId: "market.logistics" as const,
+      documentStatus: "submitted" as const,
+      reviewStatus: "pending" as const,
+    };
+    const [projected] = projectDomainTasks([logisticsReview], {
+      domain: "market",
+      scope: {
+        ...scope,
+        authorization: {
+          ...scope.authorization,
+          serverAuthoritative: true,
+        },
+      },
+      queryAllowed: true,
+      availablePeriodKeys: [logisticsReview.periodKey],
+    });
+
+    expect(projected?.actionLabel).toBe("审核物流单据");
+  });
+
   it("matches governed user identity only at the current processing node", () => {
     const reviewerWork = projectMyWork(businessWorkFixtures, {
       userId: "zhao-chen",

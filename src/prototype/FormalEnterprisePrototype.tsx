@@ -84,6 +84,7 @@ function routeProductCode(section: string): RealtimeProductCode | null {
 function realtimeEntryRoute(
   application: "production" | "market",
   productId: string | null,
+  businessSubtypeId?: string,
 ) {
   const normalizedProduct = productId?.toUpperCase();
   if (
@@ -104,6 +105,13 @@ function realtimeEntryRoute(
     if (product === "paddy")
       return createFormalRoute("production", "rice-collection");
     return createFormalRoute("production", "corn-collection");
+  }
+  if (businessSubtypeId === "market.logistics") {
+    if (product === "soybean")
+      return createFormalRoute("market", "soybean-logistics");
+    if (product === "paddy")
+      return createFormalRoute("market", "paddy-logistics");
+    return createFormalRoute("market", "corn-logistics");
   }
   if (product === "soybean")
     return createFormalRoute("market", "soybean-collection");
@@ -316,9 +324,13 @@ export function FormalEnterprisePrototype({
   const [realtimeEntryProductCode, setRealtimeEntryProductCode] =
     useState<RealtimeProductCode>("CORN");
   const [realtimeEntryRecordId, setRealtimeEntryRecordId] = useState<string>();
+  const [realtimeEntryMode, setRealtimeEntryMode] = useState<
+    "entry" | "view" | "review"
+  >("entry");
   const closeRealtimeEntry = () => {
     setRealtimeEntryDomain(null);
     setRealtimeEntryRecordId(undefined);
+    setRealtimeEntryMode("entry");
   };
   const navigateAndCloseEntry = (
     ...parameters: Parameters<typeof navigate>
@@ -337,11 +349,27 @@ export function FormalEnterprisePrototype({
     const resolvedEntryRoute =
       selectedWorkItem &&
       (route.application === "production" || route.application === "market")
-        ? realtimeEntryRoute(route.application, selectedWorkItem.productId)
+        ? realtimeEntryRoute(
+            route.application,
+            selectedWorkItem.productId,
+            selectedWorkItem.businessSubtypeId,
+          )
         : null;
     const effectiveRoute = resolvedEntryRoute ?? route;
     const productCode = routeProductCode(effectiveRoute.section);
     if (productCode) setRealtimeEntryProductCode(productCode);
+    setRealtimeEntryRecordId(
+      selectedWorkItem?.subject.kind === "monitoring-object"
+        ? selectedWorkItem.subject.objectId
+        : undefined,
+    );
+    setRealtimeEntryMode(
+      selectedWorkItem?.documentStatus === "submitted" &&
+        (selectedWorkItem.reviewStatus === "pending" ||
+          selectedWorkItem.reviewStatus === "reviewing")
+        ? "review"
+        : "entry",
+    );
     setRealtimeEntryDomain(
       realtimeMode && selection?.type === "work-item" && productCode
         ? effectiveRoute.application === "production"
@@ -353,7 +381,10 @@ export function FormalEnterprisePrototype({
             : null
         : null,
     );
-    navigate(effectiveRoute, selection);
+    // Keep the workbench route behind the modal. The resolved business route is only
+    // used to select the correct record editor/reviewer; processing a task must not
+    // navigate the employee away from "我的工作" into a new-entry page.
+    navigate(resolvedEntryRoute ? location.route : route, selection);
   };
   const {
     workItems,
@@ -589,6 +620,7 @@ export function FormalEnterprisePrototype({
                 ? (productCode) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(undefined);
+                    setRealtimeEntryMode("entry");
                     setRealtimeEntryDomain("production");
                   }
                 : undefined
@@ -598,6 +630,7 @@ export function FormalEnterprisePrototype({
                 ? (productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
+                    setRealtimeEntryMode("view");
                     setRealtimeEntryDomain("production");
                   }
                 : undefined
@@ -635,6 +668,7 @@ export function FormalEnterprisePrototype({
                 ? (productCode) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(undefined);
+                    setRealtimeEntryMode("entry");
                     setRealtimeEntryDomain(
                       location.route.section.endsWith("-logistics")
                         ? "logistics"
@@ -648,6 +682,7 @@ export function FormalEnterprisePrototype({
                 ? (domain, productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
+                    setRealtimeEntryMode("view");
                     setRealtimeEntryDomain(domain);
                   }
                 : undefined
@@ -723,7 +758,13 @@ export function FormalEnterprisePrototype({
       return (
         <RealtimeEntryDialog
           label={
-            realtimeEntryRecordId ? "物流监测记录处理" : "新建物流监测填报"
+            realtimeEntryRecordId
+              ? realtimeEntryMode === "review"
+                ? "物流监测单据审核"
+                : realtimeEntryMode === "view"
+                  ? "物流监测记录详情"
+                  : "补充物流监测填报"
+              : "新建物流监测填报"
           }
           onClose={closeRealtimeEntry}
         >
@@ -731,7 +772,10 @@ export function FormalEnterprisePrototype({
             actorName={currentDisplayName}
             editorOnly
             initialRecordId={realtimeEntryRecordId}
+            mode={realtimeEntryMode}
+            permissions={currentSession?.permissions ?? []}
             productCode={realtimeEntryProductCode}
+            refreshToken={realtimeRefreshToken}
             repository={repository}
             onCancel={closeRealtimeEntry}
             onRecordsChanged={() =>
@@ -746,9 +790,17 @@ export function FormalEnterprisePrototype({
       <RealtimeEntryDialog
         label={
           realtimeEntryRecordId
-            ? realtimeEntryDomain === "production"
-              ? "产情记录处理"
-              : "市场记录处理"
+            ? realtimeEntryMode === "review"
+              ? realtimeEntryDomain === "production"
+                ? "产情单据审核"
+                : "市场单据审核"
+              : realtimeEntryMode === "view"
+                ? realtimeEntryDomain === "production"
+                  ? "产情记录详情"
+                  : "市场记录详情"
+                : realtimeEntryDomain === "production"
+                  ? "补充产情填报"
+                  : "补充市场填报"
             : realtimeEntryDomain === "production"
               ? "新建产情填报"
               : "新建市场填报"
@@ -761,6 +813,9 @@ export function FormalEnterprisePrototype({
           editorOnly
           initialRecordId={realtimeEntryRecordId}
           lockedProductCode={realtimeEntryProductCode}
+          mode={realtimeEntryMode}
+          permissions={currentSession?.permissions ?? []}
+          refreshToken={realtimeRefreshToken}
           repository={repository}
           onCancel={closeRealtimeEntry}
           onRecordsChanged={() => setRealtimeRefreshToken((value) => value + 1)}

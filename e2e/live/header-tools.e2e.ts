@@ -5,13 +5,16 @@ import {
   liveBrowserAccounts,
   queryE2eDatabase,
   test,
+  trackBrowserErrors,
 } from "./fixtures";
 
-test("uses durable notifications, business deep links, work navigation, and page help", async ({
+test("uses durable notifications, permission-scoped work navigation, and page help", async ({
+  browser,
   page,
 }) => {
   const eventId = randomUUID();
   const aggregateId = randomUUID();
+  const productionRecordId = randomUUID();
   queryE2eDatabase(`
     INSERT INTO platform.business_event_outbox(
       event_id, aggregate_type, aggregate_id, action_code,
@@ -22,6 +25,17 @@ test("uses durable notifications, business deep links, work navigation, and page
       'PRODUCTION_RECORD_CREATED', 'e2e-operator-two', 'E2E_QIQIHAR',
       ARRAY['230208101001'], 'CORN', now(),
       '{"source":"live-header-tools"}'::jsonb
+    )
+  `);
+  queryE2eDatabase(`
+    INSERT INTO production.production_record(
+      record_id, product_code, object_type_code, region_code,
+      survey_date, reported_at, cultivated_area_mu, yield_per_mu_kg,
+      status_code, last_modified_by
+    ) VALUES (
+      '${productionRecordId}', 'CORN', 'FARMER', '230208101001',
+      DATE '2026-08-09', TIMESTAMPTZ '2026-08-09 10:30:00+08',
+      135, 482, 'PENDING_REVIEW', 'e2e-operator-one'
     )
   `);
 
@@ -81,10 +95,56 @@ test("uses durable notifications, business deep links, work navigation, and page
     page.getByRole("heading", { name: "待我处理", exact: true }),
   ).toBeVisible();
 
+  await expect(
+    page.getByRole("row", {
+      name: new RegExp(productionRecordId, "u"),
+    }),
+  ).toHaveCount(0);
+
+  const reviewerContext = await browser.newContext();
+  const reviewerPage = await reviewerContext.newPage();
+  const reviewerErrors = trackBrowserErrors(reviewerPage);
+  await reviewerPage.goto(
+    `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
+  );
+  const sourceWorkItem = reviewerPage.getByRole("row", {
+    name: new RegExp(productionRecordId, "u"),
+  });
+  await sourceWorkItem.getByRole("button", { name: "审核产情单据" }).click();
+  const recordDialog = reviewerPage.getByRole("dialog", {
+    name: "产情单据审核",
+  });
+  await expect(recordDialog).toBeVisible();
+  await expect(recordDialog.getByLabel("调查日期")).toHaveValue("2026-08-09");
+  await expect(recordDialog.getByLabel("种植面积")).toHaveValue("135.0000");
+  await expect(recordDialog.getByLabel("调查日期")).toBeDisabled();
+  await expect(
+    recordDialog.getByRole("button", { name: "保存业务记录" }),
+  ).toHaveCount(0);
+  await expect(
+    recordDialog.getByRole("button", { name: "审核通过" }),
+  ).toBeVisible();
+  await recordDialog.getByRole("button", { name: "审核通过" }).click();
+  await expect(recordDialog).toHaveCount(0);
+  await expect
+    .poll(() =>
+      queryE2eDatabase(`
+        SELECT status_code
+        FROM production.production_record
+        WHERE record_id='${productionRecordId}'
+      `),
+    )
+    .toBe("APPROVED");
+
+  reviewerErrors.assertClean();
+  await reviewerContext.close();
+
   await page.getByRole("button", { name: "帮助" }).click();
   const helpPanel = page.getByRole("dialog", { name: "当前页面帮助" });
-  await expect(helpPanel).toContainText("我的工作");
-  await expect(helpPanel).toContainText(/选择地区、品种和时间/u);
+  await expect(helpPanel).toContainText("我的工作 · 待我处理");
+  await expect(helpPanel).toContainText("操作步骤");
+  await expect(helpPanel).toContainText("权限与数据规则");
+  await expect(helpPanel).toContainText("异常处理");
   await helpPanel.getByRole("button", { name: "×" }).click();
   await expect(helpPanel).toHaveCount(0);
 

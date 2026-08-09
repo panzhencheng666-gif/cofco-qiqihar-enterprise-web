@@ -9,16 +9,23 @@ import {
 const sourceOrganization = "E2E-20260809-大豆物流-音钦村台账";
 const revisedSourceOrganization = `${sourceOrganization}-已补充`;
 
-function recordRow(page: import("@playwright/test").Page) {
+function recordRow(page: Page) {
   return page
     .getByRole("table", { name: "粮食物流节点监测表" })
     .getByRole("row")
     .filter({ hasText: /E2E-20260809-大豆物流-音钦村台账/u });
 }
 
-async function openRecord(page: import("@playwright/test").Page) {
-  await recordRow(page).getByRole("button", { name: "查看" }).click();
-  const dialog = page.getByRole("dialog", { name: "物流监测记录处理" });
+async function openWorkItem(
+  page: Page,
+  recordId: string,
+  actionName: "继续物流填报" | "补充物流填报" | "审核物流单据",
+  dialogName: "补充物流监测填报" | "物流监测单据审核",
+) {
+  const row = page.getByRole("row", { name: new RegExp(recordId, "u") });
+  await expect(row).toBeVisible({ timeout: 10_000 });
+  await row.getByRole("button", { name: actionName }).click();
+  const dialog = page.getByRole("dialog", { name: dialogName });
   await expect(dialog).toBeVisible();
   await expect(dialog.locator("form > header strong")).toContainText(
     /草稿|待审核|退回补充|审核通过/u,
@@ -61,54 +68,98 @@ test("runs a logistics return, revision, resubmission, and approval against Post
   await expect(createDialog).toHaveCount(0);
   await expect(recordRow(page)).toBeVisible();
 
-  await reviewerPage.goto(
-    `${liveBrowserAccounts.reviewer.url}/#/市场监测/大豆物流监测`,
+  const createdResponse = await request.get(
+    "/api/v1/logistics-records?productCode=SOYBEAN&pageNumber=0&pageSize=100",
   );
-  await expect(recordRow(reviewerPage)).toBeVisible();
+  expect(createdResponse.ok()).toBe(true);
+  const createdList = (await createdResponse.json()) as {
+    data: {
+      items: Array<{
+        id: string;
+        values: Record<string, string>;
+      }>;
+    };
+  };
+  const recordId =
+    createdList.data.items.find(
+      ({ values }) => values.LOG_SOURCE_ORGANIZATION === sourceOrganization,
+    )?.id ?? "";
+  expect(recordId).not.toBe("");
 
-  let operatorDialog = await openRecord(page);
+  await recordRow(page).getByRole("button", { name: "查看" }).click();
+  const viewDialog = page.getByRole("dialog", {
+    name: "物流监测记录详情",
+  });
+  await expect(viewDialog).toBeVisible();
+  await expect(viewDialog.getByLabel("物流来源单位")).toBeDisabled();
+  await expect(
+    viewDialog.getByRole("button", { name: "保存物流记录" }),
+  ).toHaveCount(0);
+  await viewDialog
+    .getByRole("button", { name: "关闭物流监测记录详情" })
+    .click();
+
+  await page.goto("/#/我的工作/待我处理");
+  let operatorDialog = await openWorkItem(
+    page,
+    recordId,
+    "继续物流填报",
+    "补充物流监测填报",
+  );
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
   await expect(operatorDialog.getByText("提交成功")).toBeVisible();
   await operatorDialog
-    .getByRole("button", { name: "关闭物流监测记录处理" })
+    .getByRole("button", { name: "关闭补充物流监测填报" })
     .click();
 
-  await expect(recordRow(reviewerPage)).toContainText("待审核", {
-    timeout: 10_000,
-  });
-  let reviewerDialog = await openRecord(reviewerPage);
+  await reviewerPage.goto(
+    `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
+  );
+  let reviewerDialog = await openWorkItem(
+    reviewerPage,
+    recordId,
+    "审核物流单据",
+    "物流监测单据审核",
+  );
+  await expect(reviewerDialog.getByLabel("物流来源单位")).toBeDisabled();
   await reviewerDialog
     .getByLabel("物流退回原因")
     .fill("请补充运输来源台账说明");
   await reviewerDialog.getByRole("button", { name: "退回补充" }).click();
-  await expect(reviewerDialog.getByText("退回成功")).toBeVisible();
-  await reviewerDialog
-    .getByRole("button", { name: "关闭物流监测记录处理" })
-    .click();
+  await expect(reviewerDialog).toHaveCount(0);
 
-  await expect(recordRow(page)).toContainText("退回待补充", {
-    timeout: 10_000,
-  });
-  operatorDialog = await openRecord(page);
+  operatorDialog = await openWorkItem(
+    page,
+    recordId,
+    "补充物流填报",
+    "补充物流监测填报",
+  );
   await operatorDialog
     .getByLabel("物流来源单位")
     .fill(revisedSourceOrganization);
   await operatorDialog.getByRole("button", { name: "保存物流记录" }).click();
   await expect(operatorDialog).toHaveCount(0);
 
-  operatorDialog = await openRecord(page);
+  operatorDialog = await openWorkItem(
+    page,
+    recordId,
+    "补充物流填报",
+    "补充物流监测填报",
+  );
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
   await expect(operatorDialog.getByText("提交成功")).toBeVisible();
   await operatorDialog
-    .getByRole("button", { name: "关闭物流监测记录处理" })
+    .getByRole("button", { name: "关闭补充物流监测填报" })
     .click();
 
-  await expect(recordRow(reviewerPage)).toContainText("待审核", {
-    timeout: 10_000,
-  });
-  reviewerDialog = await openRecord(reviewerPage);
+  reviewerDialog = await openWorkItem(
+    reviewerPage,
+    recordId,
+    "审核物流单据",
+    "物流监测单据审核",
+  );
   await reviewerDialog.getByRole("button", { name: "审核通过" }).click();
-  await expect(reviewerDialog.getByText("审核通过成功")).toBeVisible();
+  await expect(reviewerDialog).toHaveCount(0);
 
   const listResponse = await request.get(
     "/api/v1/logistics-records?productCode=SOYBEAN&pageNumber=0&pageSize=100",
@@ -136,7 +187,7 @@ test("runs a logistics return, revision, resubmission, and approval against Post
       LOG_TRANSIT_TIME: "5.5000",
     },
   });
-  const recordId = row?.id ?? "";
+  expect(row?.id).toBe(recordId);
   expect(
     queryE2eDatabase(
       `SELECT status_code || '|' || reporter || '|' || source_organization FROM logistics.route_event WHERE event_id = '${recordId}'`,
@@ -148,9 +199,7 @@ test("runs a logistics return, revision, resubmission, and approval against Post
     queryE2eDatabase(
       `SELECT string_agg(fact_code || '=' || value, ',' ORDER BY fact_code) FROM logistics.route_fact WHERE event_id = '${recordId}'`,
     ),
-  ).toBe(
-    "FREIGHT_RATE=82.2500,ROUTE_VOLUME=125.5000,TRANSIT_TIME=5.5000",
-  );
+  ).toBe("FREIGHT_RATE=82.2500,ROUTE_VOLUME=125.5000,TRANSIT_TIME=5.5000");
   expect(
     Number(
       queryE2eDatabase(
@@ -169,3 +218,4 @@ test("runs a logistics return, revision, resubmission, and approval against Post
   reviewerErrors.assertClean();
   await reviewerContext.close();
 });
+import type { Page } from "@playwright/test";

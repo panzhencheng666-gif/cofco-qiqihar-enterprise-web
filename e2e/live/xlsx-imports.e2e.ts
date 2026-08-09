@@ -1,3 +1,4 @@
+import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, queryE2eDatabase, test } from "./fixtures";
 import { fillDownloadedXlsx } from "./xlsx-fixture";
 
@@ -7,7 +8,7 @@ const validPng = Buffer.from(
 );
 
 async function uploadEvidence(
-  request: import("@playwright/test").APIRequestContext,
+  request: APIRequestContext,
   marker: string,
 ): Promise<string> {
   const response = await request.post("/api/v1/evidence-photos", {
@@ -28,10 +29,7 @@ async function uploadEvidence(
   return body.data.id;
 }
 
-async function downloadTemplate(
-  page: import("@playwright/test").Page,
-  targetPath: string,
-): Promise<void> {
+async function downloadTemplate(page: Page, targetPath: string): Promise<void> {
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "下载 XLSX 模板" }).click();
   const download = await pending;
@@ -50,7 +48,9 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
   const marketPhotoId = await uploadEvidence(request, "market-xlsx");
 
   await page.goto("/#/产情监测/玉米产情填报");
-  const productionTemplatePath = testInfo.outputPath("production-template.xlsx");
+  const productionTemplatePath = testInfo.outputPath(
+    "production-template.xlsx",
+  );
   await downloadTemplate(page, productionTemplatePath);
   const productionWorkbook = fillDownloadedXlsx(productionTemplatePath, {
     regionCode: "230208101001",
@@ -85,9 +85,9 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
   await page
     .getByLabel("批量导入产情记录")
     .setInputFiles(productionWorkbook.path);
-  await expect(
-    page.getByText("导入完成：成功 1 条，失败 0 条。"),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("导入完成：成功 1 条，失败 0 条。")).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByText(productionMarker)).toBeVisible();
   productionWorkbook.cleanup();
 
@@ -134,9 +134,9 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
   await page
     .getByLabel("批量导入市场采集记录")
     .setInputFiles(marketWorkbook.path);
-  await expect(
-    page.getByText("导入完成：成功 1 条，失败 0 条。"),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("导入完成：成功 1 条，失败 0 条。")).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByText(marketMarker)).toBeVisible();
   marketWorkbook.cleanup();
 
@@ -175,9 +175,9 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
   await page
     .getByLabel("批量导入物流记录")
     .setInputFiles(logisticsWorkbook.path);
-  await expect(
-    page.getByText("导入完成：成功 1 条，失败 0 条。"),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("导入完成：成功 1 条，失败 0 条。")).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByText(logisticsMarker)).toBeVisible();
   logisticsWorkbook.cleanup();
 

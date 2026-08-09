@@ -17,13 +17,19 @@ test("reads service-owned work and opens its canonical business route", async ({
 
   const task = page.getByRole("row", { name: /服务端玉米市场采集任务/ });
   await expect(task).toBeVisible();
-  await task.getByRole("button", { name: "处理市场任务" }).click();
+  await task.getByRole("button", { name: "继续市场填报" }).click();
   await expect
     .poll(() => decodeURIComponent(new URL(page.url()).hash))
-    .toBe("#/市场监测/玉米市场采集");
+    .toBe("#/我的工作/待我处理");
+  const dialog = page.getByRole("dialog", { name: "补充市场填报" });
   await expect(
-    page.getByRole("heading", { name: "市场采集", exact: true }),
+    dialog.getByRole("heading", { name: "市场采集", exact: true }),
   ).toBeVisible();
+  await expect(dialog.getByLabel("服务端采集价格")).toHaveValue("2410.00");
+  await expect(
+    dialog.getByRole("button", { name: "保存业务记录" }),
+  ).toBeVisible();
+  await expect(dialog.getByText("新建填报", { exact: true })).toHaveCount(0);
 
   const location = await page.evaluate(
     () =>

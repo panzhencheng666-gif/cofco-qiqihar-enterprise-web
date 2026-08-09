@@ -21,25 +21,22 @@ function statusOf(
   | "qualityStatus"
   | "releaseStatus"
 > {
-  const status = (row.statusCode ?? row.status).toUpperCase();
-  const reviewStatus =
-    status === "APPROVED"
-      ? "approved"
-      : status === "RETURNED"
-        ? "returned"
-        : "pending";
-  const documentStatus =
-    status === "DRAFT"
-      ? "draft"
-      : status === "RETURNED"
-        ? "returned"
-        : "submitted";
+  const status = (row.statusCode ?? row.status ?? "APPROVED").toUpperCase();
+  const draft = status === "DRAFT" || status === "TO_FILL";
+  const returned = status === "RETURNED";
+  const approved = status === "APPROVED";
+  const reviewStatus = approved
+    ? "approved"
+    : returned
+      ? "returned"
+      : "pending";
+  const documentStatus = draft ? "draft" : returned ? "returned" : "submitted";
   return {
     documentStatus,
     reviewStatus,
-    obligationStatus: status === "DRAFT" ? "in-progress" : "on-time",
+    obligationStatus: draft ? "in-progress" : "on-time",
     qualityStatus: "passed",
-    releaseStatus: status === "APPROVED" ? "published" : "pending",
+    releaseStatus: approved ? "published" : "pending",
   };
 }
 
@@ -63,8 +60,10 @@ export function projectRealtimeWorkItem(
   const domain = domainOf(row);
   const status = statusOf(row);
   const now = new Date().toISOString();
-  const subtype =
-    domain === "production"
+  const logistics = row.sourceType?.toUpperCase() === "LOGISTICS";
+  const subtype = logistics
+    ? "market.logistics"
+    : domain === "production"
       ? "production.planting-production"
       : domain === "market"
         ? "market.quote-trade"
@@ -79,15 +78,15 @@ export function projectRealtimeWorkItem(
     businessLabel: row.workflowNode || row.domain,
     subject: {
       kind: "monitoring-object",
-      objectId: row.id,
+      objectId: row.sourceId ?? row.id,
       objectName: row.task,
-      objectTypeId: row.workflowNode || "BUSINESS_RECORD",
+      objectTypeId: (row.sourceType ?? row.workflowNode) || "BUSINESS_RECORD",
     },
     regionId: row.regionCode,
     regionLabel: row.region,
     productId: productId(row.product, products),
     cultivarIds: [],
-    periodKey: row.businessPeriod,
+    periodKey: row.businessPeriodCode ?? row.businessPeriod,
     deadline: row.dueAt ?? "未设置截止时间",
     responsibleUserId: row.responsiblePartyCode,
     responsiblePerson: row.responsibleParty,

@@ -307,7 +307,7 @@ describe("market monitoring workspace", () => {
     ).not.toBeInTheDocument();
 
     await user.click(
-      screen.getAllByRole("button", { name: "处理市场任务" })[0],
+      screen.getAllByRole("button", { name: "继续市场填报" })[0],
     );
     expect(onSelectionChange).toHaveBeenCalledWith(
       expect.objectContaining({ type: "work-item" }),

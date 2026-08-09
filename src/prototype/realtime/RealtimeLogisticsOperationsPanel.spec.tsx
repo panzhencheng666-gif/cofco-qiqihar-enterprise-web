@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
@@ -59,6 +59,7 @@ function repository(): RealtimeBusinessRepository {
             sortOrder: 10,
             options: [
               { value: "2026-W32", label: "2026年第32周", sortOrder: 1 },
+              { value: "2026-W33", label: "2026年第33周", sortOrder: 2 },
             ],
           },
           {
@@ -118,6 +119,314 @@ function repository(): RealtimeBusinessRepository {
 }
 
 describe("RealtimeLogisticsOperationsPanel", () => {
+  it("reviews the original logistics record without opening an editable entry form", async () => {
+    const user = userEvent.setup();
+    const record = {
+      id: "LOG-REVIEW-001",
+      productCode: "CORN",
+      values: {
+        LOG_PERIOD: "2026-W32",
+        LOG_REPORTER: "物流填报员",
+        LOG_REPORTED_AT: "2026-08-09T13:00:00Z",
+        LOG_STATUS: "PENDING_REVIEW",
+      },
+      displayValues: {
+        LOG_PERIOD: "2026年第32周",
+        LOG_REPORTER: "物流填报员",
+        LOG_REPORTED_AT: "2026-08-09 21:00",
+        LOG_STATUS: "待审核",
+      },
+      status: "PENDING_REVIEW",
+      returnReason: null,
+      allowedActions: ["APPROVE", "RETURN"],
+      version: 3,
+    } as const;
+    const transitionLogistics = vi.fn().mockResolvedValue({
+      ...record,
+      status: "APPROVED",
+      allowedActions: [],
+      version: 4,
+    });
+    const createLogistics = vi.fn();
+    const onSaved = vi.fn();
+    const service = {
+      ...repository(),
+      getLogistics: vi.fn().mockResolvedValue(record),
+      createLogistics,
+      transitionLogistics,
+    };
+
+    render(
+      <RealtimeLogisticsOperationsPanel
+        actorName="审核员工"
+        editorOnly
+        initialRecordId={record.id}
+        mode="review"
+        onSaved={onSaved}
+        permissions={["BUSINESS_APPROVE", "BUSINESS_RETURN"]}
+        repository={service}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "物流监测单据审核" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText(/物流监测期/)).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "保存物流记录" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "新建物流记录" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "审核通过" }));
+    expect(transitionLogistics).toHaveBeenCalledWith(
+      record.id,
+      "approve",
+      3,
+      undefined,
+    );
+    expect(createLogistics).not.toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses permissions and record state to expose logistics review actions", async () => {
+    const record = {
+      id: "LOG-REVIEW-002",
+      productCode: "CORN",
+      values: { LOG_PERIOD: "2026-W32", LOG_REPORTER: "物流填报员" },
+      displayValues: {
+        LOG_PERIOD: "2026年第32周",
+        LOG_REPORTER: "物流填报员",
+      },
+      status: "PENDING_REVIEW",
+      returnReason: null,
+      allowedActions: ["APPROVE", "RETURN"],
+      version: 1,
+    } as const;
+    const service = {
+      ...repository(),
+      getLogistics: vi.fn().mockResolvedValue(record),
+    };
+
+    render(
+      <RealtimeLogisticsOperationsPanel
+        editorOnly
+        initialRecordId={record.id}
+        mode="review"
+        permissions={[]}
+        repository={service}
+      />,
+    );
+
+    expect(await screen.findByText(/当前账号无可执行的审核操作/)).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "审核通过" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "退回补充" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("removes editable logistics actions after submission", async () => {
+    const record = {
+      id: "LOG-PENDING-LOCKED-001",
+      productCode: "CORN",
+      values: { LOG_PERIOD: "2026-W32", LOG_REPORTER: "物流填报员" },
+      displayValues: {
+        LOG_PERIOD: "2026年第32周",
+        LOG_REPORTER: "物流填报员",
+      },
+      status: "PENDING_REVIEW",
+      returnReason: null,
+      allowedActions: ["APPROVE", "RETURN"],
+      version: 1,
+    } as const;
+    const service = {
+      ...repository(),
+      getLogistics: vi.fn().mockResolvedValue(record),
+    };
+
+    render(
+      <RealtimeLogisticsOperationsPanel
+        editorOnly
+        initialRecordId={record.id}
+        mode="entry"
+        repository={service}
+      />,
+    );
+
+    expect(await screen.findByLabelText(/物流监测期/)).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "保存物流记录" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "提交审核" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("refreshes the open logistics record when a business event arrives", async () => {
+    const first = {
+      id: "LOG-LIVE-001",
+      productCode: "CORN",
+      values: { LOG_PERIOD: "2026-W32", LOG_REPORTER: "物流填报员" },
+      displayValues: {
+        LOG_PERIOD: "2026年第32周",
+        LOG_REPORTER: "物流填报员",
+      },
+      status: "DRAFT",
+      returnReason: null,
+      allowedActions: ["SAVE", "SUBMIT"],
+      version: 1,
+    } as const;
+    const second = {
+      ...first,
+      values: { ...first.values, LOG_PERIOD: "2026-W33" },
+      displayValues: {
+        ...first.displayValues,
+        LOG_PERIOD: "2026年第33周",
+      },
+      version: 2,
+    } as const;
+    const getLogistics = vi
+      .fn()
+      .mockResolvedValueOnce(first)
+      .mockResolvedValue(second);
+    const service = { ...repository(), getLogistics };
+    const view = render(
+      <RealtimeLogisticsOperationsPanel
+        editorOnly
+        initialRecordId={first.id}
+        mode="view"
+        refreshToken={0}
+        repository={service}
+      />,
+    );
+    expect(await screen.findByLabelText(/物流监测期/)).toHaveValue("2026-W32");
+
+    view.rerender(
+      <RealtimeLogisticsOperationsPanel
+        editorOnly
+        initialRecordId={first.id}
+        mode="view"
+        refreshToken={1}
+        repository={service}
+      />,
+    );
+
+    await waitFor(() => expect(getLogistics).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText(/物流监测期/)).toHaveValue("2026-W33");
+  });
+
+  it("does not overwrite unsaved logistics edits when a business event arrives", async () => {
+    const user = userEvent.setup();
+    const record = {
+      id: "LOG-LIVE-DIRTY-001",
+      productCode: "CORN",
+      values: {
+        LOG_PERIOD: "2026-W32",
+        LOG_SOURCE_ORGANIZATION: "原物流来源单位",
+      },
+      displayValues: {
+        LOG_PERIOD: "2026年第32周",
+        LOG_SOURCE_ORGANIZATION: "原物流来源单位",
+      },
+      status: "RETURNED",
+      returnReason: "请补充来源单位",
+      allowedActions: ["SAVE", "SUBMIT"],
+      version: 2,
+    } as const;
+    const getLogistics = vi.fn().mockResolvedValue(record);
+    const updateLogistics = vi.fn().mockResolvedValue({
+      ...record,
+      values: {
+        ...record.values,
+        LOG_SOURCE_ORGANIZATION: "已补充物流来源单位",
+      },
+      displayValues: {
+        ...record.displayValues,
+        LOG_SOURCE_ORGANIZATION: "已补充物流来源单位",
+      },
+      version: 3,
+    });
+    const service = {
+      ...repository(),
+      loadLogisticsDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        fields: [
+          {
+            code: "LOG_PERIOD",
+            label: "物流监测期",
+            controlType: "SELECT",
+            unit: null,
+            precision: null,
+            scale: null,
+            required: true,
+            readOnly: false,
+            sortOrder: 10,
+            options: [
+              { value: "2026-W32", label: "2026年第32周", sortOrder: 1 },
+            ],
+          },
+          {
+            code: "LOG_SOURCE_ORGANIZATION",
+            label: "物流来源单位",
+            controlType: "TEXT",
+            unit: null,
+            precision: null,
+            scale: null,
+            required: true,
+            readOnly: false,
+            sortOrder: 20,
+            options: [],
+          },
+        ],
+        actions: [],
+      }),
+      getLogistics,
+      updateLogistics,
+    };
+    const listLogistics = vi.spyOn(service, "listLogistics");
+    const view = render(
+      <RealtimeLogisticsOperationsPanel
+        editorOnly
+        initialRecordId={record.id}
+        mode="entry"
+        refreshToken={0}
+        repository={service}
+      />,
+    );
+    const source = await screen.findByLabelText(/物流来源单位/);
+    await user.clear(source);
+    await user.type(source, "已补充物流来源单位");
+
+    view.rerender(
+      <RealtimeLogisticsOperationsPanel
+        editorOnly
+        initialRecordId={record.id}
+        mode="entry"
+        refreshToken={1}
+        repository={service}
+      />,
+    );
+
+    await waitFor(() => expect(listLogistics).toHaveBeenCalledTimes(2));
+    expect(getLogistics).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText(/物流来源单位/)).toHaveValue(
+      "已补充物流来源单位",
+    );
+
+    await user.click(screen.getByRole("button", { name: "保存物流记录" }));
+    expect(updateLogistics).toHaveBeenCalledWith(record.id, {
+      productCode: "CORN",
+      values: {
+        LOG_PERIOD: "2026-W32",
+        LOG_SOURCE_ORGANIZATION: "已补充物流来源单位",
+      },
+      version: 2,
+    });
+  });
+
   it("excludes backend-owned read-only fields when revising a record", async () => {
     const user = userEvent.setup();
     const record = {
@@ -137,7 +446,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       },
       status: "RETURNED",
       returnReason: "补充来源台账",
-      allowedActions: ["SUBMIT"],
+      allowedActions: ["SAVE", "SUBMIT"],
       version: 2,
     } as const;
     const updateLogistics = vi.fn().mockResolvedValue(record);

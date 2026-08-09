@@ -162,6 +162,98 @@ function businessPeriod(periodKey: string): string {
   return matched ? `${matched[1]}年第${Number(matched[2])}周` : periodKey;
 }
 
+type PageHelpContent = {
+  purpose: string;
+  steps: readonly string[];
+  rules: string;
+  exception: string;
+};
+
+function pageHelpContent(route: FormalRoute): PageHelpContent {
+  if (route.application === "work") {
+    return {
+      purpose: "处理当前账号和岗位责任范围内的待办、审核、退回与异常事项。",
+      steps: [
+        "按状态、地区、品种或期限定位事项。",
+        "点击处理进入原业务单据，核对来源数据和当前流程节点。",
+        "完成保存、提交或审核后返回列表确认状态与时间记录。",
+      ],
+      rules:
+        "只能处理分配给本人或本人岗位的事项；查看权限不等于填报或审核权限。",
+      exception:
+        "若事项无法打开或内容不符，请保留事项名称和发生时间并联系本单位管理员核查责任分配。",
+    };
+  }
+  if (route.application === "supply") {
+    return {
+      purpose: "查看已核定业务数据形成的供需平衡结果、来源和计算过程。",
+      steps: [
+        "选择产品、统计地区和统计时间。",
+        "查看平衡结果、分项来源、计算公式和过程明细。",
+        "核对输入版本、决策版本和结果校验码后再用于决策或报告。",
+      ],
+      rules: "本页面只读，不直接填报供需数字；结果必须来自已核定业务记录。",
+      exception:
+        "出现缺少来源或待计算时，应返回对应产情、市场或物流流程补齐并完成审核。",
+    };
+  }
+  if (route.application === "reporting") {
+    return {
+      purpose: "按授权范围生成产情、市场、物流或供需业务报告。",
+      steps: [
+        "选择报告类型、地区层级和时间范围。",
+        "生成预览并核对数据范围、来源和统计口径。",
+        "确认无误后导出允许的报告格式。",
+      ],
+      rules:
+        "报告范围不得超过当前账号授权地区和业务范围，系统不会默认导出无边界的大范围数据。",
+      exception:
+        "预览为空时先检查筛选条件及上游记录是否已审核，不得使用未核定数据替代。",
+    };
+  }
+  if (route.section === "analysis") {
+    return {
+      purpose: "比较当前年度与前三年同地区、同品种、同口径的已核定指标。",
+      steps: [
+        "选择统计地区、统计时间和可用分析指标。",
+        "通过柱状图、折线图和占比图查看趋势与结构变化。",
+        "悬停数据点核对年度值、同比和数据状态。",
+      ],
+      rules: "分析指标来自当前业务表和业务字段定义，不使用固定的预置指标。",
+      exception:
+        "不可比较表示对应年度缺少同口径核定数据，应先核查筛选条件和历史业务记录。",
+    };
+  }
+  if (route.section.endsWith("-logistics")) {
+    return {
+      purpose: "查询并维护当前菜单品种的物流节点、路线和运价监测记录。",
+      steps: [
+        "通过地区、时间和物流条件筛选现有记录。",
+        "需要填报时点击新建，在弹窗中完成必填信息和现场材料。",
+        "保存并提交后返回列表确认状态，批量数据使用对应 XLSX 模板。",
+      ],
+      rules:
+        "只有获分配的地区责任人可填报；其他授权员工可按权限查看，自动计算字段不可手工修改。",
+      exception: "导入失败时下载错误回执，修正对应行后使用同一幂等键重试。",
+    };
+  }
+  return {
+    purpose:
+      route.application === "production"
+        ? "查询并维护当前菜单品种的产情调查记录。"
+        : "查询并维护当前菜单品种的市场采集记录。",
+    steps: [
+      "通过地区、调查时间和状态筛选现有业务记录。",
+      "需要填报时点击新建，在弹窗中完成必填字段和现场材料。",
+      "保存并提交后返回列表确认状态；批量数据使用当前业务 XLSX 模板。",
+    ],
+    rules:
+      "只有获分配的地区责任人可填报；填报人由登录账号锁定，自动计算字段只读。",
+    exception:
+      "记录被退回时按退回原因修正原单据，不应另建重复记录；导入错误应依据回执逐行修正。",
+  };
+}
+
 function isPrimaryApplicationActive(
   key: (typeof primaryBusinessApplications)[number]["key"],
   route: FormalRoute,
@@ -216,6 +308,11 @@ export function EnterpriseShell({
     formalApplicationDefinitions.find(
       ({ key }) => key === location.route.application,
     ) ?? formalApplicationDefinitions.find(({ key }) => key === "market")!;
+  const currentPageLabel =
+    currentApplication.navigation.find(
+      ({ route }) => route.section === location.route.section,
+    )?.label ?? "当前业务";
+  const currentHelp = pageHelpContent(location.route);
   const searchablePages: SearchResult[] = formalApplicationDefinitions
     .filter(
       ({ key }) =>
@@ -557,13 +654,22 @@ export function EnterpriseShell({
                   <p>暂无未读业务通知</p>
                 )
               ) : (
-                <p>
-                  {currentApplication.label} ·{" "}
-                  {currentApplication.navigation.find(
-                    ({ route }) => route.section === location.route.section,
-                  )?.label ?? "当前业务"}
-                  。先选择地区、品种和时间查询记录；需要填报时点击新建，分析和供需页面仅查看已核定结果。
-                </p>
+                <div className="formal-page-help">
+                  <strong>
+                    {currentApplication.label} · {currentPageLabel}
+                  </strong>
+                  <p>{currentHelp.purpose}</p>
+                  <h3>操作步骤</h3>
+                  <ol>
+                    {currentHelp.steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                  <h3>权限与数据规则</h3>
+                  <p>{currentHelp.rules}</p>
+                  <h3>异常处理</h3>
+                  <p>{currentHelp.exception}</p>
+                </div>
               )}
             </section>
           )}

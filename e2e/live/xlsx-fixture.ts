@@ -40,10 +40,13 @@ export function fillDownloadedXlsx(
   const sheetPath = join(unpacked, "xl", "worksheets", "sheet1.xml");
   const xml = readFileSync(sheetPath, "utf8");
   const headerRow = /<row\b[^>]*\br="2"[^>]*>([\s\S]*?)<\/row>/u.exec(xml)?.[1];
-  if (!headerRow) throw new Error("XLSX template is missing its field-code row");
-  const cells = [...headerRow.matchAll(
-    /<c\b[^>]*\br="([A-Z]+)2"[^>]*>[\s\S]*?<t(?:\s[^>]*)?>([\s\S]*?)<\/t>[\s\S]*?<\/c>/gu,
-  )];
+  if (!headerRow)
+    throw new Error("XLSX template is missing its field-code row");
+  const cells = [
+    ...headerRow.matchAll(
+      /<c\b[^>]*\br="([A-Z]+)2"[^>]*>[\s\S]*?<t(?:\s[^>]*)?>([\s\S]*?)<\/t>[\s\S]*?<\/c>/gu,
+    ),
+  ];
   if (cells.length === 0)
     throw new Error("XLSX template field-code row is empty");
   const headers = cells.map((cell) => decodeXml(cell[2] ?? ""));
