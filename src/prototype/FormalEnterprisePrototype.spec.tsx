@@ -42,6 +42,152 @@ afterEach(() => {
 });
 
 describe("formal enterprise prototype", () => {
+  it("refreshes authorized business data from the durable event stream without polling", async () => {
+    const user = userEvent.setup();
+    let receiveBusinessEvent:
+      | ((event: {
+          id: string;
+          sequence: number;
+          aggregateType: string;
+          aggregateId: string;
+          actionCode: string;
+          productCode: string | null;
+          regionCodes: readonly string[];
+          occurredAt: string;
+          read: boolean;
+        }) => void)
+      | undefined;
+    const unsubscribe = vi.fn();
+    const listWorkItems = vi.fn(() =>
+      Promise.resolve({
+        items: [],
+        pageNumber: 0,
+        pageSize: 100,
+        totalElements: 0,
+        totalPages: 0,
+      }),
+    );
+    const listNotifications = vi.fn(() =>
+      Promise.resolve({
+        items: [
+          {
+            id: "event-1",
+            sequence: 1,
+            aggregateType: "PRODUCTION_RECORD",
+            aggregateId: "production-1",
+            actionCode: "PRODUCTION_RECORD_CREATED",
+            productCode: "CORN",
+            regionCodes: ["230200"],
+            occurredAt: "2026-08-09T10:00:00Z",
+            read: false,
+          },
+        ],
+        unreadCount: 7,
+      }),
+    );
+    const markNotificationRead = vi.fn(() =>
+      Promise.resolve({
+        id: "event-1",
+        sequence: 1,
+        aggregateType: "PRODUCTION_RECORD",
+        aggregateId: "production-1",
+        actionCode: "PRODUCTION_RECORD_CREATED",
+        productCode: "CORN",
+        regionCodes: ["230200"],
+        occurredAt: "2026-08-09T10:00:00Z",
+        read: true,
+      }),
+    );
+    const subscribeBusinessEvents = vi.fn((_afterSequence, onChange) => {
+      receiveBusinessEvent = onChange;
+      return unsubscribe;
+    });
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.resolve({
+          subjectId: "employee-1",
+          displayName: "当前员工",
+          workUnitCode: "QIQIHAR_BUSINESS",
+          permissions: ["BUSINESS_READ"],
+          regionCodes: ["230200"],
+        }),
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [{ code: "CORN", name: "玉米" }],
+          periods: [
+            {
+              code: "2026-W32",
+              name: "2026 年第 32 周",
+              startsOn: "2026-08-03",
+              endsOn: "2026-08-09",
+            },
+          ],
+          regions: [],
+        }),
+      listWorkItems,
+      listProduction: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      listNotifications,
+      markNotificationRead,
+      subscribeBusinessEvents,
+    } as unknown as RealtimeBusinessRepository;
+
+    const { unmount } = render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(subscribeBusinessEvents).toHaveBeenCalledTimes(1);
+      expect(subscribeBusinessEvents).toHaveBeenCalledWith(
+        1,
+        expect.any(Function),
+      );
+      expect(listNotifications).toHaveBeenCalledTimes(1);
+      expect(listWorkItems).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getByRole("button", { name: /^通知/ })).toHaveTextContent(
+      "7",
+    );
+    await user.click(screen.getByRole("button", { name: /^通知/ }));
+    await user.click(
+      screen.getByRole("button", { name: /玉米产情记录已新建/ }),
+    );
+    await waitFor(() =>
+      expect(markNotificationRead).toHaveBeenCalledWith("event-1"),
+    );
+    if (!receiveBusinessEvent) throw new Error("event stream not subscribed");
+    act(() =>
+      receiveBusinessEvent?.({
+        id: "event-1",
+        sequence: 1,
+        aggregateType: "PRODUCTION_RECORD",
+        aggregateId: "production-1",
+        actionCode: "PRODUCTION_RECORD_CREATED",
+        productCode: "CORN",
+        regionCodes: ["230200"],
+        occurredAt: "2026-08-09T10:00:00Z",
+        read: false,
+      }),
+    );
+    await waitFor(() => {
+      expect(listNotifications).toHaveBeenCalledTimes(2);
+      expect(listWorkItems).toHaveBeenCalledTimes(2);
+    });
+
+    unmount();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the production ledger without mounting the entry form by default", async () => {
     const user = userEvent.setup();
     const listObjectTypes = vi.fn(() =>

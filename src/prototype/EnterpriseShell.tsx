@@ -6,6 +6,7 @@ import type { MonitoringObject } from "./core/monitoringRegistry";
 import type { OperationalScope } from "./core/operationalScope";
 import { businessWorkFixtures } from "./data/businessWorkFixtures";
 import type { ApprovedBusinessReportDataset } from "./data/businessReportDatasets";
+import type { BusinessNotificationRow } from "@/platform/api/realtimeBusinessRepository";
 import {
   marketMonitoringObjects,
   productionMonitoringObjects,
@@ -102,6 +103,60 @@ function productWorkRoute(item: BusinessWorkItem): FormalRoute {
   return createFormalRoute("production", "tasks");
 }
 
+function notificationProductName(productCode: string | null): string {
+  return (
+    (
+      {
+        CORN: "玉米",
+        SOYBEAN: "大豆",
+        RICE: "稻谷",
+      } as Readonly<Record<string, string>>
+    )[productCode ?? ""] ?? "粮食"
+  );
+}
+
+function notificationActionLabel(actionCode: string): string {
+  if (actionCode.endsWith("_CREATED")) return "已新建";
+  if (actionCode.endsWith("_UPDATED")) return "已更新";
+  if (actionCode.endsWith("_SUBMITTED")) return "已提交审核";
+  if (actionCode.endsWith("_APPROVED")) return "已审核通过";
+  if (actionCode.endsWith("_RETURNED")) return "已退回补充";
+  return "发生变更";
+}
+
+function notificationDomainLabel(aggregateType: string): string {
+  if (aggregateType.includes("LOGISTICS")) return "物流记录";
+  if (aggregateType.includes("MARKET")) return "市场记录";
+  if (aggregateType.includes("SUPPLY")) return "供需结果";
+  return "产情记录";
+}
+
+function notificationRoute(notification: BusinessNotificationRow): FormalRoute {
+  const product =
+    notification.productCode === "SOYBEAN"
+      ? "soybean"
+      : notification.productCode === "RICE"
+        ? "paddy"
+        : "corn";
+  if (notification.aggregateType.includes("LOGISTICS")) {
+    return createFormalRoute("market", `${product}-logistics`);
+  }
+  if (notification.aggregateType.includes("MARKET")) {
+    return createFormalRoute("market", `${product}-collection`);
+  }
+  if (notification.aggregateType.includes("SUPPLY")) {
+    return createFormalRoute("supply", `${product}-balance`);
+  }
+  return createFormalRoute(
+    "production",
+    product === "paddy" ? "rice-collection" : `${product}-collection`,
+  );
+}
+
+function notificationTitle(notification: BusinessNotificationRow): string {
+  return `${notificationProductName(notification.productCode)}${notificationDomainLabel(notification.aggregateType)}${notificationActionLabel(notification.actionCode)}`;
+}
+
 function businessPeriod(periodKey: string): string {
   const matched = /^([0-9]{4})-W([0-9]{1,2})$/u.exec(periodKey);
   return matched ? `${matched[1]}年第${Number(matched[2])}周` : periodKey;
@@ -132,6 +187,9 @@ export function EnterpriseShell({
   productionObjects = productionMonitoringObjects,
   marketObjects = marketMonitoringObjects,
   reportDatasets = [],
+  businessNotifications,
+  businessNotificationUnreadCount,
+  onBusinessNotificationRead,
   scope,
   queryAllowed = true,
   children,
@@ -143,6 +201,9 @@ export function EnterpriseShell({
   productionObjects?: readonly MonitoringObject[];
   marketObjects?: readonly MonitoringObject[];
   reportDatasets?: readonly ApprovedBusinessReportDataset[];
+  businessNotifications?: readonly BusinessNotificationRow[];
+  businessNotificationUnreadCount?: number;
+  onBusinessNotificationRead?: (id: string) => void | Promise<void>;
   scope?: OperationalScope;
   queryAllowed?: boolean;
   children: ReactNode;
@@ -255,14 +316,19 @@ export function EnterpriseShell({
       item.obligationStatus === "missed" ||
       item.reviewStatus === "pending",
   ).length;
-  const notificationCount = workItems.filter(
+  const workItemNotificationCount = workItems.filter(
     (item) =>
       item.qualityStatus === "blocking" || item.reviewStatus === "returned",
   ).length;
-  const notificationItems = workItems.filter(
+  const workItemNotificationItems = workItems.filter(
     (item) =>
       item.qualityStatus === "blocking" || item.reviewStatus === "returned",
   );
+  const notificationCount =
+    businessNotifications === undefined
+      ? workItemNotificationCount
+      : (businessNotificationUnreadCount ??
+        businessNotifications.filter(({ read }) => !read).length);
 
   if (
     location.route.application === "overview" &&
@@ -433,9 +499,41 @@ export function EnterpriseShell({
                 </button>
               </header>
               {utilityPanel === "notifications" ? (
-                notificationItems.length > 0 ? (
+                businessNotifications !== undefined ? (
+                  businessNotifications.length > 0 ? (
+                    <div className="formal-notification-list">
+                      {businessNotifications.map((notification) => (
+                        <button
+                          className={
+                            notification.read ? "is-read" : "is-unread"
+                          }
+                          key={notification.id}
+                          onClick={() => {
+                            void onBusinessNotificationRead?.(notification.id);
+                            onNavigate(notificationRoute(notification), {
+                              type: "document",
+                              id: notification.aggregateId,
+                            });
+                            closePanels();
+                          }}
+                          type="button"
+                        >
+                          <strong>{notificationTitle(notification)}</strong>
+                          <span>
+                            {new Date(notification.occurredAt).toLocaleString(
+                              "zh-CN",
+                            )}
+                            {notification.read ? " · 已读" : " · 未读"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>暂无业务通知</p>
+                  )
+                ) : workItemNotificationItems.length > 0 ? (
                   <div className="formal-notification-list">
-                    {notificationItems.map((item) => (
+                    {workItemNotificationItems.map((item) => (
                       <button
                         key={item.workId}
                         onClick={() =>

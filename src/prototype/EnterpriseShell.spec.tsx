@@ -305,6 +305,63 @@ describe("EnterpriseShell", () => {
     ).toHaveTextContent("市场监测 · 监测对象");
   });
 
+  it("renders durable API notifications without falling back to work-item fixtures", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const onBusinessNotificationRead = vi.fn(() => Promise.resolve());
+    render(
+      <EnterpriseShell
+        businessNotifications={[
+          {
+            id: "event-1",
+            sequence: 9,
+            aggregateType: "MARKET_RECORD",
+            aggregateId: "market-1",
+            actionCode: "MARKET_RECORD_CREATED",
+            productCode: "SOYBEAN",
+            regionCodes: ["230200"],
+            occurredAt: "2026-08-09T10:00:00Z",
+            read: false,
+          },
+        ]}
+        location={{
+          route: createFormalRoute("work", "tasks"),
+          coordinates: { regionId: "authorized-all" },
+        }}
+        onBusinessNotificationRead={onBusinessNotificationRead}
+        onNavigate={onNavigate}
+        shellIdentity={{
+          platformName: "平台名称",
+          workUnit: {
+            organizationLabel: "组织",
+            currentUnitLabel: "单位一",
+            units: ["单位一"],
+          },
+          account: { displayName: "用户", menuItems: [] },
+        }}
+        workItems={[]}
+      >
+        <h1>workspace</h1>
+      </EnterpriseShell>,
+    );
+
+    expect(screen.getByRole("button", { name: /^通知/ })).toHaveTextContent(
+      "1",
+    );
+    await user.click(screen.getByRole("button", { name: /^通知/ }));
+    expect(screen.getByRole("dialog", { name: "业务通知" })).toHaveTextContent(
+      "大豆市场记录已新建",
+    );
+    await user.click(
+      screen.getByRole("button", { name: /大豆市场记录已新建/ }),
+    );
+    expect(onBusinessNotificationRead).toHaveBeenCalledWith("event-1");
+    expect(onNavigate).toHaveBeenCalledWith(
+      createFormalRoute("market", "soybean-collection"),
+      { type: "document", id: "market-1" },
+    );
+  });
+
   it("rebuilds task and risk search results from the current work-item snapshot", async () => {
     const user = userEvent.setup();
     const source = businessWorkFixtures.find(

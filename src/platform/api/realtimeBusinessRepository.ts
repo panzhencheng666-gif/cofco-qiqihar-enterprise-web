@@ -104,6 +104,36 @@ export interface CurrentSession {
   regionCodes: readonly string[];
 }
 
+export interface BusinessNotificationRow {
+  id: string;
+  sequence: number;
+  aggregateType: string;
+  aggregateId: string;
+  actionCode: string;
+  productCode: string | null;
+  regionCodes: readonly string[];
+  occurredAt: string;
+  read: boolean;
+}
+
+export interface BusinessNotificationPage {
+  items: readonly BusinessNotificationRow[];
+  unreadCount: number;
+}
+
+export interface BusinessEventSource {
+  addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+  ): void;
+  close(): void;
+}
+
+export interface RealtimeBusinessRepositoryOptions {
+  eventSourceFactory?: (url: string) => BusinessEventSource;
+  eventStreamBaseUrl?: string;
+}
+
 export interface WorkItemRow {
   id: string;
   task: string;
@@ -390,6 +420,13 @@ export interface MarketDefinition {
 
 export interface RealtimeBusinessRepository {
   loadCurrentSession(): Promise<CurrentSession>;
+  listNotifications(): Promise<BusinessNotificationPage>;
+  markNotificationRead(id: string): Promise<BusinessNotificationRow>;
+  subscribeBusinessEvents(
+    afterSequence: number,
+    onChange: (event: BusinessNotificationRow) => void,
+    onError?: () => void,
+  ): () => void;
   uploadEvidencePhoto(input: EvidencePhotoUpload): Promise<EvidencePhotoRow>;
   loadMasterData(): Promise<MasterDataSnapshot>;
   loadAnnualComparison(input: {
@@ -577,9 +614,44 @@ function recordQuery(
 
 export function createRealtimeBusinessRepository(
   client: RealtimeApiClient = realtimeApiClient,
+  options: RealtimeBusinessRepositoryOptions = {},
 ): RealtimeBusinessRepository {
+  const streamBaseUrl = (
+    options.eventStreamBaseUrl ??
+    import.meta.env.VITE_API_BASE_URL ??
+    ""
+  ).replace(/\/$/u, "");
+  const eventSourceFactory =
+    options.eventSourceFactory ??
+    ((url: string) => new EventSource(url, { withCredentials: true }));
   return {
     loadCurrentSession: () => client.get<CurrentSession>("/api/v1/session/me"),
+    listNotifications: () =>
+      client.get<BusinessNotificationPage>("/api/v1/notifications"),
+    markNotificationRead: (id) =>
+      client.post<BusinessNotificationRow>(
+        `/api/v1/notifications/${encodeURIComponent(id)}/read`,
+      ),
+    subscribeBusinessEvents: (afterSequence, onChange, onError) => {
+      const cursor = Number.isSafeInteger(afterSequence)
+        ? Math.max(0, afterSequence)
+        : 0;
+      const source = eventSourceFactory(
+        `${streamBaseUrl}/api/v1/business-events/stream?after=${cursor}`,
+      );
+      source.addEventListener("business-change", (rawEvent) => {
+        if (!(rawEvent instanceof MessageEvent)) return;
+        try {
+          onChange(
+            JSON.parse(String(rawEvent.data)) as BusinessNotificationRow,
+          );
+        } catch {
+          onError?.();
+        }
+      });
+      source.addEventListener("error", () => onError?.());
+      return () => source.close();
+    },
     uploadEvidencePhoto: (input) => {
       const form = new FormData();
       form.append("file", input.file, input.file.name);

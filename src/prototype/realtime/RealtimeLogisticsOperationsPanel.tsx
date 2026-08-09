@@ -92,13 +92,6 @@ export function RealtimeLogisticsOperationsPanel({
     };
   }, [productCode, repository]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      void reload().catch(() => setError("物流记录刷新失败，请稍后重试。"));
-    }, 10_000);
-    return () => window.clearInterval(timer);
-  }, [reload]);
-
   function newRecord() {
     setSelected(null);
     setValues(

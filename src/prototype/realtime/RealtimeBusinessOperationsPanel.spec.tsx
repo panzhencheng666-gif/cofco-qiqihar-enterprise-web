@@ -220,6 +220,26 @@ function fillRequiredProductionFields() {
 }
 
 describe("RealtimeBusinessOperationsPanel", () => {
+  it("does not poll because durable business events own refresh timing", async () => {
+    const interval = vi.spyOn(window, "setInterval");
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="张三"
+        domain="production"
+        lockedProductCode="CORN"
+        repository={repository().api}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "产情填报" }),
+    ).toBeVisible();
+    expect(interval.mock.calls.some(([, delay]) => delay === 10_000)).toBe(
+      false,
+    );
+    interval.mockRestore();
+  });
+
   it("captures both surveyed-object prices without a direction selector", async () => {
     const { api } = repository();
     vi.spyOn(api, "listObjectTypes").mockResolvedValue([

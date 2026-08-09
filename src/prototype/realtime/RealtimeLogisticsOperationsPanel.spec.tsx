@@ -1,11 +1,16 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeLogisticsOperationsPanel } from "./RealtimeLogisticsOperationsPanel";
+
+afterEach(cleanup);
 
 function repository(): RealtimeBusinessRepository {
   return {
     loadCurrentSession: vi.fn(),
+    listNotifications: vi.fn(),
+    markNotificationRead: vi.fn(),
+    subscribeBusinessEvents: vi.fn(),
     uploadEvidencePhoto: vi.fn(),
     loadMasterData: vi.fn(),
     loadAnnualComparison: vi.fn(),
@@ -111,6 +116,24 @@ function repository(): RealtimeBusinessRepository {
 }
 
 describe("RealtimeLogisticsOperationsPanel", () => {
+  it("does not poll because durable business events own refresh timing", async () => {
+    const interval = vi.spyOn(window, "setInterval");
+    render(
+      <RealtimeLogisticsOperationsPanel
+        actorName="物流测试员"
+        editorOnly
+        repository={repository()}
+      />,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "物流监测填报" }),
+    ).toBeVisible();
+    expect(interval.mock.calls.some(([, delay]) => delay === 10_000)).toBe(
+      false,
+    );
+    interval.mockRestore();
+  });
+
   it("renders backend-owned logistics definitions and an empty real list", async () => {
     render(
       <RealtimeLogisticsOperationsPanel

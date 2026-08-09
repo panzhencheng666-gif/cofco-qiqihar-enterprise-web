@@ -75,6 +75,80 @@ function client() {
 }
 
 describe("realtime business repository", () => {
+  it("reads durable notifications, marks them read and streams business changes", async () => {
+    const { api, get, post } = client();
+    get.mockImplementationOnce(
+      () =>
+        Promise.resolve({
+          items: [
+            {
+              id: "event-1",
+              sequence: 12,
+              aggregateType: "PRODUCTION_RECORD",
+              aggregateId: "production-1",
+              actionCode: "PRODUCTION_RECORD_CREATED",
+              productCode: "CORN",
+              regionCodes: ["230200"],
+              occurredAt: "2026-08-09T10:00:00Z",
+              read: false,
+            },
+          ],
+          unreadCount: 1,
+        }) as never,
+    );
+    post.mockImplementationOnce(
+      () => Promise.resolve({ id: "event-1", read: true }) as never,
+    );
+    const listeners = new Map<string, (event: MessageEvent<string>) => void>();
+    const source = {
+      addEventListener: vi.fn(
+        (name: string, listener: EventListenerOrEventListenerObject) => {
+          listeners.set(
+            name,
+            listener as unknown as (event: MessageEvent<string>) => void,
+          );
+        },
+      ),
+      close: vi.fn(),
+    };
+    const repository = createRealtimeBusinessRepository(api, {
+      eventSourceFactory: (url) => {
+        expect(url).toBe("/api/v1/business-events/stream?after=12");
+        return source;
+      },
+    });
+
+    await expect(repository.listNotifications()).resolves.toMatchObject({
+      unreadCount: 1,
+      items: [{ aggregateId: "production-1", read: false }],
+    });
+    await repository.markNotificationRead("event/1");
+    const onChange = vi.fn();
+    const unsubscribe = repository.subscribeBusinessEvents(12, onChange);
+    listeners.get("business-change")?.(
+      new MessageEvent("business-change", {
+        data: JSON.stringify({
+          id: "event-2",
+          sequence: 13,
+          aggregateType: "MARKET_RECORD",
+          aggregateId: "market-1",
+          actionCode: "MARKET_RECORD_CREATED",
+          productCode: "SOYBEAN",
+          regionCodes: ["230200"],
+          occurredAt: "2026-08-09T10:01:00Z",
+          read: false,
+        }),
+      }),
+    );
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "event-2", productCode: "SOYBEAN" }),
+    );
+    expect(get).toHaveBeenCalledWith("/api/v1/notifications");
+    expect(post).toHaveBeenCalledWith("/api/v1/notifications/event%2F1/read");
+    unsubscribe();
+    expect(source.close).toHaveBeenCalledTimes(1);
+  });
+
   it("loads all master-data collections from the API", async () => {
     const { api, get } = client();
     const result = await createRealtimeBusinessRepository(api).loadMasterData();

@@ -210,29 +210,6 @@ export function RealtimeBusinessOperationsPanel({
     };
   }, [authenticatedName, domain, productCode, repository]);
 
-  useEffect(() => {
-    if (!productCode) return;
-    let cancelled = false;
-    const refreshRecords = () => {
-      void (
-        domain === "production"
-          ? repository.listProduction({ productCode, pageSize: 100 })
-          : repository.listMarket({ productCode, pageSize: 100 })
-      )
-        .then((page) => {
-          if (!cancelled) setRecords(page.items);
-        })
-        .catch(() => {
-          if (!cancelled) setError("业务记录刷新失败，请稍后重试。");
-        });
-    };
-    const timer = window.setInterval(refreshRecords, 10_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [domain, productCode, repository]);
-
   const objectTypeCode =
     values.objectTypeCode ||
     values.MKT_OBJECT_TYPE ||

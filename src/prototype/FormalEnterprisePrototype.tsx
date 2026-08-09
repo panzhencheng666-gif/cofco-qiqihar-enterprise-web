@@ -40,6 +40,7 @@ import { projectReportWorkflowIntoWorkItems } from "./application/reportWorkItem
 import { projectRealtimeWorkItems } from "./application/realtimeWorkItemProjection";
 import { realtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import type {
+  BusinessNotificationRow,
   CurrentSession,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
@@ -300,6 +301,11 @@ export function FormalEnterprisePrototype({
     "connecting" | "connected" | "empty" | "error" | "demo"
   >(realtimeMode ? "connecting" : "demo");
   const [realtimeRefreshToken, setRealtimeRefreshToken] = useState(0);
+  const [businessNotifications, setBusinessNotifications] = useState<
+    readonly BusinessNotificationRow[]
+  >([]);
+  const [businessNotificationUnreadCount, setBusinessNotificationUnreadCount] =
+    useState(0);
   const [realtimeEntryDomain, setRealtimeEntryDomain] = useState<
     "production" | "market" | "logistics" | null
   >(null);
@@ -403,11 +409,67 @@ export function FormalEnterprisePrototype({
 
   useEffect(() => {
     if (!realtimeMode) return;
-    const timer = window.setInterval(() => {
-      setRealtimeRefreshToken((value) => value + 1);
-    }, 10_000);
-    return () => window.clearInterval(timer);
-  }, [realtimeMode]);
+    if (
+      typeof repository.listNotifications !== "function" ||
+      typeof repository.subscribeBusinessEvents !== "function"
+    ) {
+      setBusinessNotifications([]);
+      setBusinessNotificationUnreadCount(0);
+      return;
+    }
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    const subscribeFrom = (afterSequence: number) => {
+      if (cancelled) return;
+      unsubscribe = repository.subscribeBusinessEvents(afterSequence, () => {
+        setRealtimeRefreshToken((value) => value + 1);
+      });
+    };
+    void repository
+      .listNotifications()
+      .then((page) => {
+        if (cancelled) return;
+        setBusinessNotifications(page.items);
+        setBusinessNotificationUnreadCount(page.unreadCount);
+        subscribeFrom(
+          page.items.reduce(
+            (latest, notification) => Math.max(latest, notification.sequence),
+            0,
+          ),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setBusinessNotifications([]);
+        setBusinessNotificationUnreadCount(0);
+        subscribeFrom(0);
+      });
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [realtimeMode, repository]);
+
+  useEffect(() => {
+    if (
+      !realtimeMode ||
+      realtimeRefreshToken === 0 ||
+      typeof repository.listNotifications !== "function"
+    )
+      return;
+    let cancelled = false;
+    void repository
+      .listNotifications()
+      .then((page) => {
+        if (cancelled) return;
+        setBusinessNotifications(page.items);
+        setBusinessNotificationUnreadCount(page.unreadCount);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [realtimeMode, realtimeRefreshToken, repository]);
 
   const updateWorkItem = (next: BusinessWorkItem) => {
     setOperationalState((current) => ({
@@ -416,6 +478,29 @@ export function FormalEnterprisePrototype({
         item.workId === next.workId ? next : item,
       ),
     }));
+  };
+
+  const markBusinessNotificationRead = async (id: string) => {
+    if (!realtimeMode || typeof repository.markNotificationRead !== "function")
+      return;
+    const wasUnread = businessNotifications.some(
+      (notification) => notification.id === id && !notification.read,
+    );
+    try {
+      const updated = await repository.markNotificationRead(id);
+      setBusinessNotifications((current) =>
+        current.map((notification) =>
+          notification.id === id ? updated : notification,
+        ),
+      );
+      if (wasUnread && updated.read) {
+        setBusinessNotificationUnreadCount((current) =>
+          Math.max(0, current - 1),
+        );
+      }
+    } catch {
+      setBusinessNotifications((current) => [...current]);
+    }
   };
 
   const updateMarketDocumentDraft = (
@@ -661,6 +746,11 @@ export function FormalEnterprisePrototype({
       onNavigate={navigateAndCloseEntry}
       productionObjects={productionRegistryObjects}
       reportDatasets={realtimeMode ? [] : approvedBusinessReportDatasets}
+      businessNotifications={realtimeMode ? businessNotifications : undefined}
+      businessNotificationUnreadCount={
+        realtimeMode ? businessNotificationUnreadCount : undefined
+      }
+      onBusinessNotificationRead={markBusinessNotificationRead}
       shellIdentity={shellIdentity}
       scope={scope}
       queryAllowed={queryAllowed}
