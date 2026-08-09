@@ -243,6 +243,48 @@ describe("RealtimeBusinessOperationsPanel", () => {
           options: [{ value: "TRADER", label: "贸易商", sortOrder: 10 }],
         },
         {
+          code: "MKT_TRADE_DIRECTION",
+          label: "本次成交价格方向",
+          controlType: "SELECT",
+          unit: null,
+          description: "决定本条记录采用采购价还是销售价计算实际成交价",
+          capability: null,
+          required: true,
+          precision: null,
+          scale: null,
+          sortOrder: 20,
+          options: [
+            { value: "PURCHASE", label: "采购成交", sortOrder: 10 },
+            { value: "SALE", label: "销售成交", sortOrder: 20 },
+          ],
+        },
+        {
+          code: "MKT_PURCHASE_BASE_PRICE",
+          label: "采购基础价",
+          controlType: "DECIMAL",
+          unit: "元/吨",
+          description: "采购成交时填写",
+          capability: null,
+          required: false,
+          precision: 18,
+          scale: 4,
+          sortOrder: 30,
+          options: [],
+        },
+        {
+          code: "MKT_SALE_BASE_PRICE",
+          label: "销售基础价",
+          controlType: "DECIMAL",
+          unit: "元/吨",
+          description: "销售成交时填写",
+          capability: null,
+          required: false,
+          precision: 18,
+          scale: 4,
+          sortOrder: 40,
+          options: [],
+        },
+        {
           code: "MKT_ACTUAL_TRADE_PRICE",
           label: "实际成交价",
           controlType: "READONLY_DECIMAL",
@@ -281,6 +323,20 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.queryByRole("textbox", { name: "实际成交价" }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("采购基础价")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("销售基础价")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("本次成交价格方向"), {
+      target: { value: "PURCHASE" },
+    });
+    expect(screen.getByLabelText("采购基础价")).toBeVisible();
+    expect(screen.queryByLabelText("销售基础价")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("本次成交价格方向"), {
+      target: { value: "SALE" },
+    });
+    expect(screen.queryByLabelText("采购基础价")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("销售基础价")).toBeVisible();
   });
 
   it("renders the required production provenance fields without the removed duplicate inputs", async () => {

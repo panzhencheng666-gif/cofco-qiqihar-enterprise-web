@@ -93,7 +93,7 @@ export const businessComparisonCoverage: readonly BusinessComparisonCoverage[] =
     {
       classificationId: "market.quote-trade",
       fields: [
-        governed("买卖方向", "属于报价坐标"),
+        governed("本次成交价格方向", "属于报价坐标"),
         governed("报价类型", "属于报价坐标"),
         metric("采购价格", "market.purchase-price"),
         metric("成交价格", "market.transaction-price"),

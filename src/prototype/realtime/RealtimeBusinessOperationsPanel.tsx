@@ -289,11 +289,20 @@ export function RealtimeBusinessOperationsPanel({
   const fieldSections = useMemo(() => {
     const sections = new Map<string, RealtimeFormField[]>();
     fields.forEach((field) => {
+      if (
+        domain === "market" &&
+        ((field.code === "MKT_PURCHASE_BASE_PRICE" &&
+          values.MKT_TRADE_DIRECTION !== "PURCHASE") ||
+          (field.code === "MKT_SALE_BASE_PRICE" &&
+            values.MKT_TRADE_DIRECTION !== "SALE"))
+      ) {
+        return;
+      }
       const section = field.section ?? "其他信息";
       sections.set(section, [...(sections.get(section) ?? []), field]);
     });
     return [...sections.entries()];
-  }, [fields]);
+  }, [domain, fields, values.MKT_TRADE_DIRECTION]);
 
   function options(
     field: RealtimeFormField,
@@ -315,7 +324,19 @@ export function RealtimeBusinessOperationsPanel({
 
   function edit(code: string, value: string) {
     if (isAccountLockedReporter(code)) return;
-    setValues((current) => ({ ...current, [code]: value }));
+    setValues((current) => {
+      if (code !== "MKT_TRADE_DIRECTION") {
+        return { ...current, [code]: value };
+      }
+      return {
+        ...current,
+        MKT_TRADE_DIRECTION: value,
+        MKT_PURCHASE_BASE_PRICE:
+          value === "PURCHASE" ? current.MKT_PURCHASE_BASE_PRICE : "",
+        MKT_SALE_BASE_PRICE:
+          value === "SALE" ? current.MKT_SALE_BASE_PRICE : "",
+      };
+    });
   }
 
   function displayedValue(field: RealtimeFormField): string {
