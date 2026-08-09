@@ -378,16 +378,17 @@ describe("production monitoring workspace", () => {
     expect(document.body).not.toHaveTextContent("本单据不适用");
     expect(document.body).not.toHaveTextContent("责任人已确认");
     expect(document.body).toHaveTextContent("本章节数据已由责任人确认");
-    for (const independentField of [
-      "监测面积",
-      "预计单产",
-      "样本平均结果",
-      "区域加权估计",
-    ]) {
+    for (const independentField of ["监测面积", "预计单产"]) {
       expect(
         screen.getByRole("textbox", { name: independentField }),
       ).toBeVisible();
     }
+    expect(
+      screen.queryByRole("textbox", { name: "样本平均结果" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "区域加权估计" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "单据与审核流程" }),
     ).toBeVisible();
@@ -988,7 +989,7 @@ describe("production monitoring workspace", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("region", { name: "产情四年指标台账区域" }),
-    ).toHaveTextContent("5 项");
+    ).toHaveTextContent("3 项");
     expect(screen.getByText("查看 30 项暂不可比指标及原因")).toBeVisible();
     expect(
       screen.queryByRole("table", { name: "产情暂不可比指标目录" }),

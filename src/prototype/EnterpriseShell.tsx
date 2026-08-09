@@ -133,11 +133,8 @@ export function EnterpriseShell({
   queryAllowed?: boolean;
   children: ReactNode;
 }) {
-  const [accountOpen, setAccountOpen] = useState(false);
-  const [workUnitOpen, setWorkUnitOpen] = useState(false);
-  const [accountPanel, setAccountPanel] = useState<string | null>(null);
   const [utilityPanel, setUtilityPanel] = useState<
-    "notifications" | "help" | "settings" | null
+    "notifications" | "help" | null
   >(null);
   const [searchQuery, setSearchQuery] = useState("");
   const currentApplication =
@@ -248,8 +245,10 @@ export function EnterpriseShell({
     (item) =>
       item.qualityStatus === "blocking" || item.reviewStatus === "returned",
   ).length;
-  const canOpenSettings =
-    scope?.authorization.permissionKeys.includes("system:settings") ?? false;
+  const notificationItems = workItems.filter(
+    (item) =>
+      item.qualityStatus === "blocking" || item.reviewStatus === "returned",
+  );
 
   if (
     location.route.application === "overview" &&
@@ -259,9 +258,6 @@ export function EnterpriseShell({
   }
 
   const closePanels = () => {
-    setAccountOpen(false);
-    setWorkUnitOpen(false);
-    setAccountPanel(null);
     setUtilityPanel(null);
     setSearchQuery("");
   };
@@ -317,39 +313,13 @@ export function EnterpriseShell({
             ))}
           </nav>
 
-          <button
-            aria-expanded={workUnitOpen}
+          <div
             aria-label={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`}
             className="formal-work-unit"
-            type="button"
-            onClick={() => {
-              setWorkUnitOpen((value) => !value);
-              setAccountOpen(false);
-              setUtilityPanel(null);
-            }}
           >
             <EnterpriseIcon name="home" />
             <span>{shellIdentity.workUnit.currentUnitLabel}</span>
-          </button>
-          {workUnitOpen && (
-            <div
-              aria-label="工作单位选择"
-              className="formal-personal-menu"
-              role="menu"
-            >
-              <header>
-                <div>
-                  <strong>当前工作单位（只读）</strong>
-                  <small>{shellIdentity.workUnit.organizationLabel}</small>
-                </div>
-              </header>
-              {shellIdentity.workUnit.units.map((unit) => (
-                <button key={unit} role="menuitem" type="button">
-                  {unit}
-                </button>
-              ))}
-            </div>
-          )}
+          </div>
 
           <form
             className="formal-global-search"
@@ -422,100 +392,18 @@ export function EnterpriseShell({
           >
             <span>帮助</span>
           </button>
-          {canOpenSettings && (
-            <button
-              aria-label="系统设置"
-              className="formal-header-tool"
-              type="button"
-              onClick={() =>
-                setUtilityPanel(utilityPanel === "settings" ? null : "settings")
-              }
-            >
-              <span>设置</span>
-            </button>
-          )}
-          <button
-            aria-expanded={accountOpen}
-            aria-label={`个人账户：${shellIdentity.account.displayName}`}
+          <div
+            aria-label={`当前用户：${shellIdentity.account.displayName}`}
             className="formal-user"
-            type="button"
-            onClick={() => {
-              setAccountOpen((value) => !value);
-              setUtilityPanel(null);
-            }}
           >
             <span>{shellIdentity.account.displayName.slice(0, 1)}</span>
-            <strong>{shellIdentity.account.displayName}⌄</strong>
-          </button>
-
-          {accountOpen && (
-            <div
-              aria-label="个人账户菜单"
-              className="formal-personal-menu"
-              role="menu"
-            >
-              <header>
-                <span>{shellIdentity.account.displayName.slice(0, 1)}</span>
-                <div>
-                  <strong>{shellIdentity.account.displayName}</strong>
-                  <small>
-                    {shellIdentity.workUnit.organizationLabel} ·{" "}
-                    {shellIdentity.account.roleLabel ?? "区域数据管理员"}
-                  </small>
-                  <small>
-                    当前责任范围：
-                    {shellIdentity.account.responsibilityLabel ??
-                      "齐齐哈尔市指定范围"}
-                  </small>
-                </div>
-              </header>
-              {shellIdentity.account.menuItems.map((item) => (
-                <button
-                  key={item}
-                  role="menuitem"
-                  type="button"
-                  onClick={() => {
-                    setAccountPanel(item);
-                    setAccountOpen(false);
-                  }}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {accountPanel && (
-            <section
-              aria-label={accountPanel}
-              className="formal-header-information-panel"
-              role="dialog"
-            >
-              <header>
-                <strong>{accountPanel}</strong>
-                <button type="button" onClick={() => setAccountPanel(null)}>
-                  ×
-                </button>
-              </header>
-              <p>
-                当前工作单位：{shellIdentity.workUnit.organizationLabel} ·{" "}
-                {shellIdentity.workUnit.currentUnitLabel}
-              </p>
-              <p>
-                当前账号：{shellIdentity.account.displayName}
-                ；操作范围以岗位授权为准。
-              </p>
-            </section>
-          )}
+            <strong>{shellIdentity.account.displayName}</strong>
+          </div>
 
           {utilityPanel && (
             <section
               aria-label={
-                utilityPanel === "notifications"
-                  ? "业务通知"
-                  : utilityPanel === "help"
-                    ? "当前页面帮助"
-                    : "系统设置"
+                utilityPanel === "notifications" ? "业务通知" : "当前页面帮助"
               }
               className="formal-header-information-panel"
               role="dialog"
@@ -524,23 +412,47 @@ export function EnterpriseShell({
                 <strong>
                   {utilityPanel === "notifications"
                     ? "业务通知"
-                    : utilityPanel === "help"
-                      ? "当前页面帮助"
-                      : "系统设置"}
+                    : "当前页面帮助"}
                 </strong>
                 <button type="button" onClick={() => setUtilityPanel(null)}>
                   ×
                 </button>
               </header>
-              <p>
-                {utilityPanel === "notifications"
-                  ? notificationCount > 0
-                    ? `业务通知待查看：${notificationCount} 条，需要从对应业务表格进入处理。`
-                    : "暂无未读业务通知"
-                  : utilityPanel === "help"
-                    ? `${currentApplication.label} · ${currentApplication.navigation.find(({ route }) => route.section === location.route.section)?.label ?? "当前业务"}。先使用紧凑查询定位记录，再从表格进入查看或填报。`
-                    : "仅授权管理员可以维护系统公共配置。"}
-              </p>
+              {utilityPanel === "notifications" ? (
+                notificationItems.length > 0 ? (
+                  <div className="formal-notification-list">
+                    {notificationItems.map((item) => (
+                      <button
+                        key={item.workId}
+                        onClick={() =>
+                          openSearchResult({
+                            id: `notification:${item.workId}`,
+                            label: item.title,
+                            detail: `${item.regionLabel} · 需要补充或复核`,
+                            kind: "风险异常",
+                            route: productWorkRoute(item),
+                            selection: { type: "work-item", id: item.workId },
+                          })
+                        }
+                        type="button"
+                      >
+                        <strong>{item.title}</strong>
+                        <span>{item.regionLabel} · 进入事项处理</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p>暂无未读业务通知</p>
+                )
+              ) : (
+                <p>
+                  {currentApplication.label} ·{" "}
+                  {currentApplication.navigation.find(
+                    ({ route }) => route.section === location.route.section,
+                  )?.label ?? "当前业务"}
+                  。先选择地区、品种和时间查询记录；需要填报时点击新建，分析和供需页面仅查看已核定结果。
+                </p>
+              )}
             </section>
           )}
         </div>

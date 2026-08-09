@@ -37,6 +37,73 @@ export interface MasterDataSnapshot {
   regions: readonly MasterRegion[];
 }
 
+export interface AnnualComparisonPoint {
+  businessYear: string;
+  value: string | number | null;
+  sourcePublicationVersion: string | null;
+  dataCutoff: string | null;
+  missingReason: string | null;
+}
+
+export interface AnnualComparisonView {
+  indicatorCode: string;
+  indicatorName: string;
+  sourceDomain: string;
+  productCode: string;
+  cultivarCode: string | null;
+  regionCode: string;
+  cutoffPeriodCode: string;
+  unitCode: string;
+  methodologyVersion: string;
+  points: readonly AnnualComparisonPoint[];
+}
+
+export interface ReportDefinition {
+  code: string;
+  name: string;
+  businessDomain: "PRODUCTION" | "MARKET" | "LOGISTICS" | "SUPPLY";
+  businessSubtype: string;
+  frequencyCode: string;
+  sections: readonly { code: string; title: string; sortOrder: number }[];
+}
+
+export interface ReportParameterOptions {
+  definitions: readonly ReportDefinition[];
+  products: readonly { code: string; label: string }[];
+  cultivars: readonly { code: string; label: string }[];
+  regionLevels: readonly { code: string; label: string }[];
+  regions: readonly { code: string; label: string }[];
+  periods: readonly { code: string; label: string }[];
+  formats: readonly { code: string; label: string }[];
+}
+
+export interface ReportPreview {
+  id: string;
+  definitionCode: string;
+  title: string;
+  dataCutoffLabel: string;
+  lines: readonly { label: string; value: string; note: string }[];
+  sections: readonly { code: string; title: string; body: string }[];
+  expiresAt: string;
+}
+
+export interface ReportExport {
+  id: string;
+  previewId: string;
+  formatCode: string;
+  filename: string;
+  contentType: string;
+  requestedAt: string;
+}
+
+export interface CurrentSession {
+  subjectId: string;
+  displayName: string;
+  workUnitCode: string;
+  permissions: readonly string[];
+  regionCodes: readonly string[];
+}
+
 export interface WorkItemRow {
   id: string;
   task: string;
@@ -74,16 +141,42 @@ export interface ProductionDraftPayload {
   insurance: Record<string, string>;
   subsidies: Record<string, string>;
   submissionMetadata: Record<string, string>;
+  evidencePhotoIds: readonly string[];
   version?: number;
 }
 
-export interface ProductionRecordRow extends ProductionDraftPayload {
+export interface EvidencePhotoRow {
+  id: string;
+  state: string;
+  originalFilename: string;
+  mediaType: string;
+  byteLength: number;
+  sha256: string;
+  capturedAt: string;
+  latitude: string;
+  longitude: string;
+  watermarkText: string;
+}
+
+export interface EvidencePhotoUpload {
+  file: File;
+  capturedAt: string;
+  latitude: string;
+  longitude: string;
+  watermarkText: string;
+}
+
+export interface ProductionRecordRow extends Omit<
+  ProductionDraftPayload,
+  "evidencePhotoIds"
+> {
   id: string;
   reportedAt: string;
   estimatedOutputKilograms: string;
   status: string;
   returnReason: string | null;
   allowedActions: readonly string[];
+  evidencePhotos?: readonly EvidencePhotoRow[];
   version: number;
 }
 
@@ -91,6 +184,7 @@ export interface MarketDraftPayload {
   productCode: string;
   coreValues: Record<string, string>;
   facts: Record<string, string>;
+  evidencePhotoIds: readonly string[];
   version?: number;
 }
 
@@ -101,6 +195,7 @@ export interface MarketRecordRow {
   status: string;
   returnReason: string | null;
   facts: Record<string, string>;
+  evidencePhotos?: readonly EvidencePhotoRow[];
   allowedActions: readonly string[];
   version: number;
 }
@@ -170,6 +265,7 @@ export interface SupplyAccountRow {
   surveyedEndingInventory: string | null;
   inventoryReconciliationDifference: string | null;
   inputSetId: string | null;
+  calculationChecksum?: string | null;
   legacyReadOnly: boolean;
   adjustmentProposal: {
     value: string;
@@ -293,7 +389,30 @@ export interface MarketDefinition {
 }
 
 export interface RealtimeBusinessRepository {
+  loadCurrentSession(): Promise<CurrentSession>;
+  uploadEvidencePhoto(input: EvidencePhotoUpload): Promise<EvidencePhotoRow>;
   loadMasterData(): Promise<MasterDataSnapshot>;
+  loadAnnualComparison(input: {
+    productCode: string;
+    cultivarCode?: string;
+    regionCode: string;
+    periodCode: string;
+    indicatorCode: string;
+  }): Promise<AnnualComparisonView>;
+  loadReportParameterOptions(): Promise<ReportParameterOptions>;
+  createReportPreview(input: {
+    definitionCode: string;
+    productCode: string;
+    cultivarCode?: string;
+    regionLevel: string;
+    regionCode: string;
+    periodCode: string;
+  }): Promise<ReportPreview>;
+  createReportExport(
+    previewId: string,
+    formatCode: string,
+  ): Promise<ReportExport>;
+  downloadReportExport(exportId: string): Promise<Blob>;
   listCultivars(productCode: string): Promise<readonly MasterCultivar[]>;
   listObjectTypes(
     productCode: string,
@@ -385,6 +504,17 @@ export interface RealtimeBusinessRepository {
     publish: boolean;
   }): Promise<SupplyAccountRow>;
   importProductionCsv(file: File): Promise<ProductionImportJob>;
+  downloadProductionXlsxTemplate?(
+    productCode: string,
+    objectTypeCode: string,
+  ): Promise<Blob>;
+  importMarketWorkbook?(file: File): Promise<ProductionImportJob>;
+  downloadMarketXlsxTemplate?(
+    productCode: string,
+    objectTypeCode: string,
+  ): Promise<Blob>;
+  importLogisticsWorkbook?(file: File): Promise<ProductionImportJob>;
+  downloadLogisticsXlsxTemplate?(productCode: string): Promise<Blob>;
   loadLogisticsDefinition(productCode: string): Promise<LogisticsDefinition>;
   listLogistics(
     input: BusinessRecordListInput,
@@ -438,6 +568,16 @@ export function createRealtimeBusinessRepository(
   client: RealtimeApiClient = realtimeApiClient,
 ): RealtimeBusinessRepository {
   return {
+    loadCurrentSession: () => client.get<CurrentSession>("/api/v1/session/me"),
+    uploadEvidencePhoto: (input) => {
+      const form = new FormData();
+      form.append("file", input.file, input.file.name);
+      form.append("capturedAt", input.capturedAt);
+      form.append("latitude", input.latitude);
+      form.append("longitude", input.longitude);
+      form.append("watermarkText", input.watermarkText);
+      return client.upload<EvidencePhotoRow>("/api/v1/evidence-photos", form);
+    },
     async loadMasterData() {
       const [products, periods, regions] = await Promise.all([
         client.get<MasterProduct[]>("/api/v1/master-data/products"),
@@ -446,6 +586,24 @@ export function createRealtimeBusinessRepository(
       ]);
       return { products, periods, regions };
     },
+    loadAnnualComparison: (input) =>
+      client.get<AnnualComparisonView>(
+        "/api/v1/overview/annual-comparisons",
+        input,
+      ),
+    loadReportParameterOptions: () =>
+      client.get<ReportParameterOptions>("/api/v1/reports/parameter-options"),
+    createReportPreview: (input) =>
+      client.post<ReportPreview>("/api/v1/reports/previews", input),
+    createReportExport: (previewId, formatCode) =>
+      client.post<ReportExport>(
+        `/api/v1/reports/previews/${encodeURIComponent(previewId)}/exports`,
+        { formatCode },
+      ),
+    downloadReportExport: (exportId) =>
+      client.download(
+        `/api/v1/reports/exports/${encodeURIComponent(exportId)}/content`,
+      ),
     listCultivars: (productCode) =>
       client.get<MasterCultivar[]>(
         `/api/v1/master-data/products/${encodeURIComponent(productCode)}/cultivars`,
@@ -544,6 +702,40 @@ export function createRealtimeBusinessRepository(
         },
       );
     },
+    downloadProductionXlsxTemplate: (productCode, objectTypeCode) =>
+      client.download("/api/v1/imports/production/template", {
+        format: "xlsx",
+        productCode,
+        objectTypeCode,
+      }),
+    importMarketWorkbook: (file) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return client.upload<ProductionImportJob>(
+        "/api/v1/imports/market",
+        form,
+        {
+          "Idempotency-Key": crypto.randomUUID(),
+        },
+      );
+    },
+    downloadMarketXlsxTemplate: (productCode, objectTypeCode) =>
+      client.download("/api/v1/imports/market/template", {
+        format: "xlsx",
+        productCode,
+        objectTypeCode,
+      }),
+    importLogisticsWorkbook: (file) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return client.upload<ProductionImportJob>(
+        "/api/v1/imports/logistics",
+        form,
+        { "Idempotency-Key": crypto.randomUUID() },
+      );
+    },
+    downloadLogisticsXlsxTemplate: (productCode) =>
+      client.download("/api/v1/imports/logistics/template", { productCode }),
     loadLogisticsDefinition: (productCode) =>
       client.get<LogisticsDefinition>("/api/v1/logistics-record-definitions", {
         productCode,

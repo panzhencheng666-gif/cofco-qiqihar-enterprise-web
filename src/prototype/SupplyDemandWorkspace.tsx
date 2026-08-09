@@ -388,7 +388,6 @@ function SupplyFilterControls({
         <button type="button" onClick={onReset}>
           重置
         </button>
-        <button type="button">保存常用条件</button>
       </div>
     </section>
   );

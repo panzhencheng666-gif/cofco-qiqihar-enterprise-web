@@ -1,4 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import type {
+  BusinessRecordListItem,
+  RealtimeBusinessRepository,
+} from "@/platform/api/realtimeBusinessRepository";
 
 import {
   RegionCascadeSelector,
@@ -50,16 +55,17 @@ interface ProductionCollectionRow {
   objectTypeId: ProductionBusinessObjectTypeId;
   region: string;
   cultivar: string;
+  reporter: string;
+  reporterPhone: string;
+  subjectContact: string;
+  latitude: string;
+  longitude: string;
   plantingArea: string;
   harvestArea: string;
   affectedArea: string;
   growth: string;
   stage: string;
-  disaster: string;
   expectedYield: string;
-  sampleResult: string;
-  regionalEstimate: string;
-  yieldRound: string;
   expectedOutput: string;
   yearOnYear: string;
   moisture: string;
@@ -72,12 +78,9 @@ interface ProductionCollectionRow {
   oilYield: string;
   milledRiceRate: string;
   brownRiceRate: string;
-  evidence: string;
   openingStock: string;
-  stockInflow: string;
   sales: string;
   selfUse: string;
-  loss: string;
   endingStock: string;
   intendedArea: string;
   intentionReason: string;
@@ -219,6 +222,25 @@ function collectionStatus(item: BusinessWorkItem): string {
   return "填写中";
 }
 
+function persistedProductionStatus(value: string | undefined): string {
+  if (value === "已审核" || value === "已核定" || value === "APPROVED")
+    return "已核定";
+  if (value === "已退回" || value === "RETURNED") return "审核退回";
+  if (value === "待审核" || value === "SUBMITTED") return "待审核";
+  return "填写中";
+}
+
+function persistedValue(
+  record: BusinessRecordListItem,
+  ...codes: readonly string[]
+): string {
+  for (const code of codes) {
+    const value = record.values[code];
+    if (value !== undefined && value !== "") return value;
+  }
+  return "—";
+}
+
 function businessDate(item: BusinessWorkItem | undefined): string {
   if (!item) return "当前调查期";
   const date = new Date(item.deadline);
@@ -236,6 +258,9 @@ export function ProductProductionCollectionWorkspace({
   documentDrafts = {},
   onDocumentDraftChange = () => undefined,
   onWorkItemChange = () => undefined,
+  onCreateRecord,
+  realtimeRepository,
+  realtimeRefreshToken = 0,
 }: {
   section: ProductionSection;
   scope: OperationalScope;
@@ -250,6 +275,9 @@ export function ProductProductionCollectionWorkspace({
     draft: ProductionDocumentDraft,
   ) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
+  onCreateRecord?: () => void;
+  realtimeRepository?: RealtimeBusinessRepository;
+  realtimeRefreshToken?: number;
 }) {
   const context = requiredContext(section);
   const [status, setStatus] = useState("");
@@ -257,14 +285,26 @@ export function ProductProductionCollectionWorkspace({
     "" | ProductionBusinessObjectTypeId
   >("");
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
-  const defaultSurveyDate =
-    workItems
-      .find(
-        (item) =>
-          item.domain === "production" && item.productId === context.productId,
-      )
-      ?.deadline.slice(0, 10) ?? "";
+  const defaultSurveyDate = realtimeRepository
+    ? ""
+    : (workItems
+        .find(
+          (item) =>
+            item.domain === "production" &&
+            item.productId === context.productId,
+        )
+        ?.deadline.slice(0, 10) ?? "");
   const [surveyDate, setSurveyDate] = useState(defaultSurveyDate);
+  const [persistedRecords, setPersistedRecords] = useState<
+    readonly BusinessRecordListItem[]
+  >([]);
+  const [recordsLoading, setRecordsLoading] = useState(
+    realtimeRepository !== undefined,
+  );
+  const [recordsError, setRecordsError] = useState("");
+  const [recordsRevision, setRecordsRevision] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -293,7 +333,7 @@ export function ProductProductionCollectionWorkspace({
       (!objectType || productionObjectTypeId(item) === objectType) &&
       (!status || collectionStatus(item) === status),
   );
-  const rows: readonly ProductionCollectionRow[] = productItems.map(
+  const fixtureRows: readonly ProductionCollectionRow[] = productItems.map(
     (item, index) => ({
       workId: item.workId,
       number: index + 1,
@@ -306,16 +346,17 @@ export function ProductProductionCollectionWorkspace({
       objectTypeId: productionObjectTypeId(item),
       region: item.regionLabel,
       cultivar: fieldValue(item.workId, "cultivar"),
+      reporter: fieldValue(item.workId, "reporter"),
+      reporterPhone: fieldValue(item.workId, "reporterPhone"),
+      subjectContact: fieldValue(item.workId, "subjectContact"),
+      latitude: fieldValue(item.workId, "latitude"),
+      longitude: fieldValue(item.workId, "longitude"),
       plantingArea: fieldValue(item.workId, "area"),
       harvestArea: fieldValue(item.workId, "harvestArea"),
       affectedArea: fieldValue(item.workId, "affectedArea"),
       growth: fieldValue(item.workId, "growth"),
       stage: fieldValue(item.workId, "stage"),
-      disaster: fieldValue(item.workId, "disaster"),
       expectedYield: fieldValue(item.workId, "expectedYield"),
-      sampleResult: fieldValue(item.workId, "sampleResult"),
-      regionalEstimate: fieldValue(item.workId, "regionalEstimate"),
-      yieldRound: fieldValue(item.workId, "yieldRound"),
       expectedOutput: fieldValue(item.workId, "output"),
       yearOnYear: "尚无上年同口径记录",
       moisture: fieldValue(item.workId, "moisture"),
@@ -328,12 +369,9 @@ export function ProductProductionCollectionWorkspace({
       oilYield: fieldValue(item.workId, "oilYield"),
       milledRiceRate: fieldValue(item.workId, "milledRiceRate"),
       brownRiceRate: fieldValue(item.workId, "brownRiceRate"),
-      evidence: fieldValue(item.workId, "evidence"),
       openingStock: fieldValue(item.workId, "openingStock"),
-      stockInflow: fieldValue(item.workId, "stockInflow"),
       sales: fieldValue(item.workId, "sales"),
       selfUse: fieldValue(item.workId, "selfUse"),
-      loss: fieldValue(item.workId, "loss"),
       endingStock: fieldValue(item.workId, "endingStock"),
       intendedArea: fieldValue(item.workId, "intendedArea"),
       intentionReason: fieldValue(item.workId, "intentionReason"),
@@ -353,6 +391,191 @@ export function ProductProductionCollectionWorkspace({
       status: collectionStatus(item),
     }),
   );
+  useEffect(() => {
+    if (!realtimeRepository) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setRecordsLoading(true);
+      setRecordsError("");
+    });
+    const productCode =
+      context.productId === "corn"
+        ? "CORN"
+        : context.productId === "soybean"
+          ? "SOYBEAN"
+          : "RICE";
+    void realtimeRepository
+      .listProduction({ productCode, pageSize: 100 })
+      .then((page) => {
+        if (!cancelled) setPersistedRecords(page.items);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPersistedRecords([]);
+          setRecordsError("当前产情调查记录暂时无法读取，请稍后重试。");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setRecordsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    context.productId,
+    realtimeRefreshToken,
+    realtimeRepository,
+    recordsRevision,
+  ]);
+
+  const importRecords = async (file: File | undefined) => {
+    if (!file || !realtimeRepository) return;
+    setImporting(true);
+    setRecordsError("");
+    setImportMessage("");
+    try {
+      const job = await realtimeRepository.importProductionCsv(file);
+      setImportMessage(
+        `导入完成：成功 ${job.importedRows} 条，失败 ${job.failedRows} 条。`,
+      );
+      setRecordsRevision((value) => value + 1);
+    } catch {
+      setRecordsError("产情记录导入失败，请核对文件内容后重试。");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadTemplate = async () => {
+    if (!realtimeRepository?.downloadProductionXlsxTemplate || !objectType)
+      return;
+    setRecordsError("");
+    try {
+      const productCode =
+        context.productId === "corn"
+          ? "CORN"
+          : context.productId === "soybean"
+            ? "SOYBEAN"
+            : "RICE";
+      const objectTypeCode =
+        objectType === "farmer"
+          ? "FARMER"
+          : objectType === "village-committee"
+            ? "VILLAGE_COMMITTEE"
+            : "AGRICULTURAL_TECH_STATION";
+      const blob = await realtimeRepository.downloadProductionXlsxTemplate(
+        productCode,
+        objectTypeCode,
+      );
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `${context.productLabel}产情-${objectTypeCode}-批量导入模板.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setRecordsError("XLSX 模板下载失败，请稍后重试。");
+    }
+  };
+
+  const persistedRows: readonly ProductionCollectionRow[] =
+    persistedRecords.map((record, index) => {
+      const rawObjectType = persistedValue(record, "PROD_OBJECT_TYPE");
+      return {
+        workId: record.id,
+        number: index + 1,
+        surveyDate: persistedValue(record, "PROD_SURVEY_DATE"),
+        subject: persistedValue(
+          record,
+          "PROD_SAMPLE_NAME",
+          "PROD_SUBJECT_NAME",
+          "PROD_OBJECT_NAME",
+          "PROD_OBJECT_TYPE",
+        ),
+        objectType:
+          getProductionObjectTypeOptions().find(
+            ({ id }) => id === normalizeProductionObjectType(rawObjectType),
+          )?.label ?? rawObjectType,
+        objectTypeId: normalizeProductionObjectType(rawObjectType),
+        region: persistedValue(record, "PROD_REGION"),
+        cultivar: persistedValue(record, "PROD_CULTIVAR"),
+        reporter: persistedValue(record, "PROD_REPORTER_NAME"),
+        reporterPhone: persistedValue(record, "PROD_REPORTER_PHONE"),
+        subjectContact: persistedValue(record, "PROD_SAMPLE_CONTACT"),
+        latitude: persistedValue(record, "PROD_SAMPLE_LATITUDE"),
+        longitude: persistedValue(record, "PROD_SAMPLE_LONGITUDE"),
+        plantingArea: persistedValue(record, "PROD_AREA_MU"),
+        harvestArea: persistedValue(
+          record,
+          "PROD_HARVEST_AREA_MU",
+          "HARVEST_AREA",
+        ),
+        affectedArea: persistedValue(
+          record,
+          "PROD_AFFECTED_AREA_MU",
+          "AFFECTED_AREA",
+        ),
+        growth: persistedValue(record, "PROD_GROWTH_STATUS", "GROWTH"),
+        stage: persistedValue(record, "PROD_GROWTH_STAGE", "STAGE"),
+        expectedYield: persistedValue(record, "PROD_YIELD_PER_MU"),
+        expectedOutput: persistedValue(record, "PROD_ESTIMATED_OUTPUT"),
+        yearOnYear: "尚无上年同口径记录",
+        moisture: persistedValue(record, "MOISTURE"),
+        testWeight: persistedValue(record, "TEST_WEIGHT"),
+        toxin: persistedValue(record, "TOXIN"),
+        impurity: persistedValue(record, "IMPURITY"),
+        imperfectGrain: persistedValue(record, "IMPERFECT_GRAIN"),
+        mildew: persistedValue(record, "MILDEW"),
+        protein: persistedValue(record, "PROTEIN"),
+        oilYield: persistedValue(record, "OIL_YIELD"),
+        milledRiceRate: persistedValue(record, "MILLING_YIELD"),
+        brownRiceRate: persistedValue(record, "BROWN_RICE_YIELD"),
+        openingStock: persistedValue(
+          record,
+          "PROD_OPENING_INVENTORY",
+          "OPENING_INVENTORY",
+        ),
+        sales: persistedValue(record, "PROD_SALES_VOLUME", "SALES_VOLUME"),
+        selfUse: persistedValue(record, "PROD_SELF_USE", "SELF_USE"),
+        endingStock: persistedValue(
+          record,
+          "PROD_ENDING_INVENTORY",
+          "ENDING_INVENTORY",
+        ),
+        intendedArea: persistedValue(
+          record,
+          "PROD_INTENDED_AREA_MU",
+          "INTENDED_AREA",
+        ),
+        intentionReason: persistedValue(
+          record,
+          "PROD_INTENTION_REASON",
+          "INTENTION_REASON",
+        ),
+        landRent: persistedValue(record, "LAND_RENT"),
+        seedCost: persistedValue(record, "SEED_COST"),
+        pesticideCost: persistedValue(record, "PESTICIDE_COST"),
+        fertilizerCost: persistedValue(record, "FERTILIZER_COST"),
+        irrigationCost: persistedValue(record, "IRRIGATION_COST"),
+        laborCost: persistedValue(record, "LABOR_COST"),
+        machineryCost: persistedValue(record, "MACHINERY_COST"),
+        otherCost: persistedValue(record, "OTHER_COST"),
+        subsidy: persistedValue(record, "SUBSIDY_AMOUNT", "SUBSIDY"),
+        insurance: persistedValue(record, "INSURANCE_AMOUNT", "INSURANCE"),
+        sourceDetail: persistedValue(record, "EVIDENCE_PHOTO_COUNT"),
+        validation:
+          persistedProductionStatus(record.values.PROD_STATUS) === "已核定"
+            ? "校验通过"
+            : "等待审核校验",
+        lastSaved: persistedValue(record, "PROD_REPORTED_AT"),
+        status: persistedProductionStatus(record.values.PROD_STATUS),
+      };
+    });
+  const rows = (realtimeRepository ? persistedRows : fixtureRows)
+    .filter((row) => !surveyDate || row.surveyDate === surveyDate)
+    .filter((row) => !objectType || row.objectTypeId === objectType)
+    .filter((row) => !status || row.status === status);
   const sourceItem = productItems[0];
   const selectedItem =
     selection?.type === "work-item"
@@ -477,7 +700,11 @@ export function ProductProductionCollectionWorkspace({
           </select>
         </label>
         <div className="enterprise-ledger-query__actions">
-          <button className="is-primary" type="button">
+          <button
+            className="is-primary"
+            type="button"
+            onClick={() => setRecordsRevision((value) => value + 1)}
+          >
             查询
           </button>
           <button
@@ -496,13 +723,24 @@ export function ProductProductionCollectionWorkspace({
           >
             重置
           </button>
-          <button type="button">保存常用条件</button>
         </div>
       </section>
 
       {!queryAllowed && (
         <div className="production-task5-alert" role="alert">
           当前查询条件超出您的授权范围，系统未展示其他地区的数据。
+        </div>
+      )}
+
+      {recordsError && (
+        <div className="production-task5-alert" role="alert">
+          {recordsError}
+        </div>
+      )}
+
+      {importMessage && (
+        <div className="production-task5-alert" role="status">
+          {importMessage}
         </div>
       )}
 
@@ -517,12 +755,42 @@ export function ProductProductionCollectionWorkspace({
       >
         <div className="enterprise-ledger-table__toolbar">
           <strong>
-            共 {rows.length} 个调查对象，当前显示 {rows.length > 0 ? 1 : 0}–
-            {rows.length}
+            {recordsLoading
+              ? "正在读取产情调查记录"
+              : `共 ${rows.length} 个调查对象，当前显示 ${rows.length > 0 ? 1 : 0}–${rows.length}`}
           </strong>
           <div>
-            <button type="button">批量导入</button>
-            <button type="button">新建调查记录</button>
+            {realtimeRepository && (
+              <>
+                <button
+                  disabled={
+                    !objectType ||
+                    importing ||
+                    !realtimeRepository.downloadProductionXlsxTemplate
+                  }
+                  type="button"
+                  onClick={() => void downloadTemplate()}
+                >
+                  下载 XLSX 模板
+                </button>
+                <label className="realtime-business-file-action">
+                  {importing ? "正在导入" : "批量导入 XLSX"}
+                  <input
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    aria-label="批量导入产情记录"
+                    disabled={importing}
+                    type="file"
+                    onChange={(event) => {
+                      void importRecords(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              </>
+            )}
+            <button type="button" onClick={onCreateRecord}>
+              新建调查记录
+            </button>
           </div>
         </div>
         <div className="enterprise-ledger-table__scroll" tabIndex={0}>
@@ -536,12 +804,13 @@ export function ProductProductionCollectionWorkspace({
                 <th rowSpan={2}>对象类型</th>
                 <th rowSpan={2}>行政区划</th>
                 <th rowSpan={2}>具体品种</th>
-                <th colSpan={6}>面积与长势</th>
-                <th colSpan={6}>测产与产量</th>
-                <th colSpan={qualityFields.length + 1}>
-                  {context.productLabel}质量与依据
+                <th colSpan={5}>填报与定位</th>
+                <th colSpan={5}>面积与长势</th>
+                <th colSpan={3}>测产与产量</th>
+                <th colSpan={qualityFields.length}>
+                  {context.productLabel}质量
                 </th>
-                <th colSpan={6}>余粮、销售与使用</th>
+                <th colSpan={4}>余粮、销售与使用</th>
                 <th colSpan={2}>种植意向</th>
                 <th colSpan={8}>成本费用</th>
                 <th colSpan={2}>补贴与保险</th>
@@ -550,27 +819,25 @@ export function ProductProductionCollectionWorkspace({
                 <th rowSpan={2}>操作</th>
               </tr>
               <tr>
+                <th>填报人</th>
+                <th>填报人联系方式</th>
+                <th>填报对象联系方式</th>
+                <th>纬度</th>
+                <th>经度</th>
                 <th>播种面积</th>
                 <th>预计收获面积</th>
                 <th>灾损面积</th>
                 <th>当前长势</th>
                 <th>生育阶段</th>
-                <th>病虫害与灾情</th>
                 <th>预计单产</th>
-                <th>样本平均单产</th>
-                <th>区域加权单产</th>
-                <th>测产轮次</th>
                 <th>预计总产</th>
                 <th>与上年相比</th>
                 {qualityFields.map(({ id, label }) => (
                   <th key={id}>{label}</th>
                 ))}
-                <th>现场依据</th>
                 <th>期初库存</th>
-                <th>入库数量</th>
                 <th>销售数量</th>
                 <th>自用数量</th>
-                <th>损耗数量</th>
                 <th>期末余粮</th>
                 <th>下年度意向面积</th>
                 <th>调整原因</th>
@@ -598,16 +865,17 @@ export function ProductProductionCollectionWorkspace({
                   <td>{row.objectType}</td>
                   <td>{row.region}</td>
                   <td>{row.cultivar}</td>
+                  <td>{row.reporter}</td>
+                  <td>{row.reporterPhone}</td>
+                  <td>{row.subjectContact}</td>
+                  <td className="is-operational">{row.latitude}</td>
+                  <td className="is-operational">{row.longitude}</td>
                   <td className="is-operational">{row.plantingArea}</td>
                   <td className="is-operational">{row.harvestArea}</td>
                   <td className="is-operational">{row.affectedArea}</td>
                   <td className="is-operational">{row.growth}</td>
                   <td className="is-operational">{row.stage}</td>
-                  <td className="is-operational">{row.disaster}</td>
                   <td className="is-operational">{row.expectedYield}</td>
-                  <td className="is-operational">{row.sampleResult}</td>
-                  <td className="is-operational">{row.regionalEstimate}</td>
-                  <td className="is-operational">{row.yieldRound}</td>
                   <td className="is-operational">{row.expectedOutput}</td>
                   <td className="is-operational">{row.yearOnYear}</td>
                   {qualityFields.map(({ id }) => (
@@ -615,12 +883,9 @@ export function ProductProductionCollectionWorkspace({
                       {qualityValue(row, id)}
                     </td>
                   ))}
-                  <td>{row.evidence}</td>
                   <td className="is-operational">{row.openingStock}</td>
-                  <td className="is-operational">{row.stockInflow}</td>
                   <td className="is-operational">{row.sales}</td>
                   <td className="is-operational">{row.selfUse}</td>
-                  <td className="is-operational">{row.loss}</td>
                   <td className="is-operational">{row.endingStock}</td>
                   <td className="is-operational">{row.intendedArea}</td>
                   <td>{row.intentionReason}</td>
@@ -660,7 +925,7 @@ export function ProductProductionCollectionWorkspace({
                 <tr>
                   <td
                     className="enterprise-ledger-table__empty"
-                    colSpan={42 + qualityFields.length}
+                    colSpan={40 + qualityFields.length}
                   >
                     当前范围暂无{context.productLabel}产情调查记录
                   </td>

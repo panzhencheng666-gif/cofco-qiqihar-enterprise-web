@@ -5,14 +5,14 @@ export const apiPendingShellIdentity: FormalShellIdentity = {
   platformName: "齐齐哈尔粮食商情企业平台",
   workUnit: {
     organizationLabel: "当前组织",
-    currentUnitLabel: "权限待服务端确认",
+    currentUnitLabel: "当前工作单位",
     units: [],
   },
   account: {
     displayName: "已认证用户",
     menuItems: [],
-    roleLabel: "权限待服务端确认",
-    responsibilityLabel: "以服务端授权为准",
+    roleLabel: "当前岗位",
+    responsibilityLabel: "按当前账号权限展示",
   },
 };
 
@@ -20,7 +20,7 @@ export const apiPendingOperationalIdentity: OperationalScopeIdentity = {
   workUnit: {
     organizationId: "current-organization",
     unitId: "authorization-pending",
-    label: "权限待服务端确认",
+    label: "当前工作单位",
   },
   identity: {
     userId: "authenticated-user",

@@ -611,9 +611,9 @@ export const prototypeFieldMap: readonly PrototypeFieldMapping[] = [
     "productionMonitoringData.ts:productionCropProfiles:expectedYield":
       "MetricCatalog.production.expected-yield",
     "productionMonitoringData.ts:productionCropProfiles:sampleResult":
-      "MetricCatalog.production.sample-average-yield",
+      "RetiredProductionMetric.sample-average-yield",
     "productionMonitoringData.ts:productionCropProfiles:regionalEstimate":
-      "MetricCatalog.production.regional-yield",
+      "RetiredProductionMetric.regional-yield",
     "productionMonitoringData.ts:productionCropProfiles:varieties.name":
       "CultivarGovernance.cultivarName",
     "productionMonitoringData.ts:productionCropProfiles:varieties.status":

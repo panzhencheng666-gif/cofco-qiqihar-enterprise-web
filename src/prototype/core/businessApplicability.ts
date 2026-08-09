@@ -137,9 +137,7 @@ const allInTransactionFields: readonly ApplicableBusinessField[] = [
 ];
 
 const movementFields: readonly ApplicableBusinessField[] = [
-  { id: "stockInflow", label: "入库量", unit: "吨" },
   { id: "stockOutflow", label: "出库量", unit: "吨" },
-  { id: "storageLoss", label: "保管损耗", unit: "吨" },
 ];
 
 export function getProductionObjectTypeOptions(): readonly BusinessOption<ProductionBusinessObjectTypeId>[] {

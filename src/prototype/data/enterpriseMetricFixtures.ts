@@ -64,20 +64,6 @@ const definitionSeeds: readonly DefinitionSeed[] = [
     "weighted-average",
   ],
   [
-    "production.regional-yield",
-    "区域加权单产",
-    "production.planting-production",
-    "ratio",
-    "ratio-of-aggregates",
-  ],
-  [
-    "production.sample-average-yield",
-    "样本平均单产",
-    "production.planting-production",
-    "ratio",
-    "arithmetic-average",
-  ],
-  [
     "production.expected-yield",
     "预计单产",
     "production.planting-production",
@@ -414,12 +400,10 @@ function metricFormula(
   aggregation: MetricDefinition["aggregation"],
 ): string {
   const exact: Record<string, string> = {
-    "production.regional-yield": "区域规范总产量 / 区域规范收获面积",
-    "production.sample-average-yield": "样本单产算术平均，不代替区域加权估计",
     "production.expected-yield": "按当前长势与测产依据形成的预计单产",
     "production.estimated-total-output":
       "播种面积 × 预计单产 ÷ 1000，结果单位为万吨",
-    "production.total-output": "规范收获面积 × 区域加权单产",
+    "production.total-output": "规范收获面积 × 核定单产",
     "supply.total-supply":
       "期初库存 + 本地生产 + 区域外流入 + 进口 + 批准的其他供给",
     "supply.total-use":
@@ -453,21 +437,14 @@ function domainDimensions(
       areaBasisId:
         definition.metricId === "production.estimated-total-output"
           ? "planted-area"
-          : definition.metricId === "production.regional-yield"
-            ? "harvested-area"
-            : "governed-area",
+          : "governed-area",
       yieldMethodId:
-        definition.metricId === "production.estimated-total-output"
+        definition.metricId === "production.estimated-total-output" ||
+        definition.metricId.includes("yield")
           ? "governed-yield-estimate"
-          : definition.metricId === "production.sample-average-yield"
-            ? "sample-arithmetic-average"
-            : definition.metricId === "production.regional-yield"
-              ? "ratio-of-aggregates"
-              : definition.metricId.includes("yield")
-                ? "governed-yield-estimate"
-                : null,
+          : null,
       growthStageId: null,
-      surveyRoundId: "week-31-approved",
+      surveyRoundId: null,
       costAllocationRuleId:
         definition.businessSubtype === "production.cost-support"
           ? "cost-allocation-v1"
@@ -550,11 +527,9 @@ function availablePoint(
       deliveryConditionId:
         definition.measureType === "price" ? "warehouse-delivery" : null,
       populationOrSampleId:
-        definition.metricId === "production.sample-average-yield"
-          ? "authorized-yield-sample"
-          : definition.domain === "operations"
-            ? "authorized-obligation-population"
-            : "authorized-weighted-population",
+        definition.domain === "operations"
+          ? "authorized-obligation-population"
+          : "authorized-weighted-population",
       unitDefinitionVersionId: `${definition.unit}.definition-v1`,
       inventoryNatureId:
         definition.metricId.includes("inventory") ||
@@ -622,8 +597,6 @@ const publishedSeriesByMetricId: Readonly<
   "production.planted-area": plantedAreaSeries,
   "production.expected-yield": expectedYieldSeries,
   "production.estimated-total-output": estimatedTotalOutputSeries,
-  "production.sample-average-yield": ["450.2", "458.4", "465.9", "471.6"],
-  "production.regional-yield": ["445.7", "452.9", "460.8", "468.2"],
   "market.purchase-price": ["2198", "2245", "2301", "2346"],
   "market.transaction-price": ["2226", "2280", "2339", "2382"],
   "market.trade-volume": ["88.4", "91.2", "94.7", "98.5"],

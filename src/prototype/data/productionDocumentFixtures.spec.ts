@@ -11,7 +11,7 @@ import { productionDocumentFixtures } from "./productionDocumentFixtures";
 afterEach(cleanup);
 
 describe("production document fixtures", () => {
-  it("preserves every production field group in typed fixture data", () => {
+  it("preserves the approved production field groups and omits retired fields", () => {
     const document = productionDocumentFixtures[0];
     expect(document.fieldGroups.map(({ groupId }) => groupId)).toEqual([
       "specific-variety",
@@ -31,14 +31,10 @@ describe("production document fixtures", () => {
       "具体品种",
       "地块位置",
       "生育阶段",
-      "病虫害与灾情",
       "总产量",
-      "现场证据",
       "期初库存",
-      "入库数量",
       "销售数量",
       "自用数量",
-      "损耗数量",
       "期末余粮",
       "下年度意向面积",
       "补贴",
@@ -48,32 +44,34 @@ describe("production document fixtures", () => {
     ]) {
       expect(labels).toContain(label);
     }
+    expect(labels).not.toEqual(
+      expect.arrayContaining([
+        "病虫害与灾情",
+        "现场证据",
+        "样本平均结果",
+        "区域加权估计",
+        "测产轮次",
+        "入库数量",
+        "损耗数量",
+      ]),
+    );
   });
 
-  it("keeps area, expected yield, sample result and regional estimate as four independent fields", () => {
+  it("keeps only the approved area and expected yield fields", () => {
     const fields = productionDocumentFixtures[0].fieldGroups.flatMap(
       ({ fields }) => fields,
     );
     expect(
       fields
-        .filter(({ fieldId }) =>
-          [
-            "area",
-            "expectedYield",
-            "sampleResult",
-            "regionalEstimate",
-          ].includes(fieldId),
-        )
+        .filter(({ fieldId }) => ["area", "expectedYield"].includes(fieldId))
         .map(({ fieldId, label }) => [fieldId, label]),
     ).toEqual([
       ["area", "监测面积"],
       ["expectedYield", "预计单产"],
-      ["sampleResult", "样本平均结果"],
-      ["regionalEstimate", "区域加权估计"],
     ]);
   });
 
-  it("keeps the object total output consistent with harvest area and regional yield", () => {
+  it("keeps the object total output and harvest area without retired yield fields", () => {
     const fields = productionDocumentFixtures[0].fieldGroups.flatMap(
       ({ fields }) => fields,
     );
@@ -81,8 +79,8 @@ describe("production document fixtures", () => {
       "4,590 亩",
     );
     expect(
-      fields.find(({ fieldId }) => fieldId === "regionalEstimate")?.value,
-    ).toBe("468.2 公斤/亩");
+      fields.find(({ fieldId }) => fieldId === "regionalEstimate"),
+    ).toBeUndefined();
     expect(fields.find(({ fieldId }) => fieldId === "output")?.value).toBe(
       "2,149.0 吨",
     );
@@ -120,12 +118,12 @@ describe("production document fixtures", () => {
       productionDocumentFixtures[1].fieldGroups
         .find(({ groupId }) => groupId === "quality-evidence")
         ?.fields.map(({ label }) => label),
-    ).toEqual(["蛋白", "出油率", "不完善粒", "水分", "杂质", "现场证据"]);
+    ).toEqual(["蛋白", "出油率", "不完善粒", "水分", "杂质"]);
     expect(
       productionDocumentFixtures[2].fieldGroups
         .find(({ groupId }) => groupId === "quality-evidence")
         ?.fields.map(({ label }) => label),
-    ).toEqual(["水分", "出米率", "出糙率", "杂质", "现场证据"]);
+    ).toEqual(["水分", "出米率", "出糙率", "杂质"]);
     expect(document.collectionChannels.map(({ mode }) => mode)).toEqual([
       "online",
       "excel",

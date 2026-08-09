@@ -67,6 +67,32 @@ describe("realtime API client", () => {
     expect(headers.get("Idempotency-Key")).toBe("request-1");
   });
 
+  it("downloads a binary XLSX response with credentialed access", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(new Uint8Array([80, 75, 3, 4]), {
+        status: 200,
+        headers: {
+          "content-type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+      }),
+    );
+    const client = createRealtimeApiClient({ baseUrl: "", fetcher });
+
+    const result = await client.download(
+      "/api/v1/imports/production/template",
+      {
+        format: "xlsx",
+        productCode: "CORN",
+        objectTypeCode: "FARMER",
+      },
+    );
+    expect(result.size).toBe(4);
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      "/api/v1/imports/production/template?format=xlsx&productCode=CORN&objectTypeCode=FARMER",
+    );
+  });
+
   it("normalizes backend validation errors and retains trace ids", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(

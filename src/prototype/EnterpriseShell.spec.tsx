@@ -11,8 +11,7 @@ import { EnterpriseShell } from "./EnterpriseShell";
 afterEach(cleanup);
 
 describe("EnterpriseShell", () => {
-  it("renders governed header utilities and permission-gates system settings", async () => {
-    const user = userEvent.setup();
+  it("renders only header utilities backed by business behavior", () => {
     const administrativeScope = {
       ...prototypeOperationalIdentity,
       authorization: {
@@ -67,25 +66,10 @@ describe("EnterpriseShell", () => {
       /\d+/,
     );
     expect(screen.getByRole("button", { name: "帮助" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "系统设置" })).toBeVisible();
-
-    await user.click(screen.getByRole("button", { name: /王洋/ }));
-    const accountMenu = screen.getByRole("menu", { name: "个人账户菜单" });
-    for (const label of [
-      "个人中心",
-      "岗位与责任范围",
-      "工作交接",
-      "个人偏好",
-      "账号安全",
-      "操作与登录记录",
-      "退出登录",
-    ]) {
-      expect(
-        within(accountMenu).getByRole("menuitem", { name: label }),
-      ).toBeVisible();
-    }
-
-    await user.keyboard("{Escape}");
+    expect(
+      screen.queryByRole("button", { name: "系统设置" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("当前用户：王洋")).toBeVisible();
     expect(
       screen.queryByRole("menu", { name: "个人账户菜单" }),
     ).not.toBeInTheDocument();
@@ -195,8 +179,7 @@ describe("EnterpriseShell", () => {
     );
   });
 
-  it("renders authorized work-unit and personal-account data supplied by its owner", async () => {
-    const user = userEvent.setup();
+  it("renders work-unit and account identity without hollow menus", () => {
     render(
       <EnterpriseShell
         location={{
@@ -218,17 +201,9 @@ describe("EnterpriseShell", () => {
       </EnterpriseShell>,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: /当前工作单位.*单位一/ }),
-    );
-    const workUnitMenu = screen.getByRole("menu", { name: "工作单位选择" });
-    expect(workUnitMenu).toHaveTextContent("当前工作单位（只读）");
-    expect(workUnitMenu).toHaveTextContent("单位二");
-    expect(workUnitMenu).not.toHaveTextContent("原型");
-    await user.click(screen.getByRole("button", { name: /个人账户.*用户/ }));
-    expect(
-      screen.getByRole("menu", { name: "个人账户菜单" }),
-    ).toHaveTextContent("账号安全");
+    expect(screen.getByLabelText("当前工作单位：单位一")).toBeVisible();
+    expect(screen.getByLabelText("当前用户：用户")).toBeVisible();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("turns global search and header tools into real navigation and information flows", async () => {
@@ -321,7 +296,7 @@ describe("EnterpriseShell", () => {
 
     await user.click(screen.getByRole("button", { name: /^通知/ }));
     expect(screen.getByRole("dialog", { name: "业务通知" })).toHaveTextContent(
-      /业务通知待查看|暂无未读业务通知/,
+      /进入事项处理|暂无未读业务通知/,
     );
 
     await user.click(screen.getByRole("button", { name: "帮助" }));
@@ -442,8 +417,7 @@ describe("EnterpriseShell", () => {
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
 
-  it("gives every personal menu item a visible business outcome", async () => {
-    const user = userEvent.setup();
+  it("does not surface unsupported personal menu actions", () => {
     render(
       <EnterpriseShell
         location={{
@@ -465,10 +439,9 @@ describe("EnterpriseShell", () => {
       </EnterpriseShell>,
     );
 
-    await user.click(screen.getByRole("button", { name: /个人账户.*用户/ }));
-    await user.click(screen.getByRole("menuitem", { name: "岗位与数据权限" }));
+    expect(screen.getByLabelText("当前用户：用户")).toBeVisible();
     expect(
-      screen.getByRole("dialog", { name: "岗位与数据权限" }),
-    ).toHaveTextContent("当前工作单位：组织 · 单位一");
+      screen.queryByRole("menuitem", { name: "岗位与数据权限" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -538,15 +538,22 @@ describe("prototype field preservation map", () => {
         ({ metricId }) => `MetricCatalog.${metricId}`,
       ),
     );
-    for (const field of ["expectedYield", "sampleResult", "regionalEstimate"]) {
-      const target = prototypeFieldMap.find(
+    const targetFor = (field: string) =>
+      prototypeFieldMap.find(
         ({ legacySource, legacyField }) =>
           legacySource ===
             "productionMonitoringData.ts:productionCropProfiles" &&
           legacyField === field,
       )?.targetModel;
-      expect(catalogIds.has(target ?? ""), target).toBe(true);
-    }
+    expect(catalogIds.has(targetFor("expectedYield") ?? "")).toBe(true);
+    expect(targetFor("sampleResult")).toBe(
+      "RetiredProductionMetric.sample-average-yield",
+    );
+    expect(targetFor("regionalEstimate")).toBe(
+      "RetiredProductionMetric.regional-yield",
+    );
+    expect(catalogIds.has(targetFor("sampleResult") ?? "")).toBe(false);
+    expect(catalogIds.has(targetFor("regionalEstimate") ?? "")).toBe(false);
   });
 
   it("keeps pending coverage counts, logistics content, and all seven supply equations visible in the migration contract", () => {

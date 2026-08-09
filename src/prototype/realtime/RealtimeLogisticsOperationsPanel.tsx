@@ -34,10 +34,20 @@ function fieldInputType(controlType: string): "date" | "number" | "text" {
 
 export function RealtimeLogisticsOperationsPanel({
   productCode = "CORN",
+  actorName = "当前登录员工",
   repository = realtimeBusinessRepository,
+  editorOnly = false,
+  onCancel,
+  onRecordsChanged,
+  onSaved,
 }: {
   productCode?: string;
+  actorName?: string;
   repository?: RealtimeBusinessRepository;
+  editorOnly?: boolean;
+  onCancel?: () => void;
+  onRecordsChanged?: () => void;
+  onSaved?: () => void;
 }) {
   const [definition, setDefinition] = useState<LogisticsDefinition | null>(
     null,
@@ -50,7 +60,10 @@ export function RealtimeLogisticsOperationsPanel({
   const [message, setMessage] = useState("正在读取物流业务定义…");
   const [returnReason, setReturnReason] = useState("");
 
-  const fields = useMemo(() => definition?.fields ?? [], [definition]);
+  const fields = useMemo(
+    () => definition?.fields.filter((field) => !field.readOnly) ?? [],
+    [definition],
+  );
 
   const reload = useCallback(async () => {
     const page = await repository.listLogistics({ productCode, pageSize: 100 });
@@ -68,11 +81,10 @@ export function RealtimeLogisticsOperationsPanel({
         setDefinition(nextDefinition);
         setRecords(page.items);
         setError("");
-        setMessage("物流定义和记录已连接业务数据服务");
+        setMessage("已加载物流监测规则");
       })
-      .catch((cause: unknown) => {
-        if (!cancelled)
-          setError(cause instanceof Error ? cause.message : "读取物流数据失败");
+      .catch(() => {
+        if (!cancelled) setError("物流监测规则读取失败，请稍后重试。");
       });
     return () => {
       cancelled = true;
@@ -81,16 +93,21 @@ export function RealtimeLogisticsOperationsPanel({
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      void reload().catch((cause: unknown) =>
-        setError(cause instanceof Error ? cause.message : "刷新物流记录失败"),
-      );
+      void reload().catch(() => setError("物流记录刷新失败，请稍后重试。"));
     }, 10_000);
     return () => window.clearInterval(timer);
   }, [reload]);
 
   function newRecord() {
     setSelected(null);
-    setValues(Object.fromEntries(fields.map((field) => [field.code, ""])));
+    setValues(
+      Object.fromEntries(
+        fields.map((field) => [
+          field.code,
+          field.code === "LOG_REPORTER" ? actorName : "",
+        ]),
+      ),
+    );
     setReturnReason("");
     setMessage("已新建空白物流记录，保存后生成正式记录");
   }
@@ -101,9 +118,9 @@ export function RealtimeLogisticsOperationsPanel({
       const record = await repository.getLogistics(id);
       setSelected(record);
       setValues(record.values);
-      setMessage(`已读取物流记录 ${id}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "读取物流记录失败");
+      setMessage("已读取物流记录");
+    } catch {
+      setError("物流记录读取失败，请稍后重试。");
     } finally {
       setBusy(false);
     }
@@ -124,9 +141,11 @@ export function RealtimeLogisticsOperationsPanel({
       setSelected(record);
       setValues(record.values);
       await reload();
-      setMessage(`保存成功，数据版本 ${record.version}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "保存物流记录失败");
+      onRecordsChanged?.();
+      setMessage("保存成功");
+      onSaved?.();
+    } catch {
+      setError("物流记录保存失败，请核对填报内容后重试。");
     } finally {
       setBusy(false);
     }
@@ -147,10 +166,10 @@ export function RealtimeLogisticsOperationsPanel({
       setValues(record.values);
       await reload();
       setMessage(
-        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : "退回"}成功，数据版本 ${record.version}`,
+        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : "退回"}成功`,
       );
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "物流状态操作失败");
+    } catch {
+      setError("物流记录处理失败，请稍后重试。");
     } finally {
       setBusy(false);
     }
@@ -160,49 +179,53 @@ export function RealtimeLogisticsOperationsPanel({
     selected?.allowedActions.map((action) => action.toUpperCase()) ?? [],
   );
   return (
-    <section className="realtime-business-panel" aria-label="实时物流业务">
+    <section className="realtime-business-panel" aria-label="物流监测填报">
       <header>
         <div>
-          <span>实时业务模式</span>
-          <h2>实时物流节点监测</h2>
-          <p>
-            物流节点定义、记录和审批状态均来自业务数据服务；未获取数据时不会使用其他记录。
-          </p>
+          <span>业务填报</span>
+          <h2>物流监测填报</h2>
+          <p>按当前产品和业务范围填写物流记录，提交后进入审核流程。</p>
         </div>
-        <button type="button" onClick={newRecord} disabled={busy}>
-          新建物流记录
-        </button>
+        {!editorOnly && (
+          <button type="button" onClick={newRecord} disabled={busy}>
+            新建物流记录
+          </button>
+        )}
       </header>
       {error && (
         <p className="realtime-business-error" role="alert">
           {error}
         </p>
       )}
-      <div className="realtime-business-layout">
-        <aside aria-label="物流业务记录">
-          <strong>{records.length} 条业务记录</strong>
-          <ul>
-            {records.map((record) => (
-              <li key={record.id}>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void openRecord(record.id)}
-                >
-                  <strong>
-                    {record.displayValues.LOGISTICS_NODE ??
-                      record.values.LOGISTICS_NODE ??
-                      record.id}
-                  </strong>
-                  <span>{statusLabel(record.status)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {records.length === 0 && (
-            <p role="status">暂无物流记录，可新建填报。</p>
-          )}
-        </aside>
+      <div
+        className={`realtime-business-layout${editorOnly ? " is-editor-only" : ""}`}
+      >
+        {!editorOnly && (
+          <aside aria-label="物流业务记录">
+            <strong>{records.length} 条业务记录</strong>
+            <ul>
+              {records.map((record) => (
+                <li key={record.id}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void openRecord(record.id)}
+                  >
+                    <strong>
+                      {record.displayValues.LOGISTICS_NODE ??
+                        record.values.LOGISTICS_NODE ??
+                        record.id}
+                    </strong>
+                    <span>{statusLabel(record.status)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {records.length === 0 && (
+              <p role="status">暂无物流记录，可新建填报。</p>
+            )}
+          </aside>
+        )}
         <form onSubmit={(event) => void save(event)}>
           <header>
             <strong>
@@ -210,52 +233,63 @@ export function RealtimeLogisticsOperationsPanel({
                 ? `${selected.id} · ${statusLabel(selected.status)}`
                 : "新建物流记录"}
             </strong>
-            {selected && <span>数据版本 {selected.version}</span>}
           </header>
           <div className="realtime-business-fields">
-            {fields.map((field) => (
-              <label key={field.code}>
-                <span>
-                  {field.label}
-                  {field.required ? " *" : ""}
-                  {field.unit ? `（${field.unit}）` : ""}
-                </span>
-                {field.options.length > 0 ? (
-                  <select
-                    required={field.required}
-                    value={values[field.code] ?? ""}
-                    onChange={(event) =>
-                      setValues((current) => ({
-                        ...current,
-                        [field.code]: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">请选择</option>
-                    {field.options.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    required={field.required}
-                    readOnly={field.readOnly}
-                    type={fieldInputType(field.controlType)}
-                    value={values[field.code] ?? ""}
-                    onChange={(event) =>
-                      setValues((current) => ({
-                        ...current,
-                        [field.code]: event.target.value,
-                      }))
-                    }
-                  />
-                )}
-              </label>
-            ))}
+            {fields.map((field) => {
+              const identityLocked = field.code === "LOG_REPORTER";
+              return (
+                <label key={field.code}>
+                  <span>
+                    {field.label}
+                    {field.required ? " *" : ""}
+                    {field.unit ? `（${field.unit}）` : ""}
+                  </span>
+                  {identityLocked ? (
+                    <output aria-label={field.label}>
+                      {values[field.code] || actorName}
+                    </output>
+                  ) : field.options.length > 0 ? (
+                    <select
+                      required={field.required}
+                      value={values[field.code] ?? ""}
+                      onChange={(event) =>
+                        setValues((current) => ({
+                          ...current,
+                          [field.code]: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">请选择</option>
+                      {field.options.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      required={field.required}
+                      readOnly={field.readOnly}
+                      type={fieldInputType(field.controlType)}
+                      value={values[field.code] ?? ""}
+                      onChange={(event) =>
+                        setValues((current) => ({
+                          ...current,
+                          [field.code]: event.target.value,
+                        }))
+                      }
+                    />
+                  )}
+                </label>
+              );
+            })}
           </div>
           <div className="realtime-business-actions">
+            {editorOnly && (
+              <button disabled={busy} type="button" onClick={onCancel}>
+                取消并返回
+              </button>
+            )}
             <button disabled={busy || !definition} type="submit">
               保存物流记录
             </button>

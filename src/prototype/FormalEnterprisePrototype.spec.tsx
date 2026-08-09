@@ -42,7 +42,299 @@ afterEach(() => {
 });
 
 describe("formal enterprise prototype", () => {
-  it("keeps API reporting empty without reading report seeds or search fixtures", async () => {
+  it("shows the production ledger without mounting the entry form by default", async () => {
+    const user = userEvent.setup();
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.resolve({
+          subjectId: "wang-yang",
+          displayName: "王洋",
+          workUnitCode: "QIQIHAR_BUSINESS",
+          permissions: ["REPORT_PREVIEW", "REPORT_EXPORT"],
+          regionCodes: ["230200"],
+        }),
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [{ code: "CORN", name: "玉米" }],
+          periods: [
+            {
+              code: "2026-W32",
+              name: "2026 年第 32 周",
+              startsOn: "2026-08-03",
+              endsOn: "2026-08-09",
+            },
+          ],
+          regions: [],
+        }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      listCultivars: () => Promise.resolve([]),
+      listObjectTypes: () =>
+        Promise.resolve([
+          { code: "FARMER", name: "农户", domain: "PRODUCTION" },
+        ]),
+      listProduction: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      loadProductionDefinition: () =>
+        Promise.resolve({
+          productCode: "CORN",
+          objectTypeCode: "FARMER",
+          groups: [],
+        }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=production&section=corn-collection"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "玉米产情调查表" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("region", { name: "产情填报" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "保存常用条件" }),
+    ).not.toBeInTheDocument();
+    for (const removedColumn of [
+      "病虫害与灾情",
+      "样本平均单产",
+      "区域加权单产",
+      "测产轮次",
+      "现场依据",
+      "入库数量",
+      "损耗数量",
+    ]) {
+      expect(
+        screen.queryByRole("columnheader", { name: removedColumn }),
+      ).not.toBeInTheDocument();
+    }
+
+    await user.click(screen.getByRole("button", { name: "新建调查记录" }));
+    expect(
+      await screen.findByRole("dialog", { name: "新建产情填报" }),
+    ).toBeVisible();
+    expect(
+      await screen.findByRole("region", { name: "产情填报" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "玉米产情调查表" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "关闭新建产情填报" }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "关闭新建产情填报" }));
+    expect(
+      screen.queryByRole("dialog", { name: "新建产情填报" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "新建调查记录" }));
+
+    await user.click(screen.getByRole("button", { name: "取消并返回" }));
+    expect(
+      await screen.findByRole("heading", { name: "玉米产情调查表" }),
+    ).toBeVisible();
+  });
+
+  it("keeps market collection in the ledger until the user starts a new record", async () => {
+    const user = userEvent.setup();
+    const repository = {
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [{ code: "CORN", name: "玉米" }],
+          periods: [
+            {
+              code: "2026-W32",
+              name: "2026 年第 32 周",
+              startsOn: "2026-08-03",
+              endsOn: "2026-08-09",
+            },
+          ],
+          regions: [],
+        }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      listCultivars: () => Promise.resolve([]),
+      listObjectTypes: () =>
+        Promise.resolve([{ code: "TRADER", name: "贸易商", domain: "MARKET" }]),
+      listMarket: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      loadMarketDefinition: () =>
+        Promise.resolve({
+          productCode: "CORN",
+          objectTypeCode: "TRADER",
+          coreFields: [],
+          groups: [],
+        }),
+      createMarket: () =>
+        Promise.resolve({
+          id: "market-record-1",
+          productCode: "CORN",
+          coreValues: {},
+          facts: {},
+          status: "DRAFT",
+          returnReason: null,
+          allowedActions: ["SUBMIT"],
+          version: 1,
+        }),
+      uploadEvidencePhoto: () =>
+        Promise.resolve({
+          id: "photo-1",
+          state: "STAGED",
+          originalFilename: "market.png",
+          mediaType: "image/png",
+          byteLength: 12,
+          sha256: "a".repeat(64),
+          capturedAt: "2026-08-08T10:00:00+08:00",
+          latitude: "47.3543",
+          longitude: "123.9182",
+          watermarkText: "齐齐哈尔市 市场采集 王洋",
+        }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=market&section=corn-collection"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "玉米市场采集表" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("region", { name: "市场采集" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "保存常用条件" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "新建采集记录" }));
+    expect(
+      await screen.findByRole("dialog", { name: "新建市场填报" }),
+    ).toBeVisible();
+    expect(
+      await screen.findByRole("region", { name: "市场采集" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "玉米市场采集表" }),
+    ).toBeInTheDocument();
+
+    const save = screen.getByRole("button", { name: "保存业务记录" });
+    await waitFor(() => expect(save).toBeEnabled());
+    await user.upload(
+      screen.getByLabelText("现场水印照片"),
+      new File(["market"], "market.png", { type: "image/png" }),
+    );
+    await user.click(save);
+    expect(
+      await screen.findByRole("heading", { name: "玉米市场采集表" }),
+    ).toBeVisible();
+  });
+
+  it("keeps logistics monitoring in the ledger until the user starts a new record", async () => {
+    const user = userEvent.setup();
+    const repository = {
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [{ code: "CORN", name: "玉米" }],
+          periods: [
+            {
+              code: "2026-W32",
+              name: "2026 年第 32 周",
+              startsOn: "2026-08-03",
+              endsOn: "2026-08-09",
+            },
+          ],
+          regions: [],
+        }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      loadLogisticsDefinition: () =>
+        Promise.resolve({ productCode: "CORN", fields: [], actions: [] }),
+      listLogistics: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=market&section=logistics"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "粮食物流节点监测表",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("region", { name: "物流监测填报" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "新建监测记录" }));
+    expect(
+      await screen.findByRole("dialog", { name: "新建物流监测填报" }),
+    ).toBeVisible();
+    expect(
+      await screen.findByRole("region", { name: "物流监测填报" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "粮食物流节点监测表" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "取消并返回" }));
+    expect(
+      await screen.findByRole("heading", {
+        name: "粮食物流节点监测表",
+      }),
+    ).toBeVisible();
+  });
+
+  it("uses scoped business reports without reading report seeds or search fixtures", async () => {
     const user = userEvent.setup();
     window.localStorage.setItem(
       prototypeBusinessReportStorageKey,
@@ -51,6 +343,14 @@ describe("formal enterprise prototype", () => {
     const getItem = vi.spyOn(Storage.prototype, "getItem");
     const setItem = vi.spyOn(Storage.prototype, "setItem");
     const repository = {
+      loadCurrentSession: () =>
+        Promise.resolve({
+          subjectId: "wang-yang",
+          displayName: "王洋",
+          workUnitCode: "QIQIHAR_BUSINESS",
+          permissions: ["REPORT_PREVIEW", "REPORT_EXPORT"],
+          regionCodes: ["230200"],
+        }),
       loadMasterData: () =>
         Promise.resolve({
           products: [{ code: "CORN", name: "服务端玉米" }],
@@ -62,7 +362,29 @@ describe("formal enterprise prototype", () => {
               endsOn: "2026-08-09",
             },
           ],
-          regions: [],
+          regions: [
+            {
+              code: "230200",
+              name: "齐齐哈尔市",
+              parentCode: null,
+              level: "PREFECTURE",
+            },
+          ],
+        }),
+      listCultivars: () => Promise.resolve([]),
+      loadReportParameterOptions: () =>
+        Promise.resolve({
+          definitions: [
+            {
+              code: "PRODUCTION_DAILY",
+              name: "产情日报",
+              businessDomain: "PRODUCTION",
+              businessSubtype: "MONITORING",
+              frequencyCode: "DAILY",
+              sections: [],
+            },
+          ],
+          formats: [{ code: "CSV", label: "CSV（中文列名）" }],
         }),
       listWorkItems: () =>
         Promise.resolve({
@@ -83,19 +405,20 @@ describe("formal enterprise prototype", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "报表服务尚未配置" }),
+      await screen.findByRole("heading", { name: "业务报告" }),
     ).toBeVisible();
-    expect(screen.getByText("当前暂无可用报告数据")).toBeVisible();
+    expect(await screen.findByText("王洋")).toBeVisible();
+    expect(screen.getByRole("button", { name: "生成报告预览" })).toBeVisible();
     expect(document.body).not.toHaveTextContent("第31周粮食商情周报");
-    expect(
-      screen.queryByRole("button", { name: /生成报告|导出/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/综合经营/)).not.toBeInTheDocument();
 
     await user.type(
       screen.getByRole("searchbox", { name: "全局搜索" }),
       "齐齐哈尔市全域玉米供需平衡分析报告",
     );
-    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("listbox")).queryByRole("option"),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("未找到匹配的业务页面")).toBeVisible();
     expect(
       getItem.mock.calls.some(
@@ -142,13 +465,11 @@ describe("formal enterprise prototype", () => {
 
     expect(
       await screen.findByRole("status", {
-        name: "实时业务数据连接状态",
+        name: "业务数据状态",
       }),
-    ).toHaveTextContent("当前没有可用业务期间或待办记录");
+    ).toHaveTextContent("当前暂无可用业务数据");
     expect(document.body).not.toHaveTextContent("齐齐哈尔市玉米市场运行周填报");
-    expect(
-      screen.getByRole("button", { name: "个人账户：已认证用户" }),
-    ).toBeVisible();
+    expect(screen.getByLabelText("当前用户：已认证用户")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "系统设置" }),
     ).not.toBeInTheDocument();
@@ -175,9 +496,9 @@ describe("formal enterprise prototype", () => {
 
     expect(
       await screen.findByRole("alert", {
-        name: "实时业务数据连接状态",
+        name: "业务数据状态",
       }),
-    ).toHaveTextContent("业务数据服务连接异常");
+    ).toHaveTextContent("业务数据读取失败");
     expect(document.body).not.toHaveTextContent("齐齐哈尔市玉米市场运行周填报");
   });
 
@@ -215,7 +536,7 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(17);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(16);
     expect(within(navigation).getByText("玉米产情填报")).toBeVisible();
     expect(within(navigation).getByText("大豆产情填报")).toBeVisible();
     expect(within(navigation).getByText("稻谷产情填报")).toBeVisible();
@@ -485,20 +806,16 @@ describe("formal enterprise prototype", () => {
     );
 
     window.history.back();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    act(() => {
-      window.dispatchEvent(new PopStateEvent("popstate"));
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
+        "qiqihar-nehe",
+      );
     });
-    expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
-      "qiqihar-nehe",
-    );
 
     window.history.forward();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    act(() => {
-      window.dispatchEvent(new PopStateEvent("popstate"));
+    await waitFor(() => {
+      expect(screen.getByLabelText("选择地区")).toHaveTextContent("请选择地区");
     });
-    expect(screen.getByLabelText("选择地区")).toHaveTextContent("请选择地区");
   });
 
   it("renders authorized classification catalog entries in the visible scope filter", () => {
@@ -855,18 +1172,16 @@ describe("formal enterprise prototype", () => {
     expect(screen.getByRole("region", { name: /单据工作台/ })).toBeVisible();
 
     window.history.back();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    act(() => {
-      window.dispatchEvent(new PopStateEvent("popstate"));
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "待我处理" })).toBeVisible();
     });
-    expect(screen.getByRole("heading", { name: "待我处理" })).toBeVisible();
 
     window.history.forward();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    act(() => {
-      window.dispatchEvent(new PopStateEvent("popstate"));
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: "市场任务作业" }),
+      ).toBeVisible();
     });
-    expect(screen.getByRole("heading", { name: "市场任务作业" })).toBeVisible();
 
     window.history.replaceState({}, "", "/?page=work");
     act(() => {

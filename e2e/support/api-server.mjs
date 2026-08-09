@@ -14,10 +14,28 @@ const periods = [
 ];
 const regions = [
   {
+    code: "230200",
+    name: "齐齐哈尔市",
+    parentCode: null,
+    level: "PREFECTURE",
+  },
+  {
     code: "230221",
     name: "龙江县",
     parentCode: "230200",
     level: "COUNTY",
+  },
+  {
+    code: "230221101",
+    name: "龙江镇",
+    parentCode: "230221",
+    level: "TOWNSHIP",
+  },
+  {
+    code: "230221101001",
+    name: "通齐村",
+    parentCode: "230221101",
+    level: "VILLAGE",
   },
 ];
 const workItems = [
@@ -206,6 +224,16 @@ const server = createServer(async (request, response) => {
   }
 
   const empty = mode === "empty";
+  if (method === "GET" && url.pathname === "/api/v1/session/me") {
+    data(response, {
+      subjectId: "server-user",
+      displayName: "已认证用户",
+      workUnitCode: "QIQIHAR_BUSINESS",
+      permissions: ["BUSINESS_READ", "BUSINESS_CREATE"],
+      regionCodes: ["230200", "230221", "230221101", "230221101001"],
+    });
+    return;
+  }
   if (method === "GET" && url.pathname === "/api/v1/master-data/products") {
     data(response, empty ? [] : products);
     return;
@@ -227,6 +255,21 @@ const server = createServer(async (request, response) => {
   }
   if (
     method === "GET" &&
+    url.pathname === "/api/v1/reports/parameter-options"
+  ) {
+    data(response, {
+      definitions: [],
+      products: [],
+      cultivars: [],
+      regionLevels: [],
+      regions: [],
+      periods: [],
+      formats: [],
+    });
+    return;
+  }
+  if (
+    method === "GET" &&
     /^\/api\/v1\/master-data\/products\/[^/]+\/cultivars$/u.test(url.pathname)
   ) {
     data(response, empty ? [] : cultivars);
@@ -241,6 +284,25 @@ const server = createServer(async (request, response) => {
     url.pathname === "/api/v1/market-record-definitions"
   ) {
     data(response, marketDefinition);
+    return;
+  }
+  if (method === "POST" && url.pathname === "/api/v1/evidence-photos") {
+    for await (const chunk of request) {
+      // Drain the multipart body so the controlled server exercises a real upload.
+      void chunk;
+    }
+    data(response, {
+      id: "E2E-EVIDENCE-001",
+      state: "STAGED",
+      originalFilename: "market-scene.png",
+      mediaType: "image/png",
+      byteLength: 4,
+      sha256: "0".repeat(64),
+      capturedAt: "2026-08-09T08:00:00Z",
+      latitude: "",
+      longitude: "",
+      watermarkText: "通齐村 市场采集 已认证用户",
+    });
     return;
   }
   if (method === "GET" && url.pathname === "/api/v1/market-records") {

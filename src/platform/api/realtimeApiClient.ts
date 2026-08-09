@@ -40,6 +40,10 @@ export interface RealtimeApiClient {
     body: FormData,
     headers?: Record<string, string>,
   ): Promise<T>;
+  download(
+    path: string,
+    query?: Record<string, string | number | undefined>,
+  ): Promise<Blob>;
 }
 
 interface ApiErrorPayload {
@@ -240,11 +244,47 @@ export function createRealtimeApiClient(
     }
   }
 
+  async function download(
+    path: string,
+    query?: Record<string, string | number | undefined>,
+  ): Promise<Blob> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetcher(
+        `${joinUrl(baseUrl, path)}${query ? queryString(query) : ""}`,
+        {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal,
+          headers: {
+            Accept:
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "X-Client": "qiqihar-enterprise-web",
+          },
+        },
+      );
+      if (!response.ok) throw toError(response, await readJson(response));
+      return response.blob();
+    } catch (error) {
+      if (error instanceof RealtimeApiError) throw error;
+      throw new RealtimeApiError({
+        code: "API_NETWORK_ERROR",
+        message: "无法下载业务模板，请稍后重试",
+        status: 0,
+        details: error,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   return {
     get: (path, query) => request("GET", path, query),
     post: (path, body) => request("POST", path, undefined, body),
     put: (path, body) => request("PUT", path, undefined, body),
     upload,
+    download,
   };
 }
 

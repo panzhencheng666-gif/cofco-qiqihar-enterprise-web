@@ -5,7 +5,14 @@ import { RealtimeLogisticsOperationsPanel } from "./RealtimeLogisticsOperationsP
 
 function repository(): RealtimeBusinessRepository {
   return {
+    loadCurrentSession: vi.fn(),
+    uploadEvidencePhoto: vi.fn(),
     loadMasterData: vi.fn(),
+    loadAnnualComparison: vi.fn(),
+    loadReportParameterOptions: vi.fn(),
+    createReportPreview: vi.fn(),
+    createReportExport: vi.fn(),
+    downloadReportExport: vi.fn(),
     listCultivars: vi.fn(),
     listObjectTypes: vi.fn(),
     loadProductionDefinition: vi.fn(),
@@ -27,6 +34,8 @@ function repository(): RealtimeBusinessRepository {
     approveSupplyManualDecision: vi.fn(),
     runSupplyAccount: vi.fn(),
     importProductionCsv: vi.fn(),
+    importLogisticsWorkbook: vi.fn(),
+    downloadLogisticsXlsxTemplate: vi.fn(),
     loadLogisticsDefinition: vi.fn(() =>
       Promise.resolve({
         productCode: "CORN",
@@ -44,6 +53,18 @@ function repository(): RealtimeBusinessRepository {
             options: [
               { value: "2026-W32", label: "2026年第32周", sortOrder: 1 },
             ],
+          },
+          {
+            code: "LOG_REPORTER",
+            label: "物流填报人",
+            controlType: "TEXT",
+            unit: null,
+            precision: null,
+            scale: null,
+            required: true,
+            readOnly: false,
+            sortOrder: 20,
+            options: [],
           },
         ],
         actions: [],
@@ -67,11 +88,17 @@ function repository(): RealtimeBusinessRepository {
 
 describe("RealtimeLogisticsOperationsPanel", () => {
   it("renders backend-owned logistics definitions and an empty real list", async () => {
-    render(<RealtimeLogisticsOperationsPanel repository={repository()} />);
+    render(
+      <RealtimeLogisticsOperationsPanel
+        actorName="物流测试员"
+        editorOnly
+        repository={repository()}
+      />,
+    );
     expect(
-      await screen.findByRole("heading", { name: "实时物流节点监测" }),
+      await screen.findByRole("heading", { name: "物流监测填报" }),
     ).toBeVisible();
     expect(screen.getByLabelText(/物流监测期/)).toBeVisible();
-    expect(screen.getByText("暂无物流记录，可新建填报。")).toBeVisible();
+    expect(screen.getByLabelText("物流填报人")).toHaveTextContent("物流测试员");
   });
 });

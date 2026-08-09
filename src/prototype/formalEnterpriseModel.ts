@@ -40,7 +40,7 @@ export const formalSectionsByApplication = {
     "comparison",
     "versions",
   ],
-  reporting: ["compose", "comprehensive", "review-distribution", "ledger"],
+  reporting: ["compose", "review-distribution", "ledger"],
 } as const;
 
 export const formalApplications = Object.keys(
@@ -134,7 +134,6 @@ const formalBusinessRouteNames = {
     application: "报表中心",
     sections: {
       compose: "业务报告",
-      comprehensive: "综合报告",
       "review-distribution": "报告审核与发布",
       ledger: "报告台账",
     },

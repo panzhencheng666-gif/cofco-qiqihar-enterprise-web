@@ -54,7 +54,6 @@ describe("formal enterprise route model", () => {
       ["supply", "comparison", "#/供需分析/四年对比"],
       ["supply", "versions", "#/供需分析/核定记录"],
       ["reporting", "compose", "#/报表中心/业务报告"],
-      ["reporting", "comprehensive", "#/报表中心/综合报告"],
       ["reporting", "review-distribution", "#/报表中心/报告审核与发布"],
       ["reporting", "ledger", "#/报表中心/报告台账"],
     ] as const;
@@ -244,7 +243,7 @@ describe("formal enterprise sample data", () => {
     );
   });
 
-  it("contains the six ordinary-user entries and typed reporting navigation", () => {
+  it("contains the six ordinary-user entries and only the working report entry", () => {
     expect(
       formalApplicationDefinitions.map((application) => application.key),
     ).toEqual([
@@ -255,8 +254,8 @@ describe("formal enterprise sample data", () => {
       "supply",
       "reporting",
     ]);
-    expect(reportingNavigation.flatMap((group) => group.items)).toContainEqual(
-      expect.objectContaining({ key: "review-distribution" }),
-    );
+    expect(reportingNavigation.flatMap((group) => group.items)).toEqual([
+      expect.objectContaining({ key: "compose" }),
+    ]);
   });
 });

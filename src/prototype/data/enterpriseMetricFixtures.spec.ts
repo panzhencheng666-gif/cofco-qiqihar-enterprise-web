@@ -14,7 +14,6 @@ const requiredMetricIds = [
   "production.planted-area",
   "production.harvested-area",
   "production.unharvested-area",
-  "production.regional-yield",
   "production.total-output",
   "production.cost-per-area",
   "production.farmer-stock",
@@ -76,14 +75,11 @@ function scope(
 }
 
 describe("enterprise metric fixtures", () => {
-  it("contains the complete minimum catalog and keeps regional yield as ratio-of-aggregates", () => {
+  it("contains the approved catalog and keeps retired yield metrics absent", () => {
     const ids = enterpriseMetricDefinitions.map(({ metricId }) => metricId);
     expect(ids).toEqual(expect.arrayContaining([...requiredMetricIds]));
-    expect(
-      enterpriseMetricDefinitions.find(
-        ({ metricId }) => metricId === "production.regional-yield",
-      ),
-    ).toMatchObject({ aggregation: "ratio-of-aggregates" });
+    expect(ids).not.toContain("production.regional-yield");
+    expect(ids).not.toContain("production.sample-average-yield");
     expect(
       enterpriseMetricDefinitions
         .filter(({ measureType }) => measureType === "price")
@@ -115,11 +111,6 @@ describe("enterprise metric fixtures", () => {
           !/治理|同坐标|规则版本|治理坐标/.test(formula),
       ),
     ).toBe(true);
-    expect(
-      enterpriseMetricDefinitions.find(
-        ({ metricId }) => metricId === "production.sample-average-yield",
-      )?.formula,
-    ).toBe("样本单产算术平均，不代替区域加权估计");
     expect(
       enterpriseMetricDefinitions.find(
         ({ metricId }) => metricId === "production.cost-per-area",
@@ -155,7 +146,7 @@ describe("enterprise metric fixtures", () => {
     ).toBe(true);
   });
 
-  it("governs per-area cost, arithmetic sample yield, and quality metric semantics explicitly", () => {
+  it("governs per-area cost and quality metric semantics explicitly", () => {
     const byId = new Map(
       enterpriseMetricDefinitions.map((item) => [item.metricId, item]),
     );
@@ -165,23 +156,8 @@ describe("enterprise metric fixtures", () => {
       aggregation: "per-area",
     });
     expect(byId.get("production.cost-per-area")?.formula).toContain("/");
-    expect(byId.get("production.sample-average-yield")).toMatchObject({
-      aggregation: "arithmetic-average",
-    });
-    expect(
-      enterpriseMetricPoints
-        .filter(
-          ({ coordinate }) =>
-            coordinate.metricId === "production.sample-average-yield",
-        )
-        .every(
-          ({ coordinate }) =>
-            coordinate.populationOrSampleId === "authorized-yield-sample",
-        ),
-    ).toBe(true);
-    expect(byId.get("production.regional-yield")).toMatchObject({
-      aggregation: "ratio-of-aggregates",
-    });
+    expect(byId.has("production.sample-average-yield")).toBe(false);
+    expect(byId.has("production.regional-yield")).toBe(false);
 
     for (const metricId of [
       "production.quality-moisture",
@@ -264,8 +240,6 @@ describe("enterprise metric fixtures", () => {
       "production.estimated-total-output",
       "production.expected-yield",
       "production.planted-area",
-      "production.regional-yield",
-      "production.sample-average-yield",
     ]);
     for (const metricId of publishedMetricIds) {
       expect(
@@ -383,14 +357,8 @@ describe("enterprise metric fixtures", () => {
       value: "468.2",
       unit: "公斤/亩",
     });
-    expect(current("production.sample-average-yield")).toMatchObject({
-      value: "471.6",
-      unit: "公斤/亩",
-    });
-    expect(current("production.regional-yield")).toMatchObject({
-      value: "468.2",
-      unit: "公斤/亩",
-    });
+    expect(current("production.sample-average-yield")).toBeUndefined();
+    expect(current("production.regional-yield")).toBeUndefined();
     expect(current("production.estimated-total-output")).toMatchObject({
       value: "601.4",
       unit: "万吨",
@@ -411,7 +379,7 @@ describe("enterprise metric fixtures", () => {
       enterpriseMetricDefinitions.find(
         ({ metricId }) => metricId === "production.total-output",
       )?.formula,
-    ).toBe("规范收获面积 × 区域加权单产");
+    ).toBe("规范收获面积 × 核定单产");
   });
 
   it("gives authorized-all its own aggregate membership snapshot", () => {
@@ -439,8 +407,6 @@ describe("enterprise metric fixtures", () => {
         .map(({ definition }) => definition.metricId),
     ).toEqual([
       "production.planted-area",
-      "production.regional-yield",
-      "production.sample-average-yield",
       "production.expected-yield",
       "production.estimated-total-output",
     ]);
@@ -584,8 +550,6 @@ describe("enterprise metric fixtures", () => {
         .map(({ definition }) => definition.metricId),
     ).toEqual([
       "production.planted-area",
-      "production.regional-yield",
-      "production.sample-average-yield",
       "production.expected-yield",
       "production.estimated-total-output",
     ]);
@@ -749,7 +713,7 @@ describe("enterprise metric fixtures", () => {
     });
     expect(
       authorizedCurrent.filter((item) => item.status === "ready"),
-    ).toHaveLength(5);
+    ).toHaveLength(3);
 
     const historicalOnly = scope({ regionId: "qiqihar-all" });
     historicalOnly.authorization = {

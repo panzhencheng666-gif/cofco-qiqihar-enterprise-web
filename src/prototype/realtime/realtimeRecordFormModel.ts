@@ -12,25 +12,52 @@ export interface RealtimeFormField {
   required?: boolean;
   unit?: string | null;
   options?: readonly { value: string; label: string }[];
+  section?: string;
+  readOnly?: boolean;
 }
 
 export const productionCoreFields: readonly RealtimeFormField[] = [
-  { code: "productCode", label: "品种", type: "select", required: true },
+  {
+    code: "productCode",
+    label: "品种",
+    type: "select",
+    required: true,
+    section: "基础信息",
+  },
   {
     code: "objectTypeCode",
     label: "样本点类型",
     type: "select",
     required: true,
+    section: "基础信息",
   },
-  { code: "regionCode", label: "所在地区", type: "select", required: true },
-  { code: "cultivarCode", label: "具体品种", type: "select" },
-  { code: "surveyDate", label: "调查日期", type: "date", required: true },
+  {
+    code: "regionCode",
+    label: "所在地区",
+    type: "select",
+    required: true,
+    section: "基础信息",
+  },
+  {
+    code: "PROD_CULTIVAR_NAME",
+    label: "具体品种",
+    type: "text",
+    section: "基础信息",
+  },
+  {
+    code: "surveyDate",
+    label: "调查日期",
+    type: "date",
+    required: true,
+    section: "基础信息",
+  },
   {
     code: "cultivatedAreaMu",
     label: "种植面积",
     type: "decimal",
     required: true,
     unit: "亩",
+    section: "产量信息",
   },
   {
     code: "yieldPerMuKilograms",
@@ -38,36 +65,62 @@ export const productionCoreFields: readonly RealtimeFormField[] = [
     type: "decimal",
     required: true,
     unit: "公斤/亩",
+    section: "产量信息",
+  },
+  {
+    code: "estimatedOutputKilograms",
+    label: "预计总产",
+    type: "decimal",
+    unit: "公斤",
+    section: "产量信息",
+    readOnly: true,
+  },
+  {
+    code: "yearOnYear",
+    label: "与上年同比",
+    type: "text",
+    section: "产量信息",
+    readOnly: true,
   },
 ];
 
 export const productionMetadataFields: readonly RealtimeFormField[] = [
-  { code: "PROD_REPORTER_NAME", label: "填报人", type: "text", required: true },
+  {
+    code: "PROD_REPORTER_NAME",
+    label: "填报人",
+    type: "text",
+    required: true,
+    section: "联系与位置",
+  },
   {
     code: "PROD_REPORTER_PHONE",
     label: "填报人联系方式",
     type: "text",
     required: true,
+    section: "联系与位置",
   },
   {
     code: "PROD_SAMPLE_CONTACT",
-    label: "样本点联系方式",
+    label: "填报对象联系方式",
     type: "text",
     required: true,
+    section: "联系与位置",
   },
   {
     code: "PROD_SAMPLE_LATITUDE",
-    label: "样本点纬度",
+    label: "填报对象纬度",
     type: "decimal",
     required: true,
     unit: "度",
+    section: "联系与位置",
   },
   {
     code: "PROD_SAMPLE_LONGITUDE",
-    label: "样本点经度",
+    label: "填报对象经度",
     type: "decimal",
     required: true,
     unit: "度",
+    section: "联系与位置",
   },
 ];
 
@@ -103,7 +156,7 @@ export function productionPayloadFromValues(
     productCode: values.productCode?.trim() ?? "",
     objectTypeCode: values.objectTypeCode?.trim() ?? "",
     regionCode: values.regionCode?.trim() ?? "",
-    cultivarCode: values.cultivarCode?.trim() || null,
+    cultivarCode: null,
     surveyDate: values.surveyDate?.trim() ?? "",
     cultivatedAreaMu: values.cultivatedAreaMu?.trim() ?? "",
     yieldPerMuKilograms: values.yieldPerMuKilograms?.trim() ?? "",
@@ -111,10 +164,14 @@ export function productionPayloadFromValues(
     costs: categoryValues(values, definition, "COST"),
     insurance: categoryValues(values, definition, "INSURANCE"),
     subsidies: categoryValues(values, definition, "SUBSIDY"),
-    submissionMetadata: populated(
-      values,
-      productionMetadataFields.map(({ code }) => code),
-    ),
+    submissionMetadata: {
+      ...populated(values, [
+        "PROD_CULTIVAR_NAME",
+        ...productionMetadataFields.map(({ code }) => code),
+      ]),
+      ...categoryValues(values, definition, "DETAIL"),
+    },
+    evidencePhotoIds: [],
   };
 }
 
@@ -135,6 +192,7 @@ export function marketPayloadFromValues(
         group.fields.map(({ code }) => code),
       ),
     ),
+    evidencePhotoIds: [],
   };
 }
 
@@ -150,6 +208,8 @@ export function definitionFields(
           ? ("decimal" as const)
           : ("text" as const),
       unit: field.unit,
+      section: group.label,
+      required: field.code === "PROD_SAMPLE_NAME",
     })),
   );
 }

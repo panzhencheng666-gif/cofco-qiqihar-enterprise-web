@@ -22,7 +22,7 @@ test("reads service-owned work and opens its canonical business route", async ({
     .poll(() => decodeURIComponent(new URL(page.url()).hash))
     .toBe("#/市场监测/采集任务");
   await expect(
-    page.getByRole("heading", { name: "实时市场业务", exact: true }),
+    page.getByRole("heading", { name: "市场采集", exact: true }),
   ).toBeVisible();
 
   const location = await page.evaluate(
@@ -39,26 +39,47 @@ test("reads service-owned work and opens its canonical business route", async ({
   });
 });
 
-test("persists a market record and status action through the controlled API", async ({
+test("persists a market record and returns to its service-owned list", async ({
   page,
   request,
 }) => {
   await page.goto("/#/市场监测/玉米市场采集");
-  const panel = page.getByRole("region", { name: "实时市场业务" });
-  await expect(panel.getByText("业务配置已连接")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "玉米市场采集表" }),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "新建市场填报" })).toHaveCount(
+    0,
+  );
+  await page.getByRole("button", { name: "新建采集记录" }).click();
 
-  await panel.getByRole("button", { name: "新建填报" }).click();
+  const dialog = page.getByRole("dialog", { name: "新建市场填报" });
+  const panel = dialog.getByRole("region", { name: "市场采集" });
+  await expect(panel.getByText("已加载业务填报规则")).toBeVisible();
   await panel
     .getByRole("combobox", { name: "对象类型" })
     .selectOption("TRADER");
+  await panel.getByRole("combobox", { name: "地级市" }).selectOption("230200");
+  await panel.getByRole("combobox", { name: "区县" }).selectOption("230221");
+  await panel.getByRole("combobox", { name: "乡镇" }).selectOption("230221101");
   await panel
-    .getByRole("combobox", { name: "所在地区" })
-    .selectOption("230221");
+    .getByRole("combobox", { name: "行政村" })
+    .selectOption("230221101001");
   await panel.getByRole("textbox", { name: "服务端采集价格" }).fill("2418.50");
+  await panel.getByLabel("现场水印照片").setInputFiles({
+    name: "market-scene.png",
+    mimeType: "image/png",
+    buffer: Buffer.from([137, 80, 78, 71]),
+  });
   await panel.getByRole("button", { name: "保存业务记录" }).click();
-  await expect(panel.getByText("保存成功，数据版本 1")).toBeVisible();
-  await panel.getByRole("button", { name: "提交审核" }).click();
-  await expect(panel.getByText("提交成功，数据版本 2")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "玉米市场采集表" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "玉米市场采集表" }).getByText("2418.50"),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "新建市场填报" })).toHaveCount(
+    0,
+  );
 
   const response = await request.get(`${controlledApiBaseUrl}/__e2e/state`);
   expect(response.ok()).toBe(true);
@@ -70,17 +91,16 @@ test("persists a market record and status action through the controlled API", as
   };
   expect(payload.data.writes.map(({ action }) => action)).toEqual([
     "create-market",
-    "submit-market",
   ]);
   expect(payload.data.writes[0]?.body).toMatchObject({
     productCode: "CORN",
     coreValues: {
       MKT_OBJECT_TYPE: "TRADER",
       MKT_PRICE: "2418.50",
-      MKT_REGION: "230221",
+      MKT_REGION: "230221101001",
     },
   });
-  expect(payload.data.actorHeaders).toEqual([null, null]);
+  expect(payload.data.actorHeaders).toEqual([null]);
 });
 
 test("keeps an empty API store empty without loading browser fixtures", async ({
@@ -91,8 +111,8 @@ test("keeps an empty API store empty without loading browser fixtures", async ({
   await page.goto("/#/我的工作/待我处理");
 
   await expect(
-    page.getByRole("status", { name: "实时业务数据连接状态" }),
-  ).toContainText("当前没有可用业务期间或待办记录");
+    page.getByRole("status", { name: "业务数据状态" }),
+  ).toContainText("当前暂无可用业务数据");
   await expect(page.getByText("服务端玉米市场采集任务")).toHaveCount(0);
   await expect(page.getByText("齐齐哈尔市玉米市场运行周填报")).toHaveCount(0);
 });
@@ -105,8 +125,8 @@ test("fails closed when the API response contract fails", async ({
   await page.goto("/#/我的工作/待我处理");
 
   await expect(
-    page.getByRole("alert", { name: "实时业务数据连接状态" }),
-  ).toContainText("业务数据服务连接异常");
+    page.getByRole("alert", { name: "工作状态恢复提示" }),
+  ).toContainText("业务数据读取失败");
   await expect(page.getByText("服务端玉米市场采集任务")).toHaveCount(0);
   await expect(page.getByText("齐齐哈尔市玉米市场运行周填报")).toHaveCount(0);
 });
@@ -134,21 +154,19 @@ test("keeps reports fail-closed when the report API is not implemented", async (
   );
   await page.goto("/#/报表中心/业务报告");
 
-  await expect(
-    page.getByRole("heading", { name: "报表服务尚未配置" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("status", { name: "报表服务状态" }),
-  ).toContainText("当前暂无可用报告数据");
+  await expect(page.getByRole("heading", { name: "业务报告" })).toBeVisible();
   await expect(page.getByText("第31周粮食商情周报")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /生成报告|导出/ })).toHaveCount(
+  await expect(
+    page.getByRole("button", { name: "生成报告预览" }),
+  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: /导出当前报告/ })).toHaveCount(
     0,
   );
 
   await page
     .getByRole("searchbox", { name: "全局搜索" })
     .fill("齐齐哈尔市全域玉米供需平衡分析报告");
-  await expect(page.getByRole("option")).toHaveCount(0);
+  await expect(page.getByRole("listbox").getByRole("option")).toHaveCount(0);
   await expect(page.getByText("未找到匹配的业务页面")).toBeVisible();
   await expect
     .poll(() =>
@@ -178,9 +196,7 @@ test("uses the minimal API session view and keeps page navigation operable", asy
   page,
 }) => {
   await page.goto("/#/我的工作/待我处理");
-  await expect(
-    page.getByRole("button", { name: "个人账户：已认证用户" }),
-  ).toBeVisible();
+  await expect(page.getByLabel("当前用户：已认证用户")).toBeVisible();
   await expect(page.getByRole("button", { name: "系统设置" })).toHaveCount(0);
   await expect(page.getByText("王洋", { exact: false })).toHaveCount(0);
 

@@ -36,14 +36,7 @@ export const prototypeShellIdentity: FormalShellIdentity = {
   },
   account: {
     displayName: "王洋",
-    menuItems: [
-      "个人中心",
-      "组织、岗位与责任范围",
-      "代理与工作交接",
-      "常用条件与显示偏好",
-      "账号安全与登录设备",
-      "切换账号 / 退出登录",
-    ],
+    menuItems: [],
   },
 };
 
@@ -344,18 +337,9 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       code: "06",
       label: "报表中心",
       shortLabel: "报表",
-      note: "统一管理业务报告、履责报告、复核发布和修订记录",
+      note: "按地区、品种和时间形成产情、市场、物流与供需业务报告",
       navigation: [
         { route: createFormalRoute("reporting", "compose"), label: "业务报告" },
-        {
-          route: createFormalRoute("reporting", "comprehensive"),
-          label: "综合报告",
-        },
-        {
-          route: createFormalRoute("reporting", "review-distribution"),
-          label: "报告审核与发布",
-        },
-        { route: createFormalRoute("reporting", "ledger"), label: "报告台账" },
       ],
     },
   ];
@@ -363,17 +347,7 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
 export const reportingNavigation: readonly ReportingNavigationGroup[] = [
   {
     label: "报告工作",
-    items: [
-      { key: "compose", label: "业务报告" },
-      { key: "comprehensive", label: "综合报告" },
-    ],
-  },
-  {
-    label: "发布管理",
-    items: [
-      { key: "review-distribution", label: "报告审核与发布" },
-      { key: "ledger", label: "报告台账" },
-    ],
+    items: [{ key: "compose", label: "业务报告" }],
   },
 ];
 

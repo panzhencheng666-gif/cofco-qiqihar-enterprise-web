@@ -1,4 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import type {
+  LogisticsDefinition,
+  LogisticsRecordRow,
+  RealtimeBusinessRepository,
+} from "@/platform/api/realtimeBusinessRepository";
 
 import {
   RegionCascadeSelector,
@@ -40,6 +46,7 @@ const nodeTypeLabels: Readonly<Record<string, string>> = {
 interface LogisticsRow {
   workId: string;
   number: number;
+  product: string;
   node: string;
   nodeType: string;
   region: string;
@@ -50,6 +57,57 @@ interface LogisticsRow {
   transitTime: string;
   responsible: string;
   state: string;
+}
+
+const logisticsProducts = [
+  { code: "CORN", label: "玉米" },
+  { code: "SOYBEAN", label: "大豆" },
+  { code: "RICE", label: "稻谷" },
+] as const;
+
+const logisticsStatusLabels: Readonly<Record<string, string>> = {
+  DRAFT: "填写中",
+  SUBMITTED: "待审核",
+  APPROVED: "已核定",
+  RETURNED: "退回待补充",
+};
+
+function persistedValue(record: LogisticsRecordRow, code: string): string {
+  return record.displayValues[code] ?? record.values[code] ?? "—";
+}
+
+function persistedRow(
+  record: LogisticsRecordRow,
+  number: number,
+): LogisticsRow {
+  const origin = persistedValue(record, "LOG_ORIGIN");
+  const destination = persistedValue(record, "LOG_DESTINATION");
+  const direction = persistedValue(record, "LOG_DIRECTION");
+  const volume = persistedValue(record, "LOG_ROUTE_VOLUME");
+  const status = persistedValue(record, "LOG_STATUS");
+  return {
+    workId: record.id,
+    number,
+    product:
+      logisticsProducts.find(({ code }) => code === record.productCode)
+        ?.label ?? record.productCode,
+    node: record.id,
+    nodeType: persistedValue(record, "LOG_TRANSPORT_MODE"),
+    region: persistedValue(record, "LOG_REGION"),
+    inflow: direction.includes("流入") ? volume : "—",
+    outflow: direction.includes("流出") ? volume : "—",
+    direction:
+      origin !== "—" && destination !== "—"
+        ? `${origin} → ${destination}`
+        : direction,
+    freightRate: persistedValue(record, "LOG_FREIGHT_RATE"),
+    transitTime: persistedValue(record, "LOG_TRANSIT_TIME"),
+    responsible: persistedValue(record, "LOG_SOURCE_ORGANIZATION"),
+    state:
+      status !== "—"
+        ? status
+        : (logisticsStatusLabels[record.status] ?? "待确认"),
+  };
 }
 
 function pathValue(path: readonly EnterpriseRegionNode[]): RegionCascadeValue {
@@ -117,6 +175,9 @@ export function LogisticsMonitoringWorkspace({
   documentDrafts = {},
   onDocumentDraftChange = () => undefined,
   onWorkItemChange = () => undefined,
+  onCreateRecord,
+  realtimeRepository,
+  realtimeRefreshToken = 0,
 }: {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
@@ -127,9 +188,118 @@ export function LogisticsMonitoringWorkspace({
   documentDrafts?: Readonly<Record<string, MarketDocumentDraft>>;
   onDocumentDraftChange?: (workId: string, draft: MarketDocumentDraft) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
+  onCreateRecord?: (productCode?: string) => void;
+  realtimeRepository?: RealtimeBusinessRepository;
+  realtimeRefreshToken?: number;
 }) {
+  const [productCode, setProductCode] = useState("CORN");
   const [nodeType, setNodeType] = useState("");
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
+  const [persistedRecords, setPersistedRecords] = useState<
+    readonly LogisticsRecordRow[]
+  >([]);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordsError, setRecordsError] = useState("");
+  const [selectedPersistedId, setSelectedPersistedId] = useState<string>();
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
+  const [recordsRevision, setRecordsRevision] = useState(0);
+  const [definition, setDefinition] = useState<LogisticsDefinition | null>(
+    null,
+  );
+
+  async function downloadTemplate() {
+    if (!realtimeRepository?.downloadLogisticsXlsxTemplate) return;
+    setImportMessage("");
+    try {
+      const blob =
+        await realtimeRepository.downloadLogisticsXlsxTemplate(productCode);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `物流-${productCode}-批量导入模板.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setImportMessage("物流导入模板已下载");
+    } catch {
+      setImportMessage("物流导入模板下载失败，请稍后重试。");
+    }
+  }
+
+  async function importWorkbook(file: File | undefined) {
+    if (!file || !realtimeRepository?.importLogisticsWorkbook) return;
+    setImporting(true);
+    setImportMessage("");
+    try {
+      const result = await realtimeRepository.importLogisticsWorkbook(file);
+      if (result.failedRows > 0) {
+        setImportMessage(
+          `本批次未写入业务记录，共 ${result.failedRows} 行需要修正。`,
+        );
+      } else {
+        setImportMessage(`已导入 ${result.importedRows} 条物流记录。`);
+        const page = await realtimeRepository.listLogistics({
+          productCode,
+          page: 0,
+          pageSize: 100,
+        });
+        setPersistedRecords(page.items);
+      }
+    } catch {
+      setImportMessage("物流记录导入失败，请核对模板和填报内容。");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!realtimeRepository) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setRecordsLoading(true);
+      setRecordsError("");
+      setSelectedPersistedId(undefined);
+    });
+    void realtimeRepository
+      .listLogistics({ productCode, page: 0, pageSize: 100 })
+      .then((page) => {
+        if (!cancelled) setPersistedRecords(page.items);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPersistedRecords([]);
+          setRecordsError("物流监测记录读取失败，请稍后重试。");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setRecordsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productCode, realtimeRefreshToken, realtimeRepository, recordsRevision]);
+  useEffect(() => {
+    if (!realtimeRepository?.loadLogisticsDefinition) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setDefinition(null);
+    });
+    void realtimeRepository
+      .loadLogisticsDefinition(productCode)
+      .then((nextDefinition) => {
+        if (!cancelled) setDefinition(nextDefinition);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDefinition(null);
+          setRecordsError("物流填报规则读取失败，请稍后重试。");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productCode, realtimeRepository]);
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -166,6 +336,7 @@ export function LogisticsMonitoringWorkspace({
     return {
       workId: item.workId,
       number: index + 1,
+      product: "玉米",
       node:
         item.subject.kind === "monitoring-object"
           ? item.subject.objectName
@@ -187,6 +358,14 @@ export function LogisticsMonitoringWorkspace({
       state: `${marketLifecycleLabels.review[item.reviewStatus]} · ${marketLifecycleLabels.quality[item.qualityStatus]}`,
     };
   });
+  const displayedRows = realtimeRepository
+    ? persistedRecords.map((record, index) => persistedRow(record, index + 1))
+    : rows;
+  const definitionFields =
+    definition?.fields.filter(({ code }) => code !== "LOG_STATUS") ?? [];
+  const selectedPersistedRecord = realtimeRepository
+    ? persistedRecords.find(({ id }) => id === selectedPersistedId)
+    : undefined;
   const selectedItem =
     selection?.type === "work-item"
       ? items.find(({ workId }) => workId === selection.id)
@@ -216,6 +395,20 @@ export function LogisticsMonitoringWorkspace({
         className="enterprise-ledger-query enterprise-ledger-query--logistics"
         role="search"
       >
+        <label>
+          <span>产品品种</span>
+          <select
+            aria-label="产品品种"
+            value={productCode}
+            onChange={(event) => setProductCode(event.target.value)}
+          >
+            {logisticsProducts.map((product) => (
+              <option key={product.code} value={product.code}>
+                {product.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <RegionCascadeSelector
           authorizedRegionIds={scope.authorization.authorizedRegionIds}
           maxLevel="county"
@@ -255,12 +448,17 @@ export function LogisticsMonitoringWorkspace({
           </select>
         </label>
         <div className="enterprise-ledger-query__actions">
-          <button className="is-primary" type="button">
+          <button
+            className="is-primary"
+            type="button"
+            onClick={() => setRecordsRevision((value) => value + 1)}
+          >
             查询
           </button>
           <button
             type="button"
             onClick={() => {
+              setProductCode("CORN");
               setNodeType("");
               setLowerRegion({});
               onScopeChange({
@@ -280,6 +478,17 @@ export function LogisticsMonitoringWorkspace({
         </div>
       )}
 
+      {recordsError && (
+        <div className="market-task6-alert" role="alert">
+          {recordsError}
+        </div>
+      )}
+      {importMessage && (
+        <div className="market-task6-alert" role="status">
+          {importMessage}
+        </div>
+      )}
+
       <header className="enterprise-ledger-title">
         <h1>粮食物流节点监测表</h1>
         <p>铁路站点与公路物流节点 · 当前监测期 · 当前授权地区</p>
@@ -291,66 +500,149 @@ export function LogisticsMonitoringWorkspace({
       >
         <div className="enterprise-ledger-table__toolbar">
           <strong>
-            共 {rows.length} 个物流节点，当前显示 {rows.length > 0 ? 1 : 0}–
-            {rows.length}
+            {recordsLoading
+              ? "正在读取物流监测记录"
+              : `共 ${displayedRows.length} 条物流记录，当前显示 ${displayedRows.length > 0 ? 1 : 0}–${displayedRows.length}`}
           </strong>
           <div>
-            <button type="button">批量导入</button>
-            <button type="button">新建监测记录</button>
+            {realtimeRepository?.downloadLogisticsXlsxTemplate && (
+              <button type="button" onClick={() => void downloadTemplate()}>
+                下载 XLSX 模板
+              </button>
+            )}
+            {realtimeRepository?.importLogisticsWorkbook && (
+              <label className="realtime-business-file-action">
+                {importing ? "正在导入" : "批量导入 XLSX"}
+                <input
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  aria-label="批量导入物流记录"
+                  disabled={importing}
+                  type="file"
+                  onChange={(event) => {
+                    void importWorkbook(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+            <button type="button" onClick={() => onCreateRecord?.(productCode)}>
+              新建监测记录
+            </button>
           </div>
         </div>
         <div className="enterprise-ledger-table__scroll" tabIndex={0}>
           <table aria-label="粮食物流节点监测表">
             <thead>
-              <tr>
-                <th rowSpan={2}>序号</th>
-                <th rowSpan={2}>物流节点</th>
-                <th rowSpan={2}>节点类型</th>
-                <th rowSpan={2}>行政区划</th>
-                <th colSpan={3}>运输数量与方向</th>
-                <th colSpan={2}>运输依据</th>
-                <th rowSpan={2}>责任人</th>
-                <th rowSpan={2}>业务状态</th>
-                <th rowSpan={2}>操作</th>
-              </tr>
-              <tr>
-                <th>流入量</th>
-                <th>流出量</th>
-                <th>主要流向</th>
-                <th>运价</th>
-                <th>平均在途时间</th>
-              </tr>
+              {realtimeRepository && definition ? (
+                <tr>
+                  <th>序号</th>
+                  <th>产品品种</th>
+                  {definitionFields.map((field) => (
+                    <th key={field.code}>
+                      {field.label}
+                      {field.unit ? `（${field.unit}）` : ""}
+                    </th>
+                  ))}
+                  <th>业务状态</th>
+                  <th>操作</th>
+                </tr>
+              ) : (
+                <>
+                  <tr>
+                    <th rowSpan={2}>序号</th>
+                    <th rowSpan={2}>产品品种</th>
+                    <th rowSpan={2}>物流节点</th>
+                    <th rowSpan={2}>节点类型</th>
+                    <th rowSpan={2}>行政区划</th>
+                    <th colSpan={3}>运输数量与方向</th>
+                    <th colSpan={2}>运输依据</th>
+                    <th rowSpan={2}>责任人</th>
+                    <th rowSpan={2}>业务状态</th>
+                    <th rowSpan={2}>操作</th>
+                  </tr>
+                  <tr>
+                    <th>流入量</th>
+                    <th>流出量</th>
+                    <th>主要流向</th>
+                    <th>运价</th>
+                    <th>平均在途时间</th>
+                  </tr>
+                </>
+              )}
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.workId}>
-                  <td>{row.number}</td>
-                  <th scope="row">{row.node}</th>
-                  <td>{row.nodeType}</td>
-                  <td>{row.region}</td>
-                  <td className="is-operational">{row.inflow}</td>
-                  <td className="is-operational">{row.outflow}</td>
-                  <td className="is-operational">{row.direction}</td>
-                  <td className="is-operational">{row.freightRate}</td>
-                  <td className="is-operational">{row.transitTime}</td>
-                  <td>{row.responsible}</td>
-                  <td>{row.state}</td>
-                  <td>
-                    <button
-                      className="enterprise-ledger-row-action"
-                      type="button"
-                      onClick={() =>
-                        onSelectionChange({ type: "work-item", id: row.workId })
-                      }
-                    >
-                      查看
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
+              {realtimeRepository && definition
+                ? persistedRecords.map((record, index) => (
+                    <tr key={record.id}>
+                      <td>{index + 1}</td>
+                      <td>
+                        {logisticsProducts.find(
+                          ({ code }) => code === record.productCode,
+                        )?.label ?? record.productCode}
+                      </td>
+                      {definitionFields.map(({ code }) => (
+                        <td className="is-operational" key={code}>
+                          {persistedValue(record, code)}
+                        </td>
+                      ))}
+                      <td>
+                        {logisticsStatusLabels[record.status] ?? record.status}
+                      </td>
+                      <td>
+                        <button
+                          className="enterprise-ledger-row-action"
+                          type="button"
+                          onClick={() => setSelectedPersistedId(record.id)}
+                        >
+                          查看
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                : displayedRows.map((row) => (
+                    <tr key={row.workId}>
+                      <td>{row.number}</td>
+                      <td>{row.product}</td>
+                      <th scope="row">{row.node}</th>
+                      <td>{row.nodeType}</td>
+                      <td>{row.region}</td>
+                      <td className="is-operational">{row.inflow}</td>
+                      <td className="is-operational">{row.outflow}</td>
+                      <td className="is-operational">{row.direction}</td>
+                      <td className="is-operational">{row.freightRate}</td>
+                      <td className="is-operational">{row.transitTime}</td>
+                      <td>{row.responsible}</td>
+                      <td>{row.state}</td>
+                      <td>
+                        <button
+                          className="enterprise-ledger-row-action"
+                          type="button"
+                          onClick={() => {
+                            if (realtimeRepository) {
+                              setSelectedPersistedId(row.workId);
+                            } else {
+                              onSelectionChange({
+                                type: "work-item",
+                                id: row.workId,
+                              });
+                            }
+                          }}
+                        >
+                          查看
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              {displayedRows.length === 0 && !recordsLoading && (
                 <tr>
-                  <td className="enterprise-ledger-table__empty" colSpan={12}>
+                  <td
+                    className="enterprise-ledger-table__empty"
+                    colSpan={
+                      realtimeRepository && definition
+                        ? definitionFields.length + 4
+                        : 13
+                    }
+                  >
                     当前范围暂无粮食物流节点监测记录
                   </td>
                 </tr>
@@ -360,7 +652,9 @@ export function LogisticsMonitoringWorkspace({
         </div>
         <footer>
           <span>
-            本页已填 {completedFields} 项，缺失 {missingFields} 项
+            {realtimeRepository
+              ? `本页共 ${displayedRows.length} 条业务记录`
+              : `本页已填 ${completedFields} 项，缺失 ${missingFields} 项`}
           </span>
           <nav aria-label="物流节点监测表分页">
             <button type="button">‹</button>
@@ -371,6 +665,17 @@ export function LogisticsMonitoringWorkspace({
           </nav>
         </footer>
       </section>
+
+      {selectedPersistedRecord && (
+        <section aria-label="物流记录详情" className="enterprise-ledger-title">
+          <h2>物流记录详情</h2>
+          <p>
+            {persistedValue(selectedPersistedRecord, "LOG_ORIGIN")} →{" "}
+            {persistedValue(selectedPersistedRecord, "LOG_DESTINATION")} ·{" "}
+            {persistedValue(selectedPersistedRecord, "LOG_COLLECTION_DATE")}
+          </p>
+        </section>
+      )}
 
       {selectedItem && selectedDocument && (
         <MarketDocumentWorkbench

@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import type {
   OperationalScopeIdentity,
   OperationalScopeIssue,
@@ -33,10 +39,14 @@ import {
 import { projectReportWorkflowIntoWorkItems } from "./application/reportWorkItemProjection";
 import { projectRealtimeWorkItems } from "./application/realtimeWorkItemProjection";
 import { realtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
-import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
+import type {
+  CurrentSession,
+  RealtimeBusinessRepository,
+} from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeBusinessOperationsPanel } from "./realtime/RealtimeBusinessOperationsPanel";
 import { RealtimeSupplyBalancePanel } from "./realtime/RealtimeSupplyBalancePanel";
 import { RealtimeLogisticsOperationsPanel } from "./realtime/RealtimeLogisticsOperationsPanel";
+import { RealtimeReportCenterPanel } from "./realtime/RealtimeReportCenterPanel";
 import {
   resolveRuntimeDataMode,
   type RuntimeDataMode,
@@ -111,23 +121,40 @@ function scopeIssueSummary(issues: readonly OperationalScopeIssue[]): string {
   );
 }
 
-function ApiReportServiceUnavailable() {
+function RealtimeEntryDialog({
+  label,
+  children,
+  onClose,
+}: {
+  label: string;
+  children: ReactNode;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
   return (
-    <div className="unified-workspace">
-      <header className="unified-page-header">
-        <div>
-          <span>报表中心</span>
-          <h1>报表服务尚未配置</h1>
-          <p>报告查询、编制、复核、发布和导出将在服务配置完成后开放。</p>
-        </div>
-      </header>
+    <div className="realtime-entry-overlay">
       <section
-        aria-label="报表服务状态"
-        className="report-generation-blocker"
-        role="status"
+        aria-label={label}
+        aria-modal="true"
+        className="realtime-entry-dialog"
+        role="dialog"
       >
-        <strong>当前暂无可用报告数据</strong>
-        <p>系统未加载本地报告或预置报告。</p>
+        <button
+          aria-label={`关闭${label}`}
+          className="realtime-entry-dialog__close"
+          onClick={onClose}
+          type="button"
+        >
+          ×
+        </button>
+        {children}
       </section>
     </div>
   );
@@ -152,20 +179,48 @@ export function FormalEnterprisePrototype({
       requestedMode: environment["VITE_REALTIME_DATA_MODE"],
     });
   const realtimeMode = runtimeDataMode === "api";
+  const [currentSession, setCurrentSession] = useState<CurrentSession | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!realtimeMode || typeof repository.loadCurrentSession !== "function")
+      return;
+    let cancelled = false;
+    void repository
+      .loadCurrentSession()
+      .then((session) => {
+        if (!cancelled) setCurrentSession(session);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentSession(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [realtimeMode, repository]);
   const effectiveOperationalIdentity =
     operationalIdentity ??
     (realtimeMode
       ? apiPendingOperationalIdentity
       : prototypeOperationalIdentity);
   const shellIdentity = realtimeMode
-    ? apiPendingShellIdentity
+    ? currentSession
+      ? {
+          ...apiPendingShellIdentity,
+          account: {
+            ...apiPendingShellIdentity.account,
+            displayName: currentSession.displayName,
+          },
+        }
+      : apiPendingShellIdentity
     : prototypeShellIdentity;
   const { location, scope, issues, queryAllowed, navigate, updateCoordinates } =
     useFormalEnterpriseLocation(effectiveOperationalIdentity, initialSearch);
   const currentDisplayName =
-    "displayName" in scope.identity
+    currentSession?.displayName ??
+    ("displayName" in scope.identity
       ? (scope.identity.displayName ?? "当前填报人")
-      : "当前填报人";
+      : "当前填报人");
   const [reportContext, setReportContext] =
     useState<BusinessReportContext | null>(null);
   const [reportWorkflow] = useState(() =>
@@ -203,6 +258,32 @@ export function FormalEnterprisePrototype({
     "connecting" | "connected" | "empty" | "error" | "demo"
   >(realtimeMode ? "connecting" : "demo");
   const [realtimeRefreshToken, setRealtimeRefreshToken] = useState(0);
+  const [realtimeEntryDomain, setRealtimeEntryDomain] = useState<
+    "production" | "market" | "logistics" | null
+  >(null);
+  const [realtimeLogisticsProductCode, setRealtimeLogisticsProductCode] =
+    useState("CORN");
+  const navigateAndCloseEntry = (
+    ...parameters: Parameters<typeof navigate>
+  ) => {
+    setRealtimeEntryDomain(null);
+    navigate(...parameters);
+  };
+  const openBusinessWork = (...parameters: Parameters<typeof navigate>) => {
+    const [route, selection] = parameters;
+    setRealtimeEntryDomain(
+      realtimeMode && selection?.type === "work-item"
+        ? route.application === "production"
+          ? "production"
+          : route.application === "market"
+            ? route.section === "logistics"
+              ? "logistics"
+              : "market"
+            : null
+        : null,
+    );
+    navigate(...parameters);
+  };
   const {
     workItems,
     marketDocumentDrafts,
@@ -251,19 +332,13 @@ export function FormalEnterprisePrototype({
           masterData.periods.length === 0 ? "empty" : "connected",
         );
         if (masterData.periods.length === 0) {
-          setPersistenceMessage(
-            "业务数据服务已连接，但尚未配置可用业务期间；当前不会加载预置数据。",
-          );
+          setPersistenceMessage("当前没有可用业务期间或待办记录。");
         }
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (cancelled) return;
         setRealtimeStatus("error");
-        setPersistenceMessage(
-          error instanceof Error
-            ? `实时业务数据加载失败：${error.message}`
-            : "实时业务数据加载失败，请联系系统管理员检查数据服务。",
-        );
+        setPersistenceMessage("业务数据读取失败，请稍后重试或联系系统管理员。");
       });
     return () => {
       cancelled = true;
@@ -336,7 +411,7 @@ export function FormalEnterprisePrototype({
         return (
           <FormalExecutiveOverviewWorkspace
             section={location.route.section}
-            onOpenRoute={navigate}
+            onOpenRoute={navigateAndCloseEntry}
             scope={scope}
             onScopeChange={updateCoordinates}
             reportRecords={reportRecords}
@@ -345,82 +420,78 @@ export function FormalEnterprisePrototype({
         );
       case "production":
         return (
-          <>
-            {realtimeMode && (
-              <RealtimeBusinessOperationsPanel
-                actorName={currentDisplayName}
-                domain="production"
-                repository={repository}
-                onRecordsChanged={() =>
-                  setRealtimeRefreshToken((value) => value + 1)
-                }
-              />
-            )}
-            <FormalProductionMonitoringWorkspace
-              queryAllowed={queryAllowed}
-              scope={scope}
-              onScopeChange={updateCoordinates}
-              section={location.route.section}
-              selection={location.selection}
-              onSelectionChange={(selection) =>
-                navigate(location.route, selection)
-              }
-              onSelectionClear={() => navigate(location.route)}
-              onComposeReport={setReportContext}
-              registryObjects={productionRegistryObjects}
-              onRegistryObjectsChange={(objects) =>
-                setOperationalState((current) => ({
-                  ...current,
-                  productionRegistryObjects: objects,
-                }))
-              }
-              documentDrafts={productionDocumentDrafts}
-              onDocumentDraftChange={updateProductionDocumentDraft}
-              onWorkItemChange={updateWorkItem}
-              workItems={currentWorkItems}
-            />
-          </>
+          <FormalProductionMonitoringWorkspace
+            queryAllowed={queryAllowed}
+            scope={scope}
+            onScopeChange={updateCoordinates}
+            section={location.route.section}
+            selection={location.selection}
+            onSelectionChange={(selection) =>
+              navigateAndCloseEntry(location.route, selection)
+            }
+            onSelectionClear={() => navigateAndCloseEntry(location.route)}
+            onComposeReport={setReportContext}
+            registryObjects={productionRegistryObjects}
+            onRegistryObjectsChange={(objects) =>
+              setOperationalState((current) => ({
+                ...current,
+                productionRegistryObjects: objects,
+              }))
+            }
+            documentDrafts={productionDocumentDrafts}
+            onDocumentDraftChange={updateProductionDocumentDraft}
+            onWorkItemChange={updateWorkItem}
+            workItems={currentWorkItems}
+            onCreateRecord={
+              realtimeMode
+                ? () => setRealtimeEntryDomain("production")
+                : undefined
+            }
+            realtimeRepository={realtimeMode ? repository : undefined}
+            realtimeRefreshToken={realtimeRefreshToken}
+          />
         );
       case "market":
-        if (realtimeMode && location.route.section === "logistics") {
-          return <RealtimeLogisticsOperationsPanel productCode="CORN" />;
-        }
         return (
-          <>
-            {realtimeMode && (
-              <RealtimeBusinessOperationsPanel
-                actorName={currentDisplayName}
-                domain="market"
-                repository={repository}
-                onRecordsChanged={() =>
-                  setRealtimeRefreshToken((value) => value + 1)
-                }
-              />
-            )}
-            <FormalMarketMonitoringWorkspace
-              queryAllowed={queryAllowed}
-              scope={scope}
-              onScopeChange={updateCoordinates}
-              section={location.route.section}
-              selection={location.selection}
-              onSelectionChange={(selection) =>
-                navigate(location.route, selection)
-              }
-              onSelectionClear={() => navigate(location.route)}
-              onComposeReport={setReportContext}
-              workItems={currentWorkItems}
-              documentDrafts={marketDocumentDrafts}
-              onDocumentDraftChange={updateMarketDocumentDraft}
-              onWorkItemChange={updateWorkItem}
-              registryObjects={marketRegistryObjects}
-              onRegistryObjectsChange={(objects) =>
-                setOperationalState((current) => ({
-                  ...current,
-                  marketRegistryObjects: objects,
-                }))
-              }
-            />
-          </>
+          <FormalMarketMonitoringWorkspace
+            queryAllowed={queryAllowed}
+            scope={scope}
+            onScopeChange={updateCoordinates}
+            section={location.route.section}
+            selection={location.selection}
+            onSelectionChange={(selection) =>
+              navigateAndCloseEntry(location.route, selection)
+            }
+            onSelectionClear={() => navigateAndCloseEntry(location.route)}
+            onComposeReport={setReportContext}
+            workItems={currentWorkItems}
+            documentDrafts={marketDocumentDrafts}
+            onDocumentDraftChange={updateMarketDocumentDraft}
+            onWorkItemChange={updateWorkItem}
+            registryObjects={marketRegistryObjects}
+            onRegistryObjectsChange={(objects) =>
+              setOperationalState((current) => ({
+                ...current,
+                marketRegistryObjects: objects,
+              }))
+            }
+            onCreateRecord={
+              realtimeMode
+                ? (productCode) => {
+                    if (location.route.section === "logistics") {
+                      setRealtimeLogisticsProductCode(productCode ?? "CORN");
+                    }
+                    setRealtimeEntryDomain(
+                      location.route.section === "logistics"
+                        ? "logistics"
+                        : "market",
+                    );
+                  }
+                : undefined
+            }
+            realtimeRepository={realtimeMode ? repository : undefined}
+            realtimeRefreshToken={realtimeRefreshToken}
+          />
         );
       case "supply":
         if (realtimeMode) {
@@ -447,7 +518,8 @@ export function FormalEnterprisePrototype({
           />
         );
       case "reporting":
-        if (realtimeMode) return <ApiReportServiceUnavailable />;
+        if (realtimeMode)
+          return <RealtimeReportCenterPanel repository={repository} />;
         return (
           <FormalReportCenterWorkspace
             queryAllowed={queryAllowed}
@@ -475,18 +547,60 @@ export function FormalEnterprisePrototype({
             scope={scope}
             onScopeChange={updateCoordinates}
             section={location.route.section}
-            onOpenBusiness={navigate}
+            onOpenBusiness={openBusinessWork}
             workItems={currentWorkItems}
           />
         );
     }
   })();
 
+  const realtimeEntry = (() => {
+    if (!realtimeMode || realtimeEntryDomain === null) return null;
+    if (realtimeEntryDomain === "logistics") {
+      return (
+        <RealtimeEntryDialog
+          label="新建物流监测填报"
+          onClose={() => setRealtimeEntryDomain(null)}
+        >
+          <RealtimeLogisticsOperationsPanel
+            actorName={currentDisplayName}
+            editorOnly
+            productCode={realtimeLogisticsProductCode}
+            repository={repository}
+            onCancel={() => setRealtimeEntryDomain(null)}
+            onRecordsChanged={() =>
+              setRealtimeRefreshToken((value) => value + 1)
+            }
+            onSaved={() => setRealtimeEntryDomain(null)}
+          />
+        </RealtimeEntryDialog>
+      );
+    }
+    return (
+      <RealtimeEntryDialog
+        label={
+          realtimeEntryDomain === "production" ? "新建产情填报" : "新建市场填报"
+        }
+        onClose={() => setRealtimeEntryDomain(null)}
+      >
+        <RealtimeBusinessOperationsPanel
+          actorName={currentDisplayName}
+          domain={realtimeEntryDomain}
+          editorOnly
+          repository={repository}
+          onCancel={() => setRealtimeEntryDomain(null)}
+          onRecordsChanged={() => setRealtimeRefreshToken((value) => value + 1)}
+          onSaved={() => setRealtimeEntryDomain(null)}
+        />
+      </RealtimeEntryDialog>
+    );
+  })();
+
   return (
     <EnterpriseShell
       location={location}
       marketObjects={marketRegistryObjects}
-      onNavigate={navigate}
+      onNavigate={navigateAndCloseEntry}
       productionObjects={productionRegistryObjects}
       reportDatasets={realtimeMode ? [] : approvedBusinessReportDatasets}
       shellIdentity={shellIdentity}
@@ -543,27 +657,28 @@ export function FormalEnterprisePrototype({
       )}
       {realtimeMode && realtimeStatus !== "connected" && (
         <section
-          aria-label="实时业务数据连接状态"
+          aria-label="业务数据状态"
           className="formal-scope-recovery"
           role={realtimeStatus === "error" ? "alert" : "status"}
         >
           <div>
             <strong>
               {realtimeStatus === "connecting"
-                ? "正在连接业务数据服务"
+                ? "正在读取业务数据"
                 : realtimeStatus === "empty"
-                  ? "业务数据服务已连接"
-                  : "业务数据服务连接异常"}
+                  ? "当前暂无可用业务数据"
+                  : "业务数据读取失败"}
             </strong>
             <span>
               {realtimeStatus === "empty"
-                ? "当前没有可用业务期间或待办记录，系统未加载其他数据。"
-                : "系统不会用预置数据替代业务数据。"}
+                ? "请确认业务期间和责任范围后重试。"
+                : "请稍后重试或联系系统管理员。"}
             </span>
           </div>
         </section>
       )}
       {workspace}
+      {realtimeEntry}
       {!realtimeMode && reportContext && (
         <BusinessReportComposer
           actorPost={reportActorPosts[scope.identity.postId] ?? "当前登录岗位"}

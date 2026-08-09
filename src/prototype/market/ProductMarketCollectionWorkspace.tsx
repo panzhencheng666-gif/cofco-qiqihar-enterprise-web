@@ -1,4 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import type {
+  BusinessRecordListItem,
+  MarketDefinition,
+  RealtimeBusinessRepository,
+} from "@/platform/api/realtimeBusinessRepository";
 
 import {
   RegionCascadeSelector,
@@ -172,6 +178,96 @@ function marketValue(workId: string, fieldId: string): string {
   return fieldValue(workId, fieldId);
 }
 
+const marketFieldCodeByCapability: Readonly<Record<string, string>> = {
+  purchasePrice: "MKT_PURCHASE_BASE_PRICE",
+  transactionPrice: "MKT_ACTUAL_TRADE_PRICE",
+  salesPrice: "MKT_SALE_BASE_PRICE",
+  purchaseVolume: "PURCHASE_VOLUME",
+  salesVolume: "SALES_VOLUME",
+  inventory: "ENDING_INVENTORY",
+  transactionVolume: "PURCHASE_VOLUME",
+  moisture: "MOISTURE",
+  testWeight: "TEST_WEIGHT",
+  mildew: "MILDEW",
+};
+
+const marketObjectTypeCode: Readonly<
+  Record<MarketBusinessObjectTypeId, string>
+> = {
+  trader: "TRADER",
+  "deep-processing": "DEEP_PROCESSOR",
+  "breeding-farm": "BREEDING_FACTORY",
+  "feed-mill": "FEED_MILL",
+  "wholesale-market": "WHOLESALE_MARKET",
+  "reserve-storage": "RESERVE_ENTERPRISE",
+};
+
+const marketBaseListCodes = new Set([
+  "MKT_OBJECT_TYPE",
+  "MKT_REGION",
+  "MKT_TRADE_DATE",
+  "MKT_REPORTED_AT",
+  "MKT_SAMPLE_NAME",
+]);
+
+export function marketDefinitionListGroups(
+  definition: MarketDefinition,
+): readonly {
+  id: string;
+  label: string;
+  fields: readonly ApplicableBusinessField[];
+}[] {
+  const coreFields = definition.coreFields
+    .filter(({ code }) => !marketBaseListCodes.has(code))
+    .map(({ code, label, unit }) => ({
+      id: code,
+      label,
+      ...(unit ? { unit } : {}),
+    }));
+  return [
+    ...(coreFields.length > 0
+      ? [{ id: "market-core", label: "交易与填报信息", fields: coreFields }]
+      : []),
+    ...definition.groups
+      .map((group) => ({
+        id: group.category,
+        label: group.label,
+        fields: group.fields.map(({ code, label, unit }) => ({
+          id: code,
+          label,
+          ...(unit ? { unit } : {}),
+        })),
+      }))
+      .filter(({ fields }) => fields.length > 0),
+  ];
+}
+
+function persistedMarketValue(
+  record: BusinessRecordListItem,
+  fieldId: string,
+): string {
+  const fieldCode = marketFieldCodeByCapability[fieldId] ?? fieldId;
+  if (fieldId === "purchasePrice") {
+    return (
+      record.values[fieldCode] ??
+      record.values.MKT_PRICE ??
+      record.values[fieldId] ??
+      "—"
+    );
+  }
+  return record.values[fieldCode] ?? record.values[fieldId] ?? "—";
+}
+
+function persistedMarketState(
+  value: string | undefined,
+): MarketCollectionRow["state"] {
+  if (value === "已审核" || value === "已核定" || value === "APPROVED")
+    return "已核定";
+  if (value === "已退回" || value === "RETURNED") return "需补充";
+  if (value === "草稿" || value === "DRAFT") return "填写中";
+  return "待审核";
+}
+
 function objectTypeForWork(item: BusinessWorkItem): MarketBusinessObjectTypeId {
   const task = marketTasks.find(({ workId }) => workId === item.workId);
   const storedType =
@@ -249,6 +345,9 @@ export function ProductMarketCollectionWorkspace({
   documentDrafts = {},
   onDocumentDraftChange = () => undefined,
   onWorkItemChange = () => undefined,
+  onCreateRecord,
+  realtimeRepository,
+  realtimeRefreshToken = 0,
 }: {
   section: MarketSection;
   scope: OperationalScope;
@@ -260,6 +359,9 @@ export function ProductMarketCollectionWorkspace({
   documentDrafts?: Readonly<Record<string, MarketDocumentDraft>>;
   onDocumentDraftChange?: (workId: string, draft: MarketDocumentDraft) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
+  onCreateRecord?: () => void;
+  realtimeRepository?: RealtimeBusinessRepository;
+  realtimeRefreshToken?: number;
 }) {
   const context = requiredContext(section);
   const [objectType, setObjectType] = useState<"" | MarketBusinessObjectTypeId>(
@@ -277,6 +379,18 @@ export function ProductMarketCollectionWorkspace({
       )
       ?.deadline.slice(0, 10) ?? "";
   const [collectionDate, setCollectionDate] = useState(defaultCollectionDate);
+  const [persistedRecords, setPersistedRecords] = useState<
+    readonly BusinessRecordListItem[]
+  >([]);
+  const [recordsLoading, setRecordsLoading] = useState(
+    realtimeRepository !== undefined,
+  );
+  const [recordsError, setRecordsError] = useState("");
+  const [marketDefinition, setMarketDefinition] =
+    useState<MarketDefinition | null>(null);
+  const [recordsRevision, setRecordsRevision] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -304,7 +418,7 @@ export function ProductMarketCollectionWorkspace({
       (!scope.coordinates.cultivarId ||
         item.cultivarIds.includes(scope.coordinates.cultivarId)),
   );
-  const allRows: readonly MarketCollectionRow[] = productItems.map(
+  const fixtureRows: readonly MarketCollectionRow[] = productItems.map(
     (item, index) => {
       const subject = item.subject;
       const itemObjectTypeId = objectTypeForWork(item);
@@ -351,6 +465,84 @@ export function ProductMarketCollectionWorkspace({
       };
     },
   );
+  useEffect(() => {
+    if (!realtimeRepository) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setRecordsLoading(true);
+      setRecordsError("");
+    });
+    const productCode =
+      context.productId === "corn"
+        ? "CORN"
+        : context.productId === "soybean"
+          ? "SOYBEAN"
+          : "RICE";
+    void realtimeRepository
+      .listMarket({ productCode, pageSize: 100 })
+      .then((page) => {
+        if (!cancelled) setPersistedRecords(page.items);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPersistedRecords([]);
+          setRecordsError("当前市场采集记录暂时无法读取，请稍后重试。");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setRecordsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    context.productId,
+    realtimeRefreshToken,
+    realtimeRepository,
+    recordsRevision,
+  ]);
+
+  const persistedRows: readonly MarketCollectionRow[] = persistedRecords.map(
+    (record, index) => {
+      const rawObjectType = record.values.MKT_OBJECT_TYPE ?? "TRADER";
+      const itemObjectTypeId = normalizeMarketObjectType(
+        rawObjectType.toLowerCase().replaceAll("_", "-"),
+      );
+      return {
+        rowId: record.id,
+        workId: record.id,
+        number: index + 1,
+        collectionDate: record.values.MKT_TRADE_DATE ?? "—",
+        submittedAt: record.values.MKT_REPORTED_AT ?? "尚未填报",
+        subject:
+          record.values.MKT_SAMPLE_NAME ??
+          record.values.MKT_SUBJECT_NAME ??
+          record.values.MKT_OBJECT_NAME ??
+          rawObjectType,
+        objectType:
+          getMarketObjectTypeOptions(context.productId).find(
+            ({ id }) => id === itemObjectTypeId,
+          )?.label ?? rawObjectType,
+        objectTypeId: itemObjectTypeId,
+        county: record.values.MKT_REGION ?? "—",
+        cultivar:
+          record.values.MKT_CULTIVAR_NAME ?? record.values.MKT_CULTIVAR ?? "—",
+        purchasePrice: persistedMarketValue(record, "purchasePrice"),
+        transactionPrice: persistedMarketValue(record, "transactionPrice"),
+        salesPrice: persistedMarketValue(record, "salesPrice"),
+        moisture: persistedMarketValue(record, "moisture"),
+        testWeight: persistedMarketValue(record, "testWeight"),
+        mildew: persistedMarketValue(record, "mildew"),
+        inventory: persistedMarketValue(record, "inventory"),
+        transactionVolume: persistedMarketValue(record, "transactionVolume"),
+        salesVolume: persistedMarketValue(record, "salesVolume"),
+        state: persistedMarketState(record.values.MKT_STATUS),
+        values: record.values,
+      };
+    },
+  );
+  const allRows = realtimeRepository ? persistedRows : fixtureRows;
   const rows = allRows
     .filter((row) => !objectType || row.objectTypeId === objectType)
     .filter((row) => !state || row.state === state);
@@ -379,11 +571,86 @@ export function ProductMarketCollectionWorkspace({
   ).length;
   const displayedObjectType: MarketBusinessObjectTypeId =
     objectType || rows[0]?.objectTypeId || objectTypes[0]?.id || "trader";
-  const displayedGroups = getMarketCapabilityGroups(
-    context.productId,
-    displayedObjectType,
-  );
+  useEffect(() => {
+    if (!realtimeRepository) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setMarketDefinition(null);
+    });
+    const productCode =
+      context.productId === "corn"
+        ? "CORN"
+        : context.productId === "soybean"
+          ? "SOYBEAN"
+          : "RICE";
+    const objectTypeCode =
+      displayedObjectType === "deep-processing" && context.productId === "paddy"
+        ? "RICE_MILL"
+        : marketObjectTypeCode[displayedObjectType];
+    void realtimeRepository
+      .loadMarketDefinition(productCode, objectTypeCode)
+      .then((definition) => {
+        if (!cancelled) setMarketDefinition(definition);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMarketDefinition(null);
+          setRecordsError("当前市场字段规则暂时无法读取，请稍后重试。");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [context.productId, displayedObjectType, realtimeRepository]);
+  const displayedGroups =
+    realtimeRepository && marketDefinition
+      ? marketDefinitionListGroups(marketDefinition)
+      : getMarketCapabilityGroups(context.productId, displayedObjectType);
   const displayedFields = displayedGroups.flatMap(({ fields }) => fields);
+
+  const importRecords = async (file: File | undefined) => {
+    if (!file || !realtimeRepository?.importMarketWorkbook) return;
+    setImporting(true);
+    setRecordsError("");
+    setImportMessage("");
+    try {
+      const job = await realtimeRepository.importMarketWorkbook(file);
+      setImportMessage(
+        `导入完成：成功 ${job.importedRows} 条，失败 ${job.failedRows} 条。`,
+      );
+      setRecordsRevision((value) => value + 1);
+    } catch {
+      setRecordsError("市场采集记录导入失败，请核对文件内容后重试。");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadTemplate = async () => {
+    if (!realtimeRepository?.downloadMarketXlsxTemplate) return;
+    setRecordsError("");
+    try {
+      const productCode =
+        context.productId === "corn"
+          ? "CORN"
+          : context.productId === "soybean"
+            ? "SOYBEAN"
+            : "RICE";
+      const objectTypeCode = marketObjectTypeCode[displayedObjectType];
+      const blob = await realtimeRepository.downloadMarketXlsxTemplate(
+        productCode,
+        objectTypeCode,
+      );
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `${context.productLabel}市场-${objectTypeCode}-批量导入模板.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setRecordsError("XLSX 模板下载失败，请稍后重试。");
+    }
+  };
 
   return (
     <div className="enterprise-ledger-workbench">
@@ -482,7 +749,11 @@ export function ProductMarketCollectionWorkspace({
           </select>
         </label>
         <div className="enterprise-ledger-query__actions">
-          <button className="is-primary" type="button">
+          <button
+            className="is-primary"
+            type="button"
+            onClick={() => setRecordsRevision((value) => value + 1)}
+          >
             查询
           </button>
           <button
@@ -501,13 +772,24 @@ export function ProductMarketCollectionWorkspace({
           >
             重置
           </button>
-          <button type="button">保存常用条件</button>
         </div>
       </section>
 
       {!queryAllowed && (
         <div className="market-task6-alert" role="alert">
           当前查询条件超出您的授权范围，系统未展示其他地区的数据。
+        </div>
+      )}
+
+      {recordsError && (
+        <div className="market-task6-alert" role="alert">
+          {recordsError}
+        </div>
+      )}
+
+      {importMessage && (
+        <div className="market-task6-alert" role="status">
+          {importMessage}
         </div>
       )}
 
@@ -522,12 +804,42 @@ export function ProductMarketCollectionWorkspace({
       >
         <div className="enterprise-ledger-table__toolbar">
           <strong>
-            共 {rows.length} 个采集对象，当前显示 {rows.length > 0 ? 1 : 0}–
-            {rows.length}
+            {recordsLoading
+              ? "正在读取市场采集记录"
+              : `共 ${rows.length} 个采集对象，当前显示 ${rows.length > 0 ? 1 : 0}–${rows.length}`}
           </strong>
           <div>
-            <button type="button">批量导入</button>
-            <button type="button">新建采集记录</button>
+            {realtimeRepository && (
+              <>
+                <button
+                  disabled={
+                    importing || !realtimeRepository.downloadMarketXlsxTemplate
+                  }
+                  type="button"
+                  onClick={() => void downloadTemplate()}
+                >
+                  下载 XLSX 模板
+                </button>
+                <label className="realtime-business-file-action">
+                  {importing ? "正在导入" : "批量导入 XLSX"}
+                  <input
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    aria-label="批量导入市场采集记录"
+                    disabled={
+                      importing || !realtimeRepository.importMarketWorkbook
+                    }
+                    type="file"
+                    onChange={(event) => {
+                      void importRecords(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              </>
+            )}
+            <button type="button" onClick={onCreateRecord}>
+              新建采集记录
+            </button>
           </div>
         </div>
         <div className="enterprise-ledger-table__scroll" tabIndex={0}>

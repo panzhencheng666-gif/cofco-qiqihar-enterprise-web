@@ -291,15 +291,6 @@ const estimatedOutput = approvedMetricFact(
   "production.estimated-total-output",
   productionMetricLineage,
 );
-const sampleAverageYield = approvedMetricFact(
-  "production.sample-average-yield",
-  productionMetricLineage,
-);
-const regionalYield = approvedMetricFact(
-  "production.regional-yield",
-  productionMetricLineage,
-);
-
 const productionReportFacts = {
   dataCutoff: "2026-07-31 17:00",
   dataBatchLabel: "2026年第31周产情已核定数据",
@@ -309,17 +300,11 @@ const productionReportFacts = {
     plantedArea.indicator,
     expectedYield.indicator,
     estimatedOutput.indicator,
-    sampleAverageYield.indicator,
-    regionalYield.indicator,
   ],
   chapters: [
     {
       title: "种植生产",
       body: `播种面积${businessValue(plantedArea.currentValue, plantedArea.unit)}，预计单产${businessValue(expectedYield.currentValue, expectedYield.unit)}，预计总产量${businessValue(estimatedOutput.currentValue, estimatedOutput.unit)}。`,
-    },
-    {
-      title: "区域差异",
-      body: `区域加权单产${businessValue(regionalYield.currentValue, regionalYield.unit)}，样本平均单产${businessValue(sampleAverageYield.currentValue, sampleAverageYield.unit)}；报告同时保留两种统计口径，不以样本均值替代区域加权结果。`,
     },
     {
       title: "需要关注",

@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
+
 import type { BusinessReportContext } from "./businessReportModel";
 import type { BusinessWorkItem } from "./core/businessWork";
 import type { OperationalScope } from "./core/operationalScope";
@@ -17,6 +19,7 @@ import { ProductionAnalysisWorkspace } from "./production/ProductionAnalysisWork
 import { ProductionObjectRegistry } from "./production/ProductionObjectRegistry";
 import { ProductProductionCollectionWorkspace } from "./production/ProductProductionCollectionWorkspace";
 import { ProductionTaskWorkspace } from "./production/ProductionTaskWorkspace";
+import { RealtimeAnnualComparisonPanel } from "./realtime/RealtimeAnnualComparisonPanel";
 import type { ProductionDocumentDraft } from "./production/ProductionDocumentWorkbench";
 import { FormalWorkspaceScopeProvider } from "./UnifiedWorkspacePrimitives";
 
@@ -38,6 +41,9 @@ export interface ProductionMonitoringWorkspaceProps {
   ) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
   onComposeReport: (context: BusinessReportContext) => void;
+  onCreateRecord?: () => void;
+  realtimeRepository?: RealtimeBusinessRepository;
+  realtimeRefreshToken?: number;
 }
 
 const defaultProductionScope: OperationalScope = {
@@ -61,6 +67,9 @@ export function ProductionMonitoringWorkspace({
   onDocumentDraftChange,
   onWorkItemChange,
   onComposeReport,
+  onCreateRecord,
+  realtimeRepository,
+  realtimeRefreshToken,
 }: ProductionMonitoringWorkspaceProps) {
   const [localSelection, setLocalSelection] = useState(selection);
   const selectionIsControlled = onSelectionChange !== undefined;
@@ -85,11 +94,14 @@ export function ProductionMonitoringWorkspace({
         onScopeChange={onScopeChange}
         onSelectionChange={select}
         onWorkItemChange={onWorkItemChange}
+        onCreateRecord={onCreateRecord}
         queryAllowed={queryAllowed}
         scope={scope}
         section={section}
         selection={activeSelection}
         workItems={workItems}
+        realtimeRepository={realtimeRepository}
+        realtimeRefreshToken={realtimeRefreshToken}
       />
     );
   }
@@ -122,6 +134,14 @@ export function ProductionMonitoringWorkspace({
       />
     );
   }
+  if (section === "analysis" && realtimeRepository) {
+    return (
+      <RealtimeAnnualComparisonPanel
+        domain="production"
+        repository={realtimeRepository}
+      />
+    );
+  }
   return (
     <ProductionAnalysisWorkspace
       onComposeReport={onComposeReport}
@@ -147,6 +167,9 @@ export function FormalProductionMonitoringWorkspace({
   documentDrafts,
   onDocumentDraftChange,
   onWorkItemChange,
+  onCreateRecord,
+  realtimeRepository,
+  realtimeRefreshToken,
 }: {
   section: ProductionSection;
   selection?: FormalSelection;
@@ -165,6 +188,9 @@ export function FormalProductionMonitoringWorkspace({
     draft: ProductionDocumentDraft,
   ) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
+  onCreateRecord?: () => void;
+  realtimeRepository?: RealtimeBusinessRepository;
+  realtimeRefreshToken?: number;
 }) {
   return (
     <FormalWorkspaceScopeProvider
@@ -183,6 +209,9 @@ export function FormalProductionMonitoringWorkspace({
         documentDrafts={documentDrafts}
         onDocumentDraftChange={onDocumentDraftChange}
         onWorkItemChange={onWorkItemChange}
+        onCreateRecord={onCreateRecord}
+        realtimeRepository={realtimeRepository}
+        realtimeRefreshToken={realtimeRefreshToken}
         workItems={workItems}
         scope={scope}
         section={section}

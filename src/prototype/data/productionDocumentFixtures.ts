@@ -84,12 +84,11 @@ const cornProductionDocument: ProductionDocumentFixture = {
       fields: [
         { fieldId: "growth", label: "长势", value: "一类苗占 76%" },
         { fieldId: "stage", label: "生育阶段", value: "灌浆期" },
-        { fieldId: "disaster", label: "病虫害与灾情", value: "轻度玉米螟" },
       ],
     },
     {
       groupId: "yield-output",
-      label: "测产、单产与产量",
+      label: "单产与产量",
       fields: [
         {
           fieldId: "expectedYield",
@@ -97,22 +96,15 @@ const cornProductionDocument: ProductionDocumentFixture = {
           value: "468.2 公斤/亩",
         },
         {
-          fieldId: "sampleResult",
-          label: "样本平均结果",
-          value: "472.8 公斤/亩",
+          fieldId: "output",
+          label: "总产量",
+          value: "2,149.0 吨",
         },
-        {
-          fieldId: "regionalEstimate",
-          label: "区域加权估计",
-          value: "468.2 公斤/亩",
-        },
-        { fieldId: "yieldRound", label: "测产轮次", value: "第 2 轮" },
-        { fieldId: "output", label: "总产量", value: "2,149.0 吨" },
       ],
     },
     {
       groupId: "quality-evidence",
-      label: "质量与证据",
+      label: "质量",
       fields: [
         { fieldId: "moisture", label: "水分", value: "14.2%" },
         { fieldId: "testWeight", label: "容重", value: "720 克/升" },
@@ -120,22 +112,15 @@ const cornProductionDocument: ProductionDocumentFixture = {
         { fieldId: "impurity", label: "杂质", value: "1.0%" },
         { fieldId: "imperfectGrain", label: "不完善粒", value: "3.2%" },
         { fieldId: "mildew", label: "霉变", value: "0.4%" },
-        {
-          fieldId: "evidence",
-          label: "现场证据",
-          value: "3 张田间照片、1 份测产记录",
-        },
       ],
     },
     {
       groupId: "stock-sale-use-loss",
-      label: "库存、销售、自用与损耗",
+      label: "库存、销售与自用",
       fields: [
         { fieldId: "openingStock", label: "期初库存", value: "1,260 吨" },
-        { fieldId: "stockInflow", label: "入库数量", value: "0 吨" },
         { fieldId: "sales", label: "销售数量", value: "386 吨" },
         { fieldId: "selfUse", label: "自用数量", value: "8 吨" },
-        { fieldId: "loss", label: "损耗数量", value: "4 吨" },
         { fieldId: "endingStock", label: "期末余粮", value: "862 吨" },
       ],
     },
@@ -265,15 +250,8 @@ function createProductProductionDocument({
       if (group.groupId === "quality-evidence") {
         return {
           ...group,
-          label: `${productLabel}质量与证据`,
-          fields: [
-            ...qualityFields,
-            {
-              fieldId: "evidence",
-              label: "现场证据",
-              value: "3 张田间照片、1 份测产记录",
-            },
-          ],
+          label: `${productLabel}质量`,
+          fields: qualityFields,
         };
       }
       return group;
