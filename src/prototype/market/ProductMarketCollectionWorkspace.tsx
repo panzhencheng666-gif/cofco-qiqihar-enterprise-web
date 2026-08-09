@@ -620,7 +620,18 @@ export function ProductMarketCollectionWorkspace({
     setRecordsError("");
     setImportMessage("");
     try {
-      const job = await realtimeRepository.importMarketWorkbook(file);
+      const productCode =
+        context.productId === "corn"
+          ? "CORN"
+          : context.productId === "soybean"
+            ? "SOYBEAN"
+            : "RICE";
+      const objectTypeCode = marketObjectTypeCode[displayedObjectType];
+      const job = await realtimeRepository.importMarketWorkbook(
+        file,
+        productCode,
+        objectTypeCode,
+      );
       setImportMessage(
         `导入完成：成功 ${job.importedRows} 条，失败 ${job.failedRows} 条。`,
       );

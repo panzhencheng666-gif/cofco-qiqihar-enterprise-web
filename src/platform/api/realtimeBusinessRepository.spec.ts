@@ -188,6 +188,37 @@ describe("realtime business repository", () => {
     expect(form.get("watermarkText")).toBe("齐齐哈尔市 产情调查 张三");
   });
 
+  it("binds every workbook upload to its current menu context", async () => {
+    const { api, upload } = client();
+    const repository = createRealtimeBusinessRepository(api);
+    const workbook = new File(["xlsx"], "业务批量导入.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    await repository.importProductionCsv(workbook, "CORN", "FARMER");
+    await repository.importMarketWorkbook?.(workbook, "SOYBEAN", "TRADER");
+    await repository.importLogisticsWorkbook?.(workbook, "RICE");
+
+    expect(upload).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/imports/production?productCode=CORN&objectTypeCode=FARMER",
+      expect.any(FormData),
+      expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
+    );
+    expect(upload).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/imports/market?productCode=SOYBEAN&objectTypeCode=TRADER",
+      expect.any(FormData),
+      expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
+    );
+    expect(upload).toHaveBeenNthCalledWith(
+      3,
+      "/api/v1/imports/logistics?productCode=RICE",
+      expect.any(FormData),
+      expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
+    );
+  });
+
   it("creates a scoped report preview before exporting its immutable result", async () => {
     const { api, download, get, post } = client();
     get.mockImplementationOnce(

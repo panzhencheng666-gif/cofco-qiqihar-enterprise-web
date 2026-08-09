@@ -503,12 +503,20 @@ export interface RealtimeBusinessRepository {
     expectedDecisionVersion: number;
     publish: boolean;
   }): Promise<SupplyAccountRow>;
-  importProductionCsv(file: File): Promise<ProductionImportJob>;
+  importProductionCsv(
+    file: File,
+    productCode: string,
+    objectTypeCode: string,
+  ): Promise<ProductionImportJob>;
   downloadProductionXlsxTemplate?(
     productCode: string,
     objectTypeCode: string,
   ): Promise<Blob>;
-  importMarketWorkbook?(file: File): Promise<ProductionImportJob>;
+  importMarketWorkbook?(
+    file: File,
+    productCode: string,
+    objectTypeCode: string,
+  ): Promise<ProductionImportJob>;
   downloadMarketXlsxTemplate?(
     productCode: string,
     objectTypeCode: string,
@@ -694,11 +702,11 @@ export function createRealtimeBusinessRepository(
       ),
     runSupplyAccount: (input) =>
       client.post<SupplyAccountRow>("/api/v1/supply-accounts/runs", input),
-    importProductionCsv: (file) => {
+    importProductionCsv: (file, productCode, objectTypeCode) => {
       const form = new FormData();
       form.append("file", file, file.name);
       return client.upload<ProductionImportJob>(
-        "/api/v1/imports/production",
+        `/api/v1/imports/production?productCode=${encodeURIComponent(productCode)}&objectTypeCode=${encodeURIComponent(objectTypeCode)}`,
         form,
         {
           "Idempotency-Key": crypto.randomUUID(),
@@ -711,11 +719,11 @@ export function createRealtimeBusinessRepository(
         productCode,
         objectTypeCode,
       }),
-    importMarketWorkbook: (file) => {
+    importMarketWorkbook: (file, productCode, objectTypeCode) => {
       const form = new FormData();
       form.append("file", file, file.name);
       return client.upload<ProductionImportJob>(
-        "/api/v1/imports/market",
+        `/api/v1/imports/market?productCode=${encodeURIComponent(productCode)}&objectTypeCode=${encodeURIComponent(objectTypeCode)}`,
         form,
         {
           "Idempotency-Key": crypto.randomUUID(),
@@ -728,11 +736,11 @@ export function createRealtimeBusinessRepository(
         productCode,
         objectTypeCode,
       }),
-    importLogisticsWorkbook: (file) => {
+    importLogisticsWorkbook: (file, productCode) => {
       const form = new FormData();
       form.append("file", file, file.name);
       return client.upload<ProductionImportJob>(
-        "/api/v1/imports/logistics",
+        `/api/v1/imports/logistics?productCode=${encodeURIComponent(productCode)}`,
         form,
         { "Idempotency-Key": crypto.randomUUID() },
       );

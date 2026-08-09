@@ -95,7 +95,7 @@ describe("product market collection workspace", () => {
     await user.upload(screen.getByLabelText("批量导入市场采集记录"), file);
 
     await waitFor(() =>
-      expect(importMarketWorkbook).toHaveBeenCalledWith(file),
+      expect(importMarketWorkbook).toHaveBeenCalledWith(file, "CORN", "TRADER"),
     );
     expect(
       await screen.findByText("导入完成：成功 2 条，失败 0 条。"),

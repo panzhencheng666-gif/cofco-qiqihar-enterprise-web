@@ -121,7 +121,9 @@ describe("product production collection workspace", () => {
     });
     await user.upload(screen.getByLabelText("批量导入产情记录"), file);
 
-    await waitFor(() => expect(importProductionCsv).toHaveBeenCalledWith(file));
+    await waitFor(() =>
+      expect(importProductionCsv).toHaveBeenCalledWith(file, "CORN", "FARMER"),
+    );
     expect(
       await screen.findByText("导入完成：成功 1 条，失败 0 条。"),
     ).toBeVisible();

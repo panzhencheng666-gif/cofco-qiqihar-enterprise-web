@@ -507,8 +507,16 @@ export function RealtimeBusinessOperationsPanel({
     try {
       const job =
         domain === "production"
-          ? await repository.importProductionCsv(file)
-          : await repository.importMarketWorkbook?.(file);
+          ? await repository.importProductionCsv(
+              file,
+              productCode,
+              objectTypeCode,
+            )
+          : await repository.importMarketWorkbook?.(
+              file,
+              productCode,
+              objectTypeCode,
+            );
       if (!job) throw new Error("IMPORT_NOT_CONFIGURED");
       await reload(productCode);
       onRecordsChanged?.();

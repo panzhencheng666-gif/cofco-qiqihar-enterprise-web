@@ -436,12 +436,28 @@ export function ProductProductionCollectionWorkspace({
   ]);
 
   const importRecords = async (file: File | undefined) => {
-    if (!file || !realtimeRepository) return;
+    if (!file || !realtimeRepository || !objectType) return;
     setImporting(true);
     setRecordsError("");
     setImportMessage("");
     try {
-      const job = await realtimeRepository.importProductionCsv(file);
+      const productCode =
+        context.productId === "corn"
+          ? "CORN"
+          : context.productId === "soybean"
+            ? "SOYBEAN"
+            : "RICE";
+      const objectTypeCode =
+        objectType === "farmer"
+          ? "FARMER"
+          : objectType === "village-committee"
+            ? "VILLAGE_COMMITTEE"
+            : "AGRICULTURAL_TECH_STATION";
+      const job = await realtimeRepository.importProductionCsv(
+        file,
+        productCode,
+        objectTypeCode,
+      );
       setImportMessage(
         `导入完成：成功 ${job.importedRows} 条，失败 ${job.failedRows} 条。`,
       );
@@ -784,7 +800,7 @@ export function ProductProductionCollectionWorkspace({
                   <input
                     accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     aria-label="批量导入产情记录"
-                    disabled={importing}
+                    disabled={!objectType || importing}
                     type="file"
                     onChange={(event) => {
                       void importRecords(event.target.files?.[0]);
