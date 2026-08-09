@@ -69,6 +69,16 @@ const reportActorPosts: Readonly<Record<string, string>> = {
   "business-reviewer": "报告复核岗",
 };
 
+type RealtimeProductCode = "CORN" | "SOYBEAN" | "RICE";
+
+function routeProductCode(section: string): RealtimeProductCode | null {
+  if (section.startsWith("corn-")) return "CORN";
+  if (section.startsWith("soybean-")) return "SOYBEAN";
+  if (section.startsWith("rice-") || section.startsWith("paddy-"))
+    return "RICE";
+  return null;
+}
+
 const scopeIssueLabels: Readonly<
   Record<OperationalScopeIssue["code"], string>
 > = {
@@ -261,8 +271,8 @@ export function FormalEnterprisePrototype({
   const [realtimeEntryDomain, setRealtimeEntryDomain] = useState<
     "production" | "market" | "logistics" | null
   >(null);
-  const [realtimeLogisticsProductCode, setRealtimeLogisticsProductCode] =
-    useState("CORN");
+  const [realtimeEntryProductCode, setRealtimeEntryProductCode] =
+    useState<RealtimeProductCode>("CORN");
   const navigateAndCloseEntry = (
     ...parameters: Parameters<typeof navigate>
   ) => {
@@ -271,8 +281,10 @@ export function FormalEnterprisePrototype({
   };
   const openBusinessWork = (...parameters: Parameters<typeof navigate>) => {
     const [route, selection] = parameters;
+    const productCode = routeProductCode(route.section);
+    if (productCode) setRealtimeEntryProductCode(productCode);
     setRealtimeEntryDomain(
-      realtimeMode && selection?.type === "work-item"
+      realtimeMode && selection?.type === "work-item" && productCode
         ? route.application === "production"
           ? "production"
           : route.application === "market"
@@ -444,7 +456,10 @@ export function FormalEnterprisePrototype({
             workItems={currentWorkItems}
             onCreateRecord={
               realtimeMode
-                ? () => setRealtimeEntryDomain("production")
+                ? (productCode) => {
+                    setRealtimeEntryProductCode(productCode);
+                    setRealtimeEntryDomain("production");
+                  }
                 : undefined
             }
             realtimeRepository={realtimeMode ? repository : undefined}
@@ -478,9 +493,7 @@ export function FormalEnterprisePrototype({
             onCreateRecord={
               realtimeMode
                 ? (productCode) => {
-                    if (location.route.section.endsWith("-logistics")) {
-                      setRealtimeLogisticsProductCode(productCode ?? "CORN");
-                    }
+                    setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryDomain(
                       location.route.section.endsWith("-logistics")
                         ? "logistics"
@@ -565,7 +578,7 @@ export function FormalEnterprisePrototype({
           <RealtimeLogisticsOperationsPanel
             actorName={currentDisplayName}
             editorOnly
-            productCode={realtimeLogisticsProductCode}
+            productCode={realtimeEntryProductCode}
             repository={repository}
             onCancel={() => setRealtimeEntryDomain(null)}
             onRecordsChanged={() =>
@@ -587,6 +600,7 @@ export function FormalEnterprisePrototype({
           actorName={currentDisplayName}
           domain={realtimeEntryDomain}
           editorOnly
+          lockedProductCode={realtimeEntryProductCode}
           repository={repository}
           onCancel={() => setRealtimeEntryDomain(null)}
           onRecordsChanged={() => setRealtimeRefreshToken((value) => value + 1)}

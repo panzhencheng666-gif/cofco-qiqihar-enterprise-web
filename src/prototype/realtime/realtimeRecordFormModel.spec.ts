@@ -10,7 +10,6 @@ import {
 describe("realtime record form model", () => {
   it("keeps authoritative production inputs without restoring removed duplicate fields", () => {
     expect(productionCoreFields.map(({ code }) => code)).toEqual([
-      "productCode",
       "objectTypeCode",
       "regionCode",
       "PROD_CULTIVAR_NAME",
@@ -35,21 +34,25 @@ describe("realtime record form model", () => {
     ]);
 
     expect(
-      productionPayloadFromValues({
-        productCode: "CORN",
-        objectTypeCode: "FARMER",
-        regionCode: "230200",
-        PROD_CULTIVAR_NAME: "先玉335",
-        surveyDate: "2026-08-07",
-        cultivatedAreaMu: "10",
-        yieldPerMuKilograms: "500",
-        PROD_REPORTER_NAME: "张三",
-        PROD_REPORTER_PHONE: "13800000000",
-        PROD_SAMPLE_CONTACT: "13900000000",
-        PROD_SAMPLE_LATITUDE: "47.35",
-        PROD_SAMPLE_LONGITUDE: "123.92",
-      }),
+      productionPayloadFromValues(
+        {
+          productCode: "SOYBEAN",
+          objectTypeCode: "FARMER",
+          regionCode: "230200",
+          PROD_CULTIVAR_NAME: "先玉335",
+          surveyDate: "2026-08-07",
+          cultivatedAreaMu: "10",
+          yieldPerMuKilograms: "500",
+          PROD_REPORTER_NAME: "张三",
+          PROD_REPORTER_PHONE: "13800000000",
+          PROD_SAMPLE_CONTACT: "13900000000",
+          PROD_SAMPLE_LATITUDE: "47.35",
+          PROD_SAMPLE_LONGITUDE: "123.92",
+        },
+        "CORN",
+      ),
     ).toMatchObject({
+      productCode: "CORN",
       cultivatedAreaMu: "10",
       yieldPerMuKilograms: "500",
       submissionMetadata: {
@@ -114,7 +117,7 @@ describe("realtime record form model", () => {
     expect(
       productionPayloadFromValues(
         {
-          productCode: "CORN",
+          productCode: "SOYBEAN",
           objectTypeCode: "FARMER",
           regionCode: "230200",
           surveyDate: "2026-08-09",
@@ -123,6 +126,7 @@ describe("realtime record form model", () => {
           PROD_SAMPLE_NAME: "第一调查户",
           PROD_HARVEST_AREA_MU: "96.5",
         },
+        "CORN",
         definition,
       ).submissionMetadata,
     ).toMatchObject({

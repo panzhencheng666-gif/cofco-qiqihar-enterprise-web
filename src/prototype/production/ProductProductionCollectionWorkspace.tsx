@@ -275,11 +275,17 @@ export function ProductProductionCollectionWorkspace({
     draft: ProductionDocumentDraft,
   ) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
-  onCreateRecord?: () => void;
+  onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }) {
   const context = requiredContext(section);
+  const productCode =
+    context.productId === "corn"
+      ? "CORN"
+      : context.productId === "soybean"
+        ? "SOYBEAN"
+        : "RICE";
   const [status, setStatus] = useState("");
   const [objectType, setObjectType] = useState<
     "" | ProductionBusinessObjectTypeId
@@ -788,7 +794,7 @@ export function ProductProductionCollectionWorkspace({
                 </label>
               </>
             )}
-            <button type="button" onClick={onCreateRecord}>
+            <button type="button" onClick={() => onCreateRecord?.(productCode)}>
               新建调查记录
             </button>
           </div>

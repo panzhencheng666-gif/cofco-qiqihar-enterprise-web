@@ -180,7 +180,7 @@ export function LogisticsMonitoringWorkspace({
   realtimeRepository,
   realtimeRefreshToken = 0,
 }: {
-  productCode: string;
+  productCode: "CORN" | "SOYBEAN" | "RICE";
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   selection?: FormalSelection;
@@ -190,7 +190,7 @@ export function LogisticsMonitoringWorkspace({
   documentDrafts?: Readonly<Record<string, MarketDocumentDraft>>;
   onDocumentDraftChange?: (workId: string, draft: MarketDocumentDraft) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
-  onCreateRecord?: (productCode?: string) => void;
+  onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }) {

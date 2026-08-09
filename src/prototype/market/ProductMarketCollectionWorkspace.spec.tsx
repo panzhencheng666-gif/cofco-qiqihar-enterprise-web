@@ -48,6 +48,7 @@ describe("product market collection workspace", () => {
     const downloadMarketXlsxTemplate = vi
       .fn()
       .mockResolvedValue(new Blob(["xlsx"]));
+    const onCreateRecord = vi.fn();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn(() => "blob:market-template"),
@@ -68,6 +69,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        onCreateRecord={onCreateRecord}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -99,5 +101,7 @@ describe("product market collection workspace", () => {
       await screen.findByText("导入完成：成功 2 条，失败 0 条。"),
     ).toBeVisible();
     await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(3));
+    await user.click(screen.getByRole("button", { name: "新建采集记录" }));
+    expect(onCreateRecord).toHaveBeenCalledWith("CORN");
   });
 });

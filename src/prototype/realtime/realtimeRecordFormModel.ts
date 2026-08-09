@@ -18,13 +18,6 @@ export interface RealtimeFormField {
 
 export const productionCoreFields: readonly RealtimeFormField[] = [
   {
-    code: "productCode",
-    label: "品种",
-    type: "select",
-    required: true,
-    section: "基础信息",
-  },
-  {
     code: "objectTypeCode",
     label: "样本点类型",
     type: "select",
@@ -150,10 +143,11 @@ function categoryValues(
 
 export function productionPayloadFromValues(
   values: Readonly<Record<string, string>>,
+  lockedProductCode: string,
   definition?: ProductionDefinition,
 ): ProductionDraftPayload {
   return {
-    productCode: values.productCode?.trim() ?? "",
+    productCode: lockedProductCode.trim().toUpperCase(),
     objectTypeCode: values.objectTypeCode?.trim() ?? "",
     regionCode: values.regionCode?.trim() ?? "",
     cultivarCode: null,

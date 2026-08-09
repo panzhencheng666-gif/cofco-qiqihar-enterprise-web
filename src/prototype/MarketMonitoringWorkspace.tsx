@@ -31,7 +31,7 @@ export interface MarketMonitoringWorkspaceProps {
   onSelectionClear?: () => void;
   queryAllowed?: boolean;
   onComposeReport: (context: BusinessReportContext) => void;
-  onCreateRecord?: (productCode?: string) => void;
+  onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
   workItems?: readonly BusinessWorkItem[];
@@ -90,7 +90,7 @@ export function MarketMonitoringWorkspace({
         onScopeChange={onScopeChange}
         onSelectionChange={select}
         onWorkItemChange={onWorkItemChange}
-        onCreateRecord={() => onCreateRecord?.()}
+        onCreateRecord={onCreateRecord}
         queryAllowed={queryAllowed}
         scope={scope}
         section={section}
@@ -197,7 +197,7 @@ export function FormalMarketMonitoringWorkspace({
   documentDrafts?: Readonly<Record<string, MarketDocumentDraft>>;
   onDocumentDraftChange?: (workId: string, draft: MarketDocumentDraft) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
-  onCreateRecord?: (productCode?: string) => void;
+  onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
   registryObjects?: readonly MonitoringObject[];
   onRegistryObjectsChange?: (objects: readonly MonitoringObject[]) => void;
   onSelectionChange: (selection: FormalSelection) => void;

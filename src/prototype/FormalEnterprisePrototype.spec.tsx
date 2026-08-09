@@ -44,6 +44,9 @@ afterEach(() => {
 describe("formal enterprise prototype", () => {
   it("shows the production ledger without mounting the entry form by default", async () => {
     const user = userEvent.setup();
+    const listObjectTypes = vi.fn(() =>
+      Promise.resolve([{ code: "FARMER", name: "农户", domain: "PRODUCTION" }]),
+    );
     const repository = {
       loadCurrentSession: () =>
         Promise.resolve({
@@ -55,7 +58,10 @@ describe("formal enterprise prototype", () => {
         }),
       loadMasterData: () =>
         Promise.resolve({
-          products: [{ code: "CORN", name: "玉米" }],
+          products: [
+            { code: "SOYBEAN", name: "大豆" },
+            { code: "CORN", name: "玉米" },
+          ],
           periods: [
             {
               code: "2026-W32",
@@ -75,10 +81,7 @@ describe("formal enterprise prototype", () => {
           totalPages: 0,
         }),
       listCultivars: () => Promise.resolve([]),
-      listObjectTypes: () =>
-        Promise.resolve([
-          { code: "FARMER", name: "农户", domain: "PRODUCTION" },
-        ]),
+      listObjectTypes,
       listProduction: () =>
         Promise.resolve({
           items: [],
@@ -139,6 +142,12 @@ describe("formal enterprise prototype", () => {
     expect(
       screen.getByRole("button", { name: "关闭新建产情填报" }),
     ).toBeVisible();
+    expect(
+      screen.queryByRole("combobox", { name: "品种" }),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(listObjectTypes).toHaveBeenCalledWith("CORN", "PRODUCTION"),
+    );
 
     await user.click(screen.getByRole("button", { name: "关闭新建产情填报" }));
     expect(
@@ -536,13 +545,15 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(16);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(18);
     expect(within(navigation).getByText("玉米产情填报")).toBeVisible();
     expect(within(navigation).getByText("大豆产情填报")).toBeVisible();
     expect(within(navigation).getByText("稻谷产情填报")).toBeVisible();
     expect(within(navigation).getByText("产情分析")).toBeVisible();
     expect(within(navigation).getByText("玉米市场采集")).toBeVisible();
-    expect(within(navigation).getByText("物流节点监测")).toBeVisible();
+    expect(within(navigation).getByText("玉米物流监测")).toBeVisible();
+    expect(within(navigation).getByText("大豆物流监测")).toBeVisible();
+    expect(within(navigation).getByText("稻谷物流监测")).toBeVisible();
     expect(within(navigation).getByText("玉米供需平衡")).toBeVisible();
     expect(within(navigation).getByText("业务报告")).toBeVisible();
     expect(within(navigation).getByText("待我处理")).toBeVisible();

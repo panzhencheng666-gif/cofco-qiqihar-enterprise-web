@@ -51,7 +51,6 @@ function isAccountLockedReporter(code: string): boolean {
 
 function productionValues(record: ProductionRecordRow): Record<string, string> {
   return {
-    productCode: record.productCode,
     objectTypeCode: record.objectTypeCode,
     regionCode: record.regionCode,
     surveyDate: record.surveyDate,
@@ -72,6 +71,7 @@ function marketValues(record: MarketRecordRow): Record<string, string> {
 export function RealtimeBusinessOperationsPanel({
   actorName,
   domain,
+  lockedProductCode,
   repository = realtimeBusinessRepository,
   editorOnly = false,
   onCancel,
@@ -80,14 +80,15 @@ export function RealtimeBusinessOperationsPanel({
 }: {
   actorName: string;
   domain: Domain;
+  lockedProductCode: string;
   repository?: RealtimeBusinessRepository;
   editorOnly?: boolean;
   onCancel?: () => void;
   onSaved?: () => void;
   onRecordsChanged?: () => void;
 }) {
+  const productCode = lockedProductCode.trim().toUpperCase();
   const [master, setMaster] = useState<MasterDataSnapshot | null>(null);
-  const [productCode, setProductCode] = useState("");
   const [objectTypes, setObjectTypes] = useState<readonly MasterObjectType[]>(
     [],
   );
@@ -139,20 +140,19 @@ export function RealtimeBusinessOperationsPanel({
       .then((snapshot) => {
         if (cancelled) return;
         setMaster(snapshot);
-        const first = snapshot.products[0]?.code ?? "";
-        setProductCode(first);
         setValues((current) => ({
           ...current,
-          productCode: first,
           ...(domain === "production"
             ? { PROD_REPORTER_NAME: authenticatedName }
             : { MKT_REPORTER_NAME: authenticatedName }),
         }));
-        setMessage(
-          snapshot.products.length > 0
-            ? "已加载业务填报规则"
-            : "当前尚未配置产品",
+        const configured = snapshot.products.some(
+          ({ code }) => code.toUpperCase() === productCode,
         );
+        if (!configured) {
+          setError("当前菜单品种尚未配置，暂不能填报。");
+        }
+        setMessage(configured ? "已加载业务填报规则" : "当前菜单品种尚未配置");
       })
       .catch(() => {
         if (!cancelled) setError("业务填报规则读取失败，请稍后重试。");
@@ -160,7 +160,7 @@ export function RealtimeBusinessOperationsPanel({
     return () => {
       cancelled = true;
     };
-  }, [authenticatedName, domain, repository]);
+  }, [authenticatedName, domain, productCode, repository]);
 
   async function reload(nextProductCode = productCode): Promise<void> {
     if (!nextProductCode) return;
@@ -198,7 +198,6 @@ export function RealtimeBusinessOperationsPanel({
             ? { PROD_REPORTER_NAME: authenticatedName }
             : { MKT_REPORTER_NAME: authenticatedName }),
           ...current,
-          productCode,
           objectTypeCode,
           MKT_OBJECT_TYPE: objectTypeCode,
         }));
@@ -299,13 +298,6 @@ export function RealtimeBusinessOperationsPanel({
   function options(
     field: RealtimeFormField,
   ): readonly { value: string; label: string }[] {
-    if (field.code === "productCode")
-      return (
-        master?.products.map(({ code, name }) => ({
-          value: code,
-          label: name,
-        })) ?? []
-      );
     if (field.code === "objectTypeCode" || field.code === "MKT_OBJECT_TYPE")
       return objectTypes.map(({ code, name }) => ({
         value: code,
@@ -323,11 +315,6 @@ export function RealtimeBusinessOperationsPanel({
 
   function edit(code: string, value: string) {
     if (isAccountLockedReporter(code)) return;
-    if (code === "productCode") {
-      setSelected(null);
-      setDefinition(null);
-      setProductCode(value);
-    }
     setValues((current) => ({ ...current, [code]: value }));
   }
 
@@ -355,9 +342,13 @@ export function RealtimeBusinessOperationsPanel({
         domain === "production"
           ? await repository.getProduction(id)
           : await repository.getMarket(id);
+      if (record.productCode.trim().toUpperCase() !== productCode) {
+        setSelected(null);
+        setError("该记录不属于当前菜单品种，无法打开。");
+        return;
+      }
       setSelected(record);
       setEvidenceFiles([]);
-      setProductCode(record.productCode);
       setValues(
         domain === "production"
           ? productionValues(record as ProductionRecordRow)
@@ -376,7 +367,6 @@ export function RealtimeBusinessOperationsPanel({
     setReturnReason("");
     setEvidenceFiles([]);
     setValues({
-      productCode,
       objectTypeCode: objectTypes[0]?.code ?? "",
       MKT_OBJECT_TYPE: objectTypes[0]?.code ?? "",
       ...(domain === "production"
@@ -436,7 +426,7 @@ export function RealtimeBusinessOperationsPanel({
       let record: SelectedRecord;
       if (domain === "production") {
         const payload = {
-          ...productionPayloadFromValues(values, definition),
+          ...productionPayloadFromValues(values, productCode, definition),
           evidencePhotoIds,
         };
         record = selected
@@ -613,20 +603,6 @@ export function RealtimeBusinessOperationsPanel({
       >
         {!editorOnly && (
           <aside aria-label="业务记录">
-            <label>
-              <span>品种</span>
-              <select
-                aria-label="记录品种"
-                value={productCode}
-                onChange={(event) => edit("productCode", event.target.value)}
-              >
-                {master?.products.map((product) => (
-                  <option key={product.code} value={product.code}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
-            </label>
             <strong>{records.length} 条业务记录</strong>
             <ul>
               {records.map((record) => (

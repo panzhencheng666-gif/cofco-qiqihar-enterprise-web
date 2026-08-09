@@ -63,6 +63,7 @@ describe("product production collection workspace", () => {
     const downloadProductionXlsxTemplate = vi
       .fn()
       .mockResolvedValue(new Blob(["xlsx"]));
+    const onCreateRecord = vi.fn();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn(() => "blob:template"),
@@ -82,6 +83,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        onCreateRecord={onCreateRecord}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -124,5 +126,7 @@ describe("product production collection workspace", () => {
       await screen.findByText("导入完成：成功 1 条，失败 0 条。"),
     ).toBeVisible();
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(3));
+    await user.click(screen.getByRole("button", { name: "新建调查记录" }));
+    expect(onCreateRecord).toHaveBeenCalledWith("CORN");
   });
 });

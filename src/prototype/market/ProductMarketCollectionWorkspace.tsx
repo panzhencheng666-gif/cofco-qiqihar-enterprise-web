@@ -359,11 +359,17 @@ export function ProductMarketCollectionWorkspace({
   documentDrafts?: Readonly<Record<string, MarketDocumentDraft>>;
   onDocumentDraftChange?: (workId: string, draft: MarketDocumentDraft) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
-  onCreateRecord?: () => void;
+  onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }) {
   const context = requiredContext(section);
+  const productCode =
+    context.productId === "corn"
+      ? "CORN"
+      : context.productId === "soybean"
+        ? "SOYBEAN"
+        : "RICE";
   const [objectType, setObjectType] = useState<"" | MarketBusinessObjectTypeId>(
     "",
   );
@@ -837,7 +843,7 @@ export function ProductMarketCollectionWorkspace({
                 </label>
               </>
             )}
-            <button type="button" onClick={onCreateRecord}>
+            <button type="button" onClick={() => onCreateRecord?.(productCode)}>
               新建采集记录
             </button>
           </div>

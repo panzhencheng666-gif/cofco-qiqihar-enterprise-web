@@ -270,6 +270,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       <RealtimeBusinessOperationsPanel
         actorName="张三"
         domain="market"
+        lockedProductCode="CORN"
         repository={api}
       />,
     );
@@ -287,6 +288,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       <RealtimeBusinessOperationsPanel
         actorName="张三"
         domain="production"
+        lockedProductCode="CORN"
         repository={repository().api}
       />,
     );
@@ -307,6 +309,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(screen.queryByLabelText("入库数量")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("损耗数量")).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "具体品种" })).toBeVisible();
+    expect(
+      screen.queryByRole("combobox", { name: "品种" }),
+    ).not.toBeInTheDocument();
     expect(await screen.findByLabelText("期初库存")).toBeVisible();
     expect(screen.getByLabelText("销售数量")).toBeVisible();
     expect(screen.getByLabelText("自用数量")).toBeVisible();
@@ -320,11 +325,69 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(screen.getByRole("group", { name: "联系与位置" })).toBeVisible();
   });
 
+  it("refuses to open a record that does not belong to the menu-locked product", async () => {
+    const { api } = repository();
+    vi.spyOn(api, "listProduction").mockResolvedValue({
+      items: [
+        {
+          id: "production-soybean",
+          values: {},
+          allowedActions: [],
+          version: 1,
+        },
+      ],
+      pageNumber: 0,
+      pageSize: 100,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    vi.spyOn(api, "getProduction").mockResolvedValue({
+      id: "production-soybean",
+      productCode: "SOYBEAN",
+      objectTypeCode: "FARMER",
+      regionCode: "230221101001",
+      cultivarCode: null,
+      surveyDate: "2026-08-08",
+      cultivatedAreaMu: "100",
+      yieldPerMuKilograms: "650",
+      quality: {},
+      costs: {},
+      insurance: {},
+      subsidies: {},
+      submissionMetadata: {},
+      reportedAt: "2026-08-08T10:01:00+08:00",
+      estimatedOutputKilograms: "65000",
+      status: "DRAFT",
+      returnReason: null,
+      allowedActions: [],
+      version: 1,
+    });
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="张三"
+        domain="production"
+        lockedProductCode="CORN"
+        repository={api}
+      />,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /production-soybean/ }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "该记录不属于当前菜单品种，无法打开",
+    );
+    expect(screen.getByText("新建填报", { selector: "strong" })).toBeVisible();
+  });
+
   it("searches the authorized region list before selecting a region", async () => {
     render(
       <RealtimeBusinessOperationsPanel
         actorName="张三"
         domain="production"
+        lockedProductCode="CORN"
         repository={repository().api}
       />,
     );
@@ -374,6 +437,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       <RealtimeBusinessOperationsPanel
         actorName="张三"
         domain="production"
+        lockedProductCode="CORN"
         repository={api}
         editorOnly
       />,
@@ -412,6 +476,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     const created = createProduction.mock.calls[0]?.[0] as unknown as
       ProductionDraftPayload | undefined;
     expect(created).toMatchObject({
+      productCode: "CORN",
       cultivarCode: null,
       regionCode: "230221101001",
       evidencePhotoIds: ["photo-1"],

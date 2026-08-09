@@ -41,7 +41,7 @@ export interface ProductionMonitoringWorkspaceProps {
   ) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
   onComposeReport: (context: BusinessReportContext) => void;
-  onCreateRecord?: () => void;
+  onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }
@@ -188,7 +188,7 @@ export function FormalProductionMonitoringWorkspace({
     draft: ProductionDocumentDraft,
   ) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
-  onCreateRecord?: () => void;
+  onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }) {
