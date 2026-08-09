@@ -27,7 +27,14 @@ test("uses durable notifications, business deep links, work navigation, and page
 
   await page.goto("/#/产情监测/玉米产情填报");
   const notificationButton = page.getByRole("button", { name: /^通知/u });
-  await expect(notificationButton).toContainText("1");
+  await expect
+    .poll(async () =>
+      Number((await notificationButton.textContent())?.replace(/\D/gu, "")),
+    )
+    .toBeGreaterThan(0);
+  const unreadBefore = Number(
+    (await notificationButton.textContent())?.replace(/\D/gu, ""),
+  );
   await notificationButton.click();
 
   const notificationPanel = page.getByRole("dialog", { name: "业务通知" });
@@ -60,7 +67,11 @@ test("uses durable notifications, business deep links, work navigation, and page
       `),
     )
     .toBe("1");
-  await expect(notificationButton).toContainText("0");
+  await expect
+    .poll(async () =>
+      Number((await notificationButton.textContent())?.replace(/\D/gu, "")),
+    )
+    .toBe(unreadBefore - 1);
 
   await page.getByRole("button", { name: /^待办/u }).click();
   await expect(page).toHaveURL(
