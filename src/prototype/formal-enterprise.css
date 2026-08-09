@@ -4377,6 +4377,11 @@ body {
   color: #537084;
 }
 
+.enterprise-ledger-query > .realtime-region-cascade {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
 .realtime-business-fields input,
 .realtime-business-fields select,
 .realtime-business-fields output,

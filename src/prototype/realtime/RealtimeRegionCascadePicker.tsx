@@ -29,10 +29,14 @@ export function RealtimeRegionCascadePicker({
   regions,
   value,
   onChange,
+  ariaLabel = "所在地区",
+  requireVillage = true,
 }: {
   regions: readonly MasterRegion[];
   value: string;
   onChange: (regionCode: string) => void;
+  ariaLabel?: string;
+  requireVillage?: boolean;
 }) {
   const [queries, setQueries] = useState<Record<string, string>>({});
   const selectedPath = useMemo(() => pathTo(regions, value), [regions, value]);
@@ -41,7 +45,11 @@ export function RealtimeRegionCascadePicker({
   );
 
   return (
-    <div aria-label="所在地区" className="realtime-region-cascade">
+    <div
+      aria-label={ariaLabel}
+      className="realtime-region-cascade"
+      role="group"
+    >
       {levels.map((level, index) => {
         const parentLevel = levels[index - 1]?.code;
         const parentCode = parentLevel
@@ -64,7 +72,7 @@ export function RealtimeRegionCascadePicker({
           <label key={level.code}>
             <span>
               {level.label}
-              {level.code === "VILLAGE" ? " *" : ""}
+              {requireVillage && level.code === "VILLAGE" ? " *" : ""}
             </span>
             <input
               aria-label={`搜索${level.label}`}
@@ -82,7 +90,7 @@ export function RealtimeRegionCascadePicker({
             <select
               aria-label={level.label}
               disabled={!enabled}
-              required={level.code === "VILLAGE"}
+              required={requireVillage && level.code === "VILLAGE"}
               value={selected}
               onChange={(event) => {
                 onChange(event.target.value);

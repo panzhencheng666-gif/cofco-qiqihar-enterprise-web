@@ -27,8 +27,49 @@ function repository() {
           parentCode: null,
           level: "PREFECTURE",
         },
+        {
+          code: "230208",
+          name: "梅里斯达斡尔族区",
+          parentCode: "230200",
+          level: "COUNTY",
+        },
+        {
+          code: "230208101",
+          name: "达呼店镇",
+          parentCode: "230208",
+          level: "TOWNSHIP",
+        },
+        {
+          code: "230208101001",
+          name: "音钦村",
+          parentCode: "230208101",
+          level: "VILLAGE",
+        },
       ],
     }),
+    listAnnualComparisonDefinitions: vi.fn().mockResolvedValue([
+      {
+        code: "PRODUCTION_CULTIVATED_AREA",
+        name: "核定播种面积",
+        unitCode: "亩",
+        sourceDomain: "PRODUCTION",
+        aggregationCode: "SUM",
+      },
+      {
+        code: "PRODUCTION_PROD_OPENING_INVENTORY",
+        name: "产情核定期初库存",
+        unitCode: "吨",
+        sourceDomain: "PRODUCTION",
+        aggregationCode: "SUM",
+      },
+      {
+        code: "PRODUCTION_MOISTURE",
+        name: "产情核定水分",
+        unitCode: "%",
+        sourceDomain: "PRODUCTION",
+        aggregationCode: "AVERAGE",
+      },
+    ]),
     listCultivars: vi
       .fn()
       .mockResolvedValue([
@@ -90,9 +131,17 @@ describe("realtime annual comparison panel", () => {
     expect(screen.getByText("同比 +8.3%")).toBeVisible();
     expect(screen.getByLabelText("产品品种")).toBeVisible();
     expect(screen.getByLabelText("具体品种")).toBeVisible();
-    expect(screen.getByLabelText("统计地区")).toBeVisible();
+    expect(screen.getByRole("group", { name: "统计地区" })).toBeVisible();
+    expect(screen.getByRole("searchbox", { name: "搜索地级市" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "区县" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "乡镇" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "行政村" })).toBeVisible();
     expect(screen.getByLabelText("统计时间")).toBeVisible();
     expect(screen.getByLabelText("分析指标")).toBeVisible();
+    expect(screen.getByLabelText("分析指标")).toHaveTextContent(
+      "产情核定期初库存",
+    );
+    expect(screen.getByLabelText("分析指标")).toHaveTextContent("产情核定水分");
     expect(screen.queryByText("internal")).not.toBeInTheDocument();
 
     await user.hover(
@@ -109,6 +158,18 @@ describe("realtime annual comparison panel", () => {
     await waitFor(() =>
       expect(loadAnnualComparison).toHaveBeenLastCalledWith(
         expect.objectContaining({ cultivarCode: "XIAN_YU_335" }),
+      ),
+    );
+
+    await user.selectOptions(
+      screen.getByLabelText("分析指标"),
+      "PRODUCTION_PROD_OPENING_INVENTORY",
+    );
+    await waitFor(() =>
+      expect(loadAnnualComparison).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          indicatorCode: "PRODUCTION_PROD_OPENING_INVENTORY",
+        }),
       ),
     );
   });

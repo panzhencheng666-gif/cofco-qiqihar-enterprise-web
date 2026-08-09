@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   realtimeBusinessRepository,
-  type MasterCultivar,
   type MasterDataSnapshot,
   type ReportParameterOptions,
   type ReportPreview,
   type RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+
+import { RealtimeRegionCascadePicker } from "./RealtimeRegionCascadePicker";
 
 const reportDomains = new Set(["PRODUCTION", "MARKET", "LOGISTICS", "SUPPLY"]);
 
@@ -27,10 +28,8 @@ export function RealtimeReportCenterPanel({
 }) {
   const [master, setMaster] = useState<MasterDataSnapshot | null>(null);
   const [options, setOptions] = useState<ReportParameterOptions | null>(null);
-  const [cultivars, setCultivars] = useState<readonly MasterCultivar[]>([]);
   const [definitionCode, setDefinitionCode] = useState("");
   const [productCode, setProductCode] = useState("");
-  const [cultivarCode, setCultivarCode] = useState("");
   const [regionCode, setRegionCode] = useState("");
   const [periodCode, setPeriodCode] = useState("");
   const [formatCode, setFormatCode] = useState("CSV");
@@ -70,22 +69,6 @@ export function RealtimeReportCenterPanel({
     };
   }, [repository]);
 
-  useEffect(() => {
-    if (!productCode) return;
-    let cancelled = false;
-    repository
-      .listCultivars(productCode)
-      .then((nextCultivars) => {
-        if (!cancelled) setCultivars(nextCultivars);
-      })
-      .catch(() => {
-        if (!cancelled) setCultivars([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [productCode, repository]);
-
   const selectedRegion = useMemo(
     () => master?.regions.find((region) => region.code === regionCode),
     [master, regionCode],
@@ -112,7 +95,6 @@ export function RealtimeReportCenterPanel({
         await repository.createReportPreview({
           definitionCode,
           productCode,
-          ...(cultivarCode ? { cultivarCode } : {}),
           regionLevel: selectedRegion.level,
           regionCode,
           periodCode,
@@ -182,10 +164,7 @@ export function RealtimeReportCenterPanel({
               aria-label="产品品种"
               value={productCode}
               onChange={(event) =>
-                changeScope(() => {
-                  setProductCode(event.target.value);
-                  setCultivarCode("");
-                })
+                changeScope(() => setProductCode(event.target.value))
               }
             >
               {master?.products.map((product) => (
@@ -195,39 +174,15 @@ export function RealtimeReportCenterPanel({
               ))}
             </select>
           </label>
-          <label>
-            <span>具体品种</span>
-            <select
-              aria-label="具体品种"
-              value={cultivarCode}
-              onChange={(event) =>
-                changeScope(() => setCultivarCode(event.target.value))
-              }
-            >
-              <option value="">全部具体品种</option>
-              {cultivars.map((cultivar) => (
-                <option key={cultivar.code} value={cultivar.code}>
-                  {cultivar.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>统计地区</span>
-            <select
-              aria-label="统计地区"
-              value={regionCode}
-              onChange={(event) =>
-                changeScope(() => setRegionCode(event.target.value))
-              }
-            >
-              {master?.regions.map((region) => (
-                <option key={region.code} value={region.code}>
-                  {region.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <RealtimeRegionCascadePicker
+            ariaLabel="统计地区"
+            onChange={(nextRegionCode) =>
+              changeScope(() => setRegionCode(nextRegionCode))
+            }
+            regions={master?.regions ?? []}
+            requireVillage={false}
+            value={regionCode}
+          />
           <label>
             <span>统计时间</span>
             <select

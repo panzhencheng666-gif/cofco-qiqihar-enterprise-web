@@ -14,6 +14,7 @@ function repository(): RealtimeBusinessRepository {
     subscribeBusinessEvents: vi.fn(),
     uploadEvidencePhoto: vi.fn(),
     loadMasterData: vi.fn(),
+    listAnnualComparisonDefinitions: vi.fn(),
     loadAnnualComparison: vi.fn(),
     loadReportParameterOptions: vi.fn(),
     createReportPreview: vi.fn(),

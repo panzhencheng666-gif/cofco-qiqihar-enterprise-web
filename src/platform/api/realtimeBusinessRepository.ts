@@ -58,6 +58,14 @@ export interface AnnualComparisonView {
   points: readonly AnnualComparisonPoint[];
 }
 
+export interface AnnualComparisonDefinition {
+  code: string;
+  name: string;
+  unitCode: string;
+  sourceDomain: "PRODUCTION" | "MARKET";
+  aggregationCode: "SUM" | "AVERAGE";
+}
+
 export interface ReportDefinition {
   code: string;
   name: string;
@@ -439,6 +447,10 @@ export interface RealtimeBusinessRepository {
   ): () => void;
   uploadEvidencePhoto(input: EvidencePhotoUpload): Promise<EvidencePhotoRow>;
   loadMasterData(): Promise<MasterDataSnapshot>;
+  listAnnualComparisonDefinitions(
+    sourceDomain: "PRODUCTION" | "MARKET",
+    productCode: string,
+  ): Promise<readonly AnnualComparisonDefinition[]>;
   loadAnnualComparison(input: {
     productCode: string;
     cultivarCode?: string;
@@ -690,6 +702,11 @@ export function createRealtimeBusinessRepository(
       ]);
       return { products, periods, regions };
     },
+    listAnnualComparisonDefinitions: (sourceDomain, productCode) =>
+      client.get<AnnualComparisonDefinition[]>(
+        "/api/v1/overview/annual-comparison-definitions",
+        { sourceDomain, productCode },
+      ),
     loadAnnualComparison: (input) =>
       client.get<AnnualComparisonView>(
         "/api/v1/overview/annual-comparisons",

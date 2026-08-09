@@ -103,6 +103,24 @@ function repository(): RealtimeBusinessRepository {
             parentCode: null,
             level: "PREFECTURE",
           },
+          {
+            code: "230202",
+            name: "龙沙区",
+            parentCode: "230200",
+            level: "COUNTY",
+          },
+          {
+            code: "230202100",
+            name: "大民街道",
+            parentCode: "230202",
+            level: "TOWNSHIP",
+          },
+          {
+            code: "230202100001",
+            name: "大民村",
+            parentCode: "230202100",
+            level: "VILLAGE",
+          },
         ],
       }),
     ),
@@ -149,7 +167,12 @@ describe("RealtimeSupplyBalancePanel", () => {
       screen.getByRole("search", { name: "供需平衡筛选条件" }),
     ).toBeVisible();
     expect(screen.getByRole("combobox", { name: "产品品种" })).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "统计地区" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "统计地区" })).toBeVisible();
+    expect(screen.getByRole("searchbox", { name: "搜索地级市" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "地级市" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "区县" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "乡镇" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "行政村" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "统计时间" })).toBeVisible();
     expect(screen.getAllByText("期初库存").length).toBeGreaterThan(0);
     expect(screen.getByRole("region", { name: "平衡结论" })).toBeVisible();
@@ -289,11 +312,11 @@ describe("RealtimeSupplyBalancePanel", () => {
     expect((await screen.findAllByText("777.0000")).length).toBeGreaterThan(0);
 
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "统计地区" }),
+      screen.getByRole("combobox", { name: "地级市" }),
       "231100",
     );
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "统计地区" }),
+      screen.getByRole("combobox", { name: "地级市" }),
       "230200",
     );
     expect(await screen.findByText("齐齐哈尔最新结论")).toBeVisible();

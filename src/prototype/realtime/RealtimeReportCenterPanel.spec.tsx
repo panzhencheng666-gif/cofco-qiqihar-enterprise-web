@@ -27,13 +27,26 @@ function repository() {
           parentCode: null,
           level: "PREFECTURE",
         },
+        {
+          code: "230202",
+          name: "龙沙区",
+          parentCode: "230200",
+          level: "COUNTY",
+        },
+        {
+          code: "230202100",
+          name: "大民街道",
+          parentCode: "230202",
+          level: "TOWNSHIP",
+        },
+        {
+          code: "230202100001",
+          name: "大民村",
+          parentCode: "230202100",
+          level: "VILLAGE",
+        },
       ],
     }),
-    listCultivars: vi
-      .fn()
-      .mockResolvedValue([
-        { code: "XIAN_YU_335", name: "先玉335", productCode: "CORN" },
-      ]),
     loadReportParameterOptions: vi.fn().mockResolvedValue({
       definitions: [
         definition("PRODUCTION_DAILY", "产情日报", "PRODUCTION"),
@@ -82,19 +95,24 @@ describe("realtime report center", () => {
     expect(screen.getByLabelText("报告类型")).toHaveTextContent(
       "产情日报市场日报物流周报供需月报",
     );
+    expect(screen.queryByLabelText("具体品种")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "统计地区" })).toBeVisible();
+    expect(screen.getByRole("searchbox", { name: "搜索地级市" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "地级市" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "区县" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "乡镇" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "行政村" })).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "导出当前报告" }),
     ).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText("报告类型"), "MARKET_DAILY");
-    await user.selectOptions(screen.getByLabelText("具体品种"), "XIAN_YU_335");
     await user.click(screen.getByRole("button", { name: "生成报告预览" }));
 
     await waitFor(() =>
       expect(createReportPreview).toHaveBeenCalledWith({
         definitionCode: "MARKET_DAILY",
         productCode: "CORN",
-        cultivarCode: "XIAN_YU_335",
         regionLevel: "PREFECTURE",
         regionCode: "230200",
         periodCode: "2026-W32",

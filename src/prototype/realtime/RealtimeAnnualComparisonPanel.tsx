@@ -2,21 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   realtimeBusinessRepository,
+  type AnnualComparisonDefinition,
   type AnnualComparisonView,
   type MasterCultivar,
   type MasterDataSnapshot,
   type RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 
-type AnalysisDomain = "production" | "market";
+import { RealtimeRegionCascadePicker } from "./RealtimeRegionCascadePicker";
 
-const indicators = {
-  production: [
-    { code: "PRODUCTION_CULTIVATED_AREA", label: "种植面积" },
-    { code: "PRODUCTION_ESTIMATED_OUTPUT", label: "预计总产量" },
-  ],
-  market: [{ code: "MARKET_AVERAGE_TRADE_PRICE", label: "平均成交价" }],
-} as const;
+type AnalysisDomain = "production" | "market";
 
 const chartColors = ["#7c9fb4", "#3b8cab", "#126f99", "#e0a62e"] as const;
 
@@ -46,16 +41,16 @@ export function RealtimeAnnualComparisonPanel({
   domain: AnalysisDomain;
   repository?: RealtimeBusinessRepository;
 }) {
-  const indicatorOptions = indicators[domain];
   const [master, setMaster] = useState<MasterDataSnapshot | null>(null);
+  const [indicatorOptions, setIndicatorOptions] = useState<
+    readonly AnnualComparisonDefinition[]
+  >([]);
   const [cultivars, setCultivars] = useState<readonly MasterCultivar[]>([]);
   const [productCode, setProductCode] = useState("CORN");
   const [regionCode, setRegionCode] = useState("230200");
   const [periodCode, setPeriodCode] = useState("2026-W32");
   const [cultivarCode, setCultivarCode] = useState("");
-  const [indicatorCode, setIndicatorCode] = useState(
-    indicatorOptions[0].code as string,
-  );
+  const [indicatorCode, setIndicatorCode] = useState("");
   const [comparison, setComparison] = useState<AnnualComparisonView | null>(
     null,
   );
@@ -83,6 +78,36 @@ export function RealtimeAnnualComparisonPanel({
   }, [repository]);
 
   useEffect(() => {
+    if (!productCode) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setIndicatorOptions([]);
+        setIndicatorCode("");
+      }
+    });
+    void repository
+      .listAnnualComparisonDefinitions(
+        domain === "production" ? "PRODUCTION" : "MARKET",
+        productCode,
+      )
+      .then((definitions) => {
+        if (cancelled) return;
+        setIndicatorOptions(definitions);
+        setIndicatorCode(definitions[0]?.code ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIndicatorOptions([]);
+          setError("分析指标暂时无法读取，请稍后重试。");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [domain, productCode, repository]);
+
+  useEffect(() => {
     let cancelled = false;
     void repository
       .listCultivars(productCode)
@@ -98,7 +123,8 @@ export function RealtimeAnnualComparisonPanel({
   }, [productCode, repository]);
 
   useEffect(() => {
-    if (!master || !productCode || !regionCode || !periodCode) return;
+    if (!master || !productCode || !regionCode || !periodCode || !indicatorCode)
+      return;
     let cancelled = false;
     void repository
       .loadAnnualComparison({
@@ -198,6 +224,7 @@ export function RealtimeAnnualComparisonPanel({
               changeAnalysisScope(() => {
                 setProductCode(event.target.value);
                 setCultivarCode("");
+                setIndicatorCode("");
               })
             }
           >
@@ -225,22 +252,15 @@ export function RealtimeAnnualComparisonPanel({
             ))}
           </select>
         </label>
-        <label>
-          <span>统计地区</span>
-          <select
-            aria-label="统计地区"
-            value={regionCode}
-            onChange={(event) =>
-              changeAnalysisScope(() => setRegionCode(event.target.value))
-            }
-          >
-            {master?.regions.map((region) => (
-              <option key={region.code} value={region.code}>
-                {region.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <RealtimeRegionCascadePicker
+          ariaLabel="统计地区"
+          onChange={(nextRegionCode) =>
+            changeAnalysisScope(() => setRegionCode(nextRegionCode))
+          }
+          regions={master?.regions ?? []}
+          requireVillage={false}
+          value={regionCode}
+        />
         <label>
           <span>统计时间</span>
           <select
@@ -268,7 +288,7 @@ export function RealtimeAnnualComparisonPanel({
           >
             {indicatorOptions.map((indicator) => (
               <option key={indicator.code} value={indicator.code}>
-                {indicator.label}
+                {indicator.name}
               </option>
             ))}
           </select>

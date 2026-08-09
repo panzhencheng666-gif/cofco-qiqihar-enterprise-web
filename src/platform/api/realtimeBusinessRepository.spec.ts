@@ -75,6 +75,32 @@ function client() {
 }
 
 describe("realtime business repository", () => {
+  it("reads the database-owned annual comparison indicator catalogue", async () => {
+    const { api, get } = client();
+    get.mockResolvedValueOnce([
+      {
+        code: "PRODUCTION_PROD_OPENING_INVENTORY",
+        name: "产情核定期初库存",
+        unitCode: "吨",
+        sourceDomain: "PRODUCTION",
+        aggregationCode: "SUM",
+      },
+    ] as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    await expect(
+      repository.listAnnualComparisonDefinitions("PRODUCTION", "SOYBEAN"),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        code: "PRODUCTION_PROD_OPENING_INVENTORY",
+      }),
+    ]);
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/overview/annual-comparison-definitions",
+      { sourceDomain: "PRODUCTION", productCode: "SOYBEAN" },
+    );
+  });
+
   it("reads durable notifications, marks them read and streams business changes", async () => {
     const { api, get, post } = client();
     get.mockImplementationOnce(

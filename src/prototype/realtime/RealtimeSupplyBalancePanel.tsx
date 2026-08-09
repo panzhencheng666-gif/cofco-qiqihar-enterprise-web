@@ -8,6 +8,8 @@ import {
   type SupplyInputWorkspace,
 } from "@/platform/api/realtimeBusinessRepository";
 
+import { RealtimeRegionCascadePicker } from "./RealtimeRegionCascadePicker";
+
 interface RealtimeSupplyBalancePanelProps {
   productCode?: string;
   regionCode?: string;
@@ -189,20 +191,13 @@ export function RealtimeSupplyBalancePanel({
             ))}
           </select>
         </label>
-        <label>
-          <span>统计地区</span>
-          <select
-            aria-label="统计地区"
-            value={regionCode}
-            onChange={(event) => setRegionCode(event.target.value)}
-          >
-            {master?.regions.map((region) => (
-              <option key={region.code} value={region.code}>
-                {region.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <RealtimeRegionCascadePicker
+          ariaLabel="统计地区"
+          onChange={setRegionCode}
+          regions={master?.regions ?? []}
+          requireVillage={false}
+          value={regionCode}
+        />
         <label>
           <span>统计时间</span>
           <select
