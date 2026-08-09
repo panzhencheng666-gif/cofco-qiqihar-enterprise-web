@@ -268,7 +268,13 @@ function persistedMarketState(
 ): MarketCollectionRow["state"] {
   if (value === "已审核" || value === "已核定" || value === "APPROVED")
     return "已核定";
-  if (value === "已退回" || value === "RETURNED") return "需补充";
+  if (
+    value === "已退回" ||
+    value === "退回补充" ||
+    value === "需补充" ||
+    value === "RETURNED"
+  )
+    return "需补充";
   if (value === "草稿" || value === "DRAFT") return "填写中";
   return "待审核";
 }
@@ -351,6 +357,7 @@ export function ProductMarketCollectionWorkspace({
   onDocumentDraftChange = () => undefined,
   onWorkItemChange = () => undefined,
   onCreateRecord,
+  onEditRecord,
   realtimeRepository,
   realtimeRefreshToken = 0,
 }: {
@@ -365,6 +372,10 @@ export function ProductMarketCollectionWorkspace({
   onDocumentDraftChange?: (workId: string, draft: MarketDocumentDraft) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
   onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
+  onEditRecord?: (
+    productCode: "CORN" | "SOYBEAN" | "RICE",
+    recordId: string,
+  ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }) {
@@ -957,9 +968,16 @@ export function ProductMarketCollectionWorkspace({
                     <button
                       className="enterprise-ledger-row-action"
                       type="button"
-                      onClick={() =>
-                        onSelectionChange({ type: "work-item", id: row.workId })
-                      }
+                      onClick={() => {
+                        if (realtimeRepository && onEditRecord) {
+                          onEditRecord(productCode, row.workId);
+                          return;
+                        }
+                        onSelectionChange({
+                          type: "work-item",
+                          id: row.workId,
+                        });
+                      }}
                     >
                       查看
                     </button>

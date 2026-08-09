@@ -117,6 +117,57 @@ function repository(): RealtimeBusinessRepository {
 }
 
 describe("RealtimeLogisticsOperationsPanel", () => {
+  it("excludes backend-owned read-only fields when revising a record", async () => {
+    const user = userEvent.setup();
+    const record = {
+      id: "LOG-E2E-001",
+      productCode: "CORN",
+      values: {
+        LOG_PERIOD: "2026-W32",
+        LOG_REPORTER: "物流测试员",
+        LOG_REPORTED_AT: "2026-08-09T13:00:00Z",
+        LOG_STATUS: "RETURNED",
+      },
+      displayValues: {
+        LOG_PERIOD: "2026年第32周",
+        LOG_REPORTER: "物流测试员",
+        LOG_REPORTED_AT: "2026-08-09 21:00",
+        LOG_STATUS: "退回补充",
+      },
+      status: "RETURNED",
+      returnReason: "补充来源台账",
+      allowedActions: ["SUBMIT"],
+      version: 2,
+    } as const;
+    const updateLogistics = vi.fn().mockResolvedValue(record);
+    const service = {
+      ...repository(),
+      getLogistics: vi.fn().mockResolvedValue(record),
+      updateLogistics,
+    };
+
+    render(
+      <RealtimeLogisticsOperationsPanel
+        actorName="物流测试员"
+        editorOnly
+        initialRecordId={record.id}
+        repository={service}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "保存物流记录" }),
+    );
+    expect(updateLogistics).toHaveBeenCalledWith(record.id, {
+      productCode: "CORN",
+      values: {
+        LOG_PERIOD: "2026-W32",
+        LOG_REPORTER: "物流测试员",
+      },
+      version: 2,
+    });
+  });
+
   it("downloads the product template and imports XLSX records through a durable job", async () => {
     const user = userEvent.setup();
     const template = new Blob(["template"], {

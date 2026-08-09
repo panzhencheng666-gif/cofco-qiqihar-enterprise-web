@@ -26,7 +26,16 @@ describe("product market collection workspace", () => {
   it("downloads and imports the backend-owned market XLSX template from the list", async () => {
     const user = userEvent.setup();
     const listMarket = vi.fn().mockResolvedValue({
-      items: [],
+      items: [
+        {
+          id: "MKT-DB-001",
+          values: {
+            MKT_OBJECT_TYPE: "TRADER",
+            MKT_SAMPLE_NAME: "验收贸易商",
+            MKT_STATUS: "退回补充",
+          },
+        },
+      ],
       pageNumber: 0,
       pageSize: 100,
       totalElements: 0,
@@ -49,6 +58,7 @@ describe("product market collection workspace", () => {
       .fn()
       .mockResolvedValue(new Blob(["xlsx"]));
     const onCreateRecord = vi.fn();
+    const onEditRecord = vi.fn();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn(() => "blob:market-template"),
@@ -70,6 +80,7 @@ describe("product market collection workspace", () => {
     render(
       <ProductMarketCollectionWorkspace
         onCreateRecord={onCreateRecord}
+        onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -82,6 +93,7 @@ describe("product market collection workspace", () => {
     expect(
       await screen.findByRole("button", { name: "下载 XLSX 模板" }),
     ).toBeEnabled();
+    expect(screen.getByRole("cell", { name: "需补充" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "查询" }));
     await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(2));
     await user.click(screen.getByRole("button", { name: "下载 XLSX 模板" }));
@@ -103,5 +115,7 @@ describe("product market collection workspace", () => {
     await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(3));
     await user.click(screen.getByRole("button", { name: "新建采集记录" }));
     expect(onCreateRecord).toHaveBeenCalledWith("CORN");
+    await user.click(screen.getByRole("button", { name: "查看" }));
+    expect(onEditRecord).toHaveBeenCalledWith("CORN", "MKT-DB-001");
   });
 });

@@ -185,6 +185,10 @@ describe("realtime record form model", () => {
       coreFields: [
         marketCoreField("MKT_PURCHASE_BASE_PRICE", "对象采购价格"),
         marketCoreField("MKT_SALE_BASE_PRICE", "对象销售价格"),
+        {
+          ...marketCoreField("MKT_REPORTED_AT", "填报时间"),
+          controlType: "READONLY_DATETIME",
+        },
       ],
       groups: [],
     };
@@ -196,6 +200,7 @@ describe("realtime record form model", () => {
           MKT_SALE_BASE_PRICE: "4420",
           MKT_TRADE_DIRECTION: "SALE",
           MKT_ACTUAL_TRADE_PRICE: "4420",
+          MKT_REPORTED_AT: "2026-08-09T13:39:09Z",
         },
         "CORN",
         definition,

@@ -662,11 +662,10 @@ export function createRealtimeBusinessRepository(
         `${streamBaseUrl}/api/v1/business-events/stream?after=${cursor}`,
       );
       source.addEventListener("business-change", (rawEvent) => {
-        if (!(rawEvent instanceof MessageEvent)) return;
+        const data = (rawEvent as MessageEvent<unknown>).data;
+        if (typeof data !== "string") return;
         try {
-          onChange(
-            JSON.parse(String(rawEvent.data)) as BusinessNotificationRow,
-          );
+          onChange(JSON.parse(data) as BusinessNotificationRow);
         } catch {
           onError?.();
         }

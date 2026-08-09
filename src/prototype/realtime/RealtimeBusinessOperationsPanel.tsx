@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 
 import {
   realtimeBusinessRepository,
@@ -80,6 +86,7 @@ export function RealtimeBusinessOperationsPanel({
   lockedProductCode,
   repository = realtimeBusinessRepository,
   editorOnly = false,
+  initialRecordId,
   onCancel,
   onSaved,
   onRecordsChanged,
@@ -89,6 +96,7 @@ export function RealtimeBusinessOperationsPanel({
   lockedProductCode: string;
   repository?: RealtimeBusinessRepository;
   editorOnly?: boolean;
+  initialRecordId?: string;
   onCancel?: () => void;
   onSaved?: () => void;
   onRecordsChanged?: () => void;
@@ -318,33 +326,40 @@ export function RealtimeBusinessOperationsPanel({
     return values[field.code] || "正在读取登录账号…";
   }
 
-  async function openRecord(id: string) {
-    setBusy(true);
-    setError("");
-    try {
-      const record =
-        domain === "production"
-          ? await repository.getProduction(id)
-          : await repository.getMarket(id);
-      if (record.productCode.trim().toUpperCase() !== productCode) {
-        setSelected(null);
-        setError("该记录不属于当前菜单品种，无法打开。");
-        return;
+  const openRecord = useCallback(
+    async (id: string) => {
+      setBusy(true);
+      setError("");
+      try {
+        const record =
+          domain === "production"
+            ? await repository.getProduction(id)
+            : await repository.getMarket(id);
+        if (record.productCode.trim().toUpperCase() !== productCode) {
+          setSelected(null);
+          setError("该记录不属于当前菜单品种，无法打开。");
+          return;
+        }
+        setSelected(record);
+        setEvidenceFiles([]);
+        setValues(
+          domain === "production"
+            ? productionValues(record as ProductionRecordRow)
+            : marketValues(record as MarketRecordRow),
+        );
+        setMessage("已读取业务记录");
+      } catch {
+        setError("业务记录读取失败，请稍后重试。");
+      } finally {
+        setBusy(false);
       }
-      setSelected(record);
-      setEvidenceFiles([]);
-      setValues(
-        domain === "production"
-          ? productionValues(record as ProductionRecordRow)
-          : marketValues(record as MarketRecordRow),
-      );
-      setMessage("已读取业务记录");
-    } catch {
-      setError("业务记录读取失败，请稍后重试。");
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+    [domain, productCode, repository],
+  );
+
+  useEffect(() => {
+    if (initialRecordId) void openRecord(initialRecordId);
+  }, [initialRecordId, openRecord]);
 
   function newRecord() {
     setSelected(null);

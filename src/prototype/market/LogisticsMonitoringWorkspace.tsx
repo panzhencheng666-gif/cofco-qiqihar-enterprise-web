@@ -73,6 +73,7 @@ const logisticsProducts = [
 
 const logisticsStatusLabels: Readonly<Record<string, string>> = {
   DRAFT: "填写中",
+  PENDING_REVIEW: "待审核",
   SUBMITTED: "待审核",
   APPROVED: "已核定",
   RETURNED: "退回待补充",
@@ -183,6 +184,7 @@ export function LogisticsMonitoringWorkspace({
   onDocumentDraftChange = () => undefined,
   onWorkItemChange = () => undefined,
   onCreateRecord,
+  onEditRecord,
   realtimeRepository,
   realtimeRefreshToken = 0,
 }: {
@@ -197,6 +199,10 @@ export function LogisticsMonitoringWorkspace({
   onDocumentDraftChange?: (workId: string, draft: MarketDocumentDraft) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
   onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
+  onEditRecord?: (
+    productCode: "CORN" | "SOYBEAN" | "RICE",
+    recordId: string,
+  ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }) {
@@ -641,7 +647,13 @@ export function LogisticsMonitoringWorkspace({
                         <button
                           className="enterprise-ledger-row-action"
                           type="button"
-                          onClick={() => setSelectedPersistedId(record.id)}
+                          onClick={() => {
+                            if (onEditRecord) {
+                              onEditRecord(productCode, record.id);
+                              return;
+                            }
+                            setSelectedPersistedId(record.id);
+                          }}
                         >
                           查看
                         </button>
@@ -668,6 +680,10 @@ export function LogisticsMonitoringWorkspace({
                           type="button"
                           onClick={() => {
                             if (realtimeRepository) {
+                              if (onEditRecord) {
+                                onEditRecord(productCode, row.workId);
+                                return;
+                              }
                               setSelectedPersistedId(row.workId);
                             } else {
                               onSelectionChange({

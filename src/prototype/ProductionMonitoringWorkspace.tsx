@@ -42,6 +42,10 @@ export interface ProductionMonitoringWorkspaceProps {
   onWorkItemChange?: (item: BusinessWorkItem) => void;
   onComposeReport: (context: BusinessReportContext) => void;
   onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
+  onEditRecord?: (
+    productCode: "CORN" | "SOYBEAN" | "RICE",
+    recordId: string,
+  ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }
@@ -68,6 +72,7 @@ export function ProductionMonitoringWorkspace({
   onWorkItemChange,
   onComposeReport,
   onCreateRecord,
+  onEditRecord,
   realtimeRepository,
   realtimeRefreshToken,
 }: ProductionMonitoringWorkspaceProps) {
@@ -95,6 +100,7 @@ export function ProductionMonitoringWorkspace({
         onSelectionChange={select}
         onWorkItemChange={onWorkItemChange}
         onCreateRecord={onCreateRecord}
+        onEditRecord={onEditRecord}
         queryAllowed={queryAllowed}
         scope={scope}
         section={section}
@@ -168,6 +174,7 @@ export function FormalProductionMonitoringWorkspace({
   onDocumentDraftChange,
   onWorkItemChange,
   onCreateRecord,
+  onEditRecord,
   realtimeRepository,
   realtimeRefreshToken,
 }: {
@@ -189,6 +196,10 @@ export function FormalProductionMonitoringWorkspace({
   ) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
   onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
+  onEditRecord?: (
+    productCode: "CORN" | "SOYBEAN" | "RICE",
+    recordId: string,
+  ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }) {
@@ -210,6 +221,7 @@ export function FormalProductionMonitoringWorkspace({
         onDocumentDraftChange={onDocumentDraftChange}
         onWorkItemChange={onWorkItemChange}
         onCreateRecord={onCreateRecord}
+        onEditRecord={onEditRecord}
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
         workItems={workItems}

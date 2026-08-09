@@ -64,6 +64,7 @@ describe("product production collection workspace", () => {
       .fn()
       .mockResolvedValue(new Blob(["xlsx"]));
     const onCreateRecord = vi.fn();
+    const onEditRecord = vi.fn();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn(() => "blob:template"),
@@ -84,6 +85,7 @@ describe("product production collection workspace", () => {
     render(
       <ProductProductionCollectionWorkspace
         onCreateRecord={onCreateRecord}
+        onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -107,8 +109,11 @@ describe("product production collection workspace", () => {
     await user.click(screen.getByRole("button", { name: "查询" }));
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
 
-    await user.selectOptions(screen.getByLabelText("对象类型"), "farmer");
-    await user.click(screen.getByRole("button", { name: "下载 XLSX 模板" }));
+    const templateButton = screen.getByRole("button", {
+      name: "下载 XLSX 模板",
+    });
+    expect(templateButton).toBeEnabled();
+    await user.click(templateButton);
     await waitFor(() =>
       expect(downloadProductionXlsxTemplate).toHaveBeenCalledWith(
         "CORN",
@@ -130,5 +135,7 @@ describe("product production collection workspace", () => {
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(3));
     await user.click(screen.getByRole("button", { name: "新建调查记录" }));
     expect(onCreateRecord).toHaveBeenCalledWith("CORN");
+    await user.click(screen.getByRole("button", { name: "查看" }));
+    expect(onEditRecord).toHaveBeenCalledWith("CORN", "PROD-DB-001");
   });
 });

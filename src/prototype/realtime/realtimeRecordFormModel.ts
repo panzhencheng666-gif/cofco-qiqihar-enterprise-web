@@ -178,7 +178,9 @@ export function marketPayloadFromValues(
     productCode,
     coreValues: populated(
       values,
-      definition.coreFields.map(({ code }) => code),
+      definition.coreFields
+        .filter(({ controlType }) => !controlType.startsWith("READONLY"))
+        .map(({ code }) => code),
     ),
     facts: populated(
       values,

@@ -32,6 +32,11 @@ export interface MarketMonitoringWorkspaceProps {
   queryAllowed?: boolean;
   onComposeReport: (context: BusinessReportContext) => void;
   onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
+  onEditRecord?: (
+    domain: "market" | "logistics",
+    productCode: "CORN" | "SOYBEAN" | "RICE",
+    recordId: string,
+  ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
   workItems?: readonly BusinessWorkItem[];
@@ -58,6 +63,7 @@ export function MarketMonitoringWorkspace({
   queryAllowed = true,
   onComposeReport,
   onCreateRecord,
+  onEditRecord,
   realtimeRepository,
   realtimeRefreshToken,
   workItems,
@@ -91,6 +97,9 @@ export function MarketMonitoringWorkspace({
         onSelectionChange={select}
         onWorkItemChange={onWorkItemChange}
         onCreateRecord={onCreateRecord}
+        onEditRecord={(productCode, recordId) =>
+          onEditRecord?.("market", productCode, recordId)
+        }
         queryAllowed={queryAllowed}
         scope={scope}
         section={section}
@@ -112,6 +121,9 @@ export function MarketMonitoringWorkspace({
         onSelectionChange={select}
         onWorkItemChange={onWorkItemChange}
         onCreateRecord={onCreateRecord}
+        onEditRecord={(productCode, recordId) =>
+          onEditRecord?.("logistics", productCode, recordId)
+        }
         productCode={productCode}
         queryAllowed={queryAllowed}
         scope={scope}
@@ -180,6 +192,7 @@ export function FormalMarketMonitoringWorkspace({
   onDocumentDraftChange,
   onWorkItemChange,
   onCreateRecord,
+  onEditRecord,
   registryObjects,
   onRegistryObjectsChange,
   onSelectionChange,
@@ -198,6 +211,11 @@ export function FormalMarketMonitoringWorkspace({
   onDocumentDraftChange?: (workId: string, draft: MarketDocumentDraft) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
   onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
+  onEditRecord?: (
+    domain: "market" | "logistics",
+    productCode: "CORN" | "SOYBEAN" | "RICE",
+    recordId: string,
+  ) => void;
   registryObjects?: readonly MonitoringObject[];
   onRegistryObjectsChange?: (objects: readonly MonitoringObject[]) => void;
   onSelectionChange: (selection: FormalSelection) => void;
@@ -228,6 +246,7 @@ export function FormalMarketMonitoringWorkspace({
         onDocumentDraftChange={onDocumentDraftChange}
         onWorkItemChange={onWorkItemChange}
         onCreateRecord={onCreateRecord}
+        onEditRecord={onEditRecord}
         registryObjects={registryObjects}
         onRegistryObjectsChange={onRegistryObjectsChange}
         realtimeRepository={realtimeRepository}

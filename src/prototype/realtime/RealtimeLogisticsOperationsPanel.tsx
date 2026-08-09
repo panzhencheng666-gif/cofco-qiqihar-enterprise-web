@@ -43,6 +43,7 @@ export function RealtimeLogisticsOperationsPanel({
   actorName = "当前登录员工",
   repository = realtimeBusinessRepository,
   editorOnly = false,
+  initialRecordId,
   onCancel,
   onRecordsChanged,
   onSaved,
@@ -51,6 +52,7 @@ export function RealtimeLogisticsOperationsPanel({
   actorName?: string;
   repository?: RealtimeBusinessRepository;
   editorOnly?: boolean;
+  initialRecordId?: string;
   onCancel?: () => void;
   onRecordsChanged?: () => void;
   onSaved?: () => void;
@@ -114,32 +116,46 @@ export function RealtimeLogisticsOperationsPanel({
     setMessage("已新建空白物流记录，保存后生成正式记录");
   }
 
-  async function openRecord(id: string) {
-    setBusy(true);
-    try {
-      const record = await repository.getLogistics(id);
-      setSelected(record);
-      setValues(record.values);
-      setMessage("已读取物流记录");
-    } catch {
-      setError("物流记录读取失败，请稍后重试。");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const openRecord = useCallback(
+    async (id: string) => {
+      setBusy(true);
+      setError("");
+      try {
+        const record = await repository.getLogistics(id);
+        setSelected(record);
+        setValues(record.values);
+        setMessage("已读取物流记录");
+      } catch {
+        setError("物流记录读取失败，请稍后重试。");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [repository],
+  );
+
+  useEffect(() => {
+    if (initialRecordId) void openRecord(initialRecordId);
+  }, [initialRecordId, openRecord]);
 
   async function save(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError("");
     try {
+      const editableValues = Object.fromEntries(
+        editableFields.map(({ code }) => [code, values[code] ?? ""]),
+      );
       const record = selected
         ? await repository.updateLogistics(selected.id, {
             productCode,
-            values,
+            values: editableValues,
             version: selected.version,
           })
-        : await repository.createLogistics({ productCode, values });
+        : await repository.createLogistics({
+            productCode,
+            values: editableValues,
+          });
       setSelected(record);
       setValues(record.values);
       await reload();

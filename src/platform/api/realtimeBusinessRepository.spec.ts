@@ -149,6 +149,45 @@ describe("realtime business repository", () => {
     expect(source.close).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts standards-compatible SSE events across browser realms", () => {
+    const listeners = new Map<string, (event: MessageEvent<string>) => void>();
+    const source = {
+      addEventListener: vi.fn(
+        (name: string, listener: EventListenerOrEventListenerObject) => {
+          listeners.set(
+            name,
+            listener as unknown as (event: MessageEvent<string>) => void,
+          );
+        },
+      ),
+      close: vi.fn(),
+    };
+    const repository = createRealtimeBusinessRepository(
+      { get: vi.fn(), post: vi.fn() } as never,
+      { eventSourceFactory: () => source },
+    );
+    const onChange = vi.fn();
+    repository.subscribeBusinessEvents(0, onChange);
+
+    listeners.get("business-change")?.({
+      data: JSON.stringify({
+        id: "event-cross-realm",
+        sequence: 1,
+        aggregateType: "MARKET_RECORD",
+        aggregateId: "market-1",
+        actionCode: "MARKET_RECORD_RETURNED",
+        productCode: "SOYBEAN",
+        regionCodes: ["230208101001"],
+        occurredAt: "2026-08-09T13:30:00Z",
+        read: false,
+      }),
+    } as MessageEvent<string>);
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ actionCode: "MARKET_RECORD_RETURNED" }),
+    );
+  });
+
   it("loads all master-data collections from the API", async () => {
     const { api, get } = client();
     const result = await createRealtimeBusinessRepository(api).loadMasterData();

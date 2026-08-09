@@ -94,6 +94,7 @@ describe("logistics monitoring workspace", () => {
       totalPages: 1,
     });
     const onCreateRecord = vi.fn();
+    const onEditRecord = vi.fn();
     const repository = {
       listLogistics,
     } as unknown as RealtimeBusinessRepository;
@@ -107,6 +108,7 @@ describe("logistics monitoring workspace", () => {
         realtimeRepository={repository}
         scope={authorizedScope}
         onCreateRecord={onCreateRecord}
+        onEditRecord={onEditRecord}
       />,
     );
 
@@ -130,6 +132,8 @@ describe("logistics monitoring workspace", () => {
     });
     await user.click(screen.getByRole("button", { name: "新建监测记录" }));
     expect(onCreateRecord).toHaveBeenCalledWith("SOYBEAN");
+    await user.click(screen.getByRole("button", { name: "查看" }));
+    expect(onEditRecord).toHaveBeenCalledWith("SOYBEAN", "LOG-DB-001");
   });
 
   it("downloads and imports the same product-specific logistics workbook", async () => {
@@ -256,7 +260,7 @@ describe("logistics monitoring workspace", () => {
             LOG_REPORTER: "张三",
             LOG_ROUTE_VOLUME: "500 吨",
           },
-          status: "DRAFT",
+          status: "PENDING_REVIEW",
           returnReason: null,
           allowedActions: [],
           version: 1,
@@ -292,5 +296,6 @@ describe("logistics monitoring workspace", () => {
     ).toBeVisible();
     expect(screen.getByText("张三")).toBeVisible();
     expect(screen.getByText("500 吨")).toBeVisible();
+    expect(screen.getByRole("cell", { name: "待审核" })).toBeVisible();
   });
 });

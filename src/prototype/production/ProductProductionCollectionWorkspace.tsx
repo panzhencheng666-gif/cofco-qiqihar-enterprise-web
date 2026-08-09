@@ -145,6 +145,14 @@ function selectedRegionId(value: RegionCascadeValue): string {
   );
 }
 
+function productionObjectTypeCode(
+  objectType: ProductionBusinessObjectTypeId,
+): "FARMER" | "VILLAGE_COMMITTEE" | "AGRICULTURAL_TECH_STATION" {
+  if (objectType === "farmer") return "FARMER";
+  if (objectType === "village-committee") return "VILLAGE_COMMITTEE";
+  return "AGRICULTURAL_TECH_STATION";
+}
+
 function itemLocationRegionId(item: BusinessWorkItem): string {
   return item.subject.kind === "monitoring-object"
     ? (item.subject.locationRegionId ?? item.regionId)
@@ -265,6 +273,7 @@ export function ProductProductionCollectionWorkspace({
   onDocumentDraftChange = () => undefined,
   onWorkItemChange = () => undefined,
   onCreateRecord,
+  onEditRecord,
   realtimeRepository,
   realtimeRefreshToken = 0,
 }: {
@@ -282,6 +291,10 @@ export function ProductProductionCollectionWorkspace({
   ) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
   onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
+  onEditRecord?: (
+    productCode: "CORN" | "SOYBEAN" | "RICE",
+    recordId: string,
+  ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }) {
@@ -296,6 +309,8 @@ export function ProductProductionCollectionWorkspace({
   const [objectType, setObjectType] = useState<
     "" | ProductionBusinessObjectTypeId
   >("");
+  const importObjectType =
+    objectType || getProductionObjectTypeOptions()[0]?.id || "";
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
   const defaultSurveyDate = realtimeRepository
     ? ""
@@ -442,7 +457,7 @@ export function ProductProductionCollectionWorkspace({
   ]);
 
   const importRecords = async (file: File | undefined) => {
-    if (!file || !realtimeRepository || !objectType) return;
+    if (!file || !realtimeRepository || !importObjectType) return;
     setImporting(true);
     setRecordsError("");
     setImportJob(null);
@@ -453,12 +468,7 @@ export function ProductProductionCollectionWorkspace({
           : context.productId === "soybean"
             ? "SOYBEAN"
             : "RICE";
-      const objectTypeCode =
-        objectType === "farmer"
-          ? "FARMER"
-          : objectType === "village-committee"
-            ? "VILLAGE_COMMITTEE"
-            : "AGRICULTURAL_TECH_STATION";
+      const objectTypeCode = productionObjectTypeCode(importObjectType);
       const initial = await realtimeRepository.importProductionCsv(
         file,
         productCode,
@@ -519,7 +529,10 @@ export function ProductProductionCollectionWorkspace({
   };
 
   const downloadTemplate = async () => {
-    if (!realtimeRepository?.downloadProductionXlsxTemplate || !objectType)
+    if (
+      !realtimeRepository?.downloadProductionXlsxTemplate ||
+      !importObjectType
+    )
       return;
     setRecordsError("");
     try {
@@ -529,12 +542,7 @@ export function ProductProductionCollectionWorkspace({
           : context.productId === "soybean"
             ? "SOYBEAN"
             : "RICE";
-      const objectTypeCode =
-        objectType === "farmer"
-          ? "FARMER"
-          : objectType === "village-committee"
-            ? "VILLAGE_COMMITTEE"
-            : "AGRICULTURAL_TECH_STATION";
+      const objectTypeCode = productionObjectTypeCode(importObjectType);
       const blob = await realtimeRepository.downloadProductionXlsxTemplate(
         productCode,
         objectTypeCode,
@@ -837,7 +845,7 @@ export function ProductProductionCollectionWorkspace({
               <>
                 <button
                   disabled={
-                    !objectType ||
+                    !importObjectType ||
                     importing ||
                     !realtimeRepository.downloadProductionXlsxTemplate
                   }
@@ -851,7 +859,7 @@ export function ProductProductionCollectionWorkspace({
                   <input
                     accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     aria-label="批量导入产情记录"
-                    disabled={!objectType || importing}
+                    disabled={!importObjectType || importing}
                     type="file"
                     onChange={(event) => {
                       void importRecords(event.target.files?.[0]);
@@ -985,9 +993,16 @@ export function ProductProductionCollectionWorkspace({
                     <button
                       className="enterprise-ledger-row-action"
                       type="button"
-                      onClick={() =>
-                        onSelectionChange({ type: "work-item", id: row.workId })
-                      }
+                      onClick={() => {
+                        if (realtimeRepository && onEditRecord) {
+                          onEditRecord(productCode, row.workId);
+                          return;
+                        }
+                        onSelectionChange({
+                          type: "work-item",
+                          id: row.workId,
+                        });
+                      }}
                     >
                       查看
                     </button>

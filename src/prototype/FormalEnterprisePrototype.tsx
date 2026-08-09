@@ -315,10 +315,15 @@ export function FormalEnterprisePrototype({
   >(null);
   const [realtimeEntryProductCode, setRealtimeEntryProductCode] =
     useState<RealtimeProductCode>("CORN");
+  const [realtimeEntryRecordId, setRealtimeEntryRecordId] = useState<string>();
+  const closeRealtimeEntry = () => {
+    setRealtimeEntryDomain(null);
+    setRealtimeEntryRecordId(undefined);
+  };
   const navigateAndCloseEntry = (
     ...parameters: Parameters<typeof navigate>
   ) => {
-    setRealtimeEntryDomain(null);
+    closeRealtimeEntry();
     navigate(...parameters);
   };
   const openBusinessWork = (...parameters: Parameters<typeof navigate>) => {
@@ -583,6 +588,16 @@ export function FormalEnterprisePrototype({
               realtimeMode
                 ? (productCode) => {
                     setRealtimeEntryProductCode(productCode);
+                    setRealtimeEntryRecordId(undefined);
+                    setRealtimeEntryDomain("production");
+                  }
+                : undefined
+            }
+            onEditRecord={
+              realtimeMode
+                ? (productCode, recordId) => {
+                    setRealtimeEntryProductCode(productCode);
+                    setRealtimeEntryRecordId(recordId);
                     setRealtimeEntryDomain("production");
                   }
                 : undefined
@@ -619,11 +634,21 @@ export function FormalEnterprisePrototype({
               realtimeMode
                 ? (productCode) => {
                     setRealtimeEntryProductCode(productCode);
+                    setRealtimeEntryRecordId(undefined);
                     setRealtimeEntryDomain(
                       location.route.section.endsWith("-logistics")
                         ? "logistics"
                         : "market",
                     );
+                  }
+                : undefined
+            }
+            onEditRecord={
+              realtimeMode
+                ? (domain, productCode, recordId) => {
+                    setRealtimeEntryProductCode(productCode);
+                    setRealtimeEntryRecordId(recordId);
+                    setRealtimeEntryDomain(domain);
                   }
                 : undefined
             }
@@ -697,19 +722,22 @@ export function FormalEnterprisePrototype({
     if (realtimeEntryDomain === "logistics") {
       return (
         <RealtimeEntryDialog
-          label="新建物流监测填报"
-          onClose={() => setRealtimeEntryDomain(null)}
+          label={
+            realtimeEntryRecordId ? "物流监测记录处理" : "新建物流监测填报"
+          }
+          onClose={closeRealtimeEntry}
         >
           <RealtimeLogisticsOperationsPanel
             actorName={currentDisplayName}
             editorOnly
+            initialRecordId={realtimeEntryRecordId}
             productCode={realtimeEntryProductCode}
             repository={repository}
-            onCancel={() => setRealtimeEntryDomain(null)}
+            onCancel={closeRealtimeEntry}
             onRecordsChanged={() =>
               setRealtimeRefreshToken((value) => value + 1)
             }
-            onSaved={() => setRealtimeEntryDomain(null)}
+            onSaved={closeRealtimeEntry}
           />
         </RealtimeEntryDialog>
       );
@@ -717,19 +745,26 @@ export function FormalEnterprisePrototype({
     return (
       <RealtimeEntryDialog
         label={
-          realtimeEntryDomain === "production" ? "新建产情填报" : "新建市场填报"
+          realtimeEntryRecordId
+            ? realtimeEntryDomain === "production"
+              ? "产情记录处理"
+              : "市场记录处理"
+            : realtimeEntryDomain === "production"
+              ? "新建产情填报"
+              : "新建市场填报"
         }
-        onClose={() => setRealtimeEntryDomain(null)}
+        onClose={closeRealtimeEntry}
       >
         <RealtimeBusinessOperationsPanel
           actorName={currentDisplayName}
           domain={realtimeEntryDomain}
           editorOnly
+          initialRecordId={realtimeEntryRecordId}
           lockedProductCode={realtimeEntryProductCode}
           repository={repository}
-          onCancel={() => setRealtimeEntryDomain(null)}
+          onCancel={closeRealtimeEntry}
           onRecordsChanged={() => setRealtimeRefreshToken((value) => value + 1)}
-          onSaved={() => setRealtimeEntryDomain(null)}
+          onSaved={closeRealtimeEntry}
         />
       </RealtimeEntryDialog>
     );
