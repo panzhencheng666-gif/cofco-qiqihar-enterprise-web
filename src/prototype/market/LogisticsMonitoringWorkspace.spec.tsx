@@ -192,7 +192,9 @@ describe("logistics monitoring workspace", () => {
         "CORN",
       ),
     );
-    expect(await screen.findByText("已导入 1 条物流记录。")).toBeVisible();
+    expect(
+      await screen.findByText("导入完成：成功 1 条，失败 0 条。"),
+    ).toBeVisible();
     expect(listLogistics).toHaveBeenCalledTimes(2);
   });
 

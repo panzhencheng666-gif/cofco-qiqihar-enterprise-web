@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type {
   BusinessRecordListItem,
   MarketDefinition,
+  ProductionImportJob,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 
@@ -47,6 +48,11 @@ import {
   MarketDocumentWorkbench,
   type MarketDocumentDraft,
 } from "./MarketDocumentWorkbench";
+import { BusinessImportStatus } from "../importing/BusinessImportStatus";
+import {
+  awaitBusinessImport,
+  saveImportErrorFile,
+} from "../importing/businessImportWorkflow";
 
 const aggregateRegionByCity = {
   qiqihar: "qiqihar-all",
@@ -395,7 +401,7 @@ export function ProductMarketCollectionWorkspace({
     useState<MarketDefinition | null>(null);
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [importing, setImporting] = useState(false);
-  const [importMessage, setImportMessage] = useState("");
+  const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -617,7 +623,7 @@ export function ProductMarketCollectionWorkspace({
     if (!file || !realtimeRepository?.importMarketWorkbook) return;
     setImporting(true);
     setRecordsError("");
-    setImportMessage("");
+    setImportJob(null);
     try {
       const productCode =
         context.productId === "corn"
@@ -626,19 +632,59 @@ export function ProductMarketCollectionWorkspace({
             ? "SOYBEAN"
             : "RICE";
       const objectTypeCode = marketObjectTypeCode[displayedObjectType];
-      const job = await realtimeRepository.importMarketWorkbook(
+      const initial = await realtimeRepository.importMarketWorkbook(
         file,
         productCode,
         objectTypeCode,
       );
-      setImportMessage(
-        `导入完成：成功 ${job.importedRows} 条，失败 ${job.failedRows} 条。`,
-      );
+      await awaitBusinessImport({
+        repository: realtimeRepository,
+        domain: "market",
+        initial,
+        onUpdate: setImportJob,
+      });
       setRecordsRevision((value) => value + 1);
     } catch {
       setRecordsError("市场采集记录导入失败，请核对文件内容后重试。");
     } finally {
       setImporting(false);
+    }
+  };
+
+  const retryImport = async () => {
+    if (!realtimeRepository?.retryImportJob || !importJob) return;
+    setImporting(true);
+    setRecordsError("");
+    try {
+      const initial = await realtimeRepository.retryImportJob(
+        "market",
+        importJob.id,
+      );
+      await awaitBusinessImport({
+        repository: realtimeRepository,
+        domain: "market",
+        initial,
+        onUpdate: setImportJob,
+      });
+      setRecordsRevision((value) => value + 1);
+    } catch {
+      setRecordsError("市场导入任务重试失败，请稍后重试。");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadImportErrors = async () => {
+    if (!realtimeRepository?.downloadImportErrors || !importJob) return;
+    setRecordsError("");
+    try {
+      saveImportErrorFile(
+        await realtimeRepository.downloadImportErrors("market", importJob.id),
+        "market",
+        importJob.id,
+      );
+    } catch {
+      setRecordsError("市场导入错误清单下载失败，请稍后重试。");
     }
   };
 
@@ -803,11 +849,13 @@ export function ProductMarketCollectionWorkspace({
         </div>
       )}
 
-      {importMessage && (
-        <div className="market-task6-alert" role="status">
-          {importMessage}
-        </div>
-      )}
+      <BusinessImportStatus
+        busy={importing}
+        className="market-task6-alert"
+        job={importJob}
+        onDownloadErrors={() => void downloadImportErrors()}
+        onRetry={() => void retryImport()}
+      />
 
       <header className="enterprise-ledger-title">
         <h1>{context.productLabel}市场采集表</h1>

@@ -8,9 +8,15 @@ import {
   type MasterDataSnapshot,
   type MasterObjectType,
   type ProductionDefinition,
+  type ProductionImportJob,
   type ProductionRecordRow,
   type RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { BusinessImportStatus } from "../importing/BusinessImportStatus";
+import {
+  awaitBusinessImport,
+  saveImportErrorFile,
+} from "../importing/businessImportWorkflow";
 import {
   definitionFields,
   marketPayloadFromValues,
@@ -103,6 +109,7 @@ export function RealtimeBusinessOperationsPanel({
   const [message, setMessage] = useState("正在读取业务配置…");
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
+  const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const [evidenceFiles, setEvidenceFiles] = useState<readonly File[]>([]);
   const [authenticatedName, setAuthenticatedName] = useState(actorName);
   const [identityError, setIdentityError] = useState("");
@@ -481,8 +488,9 @@ export function RealtimeBusinessOperationsPanel({
     if (!file) return;
     setImporting(true);
     setError("");
+    setImportJob(null);
     try {
-      const job =
+      const initial =
         domain === "production"
           ? await repository.importProductionCsv(
               file,
@@ -494,18 +502,60 @@ export function RealtimeBusinessOperationsPanel({
               productCode,
               objectTypeCode,
             );
-      if (!job) throw new Error("IMPORT_NOT_CONFIGURED");
-      await reload(productCode);
-      onRecordsChanged?.();
-      setMessage(
-        `导入完成：成功 ${job.importedRows} 条，失败 ${job.failedRows} 条。`,
-      );
+      if (!initial) throw new Error("IMPORT_NOT_CONFIGURED");
+      const terminal = await awaitBusinessImport({
+        repository,
+        domain,
+        initial,
+        onUpdate: setImportJob,
+      });
+      if (terminal.statusCode !== "FAILED") {
+        await reload(productCode);
+        onRecordsChanged?.();
+      }
     } catch {
       setError(
         `${domain === "production" ? "产情" : "市场"}记录导入失败，请核对 XLSX 模板内容后重试。`,
       );
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function retryImport() {
+    if (!repository.retryImportJob || !importJob) return;
+    setImporting(true);
+    setError("");
+    try {
+      const initial = await repository.retryImportJob(domain, importJob.id);
+      const terminal = await awaitBusinessImport({
+        repository,
+        domain,
+        initial,
+        onUpdate: setImportJob,
+      });
+      if (terminal.statusCode !== "FAILED") {
+        await reload(productCode);
+        onRecordsChanged?.();
+      }
+    } catch {
+      setError("批量导入任务重试失败，请稍后重试。");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function downloadImportErrors() {
+    if (!repository.downloadImportErrors || !importJob) return;
+    setError("");
+    try {
+      saveImportErrorFile(
+        await repository.downloadImportErrors(domain, importJob.id),
+        domain,
+        importJob.id,
+      );
+    } catch {
+      setError("导入错误清单下载失败，请稍后重试。");
     }
   }
 
@@ -583,6 +633,13 @@ export function RealtimeBusinessOperationsPanel({
           )}
         </div>
       </header>
+      <BusinessImportStatus
+        busy={importing}
+        className="realtime-business-message"
+        job={importJob}
+        onDownloadErrors={() => void downloadImportErrors()}
+        onRetry={() => void retryImport()}
+      />
       <div
         className={`realtime-business-layout${editorOnly ? " is-editor-only" : ""}`}
       >

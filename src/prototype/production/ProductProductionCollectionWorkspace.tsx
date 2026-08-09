@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import type {
   BusinessRecordListItem,
+  ProductionImportJob,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 
@@ -39,6 +40,11 @@ import {
   ProductionDocumentWorkbench,
   type ProductionDocumentDraft,
 } from "./ProductionDocumentWorkbench";
+import { BusinessImportStatus } from "../importing/BusinessImportStatus";
+import {
+  awaitBusinessImport,
+  saveImportErrorFile,
+} from "../importing/businessImportWorkflow";
 
 const aggregateRegionByCity = {
   qiqihar: "qiqihar-all",
@@ -310,7 +316,7 @@ export function ProductProductionCollectionWorkspace({
   const [recordsError, setRecordsError] = useState("");
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [importing, setImporting] = useState(false);
-  const [importMessage, setImportMessage] = useState("");
+  const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -439,7 +445,7 @@ export function ProductProductionCollectionWorkspace({
     if (!file || !realtimeRepository || !objectType) return;
     setImporting(true);
     setRecordsError("");
-    setImportMessage("");
+    setImportJob(null);
     try {
       const productCode =
         context.productId === "corn"
@@ -453,19 +459,62 @@ export function ProductProductionCollectionWorkspace({
           : objectType === "village-committee"
             ? "VILLAGE_COMMITTEE"
             : "AGRICULTURAL_TECH_STATION";
-      const job = await realtimeRepository.importProductionCsv(
+      const initial = await realtimeRepository.importProductionCsv(
         file,
         productCode,
         objectTypeCode,
       );
-      setImportMessage(
-        `导入完成：成功 ${job.importedRows} 条，失败 ${job.failedRows} 条。`,
-      );
+      await awaitBusinessImport({
+        repository: realtimeRepository,
+        domain: "production",
+        initial,
+        onUpdate: setImportJob,
+      });
       setRecordsRevision((value) => value + 1);
     } catch {
       setRecordsError("产情记录导入失败，请核对文件内容后重试。");
     } finally {
       setImporting(false);
+    }
+  };
+
+  const retryImport = async () => {
+    if (!realtimeRepository?.retryImportJob || !importJob) return;
+    setImporting(true);
+    setRecordsError("");
+    try {
+      const initial = await realtimeRepository.retryImportJob(
+        "production",
+        importJob.id,
+      );
+      await awaitBusinessImport({
+        repository: realtimeRepository,
+        domain: "production",
+        initial,
+        onUpdate: setImportJob,
+      });
+      setRecordsRevision((value) => value + 1);
+    } catch {
+      setRecordsError("产情导入任务重试失败，请稍后重试。");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadImportErrors = async () => {
+    if (!realtimeRepository?.downloadImportErrors || !importJob) return;
+    setRecordsError("");
+    try {
+      saveImportErrorFile(
+        await realtimeRepository.downloadImportErrors(
+          "production",
+          importJob.id,
+        ),
+        "production",
+        importJob.id,
+      );
+    } catch {
+      setRecordsError("产情导入错误清单下载失败，请稍后重试。");
     }
   };
 
@@ -760,11 +809,13 @@ export function ProductProductionCollectionWorkspace({
         </div>
       )}
 
-      {importMessage && (
-        <div className="production-task5-alert" role="status">
-          {importMessage}
-        </div>
-      )}
+      <BusinessImportStatus
+        busy={importing}
+        className="production-task5-alert"
+        job={importJob}
+        onDownloadErrors={() => void downloadImportErrors()}
+        onRetry={() => void retryImport()}
+      />
 
       <header className="enterprise-ledger-title">
         <h1>{context.productLabel}产情调查表</h1>

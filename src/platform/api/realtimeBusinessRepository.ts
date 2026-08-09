@@ -327,10 +327,20 @@ export interface SupplyInputSetRow {
 export interface ProductionImportJob {
   id: string;
   domainCode: string;
-  statusCode: string;
+  statusCode:
+    "QUEUED" | "PROCESSING" | "COMPLETED" | "COMPLETED_WITH_ERRORS" | "FAILED";
   importedRows: number;
   failedRows: number;
+  retryOf?: string | null;
+  createdAt?: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  attemptCount?: number;
+  failureCode?: string | null;
+  failureMessage?: string | null;
 }
+
+export type BusinessImportDomain = "production" | "market" | "logistics";
 
 export interface LogisticsDefinition {
   productCode: string;
@@ -563,6 +573,18 @@ export interface RealtimeBusinessRepository {
     productCode: string,
   ): Promise<ProductionImportJob>;
   downloadLogisticsXlsxTemplate?(productCode: string): Promise<Blob>;
+  getImportJob?(
+    domain: BusinessImportDomain,
+    importJobId: string,
+  ): Promise<ProductionImportJob>;
+  retryImportJob?(
+    domain: BusinessImportDomain,
+    importJobId: string,
+  ): Promise<ProductionImportJob>;
+  downloadImportErrors?(
+    domain: BusinessImportDomain,
+    importJobId: string,
+  ): Promise<Blob>;
   loadLogisticsDefinition(productCode: string): Promise<LogisticsDefinition>;
   listLogistics(
     input: BusinessRecordListInput,
@@ -819,6 +841,18 @@ export function createRealtimeBusinessRepository(
     },
     downloadLogisticsXlsxTemplate: (productCode) =>
       client.download("/api/v1/imports/logistics/template", { productCode }),
+    getImportJob: (domain, importJobId) =>
+      client.get<ProductionImportJob>(
+        `/api/v1/imports/${domain}/${encodeURIComponent(importJobId)}`,
+      ),
+    retryImportJob: (domain, importJobId) =>
+      client.post<ProductionImportJob>(
+        `/api/v1/imports/${domain}/${encodeURIComponent(importJobId)}/retries`,
+      ),
+    downloadImportErrors: (domain, importJobId) =>
+      client.download(
+        `/api/v1/imports/${domain}/${encodeURIComponent(importJobId)}/errors`,
+      ),
     loadLogisticsDefinition: (productCode) =>
       client.get<LogisticsDefinition>("/api/v1/logistics-record-definitions", {
         productCode,

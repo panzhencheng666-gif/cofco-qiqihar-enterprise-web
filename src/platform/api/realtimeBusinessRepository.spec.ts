@@ -289,6 +289,37 @@ describe("realtime business repository", () => {
     });
   });
 
+  it("reads, retries and downloads the durable result of every background import", async () => {
+    const { api, download, get, post } = client();
+    get.mockResolvedValueOnce({
+      id: "import-1",
+      domainCode: "MARKET",
+      statusCode: "PROCESSING",
+      importedRows: 0,
+      failedRows: 0,
+    } as never);
+    post.mockResolvedValueOnce({
+      id: "import-2",
+      domainCode: "MARKET",
+      statusCode: "QUEUED",
+      importedRows: 0,
+      failedRows: 0,
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.getImportJob!("market", "import/1");
+    await repository.retryImportJob!("market", "import/1");
+    await repository.downloadImportErrors!("market", "import/1");
+
+    expect(get).toHaveBeenCalledWith("/api/v1/imports/market/import%2F1");
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/imports/market/import%2F1/retries",
+    );
+    expect(download).toHaveBeenCalledWith(
+      "/api/v1/imports/market/import%2F1/errors",
+    );
+  });
+
   it("creates a scoped report preview before exporting its immutable result", async () => {
     const { api, download, get, post } = client();
     get.mockImplementationOnce(

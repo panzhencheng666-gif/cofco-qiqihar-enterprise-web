@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   LogisticsDefinition,
   LogisticsRecordRow,
+  ProductionImportJob,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 
@@ -31,6 +32,11 @@ import {
   MarketDocumentWorkbench,
   type MarketDocumentDraft,
 } from "./MarketDocumentWorkbench";
+import { BusinessImportStatus } from "../importing/BusinessImportStatus";
+import {
+  awaitBusinessImport,
+  saveImportErrorFile,
+} from "../importing/businessImportWorkflow";
 
 const aggregateRegionByCity = {
   qiqihar: "qiqihar-all",
@@ -204,6 +210,7 @@ export function LogisticsMonitoringWorkspace({
   const [selectedPersistedId, setSelectedPersistedId] = useState<string>();
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+  const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [definition, setDefinition] = useState<LogisticsDefinition | null>(
     null,
@@ -231,17 +238,19 @@ export function LogisticsMonitoringWorkspace({
     if (!file || !realtimeRepository?.importLogisticsWorkbook) return;
     setImporting(true);
     setImportMessage("");
+    setImportJob(null);
     try {
-      const result = await realtimeRepository.importLogisticsWorkbook(
+      const initial = await realtimeRepository.importLogisticsWorkbook(
         file,
         productCode,
       );
-      if (result.failedRows > 0) {
-        setImportMessage(
-          `本批次未写入业务记录，共 ${result.failedRows} 行需要修正。`,
-        );
-      } else {
-        setImportMessage(`已导入 ${result.importedRows} 条物流记录。`);
+      const result = await awaitBusinessImport({
+        repository: realtimeRepository,
+        domain: "logistics",
+        initial,
+        onUpdate: setImportJob,
+      });
+      if (result.statusCode !== "FAILED") {
         const page = await realtimeRepository.listLogistics({
           productCode,
           page: 0,
@@ -253,6 +262,48 @@ export function LogisticsMonitoringWorkspace({
       setImportMessage("物流记录导入失败，请核对模板和填报内容。");
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function retryImport() {
+    if (!realtimeRepository?.retryImportJob || !importJob) return;
+    setImporting(true);
+    setRecordsError("");
+    try {
+      const initial = await realtimeRepository.retryImportJob(
+        "logistics",
+        importJob.id,
+      );
+      const result = await awaitBusinessImport({
+        repository: realtimeRepository,
+        domain: "logistics",
+        initial,
+        onUpdate: setImportJob,
+      });
+      if (result.statusCode !== "FAILED") {
+        setRecordsRevision((value) => value + 1);
+      }
+    } catch {
+      setRecordsError("物流导入任务重试失败，请稍后重试。");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function downloadImportErrors() {
+    if (!realtimeRepository?.downloadImportErrors || !importJob) return;
+    setRecordsError("");
+    try {
+      saveImportErrorFile(
+        await realtimeRepository.downloadImportErrors(
+          "logistics",
+          importJob.id,
+        ),
+        "logistics",
+        importJob.id,
+      );
+    } catch {
+      setRecordsError("物流导入错误清单下载失败，请稍后重试。");
     }
   }
 
@@ -474,11 +525,18 @@ export function LogisticsMonitoringWorkspace({
           {recordsError}
         </div>
       )}
-      {importMessage && (
+      {!importJob && importMessage && (
         <div className="market-task6-alert" role="status">
           {importMessage}
         </div>
       )}
+      <BusinessImportStatus
+        busy={importing}
+        className="market-task6-alert"
+        job={importJob}
+        onDownloadErrors={() => void downloadImportErrors()}
+        onRetry={() => void retryImport()}
+      />
 
       <header className="enterprise-ledger-title">
         <h1>粮食物流节点监测表</h1>
