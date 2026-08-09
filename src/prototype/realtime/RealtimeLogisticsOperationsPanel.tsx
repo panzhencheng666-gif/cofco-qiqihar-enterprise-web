@@ -9,8 +9,14 @@ import {
   realtimeBusinessRepository,
   type LogisticsDefinition,
   type LogisticsRecordRow,
+  type ProductionImportJob,
   type RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { BusinessImportStatus } from "../importing/BusinessImportStatus";
+import {
+  awaitBusinessImport,
+  saveImportErrorFile,
+} from "../importing/businessImportWorkflow";
 
 function statusLabel(status: string): string {
   return (
@@ -56,6 +62,8 @@ export function RealtimeLogisticsOperationsPanel({
   const [selected, setSelected] = useState<LogisticsRecordRow | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("正在读取物流业务定义…");
   const [returnReason, setReturnReason] = useState("");
@@ -169,6 +177,89 @@ export function RealtimeLogisticsOperationsPanel({
     }
   }
 
+  async function downloadWorkbook() {
+    if (!repository.downloadLogisticsXlsxTemplate) return;
+    setError("");
+    try {
+      const blob = await repository.downloadLogisticsXlsxTemplate(productCode);
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `物流-${productCode}-批量导入模板.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setError("物流 XLSX 模板下载失败，请稍后重试。");
+    }
+  }
+
+  async function importWorkbook(file: File | undefined) {
+    if (!file || !repository.importLogisticsWorkbook) return;
+    setImporting(true);
+    setImportJob(null);
+    setError("");
+    try {
+      const initial = await repository.importLogisticsWorkbook(
+        file,
+        productCode,
+      );
+      const terminal = await awaitBusinessImport({
+        repository,
+        domain: "logistics",
+        initial,
+        onUpdate: setImportJob,
+      });
+      if (terminal.statusCode !== "FAILED") {
+        await reload();
+        onRecordsChanged?.();
+      }
+    } catch {
+      setError("物流记录导入失败，请核对 XLSX 模板内容后重试。");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function retryImport() {
+    if (!repository.retryImportJob || !importJob) return;
+    setImporting(true);
+    setError("");
+    try {
+      const initial = await repository.retryImportJob(
+        "logistics",
+        importJob.id,
+      );
+      const terminal = await awaitBusinessImport({
+        repository,
+        domain: "logistics",
+        initial,
+        onUpdate: setImportJob,
+      });
+      if (terminal.statusCode !== "FAILED") {
+        await reload();
+        onRecordsChanged?.();
+      }
+    } catch {
+      setError("物流批量导入任务重试失败，请稍后重试。");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function downloadImportErrors() {
+    if (!repository.downloadImportErrors || !importJob) return;
+    setError("");
+    try {
+      saveImportErrorFile(
+        await repository.downloadImportErrors("logistics", importJob.id),
+        "logistics",
+        importJob.id,
+      );
+    } catch {
+      setError("物流导入错误清单下载失败，请稍后重试。");
+    }
+  }
+
   const actions = new Set(
     selected?.allowedActions.map((action) => action.toUpperCase()) ?? [],
   );
@@ -181,11 +272,45 @@ export function RealtimeLogisticsOperationsPanel({
           <p>按当前产品和业务范围填写物流记录，提交后进入审核流程。</p>
         </div>
         {!editorOnly && (
-          <button type="button" onClick={newRecord} disabled={busy}>
-            新建物流记录
-          </button>
+          <div className="realtime-business-header-actions">
+            <button
+              disabled={busy || importing}
+              type="button"
+              onClick={() => void downloadWorkbook()}
+            >
+              下载 XLSX 模板
+            </button>
+            <label className="realtime-business-file-action">
+              导入 XLSX
+              <input
+                aria-label="导入 XLSX"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                disabled={busy || importing}
+                type="file"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  void importWorkbook(file);
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={newRecord}
+              disabled={busy || importing}
+            >
+              新建物流记录
+            </button>
+          </div>
         )}
       </header>
+      <BusinessImportStatus
+        busy={importing}
+        className="realtime-business-message"
+        job={importJob}
+        onDownloadErrors={() => void downloadImportErrors()}
+        onRetry={() => void retryImport()}
+      />
       {error && (
         <p className="realtime-business-error" role="alert">
           {error}

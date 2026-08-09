@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeLogisticsOperationsPanel } from "./RealtimeLogisticsOperationsPanel";
@@ -116,6 +117,71 @@ function repository(): RealtimeBusinessRepository {
 }
 
 describe("RealtimeLogisticsOperationsPanel", () => {
+  it("downloads the product template and imports XLSX records through a durable job", async () => {
+    const user = userEvent.setup();
+    const template = new Blob(["template"], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const downloadTemplate = vi.fn().mockResolvedValue(template);
+    const importWorkbook = vi.fn().mockResolvedValue({
+      id: "logistics-import-1",
+      domainCode: "LOGISTICS",
+      statusCode: "COMPLETED",
+      importedRows: 2,
+      failedRows: 0,
+    });
+    const listLogistics = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 100,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const service = {
+      ...repository(),
+      downloadLogisticsXlsxTemplate: downloadTemplate,
+      importLogisticsWorkbook: importWorkbook,
+      listLogistics,
+    };
+    const createObjectUrl = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:logistics-template");
+    const revokeObjectUrl = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => undefined);
+    const clickAnchor = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+
+    render(
+      <RealtimeLogisticsOperationsPanel
+        actorName="物流测试员"
+        repository={service}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "下载 XLSX 模板" }),
+    );
+    expect(downloadTemplate).toHaveBeenCalledWith("CORN");
+
+    await user.upload(
+      screen.getByLabelText("导入 XLSX"),
+      new File(["workbook"], "物流批量导入.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    expect(importWorkbook).toHaveBeenCalledWith(expect.any(File), "CORN");
+    expect(await screen.findByLabelText("批量导入处理结果")).toHaveTextContent(
+      "导入完成：成功 2 条，失败 0 条。",
+    );
+    expect(listLogistics).toHaveBeenCalledTimes(2);
+
+    createObjectUrl.mockRestore();
+    revokeObjectUrl.mockRestore();
+    clickAnchor.mockRestore();
+  });
+
   it("does not poll because durable business events own refresh timing", async () => {
     const interval = vi.spyOn(window, "setInterval");
     render(

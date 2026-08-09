@@ -204,7 +204,9 @@ test("keeps product-owned entry and workbook contracts aligned across business d
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("SOYBEAN-WORKBOOK"),
   });
-  await expect(page.getByText("已导入 1 条物流记录。")).toBeVisible();
+  await expect(
+    page.getByText("导入完成：成功 1 条，失败 0 条。"),
+  ).toBeVisible();
 
   const response = await request.get(`${controlledApiBaseUrl}/__e2e/state`);
   expect(response.ok()).toBe(true);
