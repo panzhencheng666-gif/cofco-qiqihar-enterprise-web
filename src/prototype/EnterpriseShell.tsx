@@ -282,6 +282,7 @@ export function EnterpriseShell({
   businessNotifications,
   businessNotificationUnreadCount,
   onBusinessNotificationRead,
+  onIdentityOpen,
   scope,
   queryAllowed = true,
   children,
@@ -296,6 +297,7 @@ export function EnterpriseShell({
   businessNotifications?: readonly BusinessNotificationRow[];
   businessNotificationUnreadCount?: number;
   onBusinessNotificationRead?: (id: string) => void | Promise<void>;
+  onIdentityOpen?: (view: "profile" | "organization") => void;
   scope?: OperationalScope;
   queryAllowed?: boolean;
   children: ReactNode;
@@ -490,13 +492,16 @@ export function EnterpriseShell({
             ))}
           </nav>
 
-          <div
+          <button
             aria-label={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`}
             className="formal-work-unit"
+            disabled={!onIdentityOpen}
+            type="button"
+            onClick={() => onIdentityOpen?.("organization")}
           >
             <EnterpriseIcon name="home" />
             <span>{shellIdentity.workUnit.currentUnitLabel}</span>
-          </div>
+          </button>
 
           <form
             className="formal-global-search"
@@ -569,13 +574,16 @@ export function EnterpriseShell({
           >
             <span>帮助</span>
           </button>
-          <div
+          <button
             aria-label={`当前用户：${shellIdentity.account.displayName}`}
             className="formal-user"
+            disabled={!onIdentityOpen}
+            type="button"
+            onClick={() => onIdentityOpen?.("profile")}
           >
             <span>{shellIdentity.account.displayName.slice(0, 1)}</span>
             <strong>{shellIdentity.account.displayName}</strong>
-          </div>
+          </button>
 
           {utilityPanel && (
             <section

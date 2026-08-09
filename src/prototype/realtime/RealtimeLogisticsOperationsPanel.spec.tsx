@@ -9,6 +9,14 @@ afterEach(cleanup);
 function repository(): RealtimeBusinessRepository {
   return {
     loadCurrentSession: vi.fn(),
+    listEmployees: vi.fn(),
+    loadAssignmentOptions: vi.fn(),
+    inviteEmployee: vi.fn(),
+    updateEmployee: vi.fn(),
+    listAccessReviews: vi.fn(),
+    createAccessReview: vi.fn(),
+    decideAccessReview: vi.fn(),
+    listAuditEvents: vi.fn(),
     listNotifications: vi.fn(),
     markNotificationRead: vi.fn(),
     subscribeBusinessEvents: vi.fn(),

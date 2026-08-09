@@ -32,6 +32,23 @@ function client() {
         totalElements: 0,
         totalPages: 0,
       });
+    if (path.endsWith("/identity/employees/assignment-options"))
+      return Promise.resolve({
+        workUnits: [],
+        roles: [],
+        positions: [],
+        regionCodes: [],
+      });
+    if (path.endsWith("/identity/employees")) return Promise.resolve([]);
+    if (path.endsWith("/identity/access-reviews")) return Promise.resolve([]);
+    if (path.endsWith("/audit-events"))
+      return Promise.resolve({
+        items: [],
+        pageNumber: 0,
+        pageSize: 50,
+        totalElements: 0,
+        totalPages: 0,
+      });
     if (
       path.includes("/production-records") ||
       path.includes("/market-records")
@@ -51,6 +68,7 @@ function client() {
     throw new Error(`unexpected GET ${path}`);
   });
   const post = vi.fn(() => Promise.resolve({ id: "1", version: 0 }));
+  const put = vi.fn(() => Promise.resolve({ id: "1", version: 1 }));
   const download = vi.fn(() => Promise.resolve(new Blob(["report"])));
   const upload = vi.fn(
     (path: string, body: FormData, headers?: Record<string, string>) => {
@@ -67,11 +85,11 @@ function client() {
   const api = {
     get,
     post,
-    put: vi.fn(() => Promise.resolve({ id: "1", version: 1 })),
+    put,
     upload,
     download,
   } as unknown as RealtimeApiClient;
-  return { api, download, get, post, upload };
+  return { api, download, get, post, put, upload };
 }
 
 describe("realtime business repository", () => {
@@ -234,6 +252,97 @@ describe("realtime business repository", () => {
       workUnitCode: "QIQIHAR_BUSINESS",
     });
     expect(get).toHaveBeenCalledWith("/api/v1/session/me");
+  });
+
+  it("connects employee assignments and access reviews to governance APIs", async () => {
+    const { api, get, post, put } = client();
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.listEmployees();
+    await repository.loadAssignmentOptions("QIQIHAR_BUSINESS");
+    await repository.inviteEmployee({
+      subjectId: "employee-88",
+      displayName: "张敏",
+      workUnitCode: "QIQIHAR_BUSINESS",
+      positionCodes: ["REGIONAL_REPORTER"],
+      roleCodes: ["BUSINESS_OPERATOR"],
+      regionCodes: ["230202"],
+    });
+    await repository.updateEmployee("employee-88", {
+      version: 2,
+      displayName: "张敏",
+      workUnitCode: "QIQIHAR_BUSINESS",
+      accountStatus: "ACTIVE",
+      employmentStatus: "ACTIVE",
+      positionCodes: ["REGIONAL_REPORTER"],
+      roleCodes: ["BUSINESS_OPERATOR"],
+      regionCodes: ["230202"],
+    });
+    await repository.listAccessReviews("QIQIHAR_BUSINESS");
+    await repository.createAccessReview({
+      name: "三季度权限复核",
+      workUnitCode: "QIQIHAR_BUSINESS",
+      dueAt: "2026-09-30T16:00:00Z",
+    });
+    await repository.decideAccessReview("review-1", [
+      {
+        subjectId: "employee-88",
+        grantType: "REGION",
+        grantKey: "230202",
+        decisionCode: "RETAIN",
+        reason: "责任区域继续有效",
+      },
+    ]);
+
+    expect(get).toHaveBeenCalledWith("/api/v1/identity/employees");
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/identity/employees/assignment-options",
+      { workUnitCode: "QIQIHAR_BUSINESS" },
+    );
+    expect(get).toHaveBeenCalledWith("/api/v1/identity/access-reviews", {
+      workUnitCode: "QIQIHAR_BUSINESS",
+    });
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/identity/employees",
+      expect.objectContaining({ subjectId: "employee-88" }),
+    );
+    expect(put).toHaveBeenCalledWith(
+      "/api/v1/identity/employees/employee-88",
+      expect.objectContaining({ version: 2 }),
+    );
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/identity/access-reviews",
+      expect.objectContaining({ name: "三季度权限复核" }),
+    );
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/identity/access-reviews/review-1/decisions",
+      expect.objectContaining({ decisions: expect.any(Array) }),
+    );
+  });
+
+  it("queries immutable business audit events through the governed API", async () => {
+    const { api, get } = client();
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.listAuditEvents({
+      workUnitCode: "QIQIHAR_BUSINESS",
+      aggregateType: "SECURITY_USER",
+      actorSubjectId: "identity-admin",
+      occurredFrom: "2026-08-01T00:00:00.000Z",
+      occurredTo: "2026-08-10T23:59:59.999Z",
+      page: 1,
+      pageSize: 25,
+    });
+
+    expect(get).toHaveBeenCalledWith("/api/v1/audit-events", {
+      workUnitCode: "QIQIHAR_BUSINESS",
+      aggregateType: "SECURITY_USER",
+      actorSubjectId: "identity-admin",
+      occurredFrom: "2026-08-01T00:00:00.000Z",
+      occurredTo: "2026-08-10T23:59:59.999Z",
+      page: 1,
+      pageSize: 25,
+    });
   });
 
   it("always sends the pending scope and supports real filters", async () => {

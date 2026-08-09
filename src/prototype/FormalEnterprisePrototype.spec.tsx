@@ -23,6 +23,7 @@ import type {
   BusinessNotificationRow,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { createPrototypeBusinessReportSeeds } from "./businessReportWorkflow";
 
 const prototypeBusinessReportStorageKey =
@@ -37,6 +38,28 @@ function FormalEnterprisePrototype(props: FormalEnterprisePrototypeProps) {
   );
 }
 
+function apiSession(overrides: Record<string, unknown> = {}) {
+  return {
+    subjectId: "business-user",
+    displayName: "业务员工",
+    workUnitCode: "QIQIHAR_BUSINESS",
+    workUnitName: "齐齐哈尔经营部",
+    accountStatus: "ACTIVE",
+    employmentStatus: "ACTIVE",
+    roleCodes: ["BUSINESS_OPERATOR"],
+    positions: [
+      {
+        code: "REGIONAL_REPORTER",
+        name: "区域填报专员",
+        primaryPosition: true,
+      },
+    ],
+    permissions: ["BUSINESS_READ", "BUSINESS_CREATE"],
+    regionCodes: ["230200"],
+    ...overrides,
+  };
+}
+
 afterEach(() => {
   cleanup();
   window.history.replaceState({}, "", "/");
@@ -45,6 +68,138 @@ afterEach(() => {
 });
 
 describe("formal enterprise prototype", () => {
+  it("fails closed at the enterprise login boundary when no session exists", async () => {
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.reject(
+          new RealtimeApiError({
+            code: "UNAUTHENTICATED",
+            message: "Authentication is required",
+            status: 401,
+          }),
+        ),
+      loadMasterData: vi.fn(),
+      listWorkItems: vi.fn(),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <RuntimeFormalEnterprisePrototype
+        dataMode="api"
+        loginUrl="/oauth2/authorization/enterprise"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "登录企业账号" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "进入统一身份认证" }),
+    ).toHaveAttribute("href", "/oauth2/authorization/enterprise");
+    expect(screen.queryByText("产情监测")).not.toBeInTheDocument();
+    expect(repository.loadMasterData).not.toHaveBeenCalled();
+    expect(repository.listWorkItems).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("link", { name: /注册/u }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("blocks disabled or unauthorized enterprise accounts without exposing the business shell", async () => {
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.reject(
+          new RealtimeApiError({
+            code: "ACCOUNT_UNAVAILABLE",
+            message: "Account is unavailable",
+            status: 403,
+          }),
+        ),
+      loadMasterData: vi.fn(),
+      listWorkItems: vi.fn(),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <RuntimeFormalEnterprisePrototype
+        dataMode="api"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "账号暂不可用" }),
+    ).toBeVisible();
+    expect(screen.getByText(/联系本单位系统管理员/)).toBeVisible();
+    expect(screen.queryByText("我的工作")).not.toBeInTheDocument();
+    expect(repository.loadMasterData).not.toHaveBeenCalled();
+  });
+
+  it("binds the authenticated organization and account menus to real governance data", async () => {
+    const user = userEvent.setup();
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.resolve({
+          subjectId: "identity-admin",
+          displayName: "李主任",
+          workUnitCode: "QIQIHAR_BUSINESS",
+          workUnitName: "齐齐哈尔经营部",
+          accountStatus: "ACTIVE",
+          employmentStatus: "ACTIVE",
+          roleCodes: ["IDENTITY_ADMIN"],
+          positions: [
+            {
+              code: "UNIT_MANAGER",
+              name: "单位负责人",
+              primaryPosition: true,
+            },
+          ],
+          permissions: ["BUSINESS_READ", "IDENTITY_READ", "IDENTITY_ADMIN"],
+          regionCodes: ["230200"],
+        }),
+      loadMasterData: () =>
+        Promise.resolve({ products: [], periods: [], regions: [] }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: () => () => undefined,
+      listEmployees: () => Promise.resolve([]),
+      loadAssignmentOptions: () =>
+        Promise.resolve({
+          workUnits: [],
+          roles: [],
+          positions: [],
+          regionCodes: [],
+        }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <FormalEnterprisePrototype
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "当前用户：李主任" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "账号与权限" }),
+    ).toHaveTextContent("单位负责人");
+    await user.click(screen.getByRole("button", { name: "关闭账号与权限" }));
+    await user.click(
+      screen.getByRole("button", { name: "当前工作单位：齐齐哈尔经营部" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "账号与权限" }),
+    ).toHaveTextContent("230200");
+  });
+
   it("opens a pending production item as an administrator review of its source record", async () => {
     const user = userEvent.setup();
     const getProduction = vi.fn(() =>
@@ -568,6 +723,7 @@ describe("formal enterprise prototype", () => {
   it("keeps market collection in the ledger until the user starts a new record", async () => {
     const user = userEvent.setup();
     const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession()),
       loadMasterData: () =>
         Promise.resolve({
           products: [{ code: "CORN", name: "玉米" }],
@@ -677,6 +833,7 @@ describe("formal enterprise prototype", () => {
   it("keeps logistics monitoring in the ledger until the user starts a new record", async () => {
     const user = userEvent.setup();
     const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession()),
       loadMasterData: () =>
         Promise.resolve({
           products: [{ code: "CORN", name: "玉米" }],
@@ -850,6 +1007,7 @@ describe("formal enterprise prototype", () => {
       createDefaultPrototypeOperationalState(),
     );
     const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession()),
       loadMasterData: () =>
         Promise.resolve({
           products: [{ code: "CORN", name: "服务端玉米" }],
@@ -875,13 +1033,15 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
-    expect(
-      await screen.findByRole("status", {
-        name: "业务数据状态",
-      }),
-    ).toHaveTextContent("当前暂无可用业务数据");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("status", {
+          name: "业务数据状态",
+        }),
+      ).toHaveTextContent("当前暂无可用业务数据"),
+    );
     expect(document.body).not.toHaveTextContent("齐齐哈尔市玉米市场运行周填报");
-    expect(screen.getByLabelText("当前用户：已认证用户")).toBeVisible();
+    expect(screen.getByLabelText("当前用户：业务员工")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "系统设置" }),
     ).not.toBeInTheDocument();
@@ -894,6 +1054,7 @@ describe("formal enterprise prototype", () => {
       createDefaultPrototypeOperationalState(),
     );
     const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession()),
       loadMasterData: () => Promise.reject(new Error("受控服务不可用")),
       listWorkItems: () => Promise.reject(new Error("受控服务不可用")),
     } as unknown as RealtimeBusinessRepository;

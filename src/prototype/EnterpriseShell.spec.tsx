@@ -11,6 +11,39 @@ import { EnterpriseShell } from "./EnterpriseShell";
 afterEach(cleanup);
 
 describe("EnterpriseShell", () => {
+  it("opens real organization and account governance from the header", async () => {
+    const user = userEvent.setup();
+    const onIdentityOpen = vi.fn();
+    render(
+      <EnterpriseShell
+        location={{
+          route: createFormalRoute("work", "tasks"),
+          coordinates: { regionId: "authorized-all" },
+        }}
+        onIdentityOpen={onIdentityOpen}
+        onNavigate={vi.fn()}
+        shellIdentity={{
+          platformName: "平台名称",
+          workUnit: {
+            organizationLabel: "组织",
+            currentUnitLabel: "单位一",
+            units: ["单位一"],
+          },
+          account: { displayName: "王洋", menuItems: [] },
+        }}
+      >
+        <h1>workspace</h1>
+      </EnterpriseShell>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "当前工作单位：单位一" }),
+    );
+    expect(onIdentityOpen).toHaveBeenLastCalledWith("organization");
+    await user.click(screen.getByRole("button", { name: "当前用户：王洋" }));
+    expect(onIdentityOpen).toHaveBeenLastCalledWith("profile");
+  });
+
   it("renders only header utilities backed by business behavior", () => {
     const administrativeScope = {
       ...prototypeOperationalIdentity,

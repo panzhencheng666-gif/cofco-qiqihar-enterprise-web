@@ -17,6 +17,7 @@ import {
   createPrototypeBusinessReportWorkflow,
 } from "./businessReportWorkflow";
 import { EnterpriseShell } from "./EnterpriseShell";
+import { IdentityGovernancePanel } from "./identity/IdentityGovernancePanel";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
 import { FormalMarketMonitoringWorkspace } from "./MarketMonitoringWorkspace";
@@ -39,6 +40,7 @@ import {
 import { projectReportWorkflowIntoWorkItems } from "./application/reportWorkItemProjection";
 import { projectRealtimeWorkItems } from "./application/realtimeWorkItemProjection";
 import { realtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import type {
   BusinessNotificationRow,
   CurrentSession,
@@ -64,6 +66,9 @@ export interface FormalEnterprisePrototypeProps {
   operationalIdentity?: OperationalScopeIdentity;
   dataMode?: RuntimeDataMode;
   repository?: RealtimeBusinessRepository;
+  identityManagementUrl?: string;
+  loginUrl?: string;
+  logoutUrl?: string;
 }
 
 const reportActorPosts: Readonly<Record<string, string>> = {
@@ -72,6 +77,76 @@ const reportActorPosts: Readonly<Record<string, string>> = {
 };
 
 type RealtimeProductCode = "CORN" | "SOYBEAN" | "RICE";
+type SessionStatus =
+  | "not-required"
+  | "loading"
+  | "authenticated"
+  | "unauthenticated"
+  | "forbidden"
+  | "error";
+
+function EnterpriseSessionBoundary({
+  loginUrl,
+  status,
+}: {
+  loginUrl?: string;
+  status: Exclude<SessionStatus, "not-required" | "authenticated">;
+}) {
+  const content =
+    status === "loading"
+      ? {
+          title: "正在确认企业身份",
+          detail: "正在校验账号、工作单位、岗位和责任范围。",
+        }
+      : status === "unauthenticated"
+        ? {
+            title: "登录企业账号",
+            detail: "本系统仅供已由管理员建档的员工使用，不提供公众自行注册。",
+          }
+        : status === "forbidden"
+          ? {
+              title: "账号暂不可用",
+              detail:
+                "账号尚未激活、已停用或未分配岗位与责任范围，请联系本单位系统管理员处理。",
+            }
+          : {
+              title: "身份服务暂时不可用",
+              detail: "系统无法完成企业身份校验，请稍后重试或联系系统管理员。",
+            };
+  return (
+    <main className="enterprise-session-boundary">
+      <section aria-live="polite" className="enterprise-session-card">
+        <div className="enterprise-session-brand" aria-hidden="true">
+          齐
+        </div>
+        <p>齐齐哈尔粮食商情企业平台</p>
+        <h1>{content.title}</h1>
+        <span>{content.detail}</span>
+        {status === "unauthenticated" && loginUrl && (
+          <a className="enterprise-session-action" href={loginUrl}>
+            进入统一身份认证
+          </a>
+        )}
+        {status === "unauthenticated" && !loginUrl && (
+          <small>企业统一身份认证入口尚未配置，请联系系统管理员。</small>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function normalizeCurrentSession(session: CurrentSession): CurrentSession {
+  return {
+    ...session,
+    workUnitName: session.workUnitName || session.workUnitCode,
+    accountStatus: session.accountStatus || "ACTIVE",
+    employmentStatus: session.employmentStatus || "ACTIVE",
+    roleCodes: session.roleCodes ?? [],
+    positions: session.positions ?? [],
+    permissions: session.permissions ?? [],
+    regionCodes: session.regionCodes ?? [],
+  };
+}
 
 function routeProductCode(section: string): RealtimeProductCode | null {
   if (section.startsWith("corn-")) return "CORN";
@@ -216,6 +291,9 @@ export function FormalEnterprisePrototype({
   operationalIdentity,
   dataMode,
   repository = realtimeBusinessRepository,
+  identityManagementUrl,
+  loginUrl,
+  logoutUrl,
 }: FormalEnterprisePrototypeProps) {
   const environment = import.meta.env as unknown as Readonly<
     Record<string, unknown>
@@ -230,37 +308,115 @@ export function FormalEnterprisePrototype({
       requestedMode: environment["VITE_REALTIME_DATA_MODE"],
     });
   const realtimeMode = runtimeDataMode === "api";
+  const resolvedLoginUrl =
+    loginUrl ??
+    (typeof environment["VITE_LOGIN_URL"] === "string"
+      ? environment["VITE_LOGIN_URL"]
+      : undefined);
+  const resolvedIdentityManagementUrl =
+    identityManagementUrl ??
+    (typeof environment["VITE_IDENTITY_MANAGEMENT_URL"] === "string"
+      ? environment["VITE_IDENTITY_MANAGEMENT_URL"]
+      : undefined);
+  const resolvedLogoutUrl =
+    logoutUrl ??
+    (typeof environment["VITE_LOGOUT_URL"] === "string"
+      ? environment["VITE_LOGOUT_URL"]
+      : undefined);
   const [currentSession, setCurrentSession] = useState<CurrentSession | null>(
     null,
   );
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>(
+    realtimeMode ? "loading" : "not-required",
+  );
   useEffect(() => {
-    if (!realtimeMode || typeof repository.loadCurrentSession !== "function")
+    if (!realtimeMode) {
+      setCurrentSession(null);
+      setSessionStatus("not-required");
       return;
+    }
+    if (typeof repository.loadCurrentSession !== "function") {
+      setCurrentSession(null);
+      setSessionStatus("error");
+      return;
+    }
     let cancelled = false;
+    setCurrentSession(null);
+    setSessionStatus("loading");
     void repository
       .loadCurrentSession()
       .then((session) => {
-        if (!cancelled) setCurrentSession(session);
+        if (cancelled) return;
+        setCurrentSession(normalizeCurrentSession(session));
+        setSessionStatus("authenticated");
       })
-      .catch(() => {
-        if (!cancelled) setCurrentSession(null);
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setCurrentSession(null);
+        const status =
+          error instanceof RealtimeApiError
+            ? error.status
+            : typeof error === "object" && error !== null && "status" in error
+              ? Number(error.status)
+              : 0;
+        setSessionStatus(
+          status === 401
+            ? "unauthenticated"
+            : status === 403
+              ? "forbidden"
+              : "error",
+        );
       });
     return () => {
       cancelled = true;
     };
   }, [realtimeMode, repository]);
+  const sessionReady = !realtimeMode || sessionStatus === "authenticated";
   const effectiveOperationalIdentity =
     operationalIdentity ??
     (realtimeMode
-      ? apiPendingOperationalIdentity
+      ? currentSession
+        ? {
+            ...apiPendingOperationalIdentity,
+            workUnit: {
+              organizationId: currentSession.workUnitCode,
+              unitId: currentSession.workUnitCode,
+              label: currentSession.workUnitName,
+            },
+            identity: {
+              userId: currentSession.subjectId,
+              postId:
+                currentSession.positions.find(
+                  ({ primaryPosition }) => primaryPosition,
+                )?.code ?? "unassigned-position",
+              displayName: currentSession.displayName,
+            },
+            authorization: {
+              ...apiPendingOperationalIdentity.authorization,
+              authorizedRegionIds:
+                currentSession.regionCodes as OperationalScopeIdentity["authorization"]["authorizedRegionIds"],
+              permissionKeys: currentSession.permissions,
+            },
+          }
+        : apiPendingOperationalIdentity
       : prototypeOperationalIdentity);
   const shellIdentity = realtimeMode
     ? currentSession
       ? {
           ...apiPendingShellIdentity,
+          workUnit: {
+            organizationLabel: currentSession.workUnitName,
+            currentUnitLabel: currentSession.workUnitName,
+            units: [currentSession.workUnitName],
+          },
           account: {
             ...apiPendingShellIdentity.account,
             displayName: currentSession.displayName,
+            roleLabel:
+              currentSession.positions.find(
+                ({ primaryPosition }) => primaryPosition,
+              )?.name ?? "未分配岗位",
+            responsibilityLabel: `${currentSession.regionCodes.length} 个责任地区`,
           },
         }
       : apiPendingShellIdentity
@@ -274,6 +430,9 @@ export function FormalEnterprisePrototype({
       : "当前填报人");
   const [reportContext, setReportContext] =
     useState<BusinessReportContext | null>(null);
+  const [identityPanelView, setIdentityPanelView] = useState<
+    "profile" | "organization" | null
+  >(null);
   const [reportWorkflow] = useState(() =>
     realtimeMode
       ? createEmptyBusinessReportWorkflow()
@@ -315,6 +474,7 @@ export function FormalEnterprisePrototype({
   const [businessNotificationUnreadCount, setBusinessNotificationUnreadCount] =
     useState(0);
   const notificationsConfigured =
+    sessionReady &&
     realtimeMode &&
     typeof repository.listNotifications === "function" &&
     typeof repository.subscribeBusinessEvents === "function";
@@ -413,7 +573,7 @@ export function FormalEnterprisePrototype({
   }, [operationalState, persistenceBlocked, realtimeMode]);
 
   useEffect(() => {
-    if (!realtimeMode) return;
+    if (!realtimeMode || !sessionReady) return;
     let cancelled = false;
     void Promise.all([
       repository.loadMasterData(),
@@ -445,10 +605,10 @@ export function FormalEnterprisePrototype({
     return () => {
       cancelled = true;
     };
-  }, [realtimeMode, realtimeRefreshToken, repository]);
+  }, [realtimeMode, realtimeRefreshToken, repository, sessionReady]);
 
   useEffect(() => {
-    if (!notificationsConfigured) return;
+    if (!notificationsConfigured || !sessionReady) return;
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     const subscribeFrom = (afterSequence: number) => {
@@ -480,11 +640,12 @@ export function FormalEnterprisePrototype({
       cancelled = true;
       unsubscribe?.();
     };
-  }, [notificationsConfigured, repository]);
+  }, [notificationsConfigured, repository, sessionReady]);
 
   useEffect(() => {
     if (
       !realtimeMode ||
+      !sessionReady ||
       realtimeRefreshToken === 0 ||
       typeof repository.listNotifications !== "function"
     )
@@ -501,7 +662,7 @@ export function FormalEnterprisePrototype({
     return () => {
       cancelled = true;
     };
-  }, [realtimeMode, realtimeRefreshToken, repository]);
+  }, [realtimeMode, realtimeRefreshToken, repository, sessionReady]);
 
   const updateWorkItem = (next: BusinessWorkItem) => {
     setOperationalState((current) => ({
@@ -825,6 +986,19 @@ export function FormalEnterprisePrototype({
     );
   })();
 
+  if (
+    realtimeMode &&
+    sessionStatus !== "authenticated" &&
+    sessionStatus !== "not-required"
+  ) {
+    return (
+      <EnterpriseSessionBoundary
+        loginUrl={resolvedLoginUrl}
+        status={sessionStatus}
+      />
+    );
+  }
+
   return (
     <EnterpriseShell
       location={location}
@@ -847,6 +1021,7 @@ export function FormalEnterprisePrototype({
           : undefined
       }
       onBusinessNotificationRead={markBusinessNotificationRead}
+      onIdentityOpen={setIdentityPanelView}
       shellIdentity={shellIdentity}
       scope={scope}
       queryAllowed={queryAllowed}
@@ -923,6 +1098,16 @@ export function FormalEnterprisePrototype({
       )}
       {workspace}
       {realtimeEntry}
+      {realtimeMode && currentSession && identityPanelView && (
+        <IdentityGovernancePanel
+          identityManagementUrl={resolvedIdentityManagementUrl}
+          initialView={identityPanelView}
+          logoutUrl={resolvedLogoutUrl}
+          onClose={() => setIdentityPanelView(null)}
+          repository={repository}
+          session={currentSession}
+        />
+      )}
       {!realtimeMode && reportContext && (
         <BusinessReportComposer
           actorPost={reportActorPosts[scope.identity.postId] ?? "当前登录岗位"}

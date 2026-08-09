@@ -4845,3 +4845,488 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+.formal-work-unit,
+.formal-user {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.formal-work-unit:disabled,
+.formal-user:disabled {
+  cursor: default;
+}
+
+.identity-governance-overlay {
+  position: fixed;
+  inset: 72px 0 0 0;
+  z-index: 130;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(6 37 54 / 54%);
+  backdrop-filter: blur(3px);
+}
+
+.identity-governance-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  width: min(1180px, 96vw);
+  max-height: min(820px, calc(100vh - 120px));
+  overflow: hidden;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 14px;
+  background: var(--formal-panel);
+  box-shadow: 0 24px 70px rgb(1 27 40 / 28%);
+}
+
+.identity-governance-header,
+.identity-governance-toolbar,
+.identity-review-list article,
+.identity-employee-list article,
+.identity-review-detail > header,
+.identity-review-detail > article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.identity-audit-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--formal-line);
+  border-radius: 7px;
+  background: #f8fbfc;
+}
+
+.identity-audit-filters label {
+  display: grid;
+  gap: 6px;
+  color: var(--formal-text-soft);
+  font-weight: 700;
+}
+
+.identity-audit-filters :is(input, select) {
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--formal-text);
+}
+
+.identity-audit-filters button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--formal-teal);
+  border-radius: 6px;
+  background: var(--formal-teal);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.identity-audit-summary {
+  margin: 14px 0 8px;
+  color: var(--formal-muted);
+}
+
+.identity-audit-list {
+  display: grid;
+  gap: 8px;
+}
+
+.identity-audit-list article {
+  display: grid;
+  grid-template-columns: 180px minmax(140px, 0.7fr) minmax(260px, 1.3fr);
+  gap: 16px;
+  align-items: center;
+  padding: 13px 15px;
+  border: 1px solid var(--formal-line);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.identity-audit-list article > div {
+  display: grid;
+  gap: 3px;
+}
+
+.identity-audit-list time,
+.identity-audit-list span {
+  color: var(--formal-muted);
+}
+
+.identity-governance-header {
+  padding: 20px 24px 14px;
+  border-bottom: 1px solid var(--formal-line);
+}
+
+.identity-governance-header small,
+.identity-governance-header h2,
+.identity-governance-toolbar h3,
+.identity-governance-toolbar p,
+.identity-governance-editor h3,
+.identity-governance-editor p {
+  margin: 0;
+}
+
+.identity-governance-header small {
+  color: var(--formal-teal);
+  font-weight: 700;
+}
+
+.identity-governance-header h2 {
+  margin-top: 4px;
+  color: var(--formal-navy);
+  font-size: 24px;
+}
+
+.identity-governance-header > button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 50%;
+  color: var(--formal-text);
+  background: #fff;
+  cursor: pointer;
+  font-size: 22px;
+}
+
+.identity-governance-panel > nav {
+  display: flex;
+  gap: 4px;
+  padding: 10px 24px 0;
+  border-bottom: 1px solid var(--formal-line);
+}
+
+.identity-governance-panel > nav button {
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--formal-text-soft);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.identity-governance-panel > nav button[aria-current="page"] {
+  border-bottom-color: var(--formal-teal);
+  color: var(--formal-teal-deep);
+}
+
+.identity-governance-content {
+  overflow: auto;
+  padding: 22px 24px 28px;
+}
+
+.identity-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.identity-profile-grid article {
+  display: grid;
+  gap: 7px;
+  min-height: 106px;
+  padding: 18px;
+  border: 1px solid var(--formal-line);
+  border-radius: 9px;
+  background: #f8fbfc;
+}
+
+.identity-profile-grid article.is-wide {
+  grid-column: 1 / -1;
+}
+
+.identity-profile-grid span,
+.identity-profile-grid small,
+.identity-employee-list small,
+.identity-review-list span,
+.identity-review-detail span {
+  color: var(--formal-muted);
+}
+
+.identity-profile-grid strong {
+  color: var(--formal-navy);
+  font-size: 17px;
+}
+
+.identity-governance-toolbar {
+  margin-bottom: 16px;
+}
+
+.identity-governance-toolbar p {
+  margin-top: 4px;
+  color: var(--formal-muted);
+}
+
+.identity-governance-panel button.is-primary,
+.identity-governance-toolbar button,
+.identity-review-create button,
+.identity-review-list button,
+.identity-review-detail button,
+.identity-governance-editor footer button {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid var(--formal-teal);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--formal-teal-deep);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.identity-governance-panel button.is-primary,
+.identity-governance-toolbar button.is-primary {
+  background: var(--formal-teal);
+  color: #fff;
+}
+
+.identity-governance-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.identity-employee-list,
+.identity-review-list {
+  display: grid;
+  gap: 8px;
+}
+
+.identity-employee-list article,
+.identity-review-list article {
+  padding: 13px 15px;
+  border: 1px solid var(--formal-line);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.identity-employee-list article > div,
+.identity-review-list article > div,
+.identity-review-detail article > div {
+  display: grid;
+  gap: 3px;
+}
+
+.identity-governance-editor,
+.identity-review-detail {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 9px;
+  background: #f8fbfc;
+}
+
+.identity-governance-form-grid,
+.identity-review-create {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.identity-governance-form-grid label,
+.identity-review-create label {
+  display: grid;
+  gap: 6px;
+  color: var(--formal-text-soft);
+  font-weight: 700;
+}
+
+.identity-governance-form-grid :is(input, select),
+.identity-review-create input,
+.identity-review-detail :is(input, select) {
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--formal-text);
+}
+
+.identity-governance-editor fieldset {
+  margin: 12px 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--formal-line);
+  border-radius: 7px;
+}
+
+.identity-governance-editor legend {
+  padding: 0 6px;
+  color: var(--formal-navy);
+  font-weight: 700;
+}
+
+.identity-governance-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.identity-governance-choice-grid label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.identity-governance-editor footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.identity-review-create {
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--formal-line);
+  border-radius: 7px;
+  background: #f8fbfc;
+}
+
+.identity-review-detail {
+  display: grid;
+  gap: 8px;
+}
+
+.identity-review-detail > article {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) 150px minmax(220px, 1.3fr);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--formal-line);
+}
+
+.identity-governance-success,
+.identity-governance-error {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+.identity-governance-success {
+  color: var(--formal-teal-deep);
+  background: var(--formal-teal-soft);
+}
+
+.identity-governance-error {
+  color: var(--formal-danger);
+  background: var(--formal-danger-soft);
+}
+
+.identity-profile-actions > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.identity-profile-actions a,
+.enterprise-session-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--formal-teal);
+  border-radius: 6px;
+  color: var(--formal-teal-deep);
+  font-weight: 700;
+  text-decoration: none;
+  background: #fff;
+}
+
+.enterprise-session-boundary {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  color: var(--formal-text);
+  background:
+    radial-gradient(circle at 18% 12%, rgb(17 130 173 / 14%), transparent 36%),
+    linear-gradient(145deg, #edf5f8, #f9fbfc 62%, #e8f2f5);
+}
+
+.enterprise-session-card {
+  width: min(460px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 42px 38px;
+  border: 1px solid #b9d2de;
+  border-radius: 12px;
+  box-shadow: 0 22px 60px rgb(19 61 82 / 14%);
+  text-align: center;
+  background: #fff;
+}
+
+.enterprise-session-brand {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 800;
+  background: var(--formal-navy);
+}
+
+.enterprise-session-card :is(p, h1, span, small) {
+  margin: 0;
+}
+
+.enterprise-session-card p {
+  color: var(--formal-muted);
+  font-weight: 700;
+}
+
+.enterprise-session-card h1 {
+  margin-top: 6px;
+  font-size: 26px;
+}
+
+.enterprise-session-card > span,
+.enterprise-session-card > small {
+  color: var(--formal-muted);
+  line-height: 1.7;
+}
+
+.enterprise-session-action {
+  margin-top: 10px;
+  border-color: var(--formal-navy);
+  color: #fff;
+  background: var(--formal-navy);
+}
+
+@media (max-width: 900px) {
+  .identity-governance-overlay {
+    inset: 0;
+    padding: 8px;
+  }
+
+  .identity-governance-panel {
+    width: 100%;
+    max-height: 100%;
+  }
+
+  .identity-profile-grid,
+  .identity-governance-form-grid,
+  .identity-review-create,
+  .identity-review-detail > article {
+    grid-template-columns: 1fr;
+  }
+
+  .identity-governance-choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

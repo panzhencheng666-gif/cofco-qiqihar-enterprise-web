@@ -108,8 +108,108 @@ export interface CurrentSession {
   subjectId: string;
   displayName: string;
   workUnitCode: string;
+  workUnitName: string;
+  accountStatus: string;
+  employmentStatus: string;
+  roleCodes: readonly string[];
+  positions: readonly {
+    code: string;
+    name: string;
+    primaryPosition: boolean;
+  }[];
   permissions: readonly string[];
   regionCodes: readonly string[];
+}
+
+export interface EmployeeProfile {
+  subjectId: string;
+  displayName: string;
+  workUnitCode: string;
+  workUnitName: string;
+  accountStatus: string;
+  employmentStatus: string;
+  roles: readonly { code: string; name: string }[];
+  positions: readonly {
+    code: string;
+    name: string;
+    primaryPosition: boolean;
+  }[];
+  regionCodes: readonly string[];
+  version: number;
+}
+
+export interface IdentityAssignmentOptions {
+  workUnits: readonly { code: string; name: string }[];
+  roles: readonly { code: string; name: string }[];
+  positions: readonly { code: string; name: string }[];
+  regionCodes: readonly string[];
+}
+
+export interface EmployeeInvitation {
+  subjectId: string;
+  displayName: string;
+  workUnitCode: string;
+  positionCodes: readonly string[];
+  roleCodes: readonly string[];
+  regionCodes: readonly string[];
+}
+
+export interface EmployeeAssignmentUpdate extends Omit<
+  EmployeeInvitation,
+  "subjectId"
+> {
+  version: number;
+  accountStatus: string;
+  employmentStatus: string;
+}
+
+export interface AccessReviewDecision {
+  subjectId: string;
+  grantType: "ROLE" | "REGION" | "POSITION";
+  grantKey: string;
+  decisionCode: "RETAIN" | "REVOKE";
+  reason: string;
+}
+
+export interface AccessReviewCampaign {
+  reviewId: string;
+  name: string;
+  workUnitCode: string;
+  statusCode: "OPEN" | "COMPLETED";
+  dueAt: string;
+  createdBy: string;
+  createdAt: string;
+  items: readonly {
+    subjectId: string;
+    grantType: "ROLE" | "REGION" | "POSITION";
+    grantKey: string;
+    decisionCode: "PENDING" | "RETAIN" | "REVOKE";
+    decidedBy: string | null;
+    decidedAt: string | null;
+    reason: string | null;
+  }[];
+}
+
+export interface BusinessAuditRow {
+  eventId: string;
+  aggregateType: string;
+  aggregateId: string;
+  actionCode: string;
+  actorSubjectId: string;
+  actorDisplayName: string;
+  workUnitCode: string;
+  occurredAt: string;
+  detailJson: string;
+}
+
+export interface BusinessAuditQuery {
+  workUnitCode?: string;
+  aggregateType?: string;
+  actorSubjectId?: string;
+  occurredFrom?: string;
+  occurredTo?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface BusinessNotificationRow {
@@ -441,6 +541,28 @@ export interface MarketDefinition {
 
 export interface RealtimeBusinessRepository {
   loadCurrentSession(): Promise<CurrentSession>;
+  listEmployees(): Promise<readonly EmployeeProfile[]>;
+  loadAssignmentOptions(
+    workUnitCode: string,
+  ): Promise<IdentityAssignmentOptions>;
+  inviteEmployee(input: EmployeeInvitation): Promise<EmployeeProfile>;
+  updateEmployee(
+    subjectId: string,
+    input: EmployeeAssignmentUpdate,
+  ): Promise<EmployeeProfile>;
+  listAccessReviews(
+    workUnitCode: string,
+  ): Promise<readonly AccessReviewCampaign[]>;
+  createAccessReview(input: {
+    name: string;
+    workUnitCode: string;
+    dueAt: string;
+  }): Promise<AccessReviewCampaign>;
+  decideAccessReview(
+    reviewId: string,
+    decisions: readonly AccessReviewDecision[],
+  ): Promise<AccessReviewCampaign>;
+  listAuditEvents(input?: BusinessAuditQuery): Promise<Page<BusinessAuditRow>>;
   listNotifications(): Promise<BusinessNotificationPage>;
   markNotificationRead(id: string): Promise<BusinessNotificationRow>;
   subscribeBusinessEvents(
@@ -663,6 +785,45 @@ export function createRealtimeBusinessRepository(
     ((url: string) => new EventSource(url, { withCredentials: true }));
   return {
     loadCurrentSession: () => client.get<CurrentSession>("/api/v1/session/me"),
+    listEmployees: () =>
+      client.get<readonly EmployeeProfile[]>("/api/v1/identity/employees"),
+    loadAssignmentOptions: (workUnitCode) =>
+      client.get<IdentityAssignmentOptions>(
+        "/api/v1/identity/employees/assignment-options",
+        { workUnitCode },
+      ),
+    inviteEmployee: (input) =>
+      client.post<EmployeeProfile>("/api/v1/identity/employees", input),
+    updateEmployee: (subjectId, input) =>
+      client.put<EmployeeProfile>(
+        `/api/v1/identity/employees/${encodeURIComponent(subjectId)}`,
+        input,
+      ),
+    listAccessReviews: (workUnitCode) =>
+      client.get<readonly AccessReviewCampaign[]>(
+        "/api/v1/identity/access-reviews",
+        { workUnitCode },
+      ),
+    createAccessReview: (input) =>
+      client.post<AccessReviewCampaign>(
+        "/api/v1/identity/access-reviews",
+        input,
+      ),
+    decideAccessReview: (reviewId, decisions) =>
+      client.post<AccessReviewCampaign>(
+        `/api/v1/identity/access-reviews/${encodeURIComponent(reviewId)}/decisions`,
+        { decisions },
+      ),
+    listAuditEvents: (input = {}) =>
+      client.get<Page<BusinessAuditRow>>("/api/v1/audit-events", {
+        workUnitCode: input.workUnitCode,
+        aggregateType: input.aggregateType,
+        actorSubjectId: input.actorSubjectId,
+        occurredFrom: input.occurredFrom,
+        occurredTo: input.occurredTo,
+        page: input.page ?? 0,
+        pageSize: input.pageSize ?? 50,
+      }),
     listNotifications: () =>
       client.get<BusinessNotificationPage>("/api/v1/notifications"),
     markNotificationRead: (id) =>

@@ -6,6 +6,9 @@ interface ImportMetaEnv {
   readonly VITE_OVERVIEW_MAP_URL?: string;
   readonly VITE_OVERVIEW_MAP_HOST?: string;
   readonly VITE_OVERVIEW_MAP_PORT?: string;
+  readonly VITE_LOGIN_URL?: string;
+  readonly VITE_LOGOUT_URL?: string;
+  readonly VITE_IDENTITY_MANAGEMENT_URL?: string;
 }
 
 interface ImportMeta {
