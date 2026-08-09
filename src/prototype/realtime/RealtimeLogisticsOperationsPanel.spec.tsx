@@ -66,6 +66,30 @@ function repository(): RealtimeBusinessRepository {
             sortOrder: 20,
             options: [],
           },
+          {
+            code: "LOG_REPORTED_AT",
+            label: "物流填报时间",
+            controlType: "READONLY_DATETIME",
+            unit: null,
+            precision: null,
+            scale: null,
+            required: false,
+            readOnly: true,
+            sortOrder: 30,
+            options: [],
+          },
+          {
+            code: "LOG_STATUS",
+            label: "物流状态",
+            controlType: "READONLY_STATUS",
+            unit: null,
+            precision: null,
+            scale: null,
+            required: false,
+            readOnly: true,
+            sortOrder: 40,
+            options: [],
+          },
         ],
         actions: [],
       }),
@@ -100,5 +124,17 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     ).toBeVisible();
     expect(screen.getByLabelText(/物流监测期/)).toBeVisible();
     expect(screen.getByLabelText("物流填报人")).toHaveTextContent("物流测试员");
+    expect(screen.getByLabelText("物流填报时间")).toHaveTextContent(
+      "保存后由系统生成",
+    );
+    expect(screen.getByLabelText("物流状态")).toHaveTextContent(
+      "保存后由系统生成",
+    );
+    expect(
+      screen.queryByRole("textbox", { name: "物流填报时间" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "物流状态" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -60,9 +60,10 @@ export function RealtimeLogisticsOperationsPanel({
   const [message, setMessage] = useState("正在读取物流业务定义…");
   const [returnReason, setReturnReason] = useState("");
 
-  const fields = useMemo(
-    () => definition?.fields.filter((field) => !field.readOnly) ?? [],
-    [definition],
+  const fields = useMemo(() => definition?.fields ?? [], [definition]);
+  const editableFields = useMemo(
+    () => fields.filter((field) => !field.readOnly),
+    [fields],
   );
 
   const reload = useCallback(async () => {
@@ -102,7 +103,7 @@ export function RealtimeLogisticsOperationsPanel({
     setSelected(null);
     setValues(
       Object.fromEntries(
-        fields.map((field) => [
+        editableFields.map((field) => [
           field.code,
           field.code === "LOG_REPORTER" ? actorName : "",
         ]),
@@ -237,6 +238,16 @@ export function RealtimeLogisticsOperationsPanel({
           <div className="realtime-business-fields">
             {fields.map((field) => {
               const identityLocked = field.code === "LOG_REPORTER";
+              const readOnly = identityLocked || field.readOnly;
+              const readOnlyValue = selected
+                ? (selected.displayValues[field.code] ??
+                  values[field.code] ??
+                  (field.code === "LOG_STATUS"
+                    ? statusLabel(selected.status)
+                    : "—"))
+                : identityLocked
+                  ? actorName
+                  : "保存后由系统生成";
               return (
                 <label key={field.code}>
                   <span>
@@ -244,10 +255,8 @@ export function RealtimeLogisticsOperationsPanel({
                     {field.required ? " *" : ""}
                     {field.unit ? `（${field.unit}）` : ""}
                   </span>
-                  {identityLocked ? (
-                    <output aria-label={field.label}>
-                      {values[field.code] || actorName}
-                    </output>
+                  {readOnly ? (
+                    <output aria-label={field.label}>{readOnlyValue}</output>
                   ) : field.options.length > 0 ? (
                     <select
                       required={field.required}

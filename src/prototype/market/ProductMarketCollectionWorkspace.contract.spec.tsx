@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { MarketDefinition } from "@/platform/api/realtimeBusinessRepository";
+import { definitionFields } from "@/prototype/realtime/realtimeRecordFormModel";
 
 import { marketDefinitionListGroups } from "./ProductMarketCollectionWorkspace";
 
@@ -45,6 +46,11 @@ describe("市场列表字段契约", () => {
       { id: "OPENING_INVENTORY", label: "期初库存", unit: "吨" },
       { id: "STOCK_OUTFLOW", label: "出库量", unit: "吨" },
       { id: "ENDING_INVENTORY", label: "期末库存", unit: "吨" },
+    ]);
+    expect(definitionFields(definition).map(({ code }) => code)).toEqual([
+      "OPENING_INVENTORY",
+      "STOCK_OUTFLOW",
+      "ENDING_INVENTORY",
     ]);
   });
 });

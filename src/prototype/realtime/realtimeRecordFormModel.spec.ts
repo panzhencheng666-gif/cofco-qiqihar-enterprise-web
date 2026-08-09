@@ -98,9 +98,41 @@ describe("realtime record form model", () => {
             },
           ],
         },
+        {
+          category: "QUALITY",
+          label: "质量指标",
+          sortOrder: 10,
+          fields: [definitionField("MOISTURE", "水分")],
+        },
+        {
+          category: "COST",
+          label: "成本费用",
+          sortOrder: 20,
+          fields: [definitionField("LAND_RENT", "地租")],
+        },
+        {
+          category: "INSURANCE",
+          label: "农业保险",
+          sortOrder: 30,
+          fields: [definitionField("INSURANCE_AMOUNT", "保险金额")],
+        },
+        {
+          category: "SUBSIDY",
+          label: "政策补贴",
+          sortOrder: 40,
+          fields: [definitionField("SUBSIDY_AMOUNT", "补贴金额")],
+        },
       ],
     };
 
+    expect(definitionFields(definition).map(({ code }) => code)).toEqual([
+      "PROD_SAMPLE_NAME",
+      "PROD_HARVEST_AREA_MU",
+      "MOISTURE",
+      "LAND_RENT",
+      "INSURANCE_AMOUNT",
+      "SUBSIDY_AMOUNT",
+    ]);
     expect(definitionFields(definition)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -125,13 +157,36 @@ describe("realtime record form model", () => {
           yieldPerMuKilograms: "500",
           PROD_SAMPLE_NAME: "第一调查户",
           PROD_HARVEST_AREA_MU: "96.5",
+          MOISTURE: "14.2",
+          LAND_RENT: "500",
+          INSURANCE_AMOUNT: "1200",
+          SUBSIDY_AMOUNT: "800",
         },
         "CORN",
         definition,
-      ).submissionMetadata,
+      ),
     ).toMatchObject({
-      PROD_SAMPLE_NAME: "第一调查户",
-      PROD_HARVEST_AREA_MU: "96.5",
+      submissionMetadata: {
+        PROD_SAMPLE_NAME: "第一调查户",
+        PROD_HARVEST_AREA_MU: "96.5",
+      },
+      quality: { MOISTURE: "14.2" },
+      costs: { LAND_RENT: "500" },
+      insurance: { INSURANCE_AMOUNT: "1200" },
+      subsidies: { SUBSIDY_AMOUNT: "800" },
     });
   });
 });
+
+function definitionField(code: string, label: string) {
+  return {
+    code,
+    label,
+    valueType: "DECIMAL" as const,
+    unit: null,
+    description: null,
+    precision: 18,
+    scale: 4,
+    sortOrder: 10,
+  };
+}
