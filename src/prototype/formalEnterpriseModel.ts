@@ -23,7 +23,9 @@ export const formalSectionsByApplication = {
     "corn-collection",
     "soybean-collection",
     "paddy-collection",
-    "logistics",
+    "corn-logistics",
+    "soybean-logistics",
+    "paddy-logistics",
     "tasks",
     "objects",
     "review",
@@ -111,7 +113,9 @@ const formalBusinessRouteNames = {
       "corn-collection": "玉米市场采集",
       "soybean-collection": "大豆市场采集",
       "paddy-collection": "稻谷市场采集",
-      logistics: "物流节点监测",
+      "corn-logistics": "玉米物流监测",
+      "soybean-logistics": "大豆物流监测",
+      "paddy-logistics": "稻谷物流监测",
       tasks: "采集任务",
       objects: "监测对象",
       review: "数据审核",
@@ -243,6 +247,10 @@ function readBusinessHash(hash: string): FormalRoute | null {
     Record<FormalApplication, Record<string, string>>
   > = {
     production: { 水稻产情填报: "rice-collection" },
+    market: {
+      物流节点监测: "corn-logistics",
+      logistics: "corn-logistics",
+    },
   };
   const aliasedSection = legacySectionAliases[application]?.[sectionSegment];
   const section = formalSectionsByApplication[application].find(
@@ -285,12 +293,28 @@ export function readFormalRoute(value: string): FormalRoute {
     ? applicationValue
     : "work";
   const sectionValue = parameters.get("section");
+  const compatibleSection =
+    application === "market" && sectionValue === "logistics"
+      ? "corn-logistics"
+      : sectionValue;
   return createFormalRoute(
     application,
-    isSectionForApplication(application, sectionValue)
-      ? sectionValue
+    isSectionForApplication(application, compatibleSection)
+      ? compatibleSection
       : getDefaultFormalSection(application),
   );
+}
+
+export function marketSectionProductCode(
+  section: MarketSection,
+): "CORN" | "SOYBEAN" | "RICE" | null {
+  if (section === "corn-collection" || section === "corn-logistics")
+    return "CORN";
+  if (section === "soybean-collection" || section === "soybean-logistics")
+    return "SOYBEAN";
+  if (section === "paddy-collection" || section === "paddy-logistics")
+    return "RICE";
+  return null;
 }
 
 export function writeFormalRoute(route: FormalRoute): string {

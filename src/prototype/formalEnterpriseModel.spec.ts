@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canFillWeeklyTask,
   createFormalRoute,
+  marketSectionProductCode,
   readFormalLocation,
   readFormalRoute,
   summarizeDutyMonth,
@@ -41,7 +42,9 @@ describe("formal enterprise route model", () => {
       ["market", "corn-collection", "#/市场监测/玉米市场采集"],
       ["market", "soybean-collection", "#/市场监测/大豆市场采集"],
       ["market", "paddy-collection", "#/市场监测/稻谷市场采集"],
-      ["market", "logistics", "#/市场监测/物流节点监测"],
+      ["market", "corn-logistics", "#/市场监测/玉米物流监测"],
+      ["market", "soybean-logistics", "#/市场监测/大豆物流监测"],
+      ["market", "paddy-logistics", "#/市场监测/稻谷物流监测"],
       ["market", "tasks", "#/市场监测/采集任务"],
       ["market", "objects", "#/市场监测/监测对象"],
       ["market", "review", "#/市场监测/数据审核"],
@@ -73,6 +76,28 @@ describe("formal enterprise route model", () => {
       application: "production",
       section: "rice-collection",
     });
+  });
+
+  it("canonicalizes the former generic logistics bookmark to corn logistics", () => {
+    const legacy = readFormalRoute("#/市场监测/物流节点监测");
+
+    expect(legacy).toEqual({
+      application: "market",
+      section: "corn-logistics",
+    });
+    expect(writeFormalRoute(legacy)).toBe("#/市场监测/玉米物流监测");
+  });
+
+  it.each([
+    ["corn-collection", "CORN"],
+    ["soybean-collection", "SOYBEAN"],
+    ["paddy-collection", "RICE"],
+    ["corn-logistics", "CORN"],
+    ["soybean-logistics", "SOYBEAN"],
+    ["paddy-logistics", "RICE"],
+    ["analysis", null],
+  ] as const)("derives locked product context for %s", (section, product) => {
+    expect(marketSectionProductCode(section)).toBe(product);
   });
 
   it("migrates legacy English routes but never writes them back", () => {
@@ -256,6 +281,26 @@ describe("formal enterprise sample data", () => {
     ]);
     expect(reportingNavigation.flatMap((group) => group.items)).toEqual([
       expect.objectContaining({ key: "compose" }),
+    ]);
+  });
+
+  it("lists three product-owned logistics menus without a generic product switcher", () => {
+    const market = formalApplicationDefinitions.find(
+      ({ key }) => key === "market",
+    );
+    const logistics = market?.navigation.filter(({ label }) =>
+      label.includes("物流"),
+    );
+
+    expect(logistics?.map(({ label }) => label)).toEqual([
+      "玉米物流监测",
+      "大豆物流监测",
+      "稻谷物流监测",
+    ]);
+    expect(logistics?.map(({ route }) => route)).toEqual([
+      createFormalRoute("market", "corn-logistics"),
+      createFormalRoute("market", "soybean-logistics"),
+      createFormalRoute("market", "paddy-logistics"),
     ]);
   });
 });

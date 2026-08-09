@@ -301,8 +301,16 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           label: "稻谷市场采集",
         },
         {
-          route: createFormalRoute("market", "logistics"),
-          label: "物流节点监测",
+          route: createFormalRoute("market", "corn-logistics"),
+          label: "玉米物流监测",
+        },
+        {
+          route: createFormalRoute("market", "soybean-logistics"),
+          label: "大豆物流监测",
+        },
+        {
+          route: createFormalRoute("market", "paddy-logistics"),
+          label: "稻谷物流监测",
         },
         { route: createFormalRoute("market", "tasks"), label: "采集任务" },
         { route: createFormalRoute("market", "objects"), label: "监测对象" },

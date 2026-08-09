@@ -166,6 +166,7 @@ function firstAvailable(workId: string, fieldIds: readonly string[]): string {
 }
 
 export function LogisticsMonitoringWorkspace({
+  productCode,
   scope,
   onScopeChange,
   selection,
@@ -179,6 +180,7 @@ export function LogisticsMonitoringWorkspace({
   realtimeRepository,
   realtimeRefreshToken = 0,
 }: {
+  productCode: string;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   selection?: FormalSelection;
@@ -192,7 +194,6 @@ export function LogisticsMonitoringWorkspace({
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
 }) {
-  const [productCode, setProductCode] = useState("CORN");
   const [nodeType, setNodeType] = useState("");
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
   const [persistedRecords, setPersistedRecords] = useState<
@@ -231,7 +232,10 @@ export function LogisticsMonitoringWorkspace({
     setImporting(true);
     setImportMessage("");
     try {
-      const result = await realtimeRepository.importLogisticsWorkbook(file);
+      const result = await realtimeRepository.importLogisticsWorkbook(
+        file,
+        productCode,
+      );
       if (result.failedRows > 0) {
         setImportMessage(
           `本批次未写入业务记录，共 ${result.failedRows} 行需要修正。`,
@@ -336,7 +340,9 @@ export function LogisticsMonitoringWorkspace({
     return {
       workId: item.workId,
       number: index + 1,
-      product: "玉米",
+      product:
+        logisticsProducts.find(({ code }) => code === productCode)?.label ??
+        productCode,
       node:
         item.subject.kind === "monitoring-object"
           ? item.subject.objectName
@@ -395,20 +401,6 @@ export function LogisticsMonitoringWorkspace({
         className="enterprise-ledger-query enterprise-ledger-query--logistics"
         role="search"
       >
-        <label>
-          <span>产品品种</span>
-          <select
-            aria-label="产品品种"
-            value={productCode}
-            onChange={(event) => setProductCode(event.target.value)}
-          >
-            {logisticsProducts.map((product) => (
-              <option key={product.code} value={product.code}>
-                {product.label}
-              </option>
-            ))}
-          </select>
-        </label>
         <RegionCascadeSelector
           authorizedRegionIds={scope.authorization.authorizedRegionIds}
           maxLevel="county"
@@ -458,7 +450,6 @@ export function LogisticsMonitoringWorkspace({
           <button
             type="button"
             onClick={() => {
-              setProductCode("CORN");
               setNodeType("");
               setLowerRegion({});
               onScopeChange({

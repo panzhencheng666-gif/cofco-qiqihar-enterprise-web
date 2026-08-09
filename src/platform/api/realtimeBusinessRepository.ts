@@ -513,7 +513,10 @@ export interface RealtimeBusinessRepository {
     productCode: string,
     objectTypeCode: string,
   ): Promise<Blob>;
-  importLogisticsWorkbook?(file: File): Promise<ProductionImportJob>;
+  importLogisticsWorkbook?(
+    file: File,
+    productCode: string,
+  ): Promise<ProductionImportJob>;
   downloadLogisticsXlsxTemplate?(productCode: string): Promise<Blob>;
   loadLogisticsDefinition(productCode: string): Promise<LogisticsDefinition>;
   listLogistics(

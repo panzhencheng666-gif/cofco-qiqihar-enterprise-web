@@ -7,6 +7,7 @@ import { businessClassifications } from "./core/businessClassification";
 import type { OperationalScope } from "./core/operationalScope";
 import { prototypeOperationalIdentity } from "./formalEnterpriseData";
 import {
+  marketSectionProductCode,
   type BusinessCoordinates,
   type FormalSelection,
   type MarketSection,
@@ -100,7 +101,9 @@ export function MarketMonitoringWorkspace({
       />
     );
   }
-  if (section === "logistics") {
+  if (section.endsWith("-logistics")) {
+    const productCode = marketSectionProductCode(section);
+    if (!productCode) return null;
     return (
       <LogisticsMonitoringWorkspace
         documentDrafts={documentDrafts}
@@ -109,6 +112,7 @@ export function MarketMonitoringWorkspace({
         onSelectionChange={select}
         onWorkItemChange={onWorkItemChange}
         onCreateRecord={onCreateRecord}
+        productCode={productCode}
         queryAllowed={queryAllowed}
         scope={scope}
         selection={activeSelection}

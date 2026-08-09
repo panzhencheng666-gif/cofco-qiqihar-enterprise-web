@@ -276,7 +276,7 @@ export function FormalEnterprisePrototype({
         ? route.application === "production"
           ? "production"
           : route.application === "market"
-            ? route.section === "logistics"
+            ? route.section.endsWith("-logistics")
               ? "logistics"
               : "market"
             : null
@@ -478,11 +478,11 @@ export function FormalEnterprisePrototype({
             onCreateRecord={
               realtimeMode
                 ? (productCode) => {
-                    if (location.route.section === "logistics") {
+                    if (location.route.section.endsWith("-logistics")) {
                       setRealtimeLogisticsProductCode(productCode ?? "CORN");
                     }
                     setRealtimeEntryDomain(
-                      location.route.section === "logistics"
+                      location.route.section.endsWith("-logistics")
                         ? "logistics"
                         : "market",
                     );

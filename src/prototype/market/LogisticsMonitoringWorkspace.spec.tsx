@@ -33,6 +33,7 @@ describe("logistics monitoring workspace", () => {
       <LogisticsMonitoringWorkspace
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
+        productCode="CORN"
         queryAllowed
         scope={authorizedScope}
       />,
@@ -101,6 +102,7 @@ describe("logistics monitoring workspace", () => {
       <LogisticsMonitoringWorkspace
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
+        productCode="SOYBEAN"
         queryAllowed
         realtimeRepository={repository}
         scope={authorizedScope}
@@ -118,17 +120,14 @@ describe("logistics monitoring workspace", () => {
     await user.click(screen.getByRole("button", { name: "查询" }));
     await waitFor(() => expect(listLogistics).toHaveBeenCalledTimes(2));
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "产品品种" }),
-      "SOYBEAN",
-    );
-    await waitFor(() =>
-      expect(listLogistics).toHaveBeenLastCalledWith({
-        page: 0,
-        pageSize: 100,
-        productCode: "SOYBEAN",
-      }),
-    );
+    expect(
+      screen.queryByRole("combobox", { name: "产品品种" }),
+    ).not.toBeInTheDocument();
+    expect(listLogistics).toHaveBeenLastCalledWith({
+      page: 0,
+      pageSize: 100,
+      productCode: "SOYBEAN",
+    });
     await user.click(screen.getByRole("button", { name: "新建监测记录" }));
     expect(onCreateRecord).toHaveBeenCalledWith("SOYBEAN");
   });
@@ -172,6 +171,7 @@ describe("logistics monitoring workspace", () => {
       <LogisticsMonitoringWorkspace
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
+        productCode="CORN"
         queryAllowed
         realtimeRepository={repository}
         scope={authorizedScope}
@@ -186,7 +186,12 @@ describe("logistics monitoring workspace", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
-    await waitFor(() => expect(importLogisticsWorkbook).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(importLogisticsWorkbook).toHaveBeenCalledWith(
+        expect.any(File),
+        "CORN",
+      ),
+    );
     expect(await screen.findByText("已导入 1 条物流记录。")).toBeVisible();
     expect(listLogistics).toHaveBeenCalledTimes(2);
   });
@@ -269,6 +274,7 @@ describe("logistics monitoring workspace", () => {
       <LogisticsMonitoringWorkspace
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
+        productCode="CORN"
         queryAllowed
         realtimeRepository={repository}
         scope={authorizedScope}

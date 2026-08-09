@@ -17,6 +17,7 @@ import {
 import { EnterpriseIcon } from "./EnterpriseIcon";
 import {
   createFormalRoute,
+  marketSectionProductCode,
   type FormalLocation,
   type FormalRoute,
   type FormalSelection,
@@ -36,7 +37,7 @@ const primaryBusinessApplications = [
   {
     key: "logistics",
     label: "物流监测",
-    route: createFormalRoute("market", "logistics"),
+    route: createFormalRoute("market", "corn-logistics"),
   },
   {
     key: "supply",
@@ -80,7 +81,14 @@ function productWorkRoute(item: BusinessWorkItem): FormalRoute {
   }
   if (item.domain === "market") {
     if (item.businessSubtypeId === "market.logistics") {
-      return createFormalRoute("market", "logistics");
+      return createFormalRoute(
+        "market",
+        item.productId === "soybean"
+          ? "soybean-logistics"
+          : item.productId === "paddy"
+            ? "paddy-logistics"
+            : "corn-logistics",
+      );
     }
     return createFormalRoute(
       "market",
@@ -104,9 +112,15 @@ function isPrimaryApplicationActive(
   route: FormalRoute,
 ): boolean {
   if (key === "logistics")
-    return route.application === "market" && route.section === "logistics";
+    return (
+      route.application === "market" && route.section.endsWith("-logistics")
+    );
   if (key === "market")
-    return route.application === "market" && route.section !== "logistics";
+    return (
+      route.application === "market" &&
+      marketSectionProductCode(route.section) !== null &&
+      !route.section.endsWith("-logistics")
+    );
   return route.application === key;
 }
 
