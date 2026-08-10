@@ -8,6 +8,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
+  BusinessAuditQuery,
   CurrentSession,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
@@ -105,8 +106,9 @@ function repository() {
         ],
       }),
     ),
-    listAuditEvents: vi.fn(() =>
-      Promise.resolve({
+    listAuditEvents: vi.fn((input: BusinessAuditQuery = {}) => {
+      void input;
+      return Promise.resolve({
         items: [
           {
             eventId: "audit-1",
@@ -124,8 +126,8 @@ function repository() {
         pageSize: 50,
         totalElements: 1,
         totalPages: 1,
-      }),
-    ),
+      });
+    }),
   };
   return api;
 }
@@ -318,6 +320,48 @@ describe("IdentityGovernancePanel", () => {
           pageSize: 50,
         }),
       ),
+    );
+  });
+
+  it("lets administrators page through every audit record instead of stopping at the first fifty", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    api.listAuditEvents.mockImplementation((input = {}) => {
+      const pageNumber = input.page ?? 0;
+      return Promise.resolve({
+        items: [
+          {
+            eventId: `audit-${pageNumber + 1}`,
+            aggregateType: "SECURITY_USER",
+            aggregateId: `employee-${pageNumber + 1}`,
+            actionCode: "SECURITY_USER_UPDATED",
+            actorSubjectId: "identity-admin",
+            actorDisplayName: "李主任",
+            workUnitCode: "QIQIHAR_BUSINESS",
+            occurredAt: "2026-08-10T01:02:03Z",
+            detailJson: "{}",
+          },
+        ],
+        pageNumber,
+        pageSize: 50,
+        totalElements: 51,
+        totalPages: 2,
+      });
+    });
+    render(
+      <IdentityGovernancePanel
+        initialView="audit"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    expect(await screen.findByText("业务编号 employee-1")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "下一页" }));
+    expect(await screen.findByText("业务编号 employee-2")).toBeVisible();
+    expect(api.listAuditEvents).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 1, pageSize: 50 }),
     );
   });
 });

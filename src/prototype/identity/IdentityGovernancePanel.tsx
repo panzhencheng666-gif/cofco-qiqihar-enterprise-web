@@ -347,6 +347,8 @@ export function IdentityGovernancePanel({
   const [newReviewDueAt, setNewReviewDueAt] = useState("");
   const [auditRows, setAuditRows] = useState<readonly BusinessAuditRow[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditTotalPages, setAuditTotalPages] = useState(0);
   const [auditType, setAuditType] = useState("");
   const [auditActor, setAuditActor] = useState("");
   const [auditFrom, setAuditFrom] = useState("");
@@ -386,7 +388,7 @@ export function IdentityGovernancePanel({
       setLoading(false);
     }
   };
-  const loadAuditEvents = async () => {
+  const loadAuditEvents = async (pageNumber = 0) => {
     setLoading(true);
     setError(null);
     try {
@@ -400,11 +402,13 @@ export function IdentityGovernancePanel({
         occurredTo: auditTo
           ? new Date(`${auditTo}T23:59:59.999`).toISOString()
           : undefined,
-        page: 0,
+        page: pageNumber,
         pageSize: 50,
       });
       setAuditRows(page.items);
       setAuditTotal(page.totalElements);
+      setAuditPage(page.pageNumber);
+      setAuditTotalPages(page.totalPages);
     } catch {
       setError("审计记录读取失败，请检查查询范围后重试。");
     } finally {
@@ -1021,7 +1025,7 @@ export function IdentityGovernancePanel({
                 <button
                   disabled={loading}
                   type="button"
-                  onClick={() => void loadAuditEvents()}
+                  onClick={() => void loadAuditEvents(0)}
                 >
                   查询审计记录
                 </button>
@@ -1052,6 +1056,27 @@ export function IdentityGovernancePanel({
                   <p>当前查询范围内暂无操作记录。</p>
                 )}
               </div>
+              {auditTotalPages > 1 && (
+                <nav aria-label="审计记录分页">
+                  <button
+                    disabled={loading || auditPage === 0}
+                    onClick={() => void loadAuditEvents(auditPage - 1)}
+                    type="button"
+                  >
+                    上一页
+                  </button>
+                  <span>
+                    第 {auditPage + 1} / {auditTotalPages} 页
+                  </span>
+                  <button
+                    disabled={loading || auditPage + 1 >= auditTotalPages}
+                    onClick={() => void loadAuditEvents(auditPage + 1)}
+                    type="button"
+                  >
+                    下一页
+                  </button>
+                </nav>
+              )}
             </section>
           )}
         </div>
