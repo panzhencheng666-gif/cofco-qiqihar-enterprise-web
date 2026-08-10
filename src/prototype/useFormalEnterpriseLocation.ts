@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   normalizeFormalLocation,
   readFormalLocation,
@@ -71,7 +78,14 @@ export function useFormalEnterpriseLocation(
   >({
     [result.location.route.application]: result.location.coordinates,
   });
-  const initialLocation = useRef(result.location);
+  const normalizedResult = useMemo(
+    () => normalizeFormalLocation(result.location, authority),
+    [authority, result.location],
+  );
+
+  useLayoutEffect(() => {
+    writeLocation(normalizedResult.location, "replace");
+  }, [normalizedResult.location]);
 
   const apply = useCallback(
     (location: FormalLocation, mode?: "push" | "replace") => {
@@ -85,7 +99,6 @@ export function useFormalEnterpriseLocation(
   );
 
   useEffect(() => {
-    writeLocation(initialLocation.current, "replace");
     const onPopState = (event: PopStateEvent) => {
       const routeResult = readCurrentLocation(authority);
       const stored = historyFormalLocation(event.state);
@@ -115,7 +128,7 @@ export function useFormalEnterpriseLocation(
 
   const navigate = useCallback(
     (route: FormalRoute, selection?: FormalSelection) => {
-      const current = result.location;
+      const current = normalizedResult.location;
       coordinatesByApplication.current[current.route.application] =
         current.coordinates;
       const coordinates =
@@ -132,44 +145,47 @@ export function useFormalEnterpriseLocation(
         "push",
       );
     },
-    [apply, result.location],
+    [apply, normalizedResult.location],
   );
 
   const updateCoordinates = useCallback(
     (coordinates: Partial<BusinessCoordinates>) => {
       apply(
         {
-          ...result.location,
-          coordinates: { ...result.location.coordinates, ...coordinates },
+          ...normalizedResult.location,
+          coordinates: {
+            ...normalizedResult.location.coordinates,
+            ...coordinates,
+          },
         },
         "replace",
       );
     },
-    [apply, result.location],
+    [apply, normalizedResult.location],
   );
 
   const setSavedViewId = useCallback(
     (savedViewId?: string) => {
       const next = {
-        ...result.location,
+        ...normalizedResult.location,
         ...(savedViewId ? { savedViewId } : {}),
       };
       if (!savedViewId) delete next.savedViewId;
       apply(next, "replace");
     },
-    [apply, result.location],
+    [apply, normalizedResult.location],
   );
 
   return {
-    location: result.location,
+    location: normalizedResult.location,
     scope:
-      result.location &&
+      normalizedResult.location &&
       ({
-        ...toScope(authority, result.location.coordinates),
+        ...toScope(authority, normalizedResult.location.coordinates),
         savedView: null,
       } satisfies OperationalScope),
-    issues: result.issues,
-    queryAllowed: result.queryAllowed,
+    issues: normalizedResult.issues,
+    queryAllowed: normalizedResult.queryAllowed,
     navigate,
     updateCoordinates,
     setSavedViewId,

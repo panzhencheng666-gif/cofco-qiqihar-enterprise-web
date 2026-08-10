@@ -229,6 +229,57 @@ export interface BusinessNotificationPage {
   unreadCount: number;
 }
 
+export interface WorkObligationReportInput {
+  weekStart: string;
+  subjectId?: string;
+  workUnitCode?: string;
+  businessDomain?: "PRODUCTION" | "MARKET" | "LOGISTICS";
+  regionCode?: string;
+}
+
+export interface WorkObligationWeeklyReport {
+  weekStart: string;
+  weekEnd: string;
+  scopeLabel: string;
+  summary: {
+    total: number;
+    onTime: number;
+    lateCompleted: number;
+    overdueOutstanding: number;
+    pending: number;
+    returned: number;
+  };
+  rows: readonly {
+    workItemId: string;
+    employeeSubjectId: string;
+    employeeName: string;
+    workUnitCode: string;
+    workUnitName: string;
+    businessDomain: string;
+    businessDomainLabel: string;
+    regionCode: string;
+    regionName: string;
+    productName: string;
+    businessPeriod: string;
+    dueAt: string;
+    completedAt: string | null;
+    statusCode: string | null;
+    statusLabel: string;
+    complianceCode: string;
+    complianceLabel: string;
+    sourceType: string;
+    sourceId: string;
+  }[];
+}
+
+export interface WorkObligationReportExport {
+  id: string;
+  filename: string;
+  contentType: string;
+  checksum: string;
+  generatedAt: string;
+}
+
 export interface BusinessEventSource {
   addEventListener(
     type: string,
@@ -563,6 +614,13 @@ export interface RealtimeBusinessRepository {
     decisions: readonly AccessReviewDecision[],
   ): Promise<AccessReviewCampaign>;
   listAuditEvents(input?: BusinessAuditQuery): Promise<Page<BusinessAuditRow>>;
+  loadWorkObligationWeeklyReport(
+    input: WorkObligationReportInput,
+  ): Promise<WorkObligationWeeklyReport>;
+  createWorkObligationReportExport(
+    input: WorkObligationReportInput,
+  ): Promise<WorkObligationReportExport>;
+  downloadWorkObligationReport(exportId: string): Promise<Blob>;
   listNotifications(): Promise<BusinessNotificationPage>;
   markNotificationRead(id: string): Promise<BusinessNotificationRow>;
   subscribeBusinessEvents(
@@ -824,6 +882,26 @@ export function createRealtimeBusinessRepository(
         page: input.page ?? 0,
         pageSize: input.pageSize ?? 50,
       }),
+    loadWorkObligationWeeklyReport: (input) =>
+      client.get<WorkObligationWeeklyReport>(
+        "/api/v1/work-obligation-reports/weekly",
+        {
+          weekStart: input.weekStart,
+          subjectId: input.subjectId,
+          workUnitCode: input.workUnitCode,
+          businessDomain: input.businessDomain,
+          regionCode: input.regionCode,
+        },
+      ),
+    createWorkObligationReportExport: (input) =>
+      client.post<WorkObligationReportExport>(
+        "/api/v1/work-obligation-reports/weekly/exports",
+        input,
+      ),
+    downloadWorkObligationReport: (exportId) =>
+      client.download(
+        `/api/v1/work-obligation-reports/exports/${encodeURIComponent(exportId)}/content`,
+      ),
     listNotifications: () =>
       client.get<BusinessNotificationPage>("/api/v1/notifications"),
     markNotificationRead: (id) =>

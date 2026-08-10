@@ -50,6 +50,7 @@ import { RealtimeBusinessOperationsPanel } from "./realtime/RealtimeBusinessOper
 import { RealtimeSupplyBalancePanel } from "./realtime/RealtimeSupplyBalancePanel";
 import { RealtimeLogisticsOperationsPanel } from "./realtime/RealtimeLogisticsOperationsPanel";
 import { RealtimeReportCenterPanel } from "./realtime/RealtimeReportCenterPanel";
+import { RealtimeWorkObligationReportPanel } from "./realtime/RealtimeWorkObligationReportPanel";
 import {
   resolveRuntimeDataMode,
   type RuntimeDataMode,
@@ -330,76 +331,82 @@ export function FormalEnterprisePrototype({
     realtimeMode ? "loading" : "not-required",
   );
   useEffect(() => {
-    if (!realtimeMode) {
-      setCurrentSession(null);
-      setSessionStatus("not-required");
-      return;
-    }
-    if (typeof repository.loadCurrentSession !== "function") {
-      setCurrentSession(null);
-      setSessionStatus("error");
-      return;
-    }
     let cancelled = false;
-    setCurrentSession(null);
-    setSessionStatus("loading");
-    void repository
-      .loadCurrentSession()
-      .then((session) => {
-        if (cancelled) return;
-        setCurrentSession(normalizeCurrentSession(session));
-        setSessionStatus("authenticated");
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (!realtimeMode) {
         setCurrentSession(null);
-        const status =
-          error instanceof RealtimeApiError
-            ? error.status
-            : typeof error === "object" && error !== null && "status" in error
-              ? Number(error.status)
-              : 0;
-        setSessionStatus(
-          status === 401
-            ? "unauthenticated"
-            : status === 403
-              ? "forbidden"
-              : "error",
-        );
-      });
+        setSessionStatus("not-required");
+        return;
+      }
+      if (typeof repository.loadCurrentSession !== "function") {
+        setCurrentSession(null);
+        setSessionStatus("error");
+        return;
+      }
+      setCurrentSession(null);
+      setSessionStatus("loading");
+      void repository
+        .loadCurrentSession()
+        .then((session) => {
+          if (cancelled) return;
+          setCurrentSession(normalizeCurrentSession(session));
+          setSessionStatus("authenticated");
+        })
+        .catch((error: unknown) => {
+          if (cancelled) return;
+          setCurrentSession(null);
+          const status =
+            error instanceof RealtimeApiError
+              ? error.status
+              : typeof error === "object" && error !== null && "status" in error
+                ? Number(error.status)
+                : 0;
+          setSessionStatus(
+            status === 401
+              ? "unauthenticated"
+              : status === 403
+                ? "forbidden"
+                : "error",
+          );
+        });
+    });
     return () => {
       cancelled = true;
     };
   }, [realtimeMode, repository]);
   const sessionReady = !realtimeMode || sessionStatus === "authenticated";
-  const effectiveOperationalIdentity =
-    operationalIdentity ??
-    (realtimeMode
-      ? currentSession
-        ? {
-            ...apiPendingOperationalIdentity,
-            workUnit: {
-              organizationId: currentSession.workUnitCode,
-              unitId: currentSession.workUnitCode,
-              label: currentSession.workUnitName,
-            },
-            identity: {
-              userId: currentSession.subjectId,
-              postId:
-                currentSession.positions.find(
-                  ({ primaryPosition }) => primaryPosition,
-                )?.code ?? "unassigned-position",
-              displayName: currentSession.displayName,
-            },
-            authorization: {
-              ...apiPendingOperationalIdentity.authorization,
-              authorizedRegionIds:
-                currentSession.regionCodes as OperationalScopeIdentity["authorization"]["authorizedRegionIds"],
-              permissionKeys: currentSession.permissions,
-            },
-          }
-        : apiPendingOperationalIdentity
-      : prototypeOperationalIdentity);
+  const effectiveOperationalIdentity = useMemo(
+    () =>
+      operationalIdentity ??
+      (realtimeMode
+        ? currentSession
+          ? {
+              ...apiPendingOperationalIdentity,
+              workUnit: {
+                organizationId: currentSession.workUnitCode,
+                unitId: currentSession.workUnitCode,
+                label: currentSession.workUnitName,
+              },
+              identity: {
+                userId: currentSession.subjectId,
+                postId:
+                  currentSession.positions.find(
+                    ({ primaryPosition }) => primaryPosition,
+                  )?.code ?? "unassigned-position",
+                displayName: currentSession.displayName,
+              },
+              authorization: {
+                ...apiPendingOperationalIdentity.authorization,
+                authorizedRegionIds:
+                  currentSession.regionCodes as OperationalScopeIdentity["authorization"]["authorizedRegionIds"],
+                permissionKeys: currentSession.permissions,
+              },
+            }
+          : apiPendingOperationalIdentity
+        : prototypeOperationalIdentity),
+    [currentSession, operationalIdentity, realtimeMode],
+  );
   const shellIdentity = realtimeMode
     ? currentSession
       ? {
@@ -901,6 +908,18 @@ export function FormalEnterprisePrototype({
           />
         );
       case "work":
+        if (
+          realtimeMode &&
+          location.route.section === "obligations" &&
+          currentSession
+        ) {
+          return (
+            <RealtimeWorkObligationReportPanel
+              repository={repository}
+              session={currentSession}
+            />
+          );
+        }
         return (
           <FormalMyWorkWorkspace
             scope={scope}

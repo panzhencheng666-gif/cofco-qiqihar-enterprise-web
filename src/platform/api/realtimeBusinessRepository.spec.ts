@@ -93,6 +93,39 @@ function client() {
 }
 
 describe("realtime business repository", () => {
+  it("reads and exports governed employee obligation reports", async () => {
+    const { api, download, get, post } = client();
+    get.mockResolvedValueOnce({
+      weekStart: "2026-08-03",
+      weekEnd: "2026-08-09",
+      scopeLabel: "王洋",
+      summary: { total: 1, overdueOutstanding: 1 },
+      rows: [],
+    } as never);
+    post.mockResolvedValueOnce({
+      id: "report/1",
+      filename: "填报履职周报.xlsx",
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+    const input = { weekStart: "2026-08-03", subjectId: "wang-yang" };
+
+    await repository.loadWorkObligationWeeklyReport(input);
+    const exported = await repository.createWorkObligationReportExport(input);
+    await repository.downloadWorkObligationReport(exported.id);
+
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/work-obligation-reports/weekly",
+      input,
+    );
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/work-obligation-reports/weekly/exports",
+      input,
+    );
+    expect(download).toHaveBeenCalledWith(
+      "/api/v1/work-obligation-reports/exports/report%2F1/content",
+    );
+  });
+
   it("reads the database-owned annual comparison indicator catalogue", async () => {
     const { api, get } = client();
     get.mockResolvedValueOnce([
@@ -316,7 +349,17 @@ describe("realtime business repository", () => {
     );
     expect(post).toHaveBeenCalledWith(
       "/api/v1/identity/access-reviews/review-1/decisions",
-      expect.objectContaining({ decisions: expect.any(Array) }),
+      {
+        decisions: [
+          {
+            subjectId: "employee-88",
+            grantType: "REGION",
+            grantKey: "230202",
+            decisionCode: "RETAIN",
+            reason: "责任区域继续有效",
+          },
+        ],
+      },
     );
   });
 

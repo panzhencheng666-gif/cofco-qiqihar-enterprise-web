@@ -69,6 +69,8 @@ afterEach(() => {
 
 describe("formal enterprise prototype", () => {
   it("fails closed at the enterprise login boundary when no session exists", async () => {
+    const loadMasterData = vi.fn();
+    const listWorkItems = vi.fn();
     const repository = {
       loadCurrentSession: () =>
         Promise.reject(
@@ -78,8 +80,8 @@ describe("formal enterprise prototype", () => {
             status: 401,
           }),
         ),
-      loadMasterData: vi.fn(),
-      listWorkItems: vi.fn(),
+      loadMasterData,
+      listWorkItems,
     } as unknown as RealtimeBusinessRepository;
 
     render(
@@ -97,14 +99,15 @@ describe("formal enterprise prototype", () => {
       screen.getByRole("link", { name: "进入统一身份认证" }),
     ).toHaveAttribute("href", "/oauth2/authorization/enterprise");
     expect(screen.queryByText("产情监测")).not.toBeInTheDocument();
-    expect(repository.loadMasterData).not.toHaveBeenCalled();
-    expect(repository.listWorkItems).not.toHaveBeenCalled();
+    expect(loadMasterData).not.toHaveBeenCalled();
+    expect(listWorkItems).not.toHaveBeenCalled();
     expect(
       screen.queryByRole("link", { name: /注册/u }),
     ).not.toBeInTheDocument();
   });
 
   it("blocks disabled or unauthorized enterprise accounts without exposing the business shell", async () => {
+    const loadMasterData = vi.fn();
     const repository = {
       loadCurrentSession: () =>
         Promise.reject(
@@ -114,7 +117,7 @@ describe("formal enterprise prototype", () => {
             status: 403,
           }),
         ),
-      loadMasterData: vi.fn(),
+      loadMasterData,
       listWorkItems: vi.fn(),
     } as unknown as RealtimeBusinessRepository;
 
@@ -130,7 +133,7 @@ describe("formal enterprise prototype", () => {
     ).toBeVisible();
     expect(screen.getByText(/联系本单位系统管理员/)).toBeVisible();
     expect(screen.queryByText("我的工作")).not.toBeInTheDocument();
-    expect(repository.loadMasterData).not.toHaveBeenCalled();
+    expect(loadMasterData).not.toHaveBeenCalled();
   });
 
   it("binds the authenticated organization and account menus to real governance data", async () => {

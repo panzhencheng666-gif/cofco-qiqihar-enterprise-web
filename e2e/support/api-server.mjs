@@ -409,6 +409,18 @@ const server = createServer(async (request, response) => {
     response.write(": controlled stream ready\n\n");
     return;
   }
+  // Identity remains authoritative while downstream business responses are
+  // deliberately malformed by the failure-mode tests.
+  if (method === "GET" && url.pathname === "/api/v1/session/me") {
+    data(response, {
+      subjectId: "server-user",
+      displayName: "已认证用户",
+      workUnitCode: "QIQIHAR_BUSINESS",
+      permissions: ["BUSINESS_READ", "BUSINESS_CREATE"],
+      regionCodes: ["230200", "230221", "230221101", "230221101001"],
+    });
+    return;
+  }
   if (mode === "failure") {
     json(response, 200, {
       error: {
@@ -422,16 +434,6 @@ const server = createServer(async (request, response) => {
   const empty = mode === "empty";
   if (method === "GET" && url.pathname === "/api/v1/notifications") {
     data(response, { items: [], unreadCount: 0 });
-    return;
-  }
-  if (method === "GET" && url.pathname === "/api/v1/session/me") {
-    data(response, {
-      subjectId: "server-user",
-      displayName: "已认证用户",
-      workUnitCode: "QIQIHAR_BUSINESS",
-      permissions: ["BUSINESS_READ", "BUSINESS_CREATE"],
-      regionCodes: ["230200", "230221", "230221101", "230221101001"],
-    });
     return;
   }
   if (method === "GET" && url.pathname === "/api/v1/master-data/products") {

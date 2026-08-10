@@ -4792,6 +4792,136 @@ body {
   color: #22495e;
 }
 
+.obligation-report-workspace {
+  display: grid;
+  gap: 20px;
+}
+
+.obligation-report-filters {
+  align-items: end;
+}
+
+.obligation-report-filters > .realtime-region-cascade {
+  grid-column: 1 / -1;
+}
+
+.obligation-report-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  grid-column: 1 / -1;
+}
+
+.obligation-report-actions button {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 1px solid #147e75;
+  border-radius: 6px;
+  background: #fff;
+  color: #0d6d66;
+  font-weight: 700;
+}
+
+.obligation-report-actions button:last-child {
+  background: #0d756d;
+  color: #fff;
+}
+
+.obligation-report-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.obligation-report-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.obligation-report-summary article {
+  display: grid;
+  gap: 8px;
+  min-height: 96px;
+  padding: 16px;
+  border: 1px solid #d7e2e8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.obligation-report-summary span {
+  color: #526b7a;
+}
+
+.obligation-report-summary strong {
+  color: #163f56;
+  font-size: 26px;
+}
+
+.obligation-report-ledger {
+  overflow: hidden;
+  border: 1px solid #cbdbe3;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.obligation-report-ledger > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #d8e3e9;
+}
+
+.obligation-report-ledger h2,
+.obligation-report-ledger p {
+  margin: 0;
+}
+
+.obligation-report-ledger p {
+  margin-top: 4px;
+  color: #657d89;
+}
+
+.obligation-report-ledger table {
+  width: 100%;
+  min-width: 1280px;
+  border-collapse: collapse;
+}
+
+.obligation-report-ledger th,
+.obligation-report-ledger td {
+  padding: 13px 14px;
+  border-right: 1px solid #d9e4e9;
+  border-bottom: 1px solid #d9e4e9;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.obligation-report-ledger thead th {
+  background: #eaf4f7;
+  color: #244c60;
+}
+
+@media (max-width: 1180px) {
+  .obligation-report-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .obligation-report-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .obligation-report-actions {
+    justify-content: stretch;
+  }
+
+  .obligation-report-actions button {
+    flex: 1;
+  }
+}
+
 .formal-notification-list {
   display: grid;
   gap: 8px;

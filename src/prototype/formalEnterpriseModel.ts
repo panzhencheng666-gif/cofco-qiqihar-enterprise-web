@@ -8,7 +8,14 @@ import {
 import type { EnterpriseRegionId } from "./enterpriseRegions";
 
 export const formalSectionsByApplication = {
-  work: ["tasks", "submitted", "review", "exceptions", "completed"],
+  work: [
+    "tasks",
+    "submitted",
+    "review",
+    "exceptions",
+    "completed",
+    "obligations",
+  ],
   overview: ["operations", "risks", "duty", "releases", "map"],
   production: [
     "corn-collection",
@@ -80,6 +87,7 @@ const formalBusinessRouteNames = {
       review: "待我审核",
       exceptions: "退回与异常",
       completed: "已办事项",
+      obligations: "填报履职周报",
     },
   },
   overview: {

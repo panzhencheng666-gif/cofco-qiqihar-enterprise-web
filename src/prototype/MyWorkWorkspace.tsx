@@ -45,6 +45,10 @@ const myWorkViews: Readonly<
   review: { label: "待我审核", groups: ["待审核"] },
   exceptions: { label: "退回与异常", groups: ["异常逾期"] },
   completed: { label: "已办事项", groups: ["已办"] },
+  obligations: {
+    label: "填报履职周报",
+    groups: ["待填报", "待审核", "异常逾期", "待发布", "已办"],
+  },
 };
 
 const domainLabels: Readonly<Record<BusinessWorkItem["domain"], string>> = {

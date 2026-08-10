@@ -232,6 +232,10 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           label: "退回与异常",
         },
         { route: createFormalRoute("work", "completed"), label: "已办事项" },
+        {
+          route: createFormalRoute("work", "obligations"),
+          label: "填报履职周报",
+        },
       ],
     },
     {

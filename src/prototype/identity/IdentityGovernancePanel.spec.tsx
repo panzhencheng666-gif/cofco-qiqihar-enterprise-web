@@ -127,7 +127,7 @@ function repository() {
       }),
     ),
   };
-  return api as typeof api & RealtimeBusinessRepository;
+  return api;
 }
 
 describe("IdentityGovernancePanel", () => {
@@ -136,7 +136,7 @@ describe("IdentityGovernancePanel", () => {
       <IdentityGovernancePanel
         initialView="profile"
         onClose={vi.fn()}
-        repository={repository()}
+        repository={repository() as unknown as RealtimeBusinessRepository}
         session={session}
       />,
     );
@@ -162,7 +162,7 @@ describe("IdentityGovernancePanel", () => {
         initialView="profile"
         logoutUrl="/identity/logout"
         onClose={vi.fn()}
-        repository={repository()}
+        repository={repository() as unknown as RealtimeBusinessRepository}
         session={session}
       />,
     );
@@ -183,7 +183,7 @@ describe("IdentityGovernancePanel", () => {
       <IdentityGovernancePanel
         initialView="employees"
         onClose={vi.fn()}
-        repository={api}
+        repository={api as unknown as RealtimeBusinessRepository}
         session={session}
       />,
     );
@@ -224,7 +224,7 @@ describe("IdentityGovernancePanel", () => {
       <IdentityGovernancePanel
         initialView="reviews"
         onClose={vi.fn()}
-        repository={api}
+        repository={api as unknown as RealtimeBusinessRepository}
         session={session}
       />,
     );
@@ -259,7 +259,7 @@ describe("IdentityGovernancePanel", () => {
       <IdentityGovernancePanel
         initialView="audit"
         onClose={vi.fn()}
-        repository={api}
+        repository={api as unknown as RealtimeBusinessRepository}
         session={session}
       />,
     );

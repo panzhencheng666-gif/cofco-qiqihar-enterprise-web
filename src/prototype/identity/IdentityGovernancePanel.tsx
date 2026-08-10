@@ -415,9 +415,11 @@ export function IdentityGovernancePanel({
   };
 
   useEffect(() => {
-    if (view === "employees" && mayReadEmployees) void loadEmployees();
-    if (view === "reviews" && mayReview) void loadReviews();
-    if (view === "audit" && mayReadAudit) void loadAuditEvents();
+    queueMicrotask(() => {
+      if (view === "employees" && mayReadEmployees) void loadEmployees();
+      if (view === "reviews" && mayReview) void loadReviews();
+      if (view === "audit" && mayReadAudit) void loadAuditEvents();
+    });
     // Repository/session identity changes intentionally restart the authoritative query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
