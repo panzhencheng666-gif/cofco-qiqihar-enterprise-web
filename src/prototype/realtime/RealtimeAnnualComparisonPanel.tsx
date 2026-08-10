@@ -10,6 +10,7 @@ import {
 } from "@/platform/api/realtimeBusinessRepository";
 
 import { RealtimeRegionCascadePicker } from "./RealtimeRegionCascadePicker";
+import { currentSurveyYear, surveyYearOptions } from "./explicitRecordTime";
 
 type AnalysisDomain = "production" | "market";
 
@@ -48,7 +49,7 @@ export function RealtimeAnnualComparisonPanel({
   const [cultivars, setCultivars] = useState<readonly MasterCultivar[]>([]);
   const [productCode, setProductCode] = useState("CORN");
   const [regionCode, setRegionCode] = useState("230200");
-  const [periodCode, setPeriodCode] = useState("2026-W32");
+  const [surveyYear, setSurveyYear] = useState(currentSurveyYear);
   const [cultivarCode, setCultivarCode] = useState("");
   const [indicatorCode, setIndicatorCode] = useState("");
   const [comparison, setComparison] = useState<AnnualComparisonView | null>(
@@ -67,7 +68,6 @@ export function RealtimeAnnualComparisonPanel({
         setMaster(nextMaster);
         setProductCode(nextMaster.products[0]?.code ?? "CORN");
         setRegionCode(nextMaster.regions[0]?.code ?? "230200");
-        setPeriodCode(nextMaster.periods[0]?.code ?? "2026-W32");
       })
       .catch(() => {
         if (!cancelled) setError("分析筛选项暂时无法读取，请稍后重试。");
@@ -123,7 +123,7 @@ export function RealtimeAnnualComparisonPanel({
   }, [productCode, repository]);
 
   useEffect(() => {
-    if (!master || !productCode || !regionCode || !periodCode || !indicatorCode)
+    if (!master || !productCode || !regionCode || !surveyYear || !indicatorCode)
       return;
     let cancelled = false;
     void repository
@@ -131,7 +131,7 @@ export function RealtimeAnnualComparisonPanel({
         productCode,
         ...(cultivarCode ? { cultivarCode } : {}),
         regionCode,
-        periodCode,
+        surveyYear: Number(surveyYear),
         indicatorCode,
       })
       .then((nextComparison) => {
@@ -154,10 +154,10 @@ export function RealtimeAnnualComparisonPanel({
     cultivarCode,
     indicatorCode,
     master,
-    periodCode,
     productCode,
     regionCode,
     repository,
+    surveyYear,
   ]);
 
   const chronologicalPoints = useMemo(
@@ -265,24 +265,22 @@ export function RealtimeAnnualComparisonPanel({
           requireVillage={false}
           value={regionCode}
         />
-        {(master?.periods.length ?? 0) > 1 && (
-          <label>
-            <span>统计时间</span>
-            <select
-              aria-label="统计时间"
-              value={periodCode}
-              onChange={(event) =>
-                changeAnalysisScope(() => setPeriodCode(event.target.value))
-              }
-            >
-              {master?.periods.map((period) => (
-                <option key={period.code} value={period.code}>
-                  {period.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+        <label>
+          <span>调查年度</span>
+          <select
+            aria-label="调查年度"
+            value={surveyYear}
+            onChange={(event) =>
+              changeAnalysisScope(() => setSurveyYear(event.target.value))
+            }
+          >
+            {surveyYearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year} 年
+              </option>
+            ))}
+          </select>
+        </label>
         {indicatorOptions.length > 1 && (
           <label>
             <span>分析指标</span>
@@ -306,8 +304,7 @@ export function RealtimeAnnualComparisonPanel({
           {master?.products.find(({ code }) => code === productCode)?.name ??
             "尚无产品"}
           {" · "}
-          {master?.periods.find(({ code }) => code === periodCode)?.name ??
-            "尚无统计时间"}
+          {surveyYear}调查年度
         </p>
       </section>
 

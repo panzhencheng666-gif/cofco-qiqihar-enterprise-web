@@ -64,7 +64,8 @@ export interface AnnualComparisonView {
   productCode: string;
   cultivarCode: string | null;
   regionCode: string;
-  cutoffPeriodCode: string;
+  surveyYear: number;
+  cutoffPeriodCode: string | null;
   unitCode: string;
   methodologyVersion: string;
   points: readonly AnnualComparisonPoint[];
@@ -697,7 +698,7 @@ export interface RealtimeBusinessRepository {
     productCode: string;
     cultivarCode?: string;
     regionCode: string;
-    periodCode: string;
+    surveyYear: number;
     indicatorCode: string;
   }): Promise<AnnualComparisonView>;
   loadReportParameterOptions(): Promise<ReportParameterOptions>;

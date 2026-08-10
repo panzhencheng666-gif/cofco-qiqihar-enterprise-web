@@ -82,7 +82,8 @@ function repository() {
       productCode: "CORN",
       cultivarCode: null,
       regionCode: "230200",
-      cutoffPeriodCode: "2026-W32",
+      surveyYear: 2026,
+      cutoffPeriodCode: null,
       unitCode: "亩",
       methodologyVersion: "internal",
       points: [
@@ -137,13 +138,27 @@ describe("realtime annual comparison panel", () => {
     expect(screen.getByRole("combobox", { name: "乡镇" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "行政村" })).toBeVisible();
     expect(screen.queryByLabelText("统计时间")).not.toBeInTheDocument();
-    expect(screen.getByText("当前范围：玉米 · 2026年第32周")).toBeVisible();
+    expect(screen.getByLabelText("调查年度")).toHaveValue("2026");
+    expect(screen.getByText("当前范围：玉米 · 2026调查年度")).toBeVisible();
     expect(screen.getByLabelText("分析指标")).toBeVisible();
     expect(screen.getByLabelText("分析指标")).toHaveTextContent(
       "产情核定期初库存",
     );
     expect(screen.getByLabelText("分析指标")).toHaveTextContent("产情核定水分");
     expect(screen.queryByText("internal")).not.toBeInTheDocument();
+    expect(loadAnnualComparison).toHaveBeenCalledWith(
+      expect.objectContaining({ surveyYear: 2026 }),
+    );
+    expect(loadAnnualComparison).not.toHaveBeenCalledWith(
+      expect.objectContaining({ periodCode: expect.anything() }),
+    );
+
+    await user.selectOptions(screen.getByLabelText("调查年度"), "2025");
+    await waitFor(() =>
+      expect(loadAnnualComparison).toHaveBeenLastCalledWith(
+        expect.objectContaining({ surveyYear: 2025 }),
+      ),
+    );
 
     await user.hover(
       screen.getByRole("button", { name: "折线图 2024年 100 亩" }),
@@ -171,6 +186,29 @@ describe("realtime annual comparison panel", () => {
         expect.objectContaining({
           indicatorCode: "PRODUCTION_PROD_OPENING_INVENTORY",
         }),
+      ),
+    );
+  });
+
+  it("uses the same survey-year-only filter for market analysis", async () => {
+    const api = repository();
+    const loadAnnualComparison = vi.spyOn(api, "loadAnnualComparison");
+    const listDefinitions = vi.spyOn(api, "listAnnualComparisonDefinitions");
+
+    render(<RealtimeAnnualComparisonPanel domain="market" repository={api} />);
+
+    expect(
+      await screen.findByRole("heading", { name: "市场年度对比分析" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("调查年度")).toHaveValue("2026");
+    expect(screen.queryByLabelText("调查月份")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("填报日期起")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(listDefinitions).toHaveBeenCalledWith("MARKET", "CORN"),
+    );
+    await waitFor(() =>
+      expect(loadAnnualComparison).toHaveBeenCalledWith(
+        expect.objectContaining({ surveyYear: 2026 }),
       ),
     );
   });
