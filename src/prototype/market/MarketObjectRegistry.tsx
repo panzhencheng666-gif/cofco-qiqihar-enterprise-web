@@ -1,4 +1,10 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+
+import type {
+  MarketObjectMutation,
+  MarketObjectRow,
+  RealtimeBusinessRepository,
+} from "@/platform/api/realtimeBusinessRepository";
 
 import {
   type EffectiveBusinessRole,
@@ -37,6 +43,10 @@ import {
   MarketFilterChips,
   type MarketFilterCondition,
 } from "./MarketFilterChips";
+import {
+  marketObjectRegionCode,
+  marketObjectRegionId,
+} from "./marketObjectRegionCodes";
 
 interface RegistryFilters {
   objectTypeId: string;
@@ -62,6 +72,11 @@ const marketObjectTypeOptions: readonly (readonly [
   ["grain-storage-enterprise", "承储企业"],
 ];
 
+const serverMarketObjectTypeOptions: readonly (readonly [
+  MonitoringObjectTypeId,
+  string,
+])[] = [["business-party" as MonitoringObjectTypeId, "经营主体"]];
+
 const grainProcessingProductIds = [
   "corn",
   "soybean",
@@ -77,6 +92,9 @@ function applicableProductIdsForObjectType(
   objectTypeId: MonitoringObjectTypeId | "",
 ): readonly string[] {
   if (!objectTypeId) return [];
+  if ((objectTypeId as string) === "business-party") {
+    return ["corn", "soybean", "paddy"];
+  }
   if (objectTypeId === "breeding-farm" || objectTypeId === "feed-mill") {
     return ["corn"];
   }
@@ -103,6 +121,19 @@ const marketRoleOptions = marketCapabilityTemplates.map(
   }),
 );
 
+const serverMarketRoleIds = new Set([
+  "trader",
+  "corn-processor",
+  "soy-crusher",
+  "soy-protein",
+  "food-condiment",
+  "rice-mill",
+  "feed",
+  "livestock",
+  "reserve",
+  "wholesale-market",
+]);
+
 function cultivarIdsForProducts(productIds: readonly string[]): string[] {
   return [
     ...new Set(
@@ -128,23 +159,27 @@ function validityPeriodText(
   }`;
 }
 
-function roleValidityText(role: EffectiveBusinessRole): string {
-  if (role.effectiveFrom > marketRegistryAsOf) return "尚未生效";
-  if (role.effectiveTo && role.effectiveTo < marketRegistryAsOf)
-    return "已失效";
+function roleValidityText(role: EffectiveBusinessRole, asOf: string): string {
+  if (role.effectiveFrom > asOf) return "尚未生效";
+  if (role.effectiveTo && role.effectiveTo < asOf) return "已失效";
   return "当前生效";
 }
 
-function activeRoles(object: MonitoringObject) {
-  return getEffectiveBusinessRoles(object, marketRegistryAsOf);
+function activeRoles(object: MonitoringObject, asOf: string) {
+  return getEffectiveBusinessRoles(object, asOf);
 }
 
-function activeCapabilities(object: MonitoringObject) {
-  return getActiveObjectCapabilities(
-    object,
-    marketCapabilityTemplates,
-    marketRegistryAsOf,
-  );
+function activeCapabilities(object: MonitoringObject, asOf: string) {
+  return getActiveObjectCapabilities(object, marketCapabilityTemplates, asOf);
+}
+
+function currentChinaDate(): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function legacyProfile(objectId: string) {
@@ -522,6 +557,55 @@ interface ObjectEditorValue {
   roles: readonly EffectiveBusinessRole[];
 }
 
+interface PersistedMonitoringObject extends MonitoringObject {
+  version: number;
+}
+
+function monitoringObjectFromRow(
+  row: MarketObjectRow,
+): PersistedMonitoringObject {
+  return {
+    objectId: row.objectId,
+    objectName: row.objectName,
+    objectTypeId: row.objectTypeId as MonitoringObjectTypeId,
+    objectTypeLabel: row.objectTypeLabel,
+    regionId: row.regionCode,
+    regionLabel: row.regionName,
+    productIds: row.productIds,
+    productLabels: row.productLabels,
+    cultivarIds: row.cultivarIds,
+    cultivarLabels: row.cultivarLabels,
+    sourceChannelId: row.sourceChannelId as MonitoringSourceChannelId,
+    sourceChannelLabel: row.sourceChannelLabel,
+    responsibleUserId: row.responsibleUserId,
+    responsiblePerson: row.responsiblePerson,
+    effectiveFrom: row.effectiveFrom,
+    effectiveTo: row.effectiveTo,
+    validityStatus: row.validityStatus,
+    roles: row.roles,
+    version: row.version,
+  };
+}
+
+function marketObjectMutation(
+  value: ObjectEditorValue,
+): MarketObjectMutation | undefined {
+  const regionCode = marketObjectRegionCode(value.regionId);
+  if (!regionCode) return undefined;
+  return {
+    objectName: value.objectName,
+    objectTypeId: value.objectTypeId,
+    regionCode,
+    productIds: value.productIds,
+    cultivarIds: value.cultivarIds,
+    sourceChannelId: value.sourceChannelId,
+    effectiveFrom: value.effectiveFrom,
+    effectiveTo: value.effectiveTo,
+    validityStatus: value.validityStatus,
+    roles: value.roles,
+  };
+}
+
 interface RoleDraft {
   roleId: string;
   label: string;
@@ -531,22 +615,27 @@ interface RoleDraft {
   effectiveTo: string;
 }
 
-function roleDraftsFor(object?: MonitoringObject): RoleDraft[] {
-  const configured = marketRoleOptions.map((option) => {
-    const existing = object?.roles.find(
-      ({ roleId }) => roleId === option.roleId,
-    );
-    return {
-      ...option,
-      label: existing?.label ?? option.label,
-      capabilityTemplateVersionId:
-        existing?.capabilityTemplateVersionId ??
-        option.capabilityTemplateVersionId,
-      selected: Boolean(existing),
-      effectiveFrom: existing?.effectiveFrom ?? "",
-      effectiveTo: existing?.effectiveTo ?? "",
-    };
-  });
+function roleDraftsFor(
+  object?: MonitoringObject,
+  serverBacked = false,
+): RoleDraft[] {
+  const configured = marketRoleOptions
+    .filter(({ roleId }) => !serverBacked || serverMarketRoleIds.has(roleId))
+    .map((option) => {
+      const existing = object?.roles.find(
+        ({ roleId }) => roleId === option.roleId,
+      );
+      return {
+        ...option,
+        label: existing?.label ?? option.label,
+        capabilityTemplateVersionId:
+          existing?.capabilityTemplateVersionId ??
+          option.capabilityTemplateVersionId,
+        selected: Boolean(existing),
+        effectiveFrom: existing?.effectiveFrom ?? "",
+        effectiveTo: existing?.effectiveTo ?? "",
+      };
+    });
   const configuredRoleIds = new Set<string>(
     configured.map(({ roleId }) => roleId),
   );
@@ -565,11 +654,13 @@ function ObjectEditor({
   objectTypes,
   scope,
   onSave,
+  serverBacked = false,
 }: {
   object?: MonitoringObject;
   objectTypes: readonly (readonly [MonitoringObjectTypeId, string])[];
   scope: OperationalScope;
-  onSave: (value: ObjectEditorValue) => void;
+  onSave: (value: ObjectEditorValue) => boolean | Promise<boolean>;
+  serverBacked?: boolean;
 }) {
   const modeLabel = object ? "编辑对象" : "新增对象";
   const [objectName, setObjectName] = useState(object?.objectName ?? "");
@@ -587,7 +678,8 @@ function ObjectEditor({
     MonitoringSourceChannelId | ""
   >(object?.sourceChannelId ?? "");
   const [responsiblePerson, setResponsiblePerson] = useState(
-    object?.responsiblePerson ?? "",
+    object?.responsiblePerson ??
+      (serverBacked ? (scope.identity.displayName ?? "") : ""),
   );
   const [validityStatus, setValidityStatus] = useState<"active" | "inactive">(
     object?.validityStatus ?? "active",
@@ -597,16 +689,22 @@ function ObjectEditor({
   );
   const [effectiveTo, setEffectiveTo] = useState(object?.effectiveTo ?? "");
   const [roleDrafts, setRoleDrafts] = useState<RoleDraft[]>(() =>
-    roleDraftsFor(object),
+    roleDraftsFor(object, serverBacked),
   );
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
   const applicableProductIds = applicableProductIdsForObjectType(objectTypeId);
-  const productOptions = scope.authorization.authorizedProductIds.filter((id) =>
-    applicableProductIds.includes(id),
-  );
+  const productOptions = (
+    serverBacked
+      ? (["corn", "soybean", "paddy"] as const)
+      : scope.authorization.authorizedProductIds
+  ).filter((id) => applicableProductIds.includes(id));
   const cultivarOptions = cultivarIdsForProducts(productIds).filter((id) =>
-    scope.authorization.authorizedCultivarIds.includes(id),
+    serverBacked
+      ? id === "heinong-84" || id === "dongsheng-22"
+      : scope.authorization.authorizedCultivarIds.includes(id),
   );
+  const regionOptions = scope.authorization.authorizedRegionIds;
 
   const changeObjectType = (nextTypeId: MonitoringObjectTypeId | "") => {
     setObjectTypeId(nextTypeId);
@@ -665,11 +763,15 @@ function ObjectEditor({
       return;
     }
     if (
-      !scope.authorization.authorizedRegionIds.some((id) => id === regionId) ||
+      (!serverBacked &&
+        !scope.authorization.authorizedRegionIds.some(
+          (id) => id === regionId,
+        )) ||
       productIds.length === 0 ||
       productIds.some(
         (id) =>
-          !scope.authorization.authorizedProductIds.includes(id) ||
+          (!serverBacked &&
+            !scope.authorization.authorizedProductIds.includes(id)) ||
           !applicableProductIds.includes(id),
       )
     ) {
@@ -680,7 +782,8 @@ function ObjectEditor({
     if (
       cultivarIds.some(
         (id) =>
-          !scope.authorization.authorizedCultivarIds.includes(id) ||
+          (!serverBacked &&
+            !scope.authorization.authorizedCultivarIds.includes(id)) ||
           !allowedCultivarIds.includes(id),
       )
     ) {
@@ -705,38 +808,49 @@ function ObjectEditor({
       setMessage("业务角色失效日期不得早于生效日期，未保存对象。");
       return;
     }
-    setMessage(
-      object
-        ? "对象资料已更新，名录与详情已同步。"
-        : "监测对象已新增并进入当前名录。",
-    );
-    onSave({
-      objectTypeId,
-      objectName: trimmedName,
-      regionId,
-      productIds,
-      cultivarIds,
-      sourceChannelId,
-      responsiblePerson: trimmedResponsiblePerson,
-      effectiveFrom,
-      effectiveTo: effectiveTo || null,
-      validityStatus,
-      roles: selectedRoles.map(
-        ({
-          roleId,
-          label,
-          effectiveFrom: roleFrom,
-          effectiveTo: roleTo,
-          capabilityTemplateVersionId,
-        }) => ({
-          roleId,
-          label,
-          effectiveFrom: roleFrom,
-          effectiveTo: roleTo || null,
-          capabilityTemplateVersionId,
-        }),
-      ),
-    });
+    setMessage("正在保存对象资料。");
+    setSaving(true);
+    void Promise.resolve(
+      onSave({
+        objectTypeId,
+        objectName: trimmedName,
+        regionId,
+        productIds,
+        cultivarIds,
+        sourceChannelId,
+        responsiblePerson: trimmedResponsiblePerson,
+        effectiveFrom,
+        effectiveTo: effectiveTo || null,
+        validityStatus,
+        roles: selectedRoles.map(
+          ({
+            roleId,
+            label,
+            effectiveFrom: roleFrom,
+            effectiveTo: roleTo,
+            capabilityTemplateVersionId,
+          }) => ({
+            roleId,
+            label,
+            effectiveFrom: roleFrom,
+            effectiveTo: roleTo || null,
+            capabilityTemplateVersionId,
+          }),
+        ),
+      }),
+    )
+      .then((saved) => {
+        if (!saved) {
+          setMessage("");
+          return;
+        }
+        setMessage(
+          object
+            ? "对象资料已更新，名录与详情已同步。"
+            : "监测对象已新增并进入当前名录。",
+        );
+      })
+      .finally(() => setSaving(false));
   };
   return (
     <form
@@ -785,9 +899,11 @@ function ObjectEditor({
             onChange={(event) => setRegionId(event.target.value)}
           >
             <option value="">请选择业务地区</option>
-            {scope.authorization.authorizedRegionIds.map((id) => (
+            {regionOptions.map((id) => (
               <option key={id} value={id}>
-                {getEnterpriseScopeRegion(id)?.label ?? "地区名称未提供"}
+                {getEnterpriseScopeRegion(
+                  serverBacked ? (marketObjectRegionId(id) ?? id) : id,
+                )?.label ?? "地区名称未提供"}
               </option>
             ))}
           </select>
@@ -804,17 +920,20 @@ function ObjectEditor({
             }
           >
             <option value="">请选择来源渠道</option>
-            {marketSourceChannelOptions.map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
+            {marketSourceChannelOptions
+              .filter(([id]) => !serverBacked || id === "enterprise-report")
+              .map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
           </select>
         </label>
         <label>
           <span>责任人</span>
           <input
             aria-label={`${modeLabel}责任人`}
+            readOnly={serverBacked}
             value={responsiblePerson}
             onChange={(event) => setResponsiblePerson(event.target.value)}
           />
@@ -962,8 +1081,8 @@ function ObjectEditor({
         </div>
       </fieldset>
       <div className="market-task6-object-editor-actions">
-        <button type="submit">
-          {object ? "保存对象资料" : "保存监测对象"}
+        <button disabled={saving} type="submit">
+          {saving ? "正在保存" : object ? "保存对象资料" : "保存监测对象"}
         </button>
       </div>
       {message && <p role="status">{message}</p>}
@@ -980,6 +1099,7 @@ export function MarketObjectRegistry({
   queryAllowed,
   registryObjects,
   onRegistryObjectsChange,
+  realtimeRepository,
 }: {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
@@ -989,23 +1109,68 @@ export function MarketObjectRegistry({
   queryAllowed: boolean;
   registryObjects?: readonly MonitoringObject[];
   onRegistryObjectsChange?: (objects: readonly MonitoringObject[]) => void;
+  realtimeRepository?: RealtimeBusinessRepository;
 }) {
   const [filters, setFilters] = useState(emptyFilters);
   const [page, setPage] = useState(1);
   const [localRegistryObjects, setLocalRegistryObjects] = useState<
     readonly MonitoringObject[]
   >(() => [...marketMonitoringObjects]);
+  const [serverRegistryObjects, setServerRegistryObjects] = useState<
+    readonly PersistedMonitoringObject[]
+  >([]);
+  const [serverStatus, setServerStatus] = useState<
+    "not-required" | "loading" | "ready" | "error"
+  >(realtimeRepository ? "loading" : "not-required");
   const [creating, setCreating] = useState(false);
   const [editingObjectId, setEditingObjectId] = useState<string | null>(null);
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
-  const currentRegistryObjects = registryObjects ?? localRegistryObjects;
+  useEffect(() => {
+    if (!realtimeRepository) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (typeof realtimeRepository.listMarketObjects !== "function") {
+        setServerRegistryObjects([]);
+        setServerStatus("error");
+        return;
+      }
+      setServerStatus("loading");
+      void realtimeRepository
+        .listMarketObjects()
+        .then((rows) => {
+          if (cancelled) return;
+          setServerRegistryObjects(rows.map(monitoringObjectFromRow));
+          setServerStatus("ready");
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setServerRegistryObjects([]);
+          setServerStatus("error");
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [realtimeRepository]);
+  const currentRegistryObjects = realtimeRepository
+    ? serverRegistryObjects
+    : (registryObjects ?? localRegistryObjects);
   const updateRegistryObjects = (objects: readonly MonitoringObject[]) => {
     if (registryObjects === undefined) setLocalRegistryObjects(objects);
     onRegistryObjectsChange?.(objects);
   };
-  const canManage = scope.authorization.permissionKeys.includes(
-    "market:object:manage",
-  );
+  const hasManagePermission =
+    scope.authorization.permissionKeys.includes("market:object:manage") ||
+    scope.authorization.permissionKeys.includes("MARKET_OBJECT_MANAGE");
+  const canManage =
+    hasManagePermission && (!realtimeRepository || serverStatus === "ready");
+  const registryAsOf = realtimeRepository
+    ? currentChinaDate()
+    : marketRegistryAsOf;
+  const effectiveObjectTypeOptions = realtimeRepository
+    ? serverMarketObjectTypeOptions
+    : marketObjectTypeOptions;
   const cultivarMismatch = Boolean(
     scope.coordinates.productId &&
     scope.coordinates.cultivarId &&
@@ -1048,11 +1213,36 @@ export function MarketObjectRegistry({
     : undefined;
   const invalidSelection =
     selection !== undefined && (selection.type !== "object" || !selected);
-  const createObject = (value: ObjectEditorValue) => {
+  const createObject = async (value: ObjectEditorValue) => {
+    if (realtimeRepository) {
+      const input = marketObjectMutation(value);
+      if (
+        !input ||
+        typeof realtimeRepository.createMarketObject !== "function"
+      ) {
+        setMaintenanceMessage("所选地区尚未映射到服务端行政区，未保存对象。");
+        return false;
+      }
+      setMaintenanceMessage("正在保存市场监测对象。");
+      try {
+        const saved = monitoringObjectFromRow(
+          await realtimeRepository.createMarketObject(input),
+        );
+        setServerRegistryObjects((current) => [...current, saved]);
+        setCreating(false);
+        setMaintenanceMessage("监测对象已保存到服务端权威名录。");
+        onSelectionChange({ type: "object", id: saved.objectId });
+        return true;
+      } catch {
+        setMaintenanceMessage("市场监测对象保存失败，请核对资料后重试。");
+        return false;
+      }
+    }
     const objectId = `OBJ-MARKET-LOCAL-${currentRegistryObjects.length + 1}`;
     const objectTypeLabel =
-      marketObjectTypeOptions.find(([id]) => id === value.objectTypeId)?.[1] ??
-      "对象类型名称未提供";
+      effectiveObjectTypeOptions.find(
+        ([id]) => id === value.objectTypeId,
+      )?.[1] ?? "对象类型名称未提供";
     const sourceChannelLabel =
       marketSourceChannelOptions.find(
         ([id]) => id === value.sourceChannelId,
@@ -1086,6 +1276,83 @@ export function MarketObjectRegistry({
     setCreating(false);
     setMaintenanceMessage("监测对象已新增，名录与对象详情已同步。");
     onSelectionChange({ type: "object", id: objectId });
+    return true;
+  };
+  const updateObject = async (
+    object: MonitoringObject,
+    value: ObjectEditorValue,
+  ) => {
+    if (realtimeRepository) {
+      const input = marketObjectMutation(value);
+      const version =
+        "version" in object && typeof object.version === "number"
+          ? object.version
+          : undefined;
+      if (
+        !input ||
+        version === undefined ||
+        typeof realtimeRepository.updateMarketObject !== "function"
+      ) {
+        setMaintenanceMessage("服务端对象版本或地区映射缺失，未保存对象。");
+        return false;
+      }
+      setMaintenanceMessage("正在更新市场监测对象。");
+      try {
+        const saved = monitoringObjectFromRow(
+          await realtimeRepository.updateMarketObject(object.objectId, {
+            ...input,
+            version,
+          }),
+        );
+        setServerRegistryObjects((current) =>
+          current.map((candidate) =>
+            candidate.objectId === saved.objectId ? saved : candidate,
+          ),
+        );
+        setEditingObjectId(null);
+        setMaintenanceMessage("对象资料已更新到服务端权威名录。");
+        return true;
+      } catch {
+        setMaintenanceMessage(
+          "对象资料更新失败，可能已被其他人员修改，请刷新后重试。",
+        );
+        return false;
+      }
+    }
+    const objectTypeLabel =
+      effectiveObjectTypeOptions.find(
+        ([candidateId]) => candidateId === value.objectTypeId,
+      )?.[1] ?? object.objectTypeLabel;
+    const sourceChannelLabel =
+      value.sourceChannelId === object.sourceChannelId
+        ? object.sourceChannelLabel
+        : (marketSourceChannelOptions.find(
+            ([id]) => id === value.sourceChannelId,
+          )?.[1] ?? "来源渠道名称未提供");
+    updateRegistryObjects(
+      currentRegistryObjects.map((candidate) =>
+        candidate.objectId === object.objectId
+          ? {
+              ...candidate,
+              ...value,
+              objectTypeLabel,
+              regionLabel:
+                getEnterpriseScopeRegion(value.regionId)?.label ??
+                "地区名称未提供",
+              productLabels: value.productIds.map((id) =>
+                governedMarketName(marketProductNames, id, "产品名称未提供"),
+              ),
+              cultivarLabels: value.cultivarIds.map((id) =>
+                governedMarketName(marketCultivarNames, id, "品种名称未提供"),
+              ),
+              sourceChannelLabel,
+            }
+          : candidate,
+      ),
+    );
+    setEditingObjectId(null);
+    setMaintenanceMessage("对象资料已更新，名录与详情已同步。");
+    return true;
   };
   return (
     <div className="unified-workspace market-task6-workspace">
@@ -1107,6 +1374,21 @@ export function MarketObjectRegistry({
         }}
         scope={scope}
       />
+      {serverStatus === "loading" && (
+        <div className="market-task6-alert" role="status">
+          正在加载服务端市场监测对象名录。
+        </div>
+      )}
+      {serverStatus === "error" && (
+        <div className="market-task6-alert" role="alert">
+          市场监测对象名录加载失败，请稍后重试。
+        </div>
+      )}
+      {realtimeRepository && maintenanceMessage && !selectedObject && (
+        <div className="market-task6-alert" role="status">
+          {maintenanceMessage}
+        </div>
+      )}
       {!queryAllowed && (
         <div className="market-task6-alert" role="alert">
           当前筛选范围超出您的数据权限，系统未展示其他对象。
@@ -1145,9 +1427,10 @@ export function MarketObjectRegistry({
         </header>
         {canManage && creating && (
           <ObjectEditor
-            objectTypes={marketObjectTypeOptions}
+            objectTypes={effectiveObjectTypeOptions}
             scope={scope}
             onSave={createObject}
+            serverBacked={Boolean(realtimeRepository)}
           />
         )}
         <div
@@ -1178,7 +1461,7 @@ export function MarketObjectRegistry({
                     <span>{object.objectTypeLabel}</span>
                   </th>
                   <td>
-                    {activeRoles(object)
+                    {activeRoles(object, registryAsOf)
                       .map(({ label }) => label)
                       .join("、")}
                   </td>
@@ -1360,7 +1643,7 @@ export function MarketObjectRegistry({
                 {selectedObject.roles.map((role) => (
                   <article key={`${role.roleId}-${role.effectiveFrom}`}>
                     <strong>{role.label}</strong>
-                    <span>{roleValidityText(role)}</span>
+                    <span>{roleValidityText(role, registryAsOf)}</span>
                     <small>
                       {validityPeriodText(role.effectiveFrom, role.effectiveTo)}
                     </small>
@@ -1374,18 +1657,20 @@ export function MarketObjectRegistry({
             className="market-task6-capabilities"
           >
             <h3>当前有效角色与实际能力</h3>
-            {activeCapabilities(selectedObject).length > 0 ? (
-              activeCapabilities(selectedObject).map((capability) => (
-                <div key={capability.roleLabel}>
-                  <strong>{capability.roleLabel}</strong>
-                  <span>{capability.templateLabel}</span>
-                  <ul>
-                    {capability.capabilityLabels.map((label) => (
-                      <li key={label}>{label}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))
+            {activeCapabilities(selectedObject, registryAsOf).length > 0 ? (
+              activeCapabilities(selectedObject, registryAsOf).map(
+                (capability) => (
+                  <div key={capability.roleLabel}>
+                    <strong>{capability.roleLabel}</strong>
+                    <span>{capability.templateLabel}</span>
+                    <ul>
+                      {capability.capabilityLabels.map((label) => (
+                        <li key={label}>{label}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ),
+              )
             ) : (
               <p>当前没有处于有效期内的业务角色，系统未派生业务能力。</p>
             )}
@@ -1411,51 +1696,10 @@ export function MarketObjectRegistry({
             <ObjectEditor
               key={selectedObject.objectId}
               object={selectedObject}
-              objectTypes={marketObjectTypeOptions}
+              objectTypes={effectiveObjectTypeOptions}
               scope={scope}
-              onSave={(value) => {
-                const objectTypeLabel =
-                  marketObjectTypeOptions.find(
-                    ([candidateId]) => candidateId === value.objectTypeId,
-                  )?.[1] ?? selectedObject.objectTypeLabel;
-                const sourceChannelLabel =
-                  value.sourceChannelId === selectedObject.sourceChannelId
-                    ? selectedObject.sourceChannelLabel
-                    : (marketSourceChannelOptions.find(
-                        ([id]) => id === value.sourceChannelId,
-                      )?.[1] ?? "来源渠道名称未提供");
-                updateRegistryObjects(
-                  currentRegistryObjects.map((object) =>
-                    object.objectId === selectedObject.objectId
-                      ? {
-                          ...object,
-                          ...value,
-                          objectTypeLabel,
-                          regionLabel:
-                            getEnterpriseScopeRegion(value.regionId)?.label ??
-                            "地区名称未提供",
-                          productLabels: value.productIds.map((id) =>
-                            governedMarketName(
-                              marketProductNames,
-                              id,
-                              "产品名称未提供",
-                            ),
-                          ),
-                          cultivarLabels: value.cultivarIds.map((id) =>
-                            governedMarketName(
-                              marketCultivarNames,
-                              id,
-                              "品种名称未提供",
-                            ),
-                          ),
-                          sourceChannelLabel,
-                        }
-                      : object,
-                  ),
-                );
-                setEditingObjectId(null);
-                setMaintenanceMessage("对象资料已更新，名录与详情已同步。");
-              }}
+              serverBacked={Boolean(realtimeRepository)}
+              onSave={(value) => updateObject(selectedObject, value)}
             />
           )}
           {maintenanceMessage && (

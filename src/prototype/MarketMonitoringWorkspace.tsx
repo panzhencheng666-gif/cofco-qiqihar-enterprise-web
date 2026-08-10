@@ -160,6 +160,7 @@ export function MarketMonitoringWorkspace({
         selection={activeSelection}
         registryObjects={registryObjects}
         onRegistryObjectsChange={onRegistryObjectsChange}
+        realtimeRepository={realtimeRepository}
       />
     );
   }

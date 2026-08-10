@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RealtimeApiClient } from "./realtimeApiClient";
-import { createRealtimeBusinessRepository } from "./realtimeBusinessRepository";
+import {
+  createRealtimeBusinessRepository,
+  type RealtimeBusinessRepository,
+} from "./realtimeBusinessRepository";
 
 function client() {
   const get = vi.fn((path: string) => {
@@ -53,6 +56,7 @@ function client() {
       });
     if (path.endsWith("/identity/employees")) return Promise.resolve([]);
     if (path.endsWith("/identity/access-reviews")) return Promise.resolve([]);
+    if (path.endsWith("/market-objects")) return Promise.resolve([]);
     if (path.endsWith("/audit-events"))
       return Promise.resolve({
         items: [],
@@ -308,12 +312,19 @@ describe("realtime business repository", () => {
 
   it("loads governed supply survey years and nullable quarters", async () => {
     const { api, get } = client();
-    const periods = await createRealtimeBusinessRepository(api).loadSupplySurveyPeriods();
+    const periods =
+      await createRealtimeBusinessRepository(api).loadSupplySurveyPeriods();
 
     expect(periods).toEqual([
-      expect.objectContaining({ code: "2026", surveyQuarter: null, precision: "YEAR" }),
+      expect.objectContaining({
+        code: "2026",
+        surveyQuarter: null,
+        precision: "YEAR",
+      }),
     ]);
-    expect(get).toHaveBeenCalledWith("/api/v1/master-data/supply-survey-periods");
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/master-data/supply-survey-periods",
+    );
   });
 
   it("reads the authenticated employee profile from the server", async () => {
@@ -497,6 +508,44 @@ describe("realtime business repository", () => {
       pageSize: 20,
     });
     expect(get).toHaveBeenNthCalledWith(4, "/api/v1/market-records/market%2F1");
+  });
+
+  it("persists governed market object dossiers through the dedicated API", async () => {
+    const { api, get, post, put } = client();
+    const repository = createRealtimeBusinessRepository(
+      api,
+    ) as RealtimeBusinessRepository & {
+      listMarketObjects(): Promise<readonly unknown[]>;
+      createMarketObject(input: unknown): Promise<unknown>;
+      updateMarketObject(id: string, input: unknown): Promise<unknown>;
+    };
+    const input = {
+      objectName: "讷河阶段四米业",
+      objectTypeId: "grain-processing-enterprise",
+      regionCode: "230281",
+      productIds: ["paddy"],
+      cultivarIds: [],
+      sourceChannelId: "enterprise-report",
+      responsiblePerson: "王洋",
+      effectiveFrom: "2026-08-01",
+      effectiveTo: null,
+      validityStatus: "active",
+      roles: [],
+    };
+
+    expect(typeof repository.listMarketObjects).toBe("function");
+    expect(typeof repository.createMarketObject).toBe("function");
+    expect(typeof repository.updateMarketObject).toBe("function");
+    await repository.listMarketObjects();
+    await repository.createMarketObject(input);
+    await repository.updateMarketObject("object/1", { ...input, version: 2 });
+
+    expect(get).toHaveBeenCalledWith("/api/v1/market-objects");
+    expect(post).toHaveBeenCalledWith("/api/v1/market-objects", input);
+    expect(put).toHaveBeenCalledWith("/api/v1/market-objects/object%2F1", {
+      ...input,
+      version: 2,
+    });
   });
 
   it("uploads evidence photos with captured coordinates and watermark metadata", async () => {

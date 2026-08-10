@@ -649,6 +649,49 @@ export interface MarketDefinition {
   groups: readonly ProductionDefinition["groups"][number][];
 }
 
+export interface MarketObjectRole {
+  roleId: string;
+  label: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  capabilityTemplateVersionId: string;
+}
+
+export interface MarketObjectRow {
+  objectId: string;
+  objectName: string;
+  objectTypeId: string;
+  objectTypeLabel: string;
+  regionCode: string;
+  regionName: string;
+  productIds: readonly string[];
+  productLabels: readonly string[];
+  cultivarIds: readonly string[];
+  cultivarLabels: readonly string[];
+  sourceChannelId: string;
+  sourceChannelLabel: string;
+  responsibleUserId: string;
+  responsiblePerson: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  validityStatus: "active" | "inactive";
+  roles: readonly MarketObjectRole[];
+  version: number;
+}
+
+export interface MarketObjectMutation {
+  objectName: string;
+  objectTypeId: string;
+  regionCode: string;
+  productIds: readonly string[];
+  cultivarIds: readonly string[];
+  sourceChannelId: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  validityStatus: "active" | "inactive";
+  roles: readonly MarketObjectRole[];
+}
+
 export interface RealtimeBusinessRepository {
   loadCurrentSession(): Promise<CurrentSession>;
   listEmployees(): Promise<readonly EmployeeProfile[]>;
@@ -733,6 +776,12 @@ export interface RealtimeBusinessRepository {
     productCode: string,
     objectTypeCode?: string,
   ): Promise<MarketDefinition>;
+  listMarketObjects?(): Promise<readonly MarketObjectRow[]>;
+  createMarketObject?(input: MarketObjectMutation): Promise<MarketObjectRow>;
+  updateMarketObject?(
+    id: string,
+    input: MarketObjectMutation & { version: number },
+  ): Promise<MarketObjectRow>;
   listWorkItems(input?: {
     scope?: "PENDING" | "COMPLETED";
     page?: number;
@@ -1013,7 +1062,9 @@ export function createRealtimeBusinessRepository(
       return { products, periods, regions };
     },
     loadSupplySurveyPeriods: () =>
-      client.get<SupplySurveyPeriod[]>("/api/v1/master-data/supply-survey-periods"),
+      client.get<SupplySurveyPeriod[]>(
+        "/api/v1/master-data/supply-survey-periods",
+      ),
     listAnnualComparisonDefinitions: (sourceDomain, productCode) =>
       client.get<AnnualComparisonDefinition[]>(
         "/api/v1/overview/annual-comparison-definitions",
@@ -1061,6 +1112,15 @@ export function createRealtimeBusinessRepository(
         productCode,
         objectTypeCode,
       }),
+    listMarketObjects: () =>
+      client.get<readonly MarketObjectRow[]>("/api/v1/market-objects"),
+    createMarketObject: (input) =>
+      client.post<MarketObjectRow>("/api/v1/market-objects", input),
+    updateMarketObject: (id, input) =>
+      client.put<MarketObjectRow>(
+        `/api/v1/market-objects/${encodeURIComponent(id)}`,
+        input,
+      ),
     listWorkItems: (input = {}) =>
       client.get<Page<WorkItemRow>>("/api/v1/work-items", {
         scope: input.scope ?? "PENDING",
