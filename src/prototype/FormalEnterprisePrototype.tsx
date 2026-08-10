@@ -505,7 +505,28 @@ export function FormalEnterprisePrototype({
   const navigateAndCloseEntry = (
     ...parameters: Parameters<typeof navigate>
   ) => {
+    const [route, selection] = parameters;
     closeRealtimeEntry();
+    const productCode = routeProductCode(route.section);
+    const domain =
+      route.application === "production"
+        ? "production"
+        : route.application === "market"
+          ? route.section.endsWith("-logistics")
+            ? "logistics"
+            : "market"
+          : null;
+    if (
+      realtimeMode &&
+      selection?.type === "document" &&
+      productCode &&
+      domain
+    ) {
+      setRealtimeEntryProductCode(productCode);
+      setRealtimeEntryRecordId(selection.id);
+      setRealtimeEntryMode("view");
+      setRealtimeEntryDomain(domain);
+    }
     navigate(...parameters);
   };
   const openBusinessWork = (...parameters: Parameters<typeof navigate>) => {

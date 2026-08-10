@@ -508,6 +508,30 @@ describe("formal enterprise prototype", () => {
         read: true,
       }),
     );
+    const getProduction = vi.fn(() =>
+      Promise.resolve({
+        id: "production-1",
+        productCode: "CORN",
+        objectTypeCode: "FARMER",
+        regionCode: "230200",
+        cultivarCode: null,
+        surveyDate: "2026-08-09",
+        cultivatedAreaMu: "120",
+        yieldPerMuKilograms: "475",
+        quality: {},
+        costs: {},
+        insurance: {},
+        subsidies: {},
+        submissionMetadata: {},
+        reportedAt: "2026-08-09T10:00:00+08:00",
+        estimatedOutputKilograms: "57000",
+        status: "APPROVED",
+        returnReason: null,
+        allowedActions: [],
+        evidencePhotos: [],
+        version: 1,
+      }),
+    );
     const subscribeBusinessEvents = vi.fn(
       (
         _afterSequence: number,
@@ -548,6 +572,17 @@ describe("formal enterprise prototype", () => {
           totalElements: 0,
           totalPages: 0,
         }),
+      listObjectTypes: () =>
+        Promise.resolve([
+          { code: "FARMER", name: "农户", domain: "PRODUCTION" },
+        ]),
+      loadProductionDefinition: () =>
+        Promise.resolve({
+          productCode: "CORN",
+          objectTypeCode: "FARMER",
+          groups: [],
+        }),
+      getProduction,
       listNotifications,
       markNotificationRead,
       subscribeBusinessEvents,
@@ -580,6 +615,13 @@ describe("formal enterprise prototype", () => {
     await waitFor(() =>
       expect(markNotificationRead).toHaveBeenCalledWith("event-1"),
     );
+    await waitFor(() =>
+      expect(getProduction).toHaveBeenCalledWith("production-1"),
+    );
+    expect(
+      await screen.findByRole("dialog", { name: "产情记录详情" }),
+    ).toBeVisible();
+    const workItemCallsBeforeEvent = listWorkItems.mock.calls.length;
     if (!receiveBusinessEvent) throw new Error("event stream not subscribed");
     act(() =>
       receiveBusinessEvent?.({
@@ -596,7 +638,7 @@ describe("formal enterprise prototype", () => {
     );
     await waitFor(() => {
       expect(listNotifications).toHaveBeenCalledTimes(2);
-      expect(listWorkItems).toHaveBeenCalledTimes(2);
+      expect(listWorkItems).toHaveBeenCalledTimes(workItemCallsBeforeEvent + 1);
     });
 
     unmount();
