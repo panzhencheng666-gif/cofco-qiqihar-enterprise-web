@@ -82,6 +82,16 @@ async function selectSupplyRegion(
 }
 
 describe("supply demand workspace", () => {
+  it("lets employees choose the product on the unified supply balance page", () => {
+    render(<RegionHarness section="balance" />);
+
+    const product = screen.getByRole("combobox", { name: "产品账户" });
+    expect(product).toBeVisible();
+    expect(product).toHaveTextContent("玉米原粮");
+    expect(product).toHaveTextContent("大豆原粮");
+    expect(product).toHaveTextContent("稻谷原粮");
+  });
+
   it("lets the selected supply menu own the product instead of repeating a product filter", () => {
     render(<RegionHarness section="corn-balance" />);
 

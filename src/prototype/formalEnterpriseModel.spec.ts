@@ -49,6 +49,7 @@ describe("formal enterprise route model", () => {
       ["market", "objects", "#/市场监测/监测对象"],
       ["market", "review", "#/市场监测/数据审核"],
       ["market", "analysis", "#/市场监测/市场分析"],
+      ["supply", "balance", "#/供需分析/供需平衡"],
       ["supply", "corn-balance", "#/供需分析/玉米供需平衡"],
       ["supply", "soybean-balance", "#/供需分析/大豆供需平衡"],
       ["supply", "paddy-balance", "#/供需分析/稻谷供需平衡"],
@@ -86,6 +87,17 @@ describe("formal enterprise route model", () => {
       section: "corn-logistics",
     });
     expect(writeFormalRoute(legacy)).toBe("#/市场监测/玉米物流监测");
+  });
+
+  it.each([
+    ["玉米供需平衡", "corn-balance"],
+    ["大豆供需平衡", "soybean-balance"],
+    ["稻谷供需平衡", "paddy-balance"],
+  ] as const)("keeps the former %s bookmark readable", (name, section) => {
+    expect(readFormalRoute(`#/供需分析/${name}`)).toEqual({
+      application: "supply",
+      section,
+    });
   });
 
   it.each([

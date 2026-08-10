@@ -80,6 +80,14 @@ describe("module workspace catalog", () => {
     expect(resolveModuleWorkspace("/market/quality-price")).toBeUndefined();
   });
 
+  it("uses employee-facing source language in the supply workflow", () => {
+    const supply = required("/supply/lineage");
+    const lineageDetails = supply.lifecycle.map(({ detail }) => detail);
+
+    expect(lineageDetails).toContain("数据来源已确认");
+    expect(lineageDetails.join(" ")).not.toContain("输入集合");
+  });
+
   it.each([
     "/production/not-a-workspace",
     "/market/not-a-workspace",

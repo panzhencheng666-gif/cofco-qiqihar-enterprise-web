@@ -3992,14 +3992,82 @@ body {
   padding: 0.8rem;
 }
 
+.realtime-supply-source-empty {
+  padding: 0.7rem 0.8rem;
+  border: 1px dashed #c7d8e4;
+  border-radius: 0.45rem;
+  background: #f6fafc;
+  color: #526b7e;
+}
+
+.realtime-supply-candidates {
+  border-top: 1px solid #d8e3eb;
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.realtime-supply-candidates > header,
+.realtime-supply-candidates article {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.realtime-supply-candidates h4,
+.realtime-supply-candidates p {
+  margin: 0;
+}
+
+.realtime-supply-candidates article {
+  border: 1px solid #d8e3eb;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.7rem 0.8rem;
+}
+
+.realtime-supply-candidates article > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.realtime-supply-candidates article span {
+  color: #526b7e;
+  font-size: 0.78rem;
+}
+
 .realtime-supply-operations label,
 .realtime-supply-manual-fields {
   display: grid;
   gap: 0.35rem;
 }
 
+.realtime-supply-manual-entry {
+  border-top: 1px solid #e3ebf0;
+  padding-top: 0.65rem;
+}
+
+.realtime-supply-manual-entry summary {
+  color: #0f6f68;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.realtime-supply-manual-entry[open] summary {
+  margin-bottom: 0.65rem;
+}
+
 .realtime-supply-manual-fields {
   grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr) auto;
+}
+
+.realtime-supply-manual-fields > small {
+  color: #526b7e;
+  grid-column: 1 / -1;
+  line-height: 1.5;
 }
 
 .realtime-supply-operations input,
@@ -4348,7 +4416,9 @@ body {
 
   .realtime-supply-input-set,
   .realtime-supply-runner,
-  .realtime-supply-manual-fields {
+  .realtime-supply-manual-fields,
+  .realtime-supply-candidates > header,
+  .realtime-supply-candidates article {
     align-items: stretch;
     display: grid;
     grid-template-columns: 1fr;
@@ -4486,6 +4556,14 @@ body {
 .enterprise-ledger-query > .realtime-region-cascade {
   flex: 1 1 100%;
   min-width: 0;
+}
+
+.enterprise-ledger-query__summary {
+  flex: 1 1 100%;
+  margin: 0;
+  color: #537084;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .realtime-business-fields input,

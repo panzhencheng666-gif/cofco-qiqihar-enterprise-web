@@ -43,7 +43,7 @@ const visibleSectionsByApplication: Readonly<
     "paddy-logistics",
     "analysis",
   ],
-  supply: ["corn-balance", "soybean-balance", "paddy-balance"],
+  supply: ["balance"],
   reporting: ["compose", "comprehensive"],
   // 待填报、待审核、退回与异常统一进入“待我处理”工作台，旧路由仍可兼容访问。
   work: ["tasks", "completed"],
@@ -84,9 +84,17 @@ export function BusinessNavigationTree({
               ),
             )
             .map((item) => {
+              const legacySupplyBalanceActive =
+                item.route.application === "supply" &&
+                item.route.section === "balance" &&
+                currentRoute.application === "supply" &&
+                ["corn-balance", "soybean-balance", "paddy-balance"].includes(
+                  currentRoute.section,
+                );
               const active =
-                item.route.application === currentRoute.application &&
-                item.route.section === currentRoute.section;
+                (item.route.application === currentRoute.application &&
+                  item.route.section === currentRoute.section) ||
+                legacySupplyBalanceActive;
               return (
                 <button
                   aria-current={active ? "page" : undefined}

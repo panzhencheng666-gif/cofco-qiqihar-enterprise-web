@@ -79,6 +79,8 @@ export interface BusinessWorkItem {
   regionId: string;
   regionLabel: string;
   productId: string | null;
+  /** 后端主数据给出的员工可读产品名称；产品编号只用于查询和关联。 */
+  productLabel?: string;
   cultivarIds: readonly string[];
   periodKey: string;
   deadline: string;

@@ -1842,7 +1842,7 @@ function supplyView(context: string): ModuleWorkspaceView {
       {
         key: "formula",
         label: "公式运行",
-        detail: "输入集合固定",
+        detail: "数据来源已确认",
         state: "pending",
       },
       {

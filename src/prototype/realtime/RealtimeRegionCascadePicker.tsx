@@ -62,9 +62,7 @@ export function RealtimeRegionCascadePicker({
           if (region.level.toUpperCase() !== level.code) return false;
           if (index > 0 && region.parentCode !== parentCode) return false;
           return (
-            !query ||
-            region.name.toLocaleLowerCase().includes(query) ||
-            region.code.toLocaleLowerCase().includes(query)
+            !query || region.name.toLocaleLowerCase().includes(query)
           );
         });
         const enabled = index === 0 || Boolean(parentCode);
@@ -79,7 +77,7 @@ export function RealtimeRegionCascadePicker({
             <input
               aria-label={`搜索${level.label}`}
               disabled={disabled || !enabled}
-              placeholder={`搜索${level.label}名称或代码`}
+              placeholder={`搜索${level.label}名称`}
               type="search"
               value={queries[level.code] ?? ""}
               onChange={(event) =>
@@ -110,7 +108,7 @@ export function RealtimeRegionCascadePicker({
               <option value="">请选择{level.label}</option>
               {options.map((option) => (
                 <option key={option.code} value={option.code}>
-                  {option.name}（{option.code}）
+                  {option.name}
                 </option>
               ))}
             </select>

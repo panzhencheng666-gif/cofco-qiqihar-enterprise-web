@@ -5,16 +5,14 @@ import {
   type BusinessWorkProjection,
 } from "../application/businessWorkProjection";
 import type { BusinessWorkItem } from "../core/businessWork";
-import { businessClassifications } from "../core/businessClassification";
 import type { OperationalScope } from "../core/operationalScope";
 import { businessWorkFixtures } from "../data/businessWorkFixtures";
 import { marketDocumentFixtures } from "../data/marketDocumentFixtures";
-import { getEnterpriseScopeRegion } from "../enterpriseRegions";
 import type {
   BusinessCoordinates,
   FormalSelection,
 } from "../formalEnterpriseModel";
-import { marketTaskPeriods, marketTasks } from "../marketMonitoringData";
+import { marketTasks } from "../marketMonitoringData";
 import {
   formatMarketDateTime,
   governedMarketName,
@@ -89,19 +87,91 @@ function stateSelect(
 
 function TaskFilters({
   scope,
+  workItems,
   filters,
   onScopeChange,
   onFiltersChange,
 }: {
   scope: OperationalScope;
+  workItems: readonly BusinessWorkItem[];
   filters: TaskStateFilters;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onFiltersChange: (filters: TaskStateFilters) => void;
 }) {
-  const classifications = businessClassifications.filter(
-    ({ domain, id }) =>
-      domain === "market" &&
-      scope.authorization.authorizedBusinessClassificationIds.includes(id),
+  const marketItems = workItems.filter(({ domain }) => domain === "market");
+  const regions = [
+    ...new Map(
+      marketItems
+        .filter(({ regionId, regionLabel }) => regionId && regionLabel.trim())
+        .map(({ regionId, regionLabel }) => [regionId, regionLabel] as const),
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const classifications = [
+    ...new Map(
+      marketItems.map(({ businessSubtypeId, businessLabel }) => [
+        businessSubtypeId,
+        businessLabel.trim() || "未提供业务分类",
+      ]),
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const products = [
+    ...new Map(
+      marketItems.flatMap((item) =>
+        item.productId
+          ? [
+              [
+                item.productId,
+                item.productLabel?.trim() ||
+                  governedMarketName(
+                    marketProductNames,
+                    item.productId,
+                    "未提供产品名称",
+                  ),
+              ] as const,
+            ]
+          : [],
+      ),
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const periods = [
+    ...new Map(
+      marketItems
+        .filter(({ periodKey }) => Boolean(periodKey))
+        .map(
+          (item) =>
+            [
+              item.periodKey,
+              item.effectivePeriod.trim() || "未提供任务期间",
+            ] as const,
+        ),
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const targetOptions = [
+    ...new Set(
+      marketItems.map((item) =>
+        item.businessSubtypeId === "market.logistics" ? "logistics" : "subject",
+      ),
+    ),
+  ];
+  const regionInvalid =
+    scope.coordinates.regionId !== "authorized-all" &&
+    !regions.some(({ id }) => id === scope.coordinates.regionId);
+  const classificationInvalid = Boolean(
+    scope.coordinates.businessSubtypeId &&
+    !classifications.some(
+      ({ id }) => id === scope.coordinates.businessSubtypeId,
+    ),
+  );
+  const productInvalid = Boolean(
+    scope.coordinates.productId &&
+    !products.some(({ id }) => id === scope.coordinates.productId),
+  );
+  const periodInvalid = Boolean(
+    scope.coordinates.periodKey &&
+    !periods.some(({ id }) => id === scope.coordinates.periodKey),
+  );
+  const targetInvalid = Boolean(
+    filters.target && !targetOptions.some((option) => option === filters.target),
   );
   const cultivarIds = scope.coordinates.productId
     ? (marketCultivarsByProduct[scope.coordinates.productId] ?? []).filter(
@@ -145,7 +215,7 @@ function TaskFilters({
     "region",
     scope.coordinates.regionId === "authorized-all"
       ? undefined
-      : getEnterpriseScopeRegion(scope.coordinates.regionId)?.label,
+      : regions.find(({ id }) => id === scope.coordinates.regionId)?.label,
     () => onScopeChange({ regionId: "authorized-all" }),
   );
   addCondition(
@@ -157,11 +227,7 @@ function TaskFilters({
   addCondition(
     "product",
     scope.coordinates.productId
-      ? governedMarketName(
-          marketProductNames,
-          scope.coordinates.productId,
-          "产品名称待维护",
-        )
+      ? products.find(({ id }) => id === scope.coordinates.productId)?.label
       : undefined,
     () => onScopeChange({ productId: undefined, cultivarId: undefined }),
   );
@@ -171,15 +237,14 @@ function TaskFilters({
       ? governedMarketName(
           marketCultivarNames,
           scope.coordinates.cultivarId,
-          "品种名称待维护",
+          "未提供品种名称",
         )
       : undefined,
     () => onScopeChange({ cultivarId: undefined }),
   );
   addCondition(
     "period",
-    marketTaskPeriods.find(({ id }) => id === scope.coordinates.periodKey)
-      ?.label,
+    periods.find(({ id }) => id === scope.coordinates.periodKey)?.label,
     () => onScopeChange({ periodKey: undefined }),
   );
   for (const key of [
@@ -219,105 +284,139 @@ function TaskFilters({
             <option value="completed">已办任务</option>
           </select>
         </label>
-        <label>
-          <span>业务地区</span>
-          <select
-            aria-label="业务地区"
-            value={scope.coordinates.regionId}
-            onChange={(event) =>
-              onScopeChange({ regionId: event.target.value })
-            }
-          >
-            <option value="authorized-all">全部已授权范围</option>
-            {scope.authorization.authorizedRegionIds.map((id) => (
-              <option key={id} value={id}>
-                {getEnterpriseScopeRegion(id)?.label ?? "地区名称待维护"}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>业务分类</span>
-          <select
-            aria-label="业务分类"
-            value={scope.coordinates.businessSubtypeId ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                businessSubtypeId: event.target.value || undefined,
-              })
-            }
-          >
-            <option value="">全部已授权分类</option>
-            {classifications.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>产品或品类</span>
-          <select
-            aria-label="产品或品类"
-            value={scope.coordinates.productId ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                productId: event.target.value || undefined,
-                cultivarId: undefined,
-              })
-            }
-          >
-            <option value="">全部已授权产品</option>
-            {scope.authorization.authorizedProductIds.map((id) => (
-              <option key={id} value={id}>
-                {governedMarketName(marketProductNames, id, "产品名称待维护")}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>任务期间</span>
-          <select
-            aria-label="任务期间"
-            value={scope.coordinates.periodKey ?? ""}
-            onChange={(event) =>
-              onScopeChange({ periodKey: event.target.value || undefined })
-            }
-          >
-            <option value="">全部可用期间</option>
-            {marketTaskPeriods.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-            {scope.coordinates.periodKey &&
-              !marketTaskPeriods.some(
-                ({ id }) => id === scope.coordinates.periodKey,
-              ) && (
-                <option disabled value={scope.coordinates.periodKey}>
-                  无效任务期间（请重新选择）
+        {(regions.length > 1 || regionInvalid) && (
+          <label>
+            <span>业务地区</span>
+            <select
+              aria-label="业务地区"
+              value={scope.coordinates.regionId}
+              onChange={(event) =>
+                onScopeChange({ regionId: event.target.value })
+              }
+            >
+              <option value="authorized-all">全部地区</option>
+              {regionInvalid && (
+                <option disabled value={scope.coordinates.regionId}>
+                  所选地区当前无任务（请重新选择）
                 </option>
               )}
-          </select>
-        </label>
+              {regions.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(classifications.length > 1 || classificationInvalid) && (
+          <label>
+            <span>业务分类</span>
+            <select
+              aria-label="业务分类"
+              value={scope.coordinates.businessSubtypeId ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  businessSubtypeId: event.target.value || undefined,
+                })
+              }
+            >
+              <option value="">全部业务分类</option>
+              {classificationInvalid && (
+                <option disabled value={scope.coordinates.businessSubtypeId}>
+                  所选分类当前无任务（请重新选择）
+                </option>
+              )}
+              {classifications.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(products.length > 1 || productInvalid) && (
+          <label>
+            <span>产品或品类</span>
+            <select
+              aria-label="产品或品类"
+              value={scope.coordinates.productId ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  productId: event.target.value || undefined,
+                  cultivarId: undefined,
+                })
+              }
+            >
+              <option value="">全部产品或品类</option>
+              {productInvalid && (
+                <option disabled value={scope.coordinates.productId}>
+                  所选产品当前无任务（请重新选择）
+                </option>
+              )}
+              {products.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(periods.length > 1 || periodInvalid) && (
+          <label>
+            <span>任务期间</span>
+            <select
+              aria-label="任务期间"
+              value={scope.coordinates.periodKey ?? ""}
+              onChange={(event) =>
+                onScopeChange({ periodKey: event.target.value || undefined })
+              }
+            >
+              <option value="">全部任务期间</option>
+              {periods.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+              {scope.coordinates.periodKey &&
+                !periods.some(
+                  ({ id }) => id === scope.coordinates.periodKey,
+                ) && (
+                  <option disabled value={scope.coordinates.periodKey}>
+                    无效任务期间（请重新选择）
+                  </option>
+                )}
+            </select>
+          </label>
+        )}
       </div>
       <details className="market-task6-more-filters">
         <summary>更多筛选（{advancedCount} 项已生效）</summary>
         <div className="market-task6-more-filter-grid">
-          <label>
-            <span>任务对象</span>
-            <select
-              aria-label="任务对象"
-              value={filters.target}
-              onChange={(event) =>
-                onFiltersChange({ ...filters, target: event.target.value })
-              }
-            >
-              <option value="">全部任务对象</option>
-              <option value="subject">市场主体</option>
-              <option value="logistics">物流节点</option>
-            </select>
-          </label>
+          {(targetOptions.length > 1 || targetInvalid) && (
+            <label>
+              <span>任务对象</span>
+              <select
+                aria-label="任务对象"
+                value={filters.target}
+                onChange={(event) =>
+                  onFiltersChange({ ...filters, target: event.target.value })
+                }
+              >
+                <option value="">全部任务对象</option>
+                {targetInvalid && (
+                  <option disabled value={filters.target}>
+                    所选对象类型当前无任务（请重新选择）
+                  </option>
+                )}
+                {targetOptions.includes("subject") && (
+                  <option value="subject">市场主体</option>
+                )}
+                {targetOptions.includes("logistics") && (
+                  <option value="logistics">物流节点</option>
+                )}
+              </select>
+            </label>
+          )}
           {scope.coordinates.productId && cultivarIds.length > 0 && (
             <label>
               <span>具体品种</span>
@@ -330,13 +429,13 @@ function TaskFilters({
                   })
                 }
               >
-                <option value="">全部已授权品种</option>
+                <option value="">全部适用品种</option>
                 {cultivarIds.map((id) => (
                   <option key={id} value={id}>
                     {governedMarketName(
                       marketCultivarNames,
                       id,
-                      "品种名称待维护",
+                      "未提供品种名称",
                     )}
                   </option>
                 ))}
@@ -396,7 +495,7 @@ function TaskFilters({
       </details>
       <MarketFilterChips
         conditions={activeConditions}
-        emptyLabel="全部已授权任务"
+        emptyLabel="当前未限定任务范围"
       />
     </section>
   );
@@ -410,6 +509,11 @@ function matchesFilters(
   const task = marketTasks.find(
     ({ workId }) => workId === projection.item.workId,
   );
+  const target =
+    task?.target ??
+    (projection.item.businessSubtypeId === "market.logistics"
+      ? "logistics"
+      : "subject");
   const viewMatches =
     !filters.view ||
     (filters.view === "my-entry" &&
@@ -426,9 +530,8 @@ function matchesFilters(
           projection.item.releaseStatus !== "published"))) ||
     (filters.view === "completed" && projection.savedViewGroup === "已办");
   return (
-    task !== undefined &&
     viewMatches &&
-    (!filters.target || task.target === filters.target) &&
+    (!filters.target || target === filters.target) &&
     (!filters.obligation ||
       projection.item.obligationStatus === filters.obligation) &&
     (!filters.document ||
@@ -481,9 +584,20 @@ export function MarketTaskWorkspace({
 }) {
   const [filters, setFilters] = useState(emptyStateFilters);
   const [page, setPage] = useState(1);
+  const availablePeriods = useMemo(
+    () => [
+      ...new Set(
+        workItems
+          .filter(({ domain }) => domain === "market")
+          .map(({ periodKey }) => periodKey)
+          .filter(Boolean),
+      ),
+    ],
+    [workItems],
+  );
   const periodInvalid =
     scope.coordinates.periodKey !== undefined &&
-    !marketTaskPeriods.some(({ id }) => id === scope.coordinates.periodKey);
+    !availablePeriods.includes(scope.coordinates.periodKey);
   const cultivarMismatch = Boolean(
     scope.coordinates.productId &&
     scope.coordinates.cultivarId &&
@@ -497,9 +611,16 @@ export function MarketTaskWorkspace({
         domain: "market",
         scope,
         queryAllowed: queryAllowed && !periodInvalid && !cultivarMismatch,
-        availablePeriodKeys: marketTaskPeriods.map(({ id }) => id),
+        availablePeriodKeys: availablePeriods,
       }),
-    [cultivarMismatch, periodInvalid, queryAllowed, scope, workItems],
+    [
+      availablePeriods,
+      cultivarMismatch,
+      periodInvalid,
+      queryAllowed,
+      scope,
+      workItems,
+    ],
   );
   const visible = projections.filter((projection) =>
     matchesFilters(projection, filters, scope.identity.userId),
@@ -538,6 +659,7 @@ export function MarketTaskWorkspace({
           onScopeChange(coordinates);
         }}
         scope={scope}
+        workItems={workItems}
       />
       {!queryAllowed && (
         <div className="market-task6-alert" role="alert">
@@ -597,7 +719,20 @@ export function MarketTaskWorkspace({
                 const { item } = projection;
                 const task = marketTasks.find(
                   ({ workId }) => workId === item.workId,
-                )!;
+                );
+                const target =
+                  task?.target ??
+                  (item.businessSubtypeId === "market.logistics"
+                    ? "logistics"
+                    : "subject");
+                const targetName =
+                  task?.targetName ??
+                  (item.subject.kind === "monitoring-object"
+                    ? item.subject.objectName
+                    : item.title);
+                const roleLabel = task
+                  ? marketRoleLabels[task.role]
+                  : item.businessLabel;
                 const taskIndex = startIndex + index + 1;
                 return (
                   <tr key={`${item.workId}-${taskIndex}`}>
@@ -606,25 +741,27 @@ export function MarketTaskWorkspace({
                       <strong>{item.title}</strong>
                     </th>
                     <td>
-                      <strong>{task.targetName}</strong>
+                      <strong>{targetName}</strong>
                       <span>
-                        {task.target === "subject" ? "市场主体" : "物流节点"} ·{" "}
-                        {marketRoleLabels[task.role]}
+                        {target === "subject" ? "市场主体" : "物流节点"} ·{" "}
+                        {roleLabel}
                       </span>
                     </td>
                     <td>
                       {governedMarketName(
                         marketProductNames,
                         item.productId,
-                        "产品名称待维护",
+                        item.productLabel?.trim() || "未提供产品名称",
                       )}
                       {item.cultivarIds.length > 0
-                        ? ` · ${item.cultivarIds.map((id) => governedMarketName(marketCultivarNames, id, "品种名称待维护")).join("、")}`
+                        ? ` · ${item.cultivarIds.map((id) => governedMarketName(marketCultivarNames, id, "未提供品种名称")).join("、")}`
                         : ""}
                     </td>
                     <td>{item.businessLabel}</td>
                     <td>
-                      {item.completedFields}/{item.applicableFields} 项
+                      {item.applicableFields > 0
+                        ? `${item.completedFields}/${item.applicableFields} 项`
+                        : "系统流程任务"}
                     </td>
                     <td>
                       {formatMarketDateTime(item.deadline)} ·{" "}

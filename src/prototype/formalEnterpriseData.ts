@@ -330,16 +330,8 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       note: "按地区、产品和年度核对供给、使用与期末库存",
       navigation: [
         {
-          route: createFormalRoute("supply", "corn-balance"),
-          label: "玉米供需平衡",
-        },
-        {
-          route: createFormalRoute("supply", "soybean-balance"),
-          label: "大豆供需平衡",
-        },
-        {
-          route: createFormalRoute("supply", "paddy-balance"),
-          label: "稻谷供需平衡",
+          route: createFormalRoute("supply", "balance"),
+          label: "供需平衡",
         },
         { route: createFormalRoute("supply", "records"), label: "计算记录" },
       ],

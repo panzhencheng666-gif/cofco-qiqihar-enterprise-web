@@ -115,7 +115,7 @@ function cultivarIdsForProducts(productIds: readonly string[]): string[] {
 
 function formatChineseDate(value: string): string {
   const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return "日期待维护";
+  if (!year || !month || !day) return "日期未提供";
   return `${year} 年 ${month} 月 ${day} 日`;
 }
 
@@ -155,7 +155,7 @@ function legacyProfile(objectId: string) {
 
 function monitoringScopeText(objectId: string): string {
   const profile = legacyProfile(objectId);
-  if (!profile) return "监测内容待维护";
+  if (!profile) return "监测内容未提供";
   if (profile.target === "subject") return profile.qualityScope;
   return `${profile.coverage} · ${profile.monitoring}`;
 }
@@ -189,11 +189,78 @@ function ObjectFilters({
       ),
     ).entries(),
   ];
-  const cultivarIds = scope.coordinates.productId
-    ? (marketCultivarsByProduct[scope.coordinates.productId] ?? []).filter(
-        (id) => scope.authorization.authorizedCultivarIds.includes(id),
-      )
+  const regions = [
+    ...new Map(
+      objects
+        .filter(({ regionId, regionLabel }) => regionId && regionLabel.trim())
+        .map(({ regionId, regionLabel }) => [regionId, regionLabel] as const),
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const products = [
+    ...new Map(
+      objects.flatMap((object) =>
+        object.productIds.map(
+          (id, index) =>
+            [
+              id,
+              object.productLabels[index] ||
+                governedMarketName(marketProductNames, id, "未提供产品名称"),
+            ] as const,
+        ),
+      ),
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const effectiveProductId =
+    scope.coordinates.productId ??
+    (products.length === 1 ? products[0]?.id : undefined);
+  const cultivars = effectiveProductId
+    ? [
+        ...new Map(
+          objects
+            .filter(({ productIds }) => productIds.includes(effectiveProductId))
+            .flatMap((object) =>
+              object.cultivarIds.map(
+                (id, index) =>
+                  [
+                    id,
+                    object.cultivarLabels[index] || "未提供品种名称",
+                  ] as const,
+              ),
+            )
+            .filter(([id]) =>
+              (marketCultivarsByProduct[effectiveProductId] ?? []).includes(id),
+            ),
+        ).entries(),
+      ].map(([id, label]) => ({ id, label }))
     : [];
+  const validityOptions = [
+    ...new Set(objects.map(({ validityStatus }) => validityStatus)),
+  ];
+  const objectTypeInvalid = Boolean(
+    filters.objectTypeId &&
+    !objectTypes.some(([id]) => id === filters.objectTypeId),
+  );
+  const regionInvalid =
+    scope.coordinates.regionId !== "authorized-all" &&
+    !regions.some(({ id }) => id === scope.coordinates.regionId);
+  const productInvalid = Boolean(
+    scope.coordinates.productId &&
+    !products.some(({ id }) => id === scope.coordinates.productId),
+  );
+  const cultivarInvalid = Boolean(
+    scope.coordinates.cultivarId &&
+    !cultivars.some(({ id }) => id === scope.coordinates.cultivarId),
+  );
+  const validityInvalid = Boolean(
+    filters.validityStatus &&
+    !validityOptions.includes(
+      filters.validityStatus as MonitoringObject["validityStatus"],
+    ),
+  );
+  const sourceInvalid = Boolean(
+    filters.sourceChannelId &&
+    !sources.some(([id]) => id === filters.sourceChannelId),
+  );
   const advancedCount =
     Number(Boolean(scope.coordinates.cultivarId)) +
     Number(Boolean(filters.sourceChannelId));
@@ -216,17 +283,13 @@ function ObjectFilters({
     "region",
     scope.coordinates.regionId === "authorized-all"
       ? undefined
-      : getEnterpriseScopeRegion(scope.coordinates.regionId)?.label,
+      : regions.find(({ id }) => id === scope.coordinates.regionId)?.label,
     () => onScopeChange({ regionId: "authorized-all" }),
   );
   addCondition(
     "product",
     scope.coordinates.productId
-      ? governedMarketName(
-          marketProductNames,
-          scope.coordinates.productId,
-          "产品名称待维护",
-        )
+      ? products.find(({ id }) => id === scope.coordinates.productId)?.label
       : undefined,
     () => onScopeChange({ productId: undefined, cultivarId: undefined }),
   );
@@ -242,11 +305,7 @@ function ObjectFilters({
   addCondition(
     "cultivar",
     scope.coordinates.cultivarId
-      ? governedMarketName(
-          marketCultivarNames,
-          scope.coordinates.cultivarId,
-          "品种名称待维护",
-        )
+      ? cultivars.find(({ id }) => id === scope.coordinates.cultivarId)?.label
       : undefined,
     () => onScopeChange({ cultivarId: undefined }),
   );
@@ -260,140 +319,190 @@ function ObjectFilters({
   return (
     <section aria-label="市场对象筛选" className="market-task6-filter-surface">
       <div className="market-task6-filter-grid">
-        <label>
-          <span>对象类型</span>
-          <select
-            aria-label="对象类型"
-            value={filters.objectTypeId}
-            onChange={(event) =>
-              onFiltersChange({ ...filters, objectTypeId: event.target.value })
-            }
-          >
-            <option value="">全部对象类型</option>
-            {objectTypes.map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>业务地区</span>
-          <select
-            aria-label="业务地区"
-            value={scope.coordinates.regionId}
-            onChange={(event) =>
-              onScopeChange({ regionId: event.target.value })
-            }
-          >
-            <option value="authorized-all">全部已授权范围</option>
-            {scope.authorization.authorizedRegionIds.map((id) => (
-              <option key={id} value={id}>
-                {getEnterpriseScopeRegion(id)?.label ?? "地区名称待维护"}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>产品或品类</span>
-          <select
-            aria-label="产品或品类"
-            value={scope.coordinates.productId ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                productId: event.target.value || undefined,
-                cultivarId: undefined,
-              })
-            }
-          >
-            <option value="">全部已授权产品</option>
-            {scope.authorization.authorizedProductIds.map((id) => (
-              <option key={id} value={id}>
-                {governedMarketName(marketProductNames, id, "产品名称待维护")}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>有效状态</span>
-          <select
-            aria-label="有效状态"
-            value={filters.validityStatus}
-            onChange={(event) =>
-              onFiltersChange({
-                ...filters,
-                validityStatus: event.target.value,
-              })
-            }
-          >
-            <option value="">全部有效状态</option>
-            <option value="active">当前有效</option>
-            <option value="inactive">已停用</option>
-          </select>
-        </label>
-      </div>
-      <details className="market-task6-more-filters">
-        <summary>更多筛选（{advancedCount} 项已生效）</summary>
-        <div className="market-task6-more-filter-grid">
-          {scope.coordinates.productId && cultivarIds.length > 0 && (
-            <label>
-              <span>具体品种</span>
-              <select
-                aria-label="具体品种"
-                value={scope.coordinates.cultivarId ?? ""}
-                onChange={(event) =>
-                  onScopeChange({ cultivarId: event.target.value || undefined })
-                }
-              >
-                <option value="">全部已授权品种</option>
-                {cultivarIds.map((id) => (
-                  <option key={id} value={id}>
-                    {governedMarketName(
-                      marketCultivarNames,
-                      id,
-                      "品种名称待维护",
-                    )}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+        {(objectTypes.length > 1 || objectTypeInvalid) && (
           <label>
-            <span>来源渠道</span>
+            <span>对象类型</span>
             <select
-              aria-label="来源渠道"
-              value={filters.sourceChannelId}
+              aria-label="对象类型"
+              value={filters.objectTypeId}
               onChange={(event) =>
                 onFiltersChange({
                   ...filters,
-                  sourceChannelId: event.target.value,
+                  objectTypeId: event.target.value,
                 })
               }
             >
-              <option value="">全部来源渠道</option>
-              {sources.map(([id, label]) => (
+              <option value="">全部对象类型</option>
+              {objectTypeInvalid && (
+                <option disabled value={filters.objectTypeId}>
+                  所选对象类型当前无记录（请重新选择）
+                </option>
+              )}
+              {objectTypes.map(([id, label]) => (
                 <option key={id} value={id}>
                   {label}
                 </option>
               ))}
             </select>
           </label>
-          {advancedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                onScopeChange({ cultivarId: undefined });
-                onFiltersChange({ ...filters, sourceChannelId: "" });
-              }}
+        )}
+        {(regions.length > 1 || regionInvalid) && (
+          <label>
+            <span>业务地区</span>
+            <select
+              aria-label="业务地区"
+              value={scope.coordinates.regionId}
+              onChange={(event) =>
+                onScopeChange({ regionId: event.target.value })
+              }
             >
-              清除更多筛选
-            </button>
-          )}
-        </div>
-      </details>
+              <option value="authorized-all">全部地区</option>
+              {regionInvalid && (
+                <option disabled value={scope.coordinates.regionId}>
+                  所选地区当前无对象（请重新选择）
+                </option>
+              )}
+              {regions.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(products.length > 1 || productInvalid) && (
+          <label>
+            <span>产品或品类</span>
+            <select
+              aria-label="产品或品类"
+              value={scope.coordinates.productId ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  productId: event.target.value || undefined,
+                  cultivarId: undefined,
+                })
+              }
+            >
+              <option value="">全部产品或品类</option>
+              {productInvalid && (
+                <option disabled value={scope.coordinates.productId}>
+                  所选产品当前无对象（请重新选择）
+                </option>
+              )}
+              {products.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(validityOptions.length > 1 || validityInvalid) && (
+          <label>
+            <span>有效状态</span>
+            <select
+              aria-label="有效状态"
+              value={filters.validityStatus}
+              onChange={(event) =>
+                onFiltersChange({
+                  ...filters,
+                  validityStatus: event.target.value,
+                })
+              }
+            >
+              <option value="">全部有效状态</option>
+              {validityInvalid && (
+                <option disabled value={filters.validityStatus}>
+                  所选状态当前无对象（请重新选择）
+                </option>
+              )}
+              {validityOptions.includes("active") && (
+                <option value="active">当前有效</option>
+              )}
+              {validityOptions.includes("inactive") && (
+                <option value="inactive">已停用</option>
+              )}
+            </select>
+          </label>
+        )}
+      </div>
+      {(cultivars.length > 1 ||
+        cultivarInvalid ||
+        sources.length > 1 ||
+        sourceInvalid) && (
+        <details className="market-task6-more-filters">
+          <summary>更多筛选（{advancedCount} 项已生效）</summary>
+          <div className="market-task6-more-filter-grid">
+            {(cultivars.length > 1 || cultivarInvalid) && (
+              <label>
+                <span>具体品种</span>
+                <select
+                  aria-label="具体品种"
+                  value={scope.coordinates.cultivarId ?? ""}
+                  onChange={(event) =>
+                    onScopeChange({
+                      cultivarId: event.target.value || undefined,
+                    })
+                  }
+                >
+                  <option value="">全部适用品种</option>
+                  {cultivarInvalid && (
+                    <option disabled value={scope.coordinates.cultivarId}>
+                      所选品种当前无对象（请重新选择）
+                    </option>
+                  )}
+                  {cultivars.map(({ id, label }) => (
+                    <option key={id} value={id}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {(sources.length > 1 || sourceInvalid) && (
+              <label>
+                <span>来源渠道</span>
+                <select
+                  aria-label="来源渠道"
+                  value={filters.sourceChannelId}
+                  onChange={(event) =>
+                    onFiltersChange({
+                      ...filters,
+                      sourceChannelId: event.target.value,
+                    })
+                  }
+                >
+                  <option value="">全部来源渠道</option>
+                  {sourceInvalid && (
+                    <option disabled value={filters.sourceChannelId}>
+                      所选来源当前无对象（请重新选择）
+                    </option>
+                  )}
+                  {sources.map(([id, label]) => (
+                    <option key={id} value={id}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {advancedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  onScopeChange({ cultivarId: undefined });
+                  onFiltersChange({ ...filters, sourceChannelId: "" });
+                }}
+              >
+                清除更多筛选
+              </button>
+            )}
+          </div>
+        </details>
+      )}
       <MarketFilterChips
         conditions={activeConditions}
-        emptyLabel="全部已授权对象"
+        emptyLabel="当前未限定对象范围"
       />
     </section>
   );
@@ -678,7 +787,7 @@ function ObjectEditor({
             <option value="">请选择业务地区</option>
             {scope.authorization.authorizedRegionIds.map((id) => (
               <option key={id} value={id}>
-                {getEnterpriseScopeRegion(id)?.label ?? "地区名称待维护"}
+                {getEnterpriseScopeRegion(id)?.label ?? "地区名称未提供"}
               </option>
             ))}
           </select>
@@ -751,7 +860,7 @@ function ObjectEditor({
             const label = governedMarketName(
               marketProductNames,
               id,
-              "产品名称待维护",
+              "产品名称未提供",
             );
             return (
               <label key={id}>
@@ -781,7 +890,7 @@ function ObjectEditor({
                 const label = governedMarketName(
                   marketCultivarNames,
                   id,
-                  "品种名称待维护",
+                  "品种名称未提供",
                 );
                 return (
                   <label key={id}>
@@ -943,11 +1052,11 @@ export function MarketObjectRegistry({
     const objectId = `OBJ-MARKET-LOCAL-${currentRegistryObjects.length + 1}`;
     const objectTypeLabel =
       marketObjectTypeOptions.find(([id]) => id === value.objectTypeId)?.[1] ??
-      "对象类型名称待维护";
+      "对象类型名称未提供";
     const sourceChannelLabel =
       marketSourceChannelOptions.find(
         ([id]) => id === value.sourceChannelId,
-      )?.[1] ?? "来源渠道名称待维护";
+      )?.[1] ?? "来源渠道名称未提供";
     const created: MonitoringObject = {
       objectId,
       objectName: value.objectName,
@@ -955,14 +1064,14 @@ export function MarketObjectRegistry({
       objectTypeLabel,
       regionId: value.regionId,
       regionLabel:
-        getEnterpriseScopeRegion(value.regionId)?.label ?? "地区名称待维护",
+        getEnterpriseScopeRegion(value.regionId)?.label ?? "地区名称未提供",
       productIds: value.productIds,
       productLabels: value.productIds.map((id) =>
-        governedMarketName(marketProductNames, id, "产品名称待维护"),
+        governedMarketName(marketProductNames, id, "产品名称未提供"),
       ),
       cultivarIds: value.cultivarIds,
       cultivarLabels: value.cultivarIds.map((id) =>
-        governedMarketName(marketCultivarNames, id, "品种名称待维护"),
+        governedMarketName(marketCultivarNames, id, "品种名称未提供"),
       ),
       sourceChannelId: value.sourceChannelId,
       sourceChannelLabel,
@@ -1314,7 +1423,7 @@ export function MarketObjectRegistry({
                     ? selectedObject.sourceChannelLabel
                     : (marketSourceChannelOptions.find(
                         ([id]) => id === value.sourceChannelId,
-                      )?.[1] ?? "来源渠道名称待维护");
+                      )?.[1] ?? "来源渠道名称未提供");
                 updateRegistryObjects(
                   currentRegistryObjects.map((object) =>
                     object.objectId === selectedObject.objectId
@@ -1324,19 +1433,19 @@ export function MarketObjectRegistry({
                           objectTypeLabel,
                           regionLabel:
                             getEnterpriseScopeRegion(value.regionId)?.label ??
-                            "地区名称待维护",
+                            "地区名称未提供",
                           productLabels: value.productIds.map((id) =>
                             governedMarketName(
                               marketProductNames,
                               id,
-                              "产品名称待维护",
+                              "产品名称未提供",
                             ),
                           ),
                           cultivarLabels: value.cultivarIds.map((id) =>
                             governedMarketName(
                               marketCultivarNames,
                               id,
-                              "品种名称待维护",
+                              "品种名称未提供",
                             ),
                           ),
                           sourceChannelLabel,

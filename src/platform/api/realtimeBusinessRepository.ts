@@ -10,6 +10,18 @@ export interface MasterPeriod {
   name: string;
   startsOn: string;
   endsOn: string;
+  marketingYearCode: string;
+  marketingYearName: string;
+}
+
+export interface SupplySurveyPeriod {
+  code: string;
+  name: string;
+  surveyYear: number;
+  surveyQuarter: "Q1" | "Q2" | "Q3" | "Q4" | null;
+  precision: "YEAR" | "QUARTER";
+  marketingYearCode: string;
+  marketingYearName: string;
 }
 
 export interface MasterRegion {
@@ -423,6 +435,18 @@ export interface SupplyReleaseMutationResult extends Omit<
   approvalState: string;
 }
 
+export interface SupplySourceReleaseInput {
+  sourceDomain: "PRODUCTION" | "LOGISTICS";
+  sourceRecordId: string;
+  sourceVersion: number;
+  productCode: string;
+  regionCode: string;
+  periodCode: string;
+  roleCode: "LOCAL_PRODUCTION" | "EXTERNAL_INFLOW" | "EXTERNAL_OUTFLOW";
+  sourceFieldCode: "PROD_ESTIMATED_OUTPUT" | "ROUTE_VOLUME";
+  qualityState: "PASSED";
+}
+
 export interface SupplyInputRole {
   code: string;
   label: string;
@@ -438,6 +462,10 @@ export interface SupplyInputRole {
 export interface SupplyInputWorkspace {
   productCode: string;
   regionCode: string;
+  periodCode: string;
+  surveyYear: number;
+  surveyQuarter: "Q1" | "Q2" | "Q3" | "Q4" | null;
+  periodPrecision: "YEAR" | "QUARTER";
   marketingYear: string;
   inputSetVersion: number;
   latestInputSetId: string | null;
@@ -459,10 +487,16 @@ export interface SupplyAccountRow {
   id: string;
   productCode: string;
   regionCode: string;
+  periodCode: string;
+  surveyYear: number;
+  surveyQuarter: "Q1" | "Q2" | "Q3" | "Q4" | null;
+  periodPrecision: "YEAR" | "QUARTER";
   marketingYear: string;
   resultVersion: number;
+  supersedesResultVersion: number | null;
   decisionVersion: number;
   resultState: string;
+  temporalGovernanceState: string;
   validationCodes: readonly string[];
   balanced: boolean;
   publishable: boolean;
@@ -486,13 +520,15 @@ export interface SupplyAccountRow {
   formula: SupplyFormulaView;
   sources: readonly {
     roleCode: string;
-    label: string;
+    roleLabel: string;
     sourceDomain: string;
     sourceRecordId: string;
     sourceVersion: number;
     sourceFieldCode: string;
-    value: string;
+    sourceValue: string;
+    adoptedValue: string;
     unitCode: string;
+    reason: string;
   }[];
 }
 
@@ -501,6 +537,10 @@ export interface SupplyInputSetRow {
   version: number;
   productCode: string;
   regionCode: string;
+  periodCode: string;
+  surveyYear: number;
+  surveyQuarter: "Q1" | "Q2" | "Q3" | "Q4" | null;
+  periodPrecision: "YEAR" | "QUARTER";
   marketingYear: string;
 }
 
@@ -648,6 +688,7 @@ export interface RealtimeBusinessRepository {
   ): () => void;
   uploadEvidencePhoto(input: EvidencePhotoUpload): Promise<EvidencePhotoRow>;
   loadMasterData(): Promise<MasterDataSnapshot>;
+  loadSupplySurveyPeriods(): Promise<readonly SupplySurveyPeriod[]>;
   listAnnualComparisonDefinitions(
     sourceDomain: "PRODUCTION" | "MARKET",
     productCode: string,
@@ -733,18 +774,18 @@ export interface RealtimeBusinessRepository {
   loadSupplyInputWorkspace(input: {
     productCode: string;
     regionCode: string;
-    marketingYear: string;
+    periodCode: string;
   }): Promise<SupplyInputWorkspace>;
   listSupplyAccounts(input: {
     productCode: string;
     regionCode: string;
-    marketingYear: string;
+    periodCode: string;
     resultState?: string;
   }): Promise<readonly SupplyAccountRow[]>;
   createSupplyInputSet(input: {
     productCode: string;
     regionCode: string;
-    marketingYear: string;
+    periodCode: string;
     reason: string;
     expectedVersion: number;
     items: readonly { roleCode: string; sourceReleaseId: string }[];
@@ -752,16 +793,19 @@ export interface RealtimeBusinessRepository {
   approveSupplyManualDecision(input: {
     productCode: string;
     regionCode: string;
-    marketingYear: string;
+    periodCode: string;
     roleCode: string;
     value: string;
     reason: string;
     expectedVersion: number;
   }): Promise<SupplyReleaseMutationResult>;
+  releaseSupplySource(
+    input: SupplySourceReleaseInput,
+  ): Promise<SupplyReleaseMutationResult>;
   runSupplyAccount(input: {
     productCode: string;
     regionCode: string;
-    marketingYear: string;
+    periodCode: string;
     inputSetId: string;
     adjustmentProposalValue: string;
     adjustmentProposalReason: string;
@@ -967,6 +1011,8 @@ export function createRealtimeBusinessRepository(
       ]);
       return { products, periods, regions };
     },
+    loadSupplySurveyPeriods: () =>
+      client.get<SupplySurveyPeriod[]>("/api/v1/master-data/supply-survey-periods"),
     listAnnualComparisonDefinitions: (sourceDomain, productCode) =>
       client.get<AnnualComparisonDefinition[]>(
         "/api/v1/overview/annual-comparison-definitions",
@@ -1078,6 +1124,11 @@ export function createRealtimeBusinessRepository(
     approveSupplyManualDecision: (input) =>
       client.post<SupplyReleaseMutationResult>(
         "/api/v1/supply-inputs/manual-decisions",
+        input,
+      ),
+    releaseSupplySource: (input) =>
+      client.post<SupplyReleaseMutationResult>(
+        "/api/v1/supply-sources/releases",
         input,
       ),
     runSupplyAccount: (input) =>

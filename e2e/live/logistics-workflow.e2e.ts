@@ -18,12 +18,14 @@ function recordRow(page: Page) {
 
 async function openWorkItem(
   page: Page,
-  recordId: string,
   actionName: "继续物流填报" | "补充物流填报" | "审核物流单据",
   dialogName: "补充物流监测填报" | "物流监测单据审核",
 ) {
-  const row = page.getByRole("row", { name: new RegExp(recordId, "u") });
-  await expect(row).toBeVisible({ timeout: 10_000 });
+  const row = page
+    .getByRole("row")
+    .filter({ hasText: "大豆物流监测" })
+    .filter({ has: page.getByRole("button", { name: actionName }) });
+  await expect(row).toHaveCount(1, { timeout: 10_000 });
   await row.getByRole("button", { name: actionName }).click();
   const dialog = page.getByRole("dialog", { name: dialogName });
   await expect(dialog).toBeVisible();
@@ -102,7 +104,6 @@ test("runs a logistics return, revision, resubmission, and approval against Post
   await page.goto("/#/我的工作/待我处理");
   let operatorDialog = await openWorkItem(
     page,
-    recordId,
     "继续物流填报",
     "补充物流监测填报",
   );
@@ -117,7 +118,6 @@ test("runs a logistics return, revision, resubmission, and approval against Post
   );
   let reviewerDialog = await openWorkItem(
     reviewerPage,
-    recordId,
     "审核物流单据",
     "物流监测单据审核",
   );
@@ -128,24 +128,14 @@ test("runs a logistics return, revision, resubmission, and approval against Post
   await reviewerDialog.getByRole("button", { name: "退回补充" }).click();
   await expect(reviewerDialog).toHaveCount(0);
 
-  operatorDialog = await openWorkItem(
-    page,
-    recordId,
-    "补充物流填报",
-    "补充物流监测填报",
-  );
+  operatorDialog = await openWorkItem(page, "补充物流填报", "补充物流监测填报");
   await operatorDialog
     .getByLabel("物流来源单位")
     .fill(revisedSourceOrganization);
   await operatorDialog.getByRole("button", { name: "保存物流记录" }).click();
   await expect(operatorDialog).toHaveCount(0);
 
-  operatorDialog = await openWorkItem(
-    page,
-    recordId,
-    "补充物流填报",
-    "补充物流监测填报",
-  );
+  operatorDialog = await openWorkItem(page, "补充物流填报", "补充物流监测填报");
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
   await expect(operatorDialog.getByText("提交成功")).toBeVisible();
   await operatorDialog
@@ -154,7 +144,6 @@ test("runs a logistics return, revision, resubmission, and approval against Post
 
   reviewerDialog = await openWorkItem(
     reviewerPage,
-    recordId,
     "审核物流单据",
     "物流监测单据审核",
   );

@@ -45,6 +45,29 @@ import {
   awaitBusinessImport,
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
+import { RealtimeRegionFilterSelect } from "../realtime/RealtimeRegionFilterSelect";
+import {
+  currentSurveyYear,
+  formatExplicitSurveyPeriod,
+  formatRealFillingTime,
+  formatSurveyPeriodFromDate,
+  matchesFillingDateRange,
+  matchesSurveyPeriod,
+  surveyMonthOptions,
+  surveyYearOptions,
+} from "../realtime/explicitRecordTime";
+import { useRealtimeMasterData } from "../realtime/useRealtimeMasterData";
+import { WorkspacePagination } from "../UnifiedWorkspacePrimitives";
+
+const collectionPageSize = 20;
+
+const productionStatusCodeByLabel: Readonly<Record<string, string>> = {
+  填写中: "DRAFT",
+  退回待补充: "RETURNED",
+  审核退回: "RETURNED",
+  待审核: "PENDING_REVIEW",
+  已核定: "APPROVED",
+};
 
 const aggregateRegionByCity = {
   qiqihar: "qiqihar-all",
@@ -194,11 +217,11 @@ function productionObjectTypeId(
 }
 
 function productionObjectType(item: BusinessWorkItem): string {
-  if (item.subject.kind !== "monitoring-object") return "对象类型待维护";
+  if (item.subject.kind !== "monitoring-object") return "对象类型未提供";
   const typeId = productionObjectTypeId(item);
   return (
     getProductionObjectTypeOptions().find(({ id }) => id === typeId)?.label ??
-    "对象类型待维护"
+    "对象类型未提供"
   );
 }
 
@@ -312,19 +335,17 @@ export function ProductProductionCollectionWorkspace({
   const importObjectType =
     objectType || getProductionObjectTypeOptions()[0]?.id || "";
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
-  const defaultSurveyDate = realtimeRepository
-    ? ""
-    : (workItems
-        .find(
-          (item) =>
-            item.domain === "production" &&
-            item.productId === context.productId,
-        )
-        ?.deadline.slice(0, 10) ?? "");
-  const [surveyDate, setSurveyDate] = useState(defaultSurveyDate);
+  const [realtimeRegionCode, setRealtimeRegionCode] = useState("");
+  const [surveyYear, setSurveyYear] = useState(currentSurveyYear);
+  const [surveyMonth, setSurveyMonth] = useState("");
+  const [fillingDateFrom, setFillingDateFrom] = useState("");
+  const [fillingDateTo, setFillingDateTo] = useState("");
   const [persistedRecords, setPersistedRecords] = useState<
     readonly BusinessRecordListItem[]
   >([]);
+  const [pageNumber, setPageNumber] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
   const [recordsLoading, setRecordsLoading] = useState(
     realtimeRepository !== undefined,
   );
@@ -332,6 +353,8 @@ export function ProductProductionCollectionWorkspace({
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
+  const { masterData, masterDataError } =
+    useRealtimeMasterData(realtimeRepository);
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -351,7 +374,11 @@ export function ProductProductionCollectionWorkspace({
       queryAllowed &&
       item.domain === "production" &&
       item.productId === context.productId &&
-      (!surveyDate || item.deadline.slice(0, 10) === surveyDate) &&
+      matchesSurveyPeriod(
+        item.deadline.slice(0, 10),
+        surveyYear,
+        surveyMonth,
+      ) &&
       regionContains(activeRegionId, itemLocationRegionId(item)) &&
       (!scope.coordinates.periodKey ||
         item.periodKey === scope.coordinates.periodKey) &&
@@ -364,11 +391,11 @@ export function ProductProductionCollectionWorkspace({
     (item, index) => ({
       workId: item.workId,
       number: index + 1,
-      surveyDate: item.deadline.slice(0, 10),
+      surveyDate: formatSurveyPeriodFromDate(item.deadline.slice(0, 10)),
       subject:
         item.subject.kind === "monitoring-object"
           ? cleanSubjectName(item.subject.objectName)
-          : "调查对象待维护",
+          : "调查对象未提供",
       objectType: productionObjectType(item),
       objectTypeId: productionObjectTypeId(item),
       region: item.regionLabel,
@@ -433,9 +460,33 @@ export function ProductProductionCollectionWorkspace({
           ? "SOYBEAN"
           : "RICE";
     void realtimeRepository
-      .listProduction({ productCode, pageSize: 100 })
+      .listProduction({
+        productCode,
+        page: pageNumber,
+        pageSize: collectionPageSize,
+        filters: {
+          regionCode: realtimeRegionCode || undefined,
+          surveyYear,
+          surveyMonth: surveyMonth || undefined,
+          fillingDateFrom: fillingDateFrom || undefined,
+          fillingDateTo: fillingDateTo || undefined,
+          objectTypeCode: objectType
+            ? productionObjectTypeCode(objectType)
+            : undefined,
+          status: status ? productionStatusCodeByLabel[status] : undefined,
+        },
+      })
       .then((page) => {
-        if (!cancelled) setPersistedRecords(page.items);
+        if (!cancelled) {
+          const nextTotalPages = Math.max(1, page.totalPages);
+          if (pageNumber >= nextTotalPages && pageNumber > 0) {
+            setPageNumber(nextTotalPages - 1);
+            return;
+          }
+          setPersistedRecords(page.items);
+          setTotalElements(page.totalElements);
+          setServerTotalPages(nextTotalPages);
+        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -451,9 +502,17 @@ export function ProductProductionCollectionWorkspace({
     };
   }, [
     context.productId,
+    fillingDateFrom,
+    fillingDateTo,
+    objectType,
+    pageNumber,
     realtimeRefreshToken,
+    realtimeRegionCode,
     realtimeRepository,
     recordsRevision,
+    status,
+    surveyMonth,
+    surveyYear,
   ]);
 
   const importRecords = async (file: File | undefined) => {
@@ -563,8 +622,12 @@ export function ProductProductionCollectionWorkspace({
       const rawObjectType = persistedValue(record, "PROD_OBJECT_TYPE");
       return {
         workId: record.id,
-        number: index + 1,
-        surveyDate: persistedValue(record, "PROD_SURVEY_DATE"),
+        number: pageNumber * collectionPageSize + index + 1,
+        surveyDate: formatExplicitSurveyPeriod(
+          record.values,
+          "PROD",
+          "PROD_SURVEY_DATE",
+        ),
         subject: persistedValue(
           record,
           "PROD_SAMPLE_NAME",
@@ -647,14 +710,38 @@ export function ProductProductionCollectionWorkspace({
           persistedProductionStatus(record.values.PROD_STATUS) === "已核定"
             ? "校验通过"
             : "等待审核校验",
-        lastSaved: persistedValue(record, "PROD_REPORTED_AT"),
+        lastSaved: formatRealFillingTime(record.values, "PROD"),
         status: persistedProductionStatus(record.values.PROD_STATUS),
       };
     });
-  const rows = (realtimeRepository ? persistedRows : fixtureRows)
-    .filter((row) => !surveyDate || row.surveyDate === surveyDate)
-    .filter((row) => !objectType || row.objectTypeId === objectType)
-    .filter((row) => !status || row.status === status);
+  const filteredRows = (realtimeRepository ? persistedRows : fixtureRows)
+    .filter(
+      (row) =>
+        realtimeRepository || !objectType || row.objectTypeId === objectType,
+    )
+    .filter((row) => realtimeRepository || !status || row.status === status)
+    .filter(
+      (row) =>
+        realtimeRepository ||
+        matchesFillingDateRange(row.lastSaved, fillingDateFrom, fillingDateTo),
+    );
+  const pageCount = realtimeRepository
+    ? serverTotalPages
+    : Math.max(1, Math.ceil(filteredRows.length / collectionPageSize));
+  const currentPageNumber = Math.min(pageNumber, pageCount - 1);
+  const rows = realtimeRepository
+    ? filteredRows
+    : filteredRows.slice(
+        currentPageNumber * collectionPageSize,
+        (currentPageNumber + 1) * collectionPageSize,
+      );
+  const rowTotal = realtimeRepository ? totalElements : filteredRows.length;
+  const rowStart =
+    rowTotal === 0 ? 0 : currentPageNumber * collectionPageSize + 1;
+  const rowEnd = Math.min(
+    (currentPageNumber + 1) * collectionPageSize,
+    rowTotal,
+  );
   const sourceItem = productItems[0];
   const selectedItem =
     selection?.type === "work-item"
@@ -691,50 +778,95 @@ export function ProductProductionCollectionWorkspace({
         role="search"
       >
         <label>
-          <span>调查日期</span>
-          <input
-            aria-label="调查日期"
-            type="date"
-            value={surveyDate}
-            onChange={(event) => setSurveyDate(event.target.value)}
-          />
-        </label>
-        <RegionCascadeSelector
-          authorizedRegionIds={scope.authorization.authorizedRegionIds}
-          maxLevel="village"
-          value={regionValue}
-          onChange={(value) => {
-            setLowerRegion(value);
-            onScopeChange({ regionId: scopeRegionId(value) });
-          }}
-        />
-        <label>
-          <span>调查批次</span>
+          <span>调查年份</span>
           <select
-            aria-label="调查批次"
-            value={scope.coordinates.periodKey ?? ""}
-            onChange={(event) =>
-              onScopeChange({ periodKey: event.target.value || undefined })
-            }
+            aria-label="调查年份"
+            required
+            value={surveyYear}
+            onChange={(event) => {
+              setSurveyYear(event.target.value);
+              setPageNumber(0);
+            }}
           >
-            <option value="">全部可用调查期</option>
-            {productionTaskPeriods.map((period) => (
-              <option key={period.id} value={period.id}>
-                {period.label}
+            {surveyYearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year} 年
               </option>
             ))}
           </select>
         </label>
         <label>
+          <span>调查月份</span>
+          <select
+            aria-label="调查月份"
+            value={surveyMonth}
+            onChange={(event) => {
+              setSurveyMonth(event.target.value);
+              setPageNumber(0);
+            }}
+          >
+            <option value="">全年（含年度与月度数据）</option>
+            {surveyMonthOptions.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {realtimeRepository ? (
+          <RealtimeRegionFilterSelect
+            authorizedRegionCodes={scope.authorization.authorizedRegionIds}
+            disabled={!masterData}
+            onChange={(regionCode) => {
+              setRealtimeRegionCode(regionCode);
+              setPageNumber(0);
+            }}
+            regions={masterData?.regions ?? []}
+            value={realtimeRegionCode}
+          />
+        ) : (
+          <RegionCascadeSelector
+            authorizedRegionIds={scope.authorization.authorizedRegionIds}
+            maxLevel="village"
+            value={regionValue}
+            onChange={(value) => {
+              setLowerRegion(value);
+              setPageNumber(0);
+              onScopeChange({ regionId: scopeRegionId(value) });
+            }}
+          />
+        )}
+        {!realtimeRepository && (
+          <label>
+            <span>调查批次</span>
+            <select
+              aria-label="调查批次"
+              value={scope.coordinates.periodKey ?? ""}
+              onChange={(event) => {
+                setPageNumber(0);
+                onScopeChange({ periodKey: event.target.value || undefined });
+              }}
+            >
+              <option value="">全部可用调查期</option>
+              {productionTaskPeriods.map((period) => (
+                <option key={period.id} value={period.id}>
+                  {period.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label>
           <span>对象类型</span>
           <select
             aria-label="对象类型"
             value={objectType}
-            onChange={(event) =>
+            onChange={(event) => {
+              setPageNumber(0);
               setObjectType(
                 event.target.value as "" | ProductionBusinessObjectTypeId,
-              )
-            }
+              );
+            }}
           >
             <option value="">全部对象类型</option>
             {getProductionObjectTypeOptions().map(({ id, label }) => (
@@ -744,29 +876,62 @@ export function ProductProductionCollectionWorkspace({
             ))}
           </select>
         </label>
+        {!realtimeRepository &&
+          (authorizedCultivars.length > 0 || scope.coordinates.cultivarId) && (
+            <label>
+              <span>具体品种</span>
+              <select
+                aria-label="具体品种"
+                value={scope.coordinates.cultivarId ?? ""}
+                onChange={(event) => {
+                  setPageNumber(0);
+                  onScopeChange({
+                    cultivarId: event.target.value || undefined,
+                  });
+                }}
+              >
+                <option value="">全部{context.productLabel}品种</option>
+                {authorizedCultivars.map(({ id, label }) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         <label>
-          <span>具体品种</span>
-          <select
-            aria-label="具体品种"
-            value={scope.coordinates.cultivarId ?? ""}
-            onChange={(event) =>
-              onScopeChange({ cultivarId: event.target.value || undefined })
-            }
-          >
-            <option value="">全部{context.productLabel}品种</option>
-            {authorizedCultivars.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <span>填报日期起</span>
+          <input
+            aria-label="填报日期起"
+            type="date"
+            value={fillingDateFrom}
+            onChange={(event) => {
+              setFillingDateFrom(event.target.value);
+              setPageNumber(0);
+            }}
+          />
+        </label>
+        <label>
+          <span>填报日期止</span>
+          <input
+            aria-label="填报日期止"
+            type="date"
+            value={fillingDateTo}
+            onChange={(event) => {
+              setFillingDateTo(event.target.value);
+              setPageNumber(0);
+            }}
+          />
         </label>
         <label>
           <span>填报状态</span>
           <select
             aria-label="填报状态"
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPageNumber(0);
+            }}
           >
             <option value="">全部状态</option>
             {["填写中", "退回待补充", "审核退回", "待审核", "已核定"].map(
@@ -791,8 +956,13 @@ export function ProductProductionCollectionWorkspace({
             onClick={() => {
               setStatus("");
               setObjectType("");
-              setSurveyDate(defaultSurveyDate);
+              setSurveyYear(currentSurveyYear);
+              setSurveyMonth("");
+              setFillingDateFrom("");
+              setFillingDateTo("");
               setLowerRegion({});
+              setRealtimeRegionCode("");
+              setPageNumber(0);
               onScopeChange({
                 regionId: "authorized-all",
                 periodKey: undefined,
@@ -814,6 +984,11 @@ export function ProductProductionCollectionWorkspace({
       {recordsError && (
         <div className="production-task5-alert" role="alert">
           {recordsError}
+        </div>
+      )}
+      {masterDataError && (
+        <div className="production-task5-alert" role="alert">
+          {masterDataError}
         </div>
       )}
 
@@ -879,7 +1054,7 @@ export function ProductProductionCollectionWorkspace({
             <thead>
               <tr>
                 <th rowSpan={2}>序号</th>
-                <th rowSpan={2}>调查日期</th>
+                <th rowSpan={2}>调查期间</th>
                 <th rowSpan={2}>填报日期</th>
                 <th rowSpan={2}>调查对象</th>
                 <th rowSpan={2}>对象类型</th>
@@ -1027,13 +1202,14 @@ export function ProductProductionCollectionWorkspace({
             本页已填 {completedFields} 项，缺失 {missingFields} 项，异常{" "}
             {abnormalRows} 项
           </span>
-          <nav aria-label="产情调查表分页">
-            <button type="button">‹</button>
-            <button className="is-current" type="button">
-              1
-            </button>
-            <button type="button">›</button>
-          </nav>
+          <WorkspacePagination
+            end={rowEnd}
+            onPageChange={(nextPage) => setPageNumber(nextPage - 1)}
+            page={currentPageNumber + 1}
+            pages={pageCount}
+            start={rowStart}
+            total={rowTotal}
+          />
         </footer>
       </section>
 

@@ -241,8 +241,8 @@ function realtimeSupplyRegionCode(regionId: string): string {
   return localBackendRegionCodes[regionId] ?? "230200";
 }
 
-function realtimeSupplyMarketingYear(periodKey: string | undefined): string {
-  return periodKey && periodKey.includes("-") ? periodKey : "2026-W32";
+function realtimeSupplyPeriodCode(periodKey: string | undefined): string {
+  return periodKey?.trim() ?? "";
 }
 
 function scopeIssueSummary(issues: readonly OperationalScopeIssue[]): string {
@@ -901,9 +901,12 @@ export function FormalEnterprisePrototype({
               permissions={currentSession?.permissions ?? []}
               productCode={realtimeSupplyProductCode(location.route.section)}
               regionCode={realtimeSupplyRegionCode(scope.coordinates.regionId)}
-              marketingYear={realtimeSupplyMarketingYear(
+              periodCode={realtimeSupplyPeriodCode(
                 scope.coordinates.periodKey,
               )}
+              onPeriodCodeChange={(periodKey) =>
+                updateCoordinates({ periodKey })
+              }
               repository={repository}
             />
           );

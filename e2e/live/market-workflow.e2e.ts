@@ -22,12 +22,14 @@ function recordRow(page: Page) {
 
 async function openWorkItem(
   page: Page,
-  recordId: string,
   actionName: "继续市场填报" | "补充市场填报" | "审核市场单据",
   dialogName: "补充市场填报" | "市场单据审核",
 ) {
-  const row = page.getByRole("row", { name: new RegExp(recordId, "u") });
-  await expect(row).toBeVisible({ timeout: 10_000 });
+  const row = page
+    .getByRole("row")
+    .filter({ hasText: "大豆报价与交易" })
+    .filter({ has: page.getByRole("button", { name: actionName }) });
+  await expect(row).toHaveCount(1, { timeout: 10_000 });
   await row.getByRole("button", { name: actionName }).click();
   const dialog = page.getByRole("dialog", { name: dialogName });
   await expect(dialog).toBeVisible();
@@ -133,12 +135,7 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   await viewDialog.getByRole("button", { name: "关闭市场记录详情" }).click();
 
   await page.goto("/#/我的工作/待我处理");
-  let operatorDialog = await openWorkItem(
-    page,
-    recordId,
-    "继续市场填报",
-    "补充市场填报",
-  );
+  let operatorDialog = await openWorkItem(page, "继续市场填报", "补充市场填报");
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
   await expect(operatorDialog.getByText("提交成功")).toBeVisible();
   await operatorDialog
@@ -150,7 +147,6 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   );
   let reviewerDialog = await openWorkItem(
     reviewerPage,
-    recordId,
     "审核市场单据",
     "市场单据审核",
   );
@@ -171,21 +167,11 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
       ),
     )
     .toBeGreaterThan(0);
-  operatorDialog = await openWorkItem(
-    page,
-    recordId,
-    "补充市场填报",
-    "补充市场填报",
-  );
+  operatorDialog = await openWorkItem(page, "补充市场填报", "补充市场填报");
   await operatorDialog.getByLabel("来源说明").fill("已补充现场采购量台账核验");
   await operatorDialog.getByRole("button", { name: "保存业务记录" }).click();
   await expect(operatorDialog).toHaveCount(0);
-  operatorDialog = await openWorkItem(
-    page,
-    recordId,
-    "补充市场填报",
-    "补充市场填报",
-  );
+  operatorDialog = await openWorkItem(page, "补充市场填报", "补充市场填报");
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
   await expect(operatorDialog.getByText("提交成功")).toBeVisible();
   await operatorDialog
@@ -194,7 +180,6 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
 
   reviewerDialog = await openWorkItem(
     reviewerPage,
-    recordId,
     "审核市场单据",
     "市场单据审核",
   );

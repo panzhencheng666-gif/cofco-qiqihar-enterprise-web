@@ -53,6 +53,28 @@ import {
   awaitBusinessImport,
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
+import { RealtimeRegionFilterSelect } from "../realtime/RealtimeRegionFilterSelect";
+import {
+  currentSurveyYear,
+  formatExplicitSurveyPeriod,
+  formatRealFillingTime,
+  formatSurveyPeriodFromDate,
+  matchesFillingDateRange,
+  matchesSurveyPeriod,
+  surveyMonthOptions,
+  surveyYearOptions,
+} from "../realtime/explicitRecordTime";
+import { useRealtimeMasterData } from "../realtime/useRealtimeMasterData";
+import { WorkspacePagination } from "../UnifiedWorkspacePrimitives";
+
+const collectionPageSize = 20;
+
+const marketStatusCodeByLabel: Readonly<Record<string, string>> = {
+  填写中: "DRAFT",
+  待审核: "PENDING_REVIEW",
+  已核定: "APPROVED",
+  需补充: "RETURNED",
+};
 
 const aggregateRegionByCity = {
   qiqihar: "qiqihar-all",
@@ -391,19 +413,17 @@ export function ProductMarketCollectionWorkspace({
   );
   const [state, setState] = useState("");
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
-  const defaultCollectionDate =
-    workItems
-      .find(
-        (item) =>
-          item.domain === "market" &&
-          item.businessSubtypeId !== "market.logistics" &&
-          item.productId === context.productId,
-      )
-      ?.deadline.slice(0, 10) ?? "";
-  const [collectionDate, setCollectionDate] = useState(defaultCollectionDate);
+  const [realtimeRegionCode, setRealtimeRegionCode] = useState("");
+  const [surveyYear, setSurveyYear] = useState(currentSurveyYear);
+  const [surveyMonth, setSurveyMonth] = useState("");
+  const [fillingDateFrom, setFillingDateFrom] = useState("");
+  const [fillingDateTo, setFillingDateTo] = useState("");
   const [persistedRecords, setPersistedRecords] = useState<
     readonly BusinessRecordListItem[]
   >([]);
+  const [pageNumber, setPageNumber] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
   const [recordsLoading, setRecordsLoading] = useState(
     realtimeRepository !== undefined,
   );
@@ -413,6 +433,8 @@ export function ProductMarketCollectionWorkspace({
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
+  const { masterData, masterDataError } =
+    useRealtimeMasterData(realtimeRepository);
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -433,7 +455,11 @@ export function ProductMarketCollectionWorkspace({
       item.domain === "market" &&
       item.businessSubtypeId !== "market.logistics" &&
       item.productId === context.productId &&
-      (!collectionDate || item.deadline.slice(0, 10) === collectionDate) &&
+      matchesSurveyPeriod(
+        item.deadline.slice(0, 10),
+        surveyYear,
+        surveyMonth,
+      ) &&
       regionContains(activeRegionId, itemLocationRegionId(item)) &&
       (!scope.coordinates.periodKey ||
         item.periodKey === scope.coordinates.periodKey) &&
@@ -456,12 +482,12 @@ export function ProductMarketCollectionWorkspace({
         rowId: item.workId,
         workId: item.workId,
         number: index + 1,
-        collectionDate: item.deadline.slice(0, 10),
+        collectionDate: formatSurveyPeriodFromDate(item.deadline.slice(0, 10)),
         submittedAt: submittedAtValue(item.workId),
         subject:
           subject.kind === "monitoring-object"
             ? subject.objectName
-            : "监测对象待维护",
+            : "监测对象未提供",
         objectType: itemObjectType,
         objectTypeId: itemObjectTypeId,
         county: businessRegionLabel(item),
@@ -502,9 +528,33 @@ export function ProductMarketCollectionWorkspace({
           ? "SOYBEAN"
           : "RICE";
     void realtimeRepository
-      .listMarket({ productCode, pageSize: 100 })
+      .listMarket({
+        productCode,
+        page: pageNumber,
+        pageSize: collectionPageSize,
+        filters: {
+          regionCode: realtimeRegionCode || undefined,
+          surveyYear,
+          surveyMonth: surveyMonth || undefined,
+          fillingDateFrom: fillingDateFrom || undefined,
+          fillingDateTo: fillingDateTo || undefined,
+          objectTypeCode: objectType
+            ? marketObjectTypeCode[objectType]
+            : undefined,
+          status: state ? marketStatusCodeByLabel[state] : undefined,
+        },
+      })
       .then((page) => {
-        if (!cancelled) setPersistedRecords(page.items);
+        if (!cancelled) {
+          const nextTotalPages = Math.max(1, page.totalPages);
+          if (pageNumber >= nextTotalPages && pageNumber > 0) {
+            setPageNumber(nextTotalPages - 1);
+            return;
+          }
+          setPersistedRecords(page.items);
+          setTotalElements(page.totalElements);
+          setServerTotalPages(nextTotalPages);
+        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -520,9 +570,17 @@ export function ProductMarketCollectionWorkspace({
     };
   }, [
     context.productId,
+    objectType,
+    pageNumber,
     realtimeRefreshToken,
+    realtimeRegionCode,
     realtimeRepository,
     recordsRevision,
+    state,
+    surveyMonth,
+    surveyYear,
+    fillingDateFrom,
+    fillingDateTo,
   ]);
 
   const persistedRows: readonly MarketCollectionRow[] = persistedRecords.map(
@@ -534,9 +592,13 @@ export function ProductMarketCollectionWorkspace({
       return {
         rowId: record.id,
         workId: record.id,
-        number: index + 1,
-        collectionDate: record.values.MKT_TRADE_DATE ?? "—",
-        submittedAt: record.values.MKT_REPORTED_AT ?? "尚未填报",
+        number: pageNumber * collectionPageSize + index + 1,
+        collectionDate: formatExplicitSurveyPeriod(
+          record.values,
+          "MKT",
+          "MKT_TRADE_DATE",
+        ),
+        submittedAt: formatRealFillingTime(record.values, "MKT"),
         subject:
           record.values.MKT_SAMPLE_NAME ??
           record.values.MKT_SUBJECT_NAME ??
@@ -565,9 +627,38 @@ export function ProductMarketCollectionWorkspace({
     },
   );
   const allRows = realtimeRepository ? persistedRows : fixtureRows;
-  const rows = allRows
-    .filter((row) => !objectType || row.objectTypeId === objectType)
-    .filter((row) => !state || row.state === state);
+  const filteredRows = allRows
+    .filter(
+      (row) =>
+        realtimeRepository || !objectType || row.objectTypeId === objectType,
+    )
+    .filter((row) => realtimeRepository || !state || row.state === state)
+    .filter(
+      (row) =>
+        realtimeRepository ||
+        matchesFillingDateRange(
+          row.submittedAt,
+          fillingDateFrom,
+          fillingDateTo,
+        ),
+    );
+  const pageCount = realtimeRepository
+    ? serverTotalPages
+    : Math.max(1, Math.ceil(filteredRows.length / collectionPageSize));
+  const currentPageNumber = Math.min(pageNumber, pageCount - 1);
+  const rows = realtimeRepository
+    ? filteredRows
+    : filteredRows.slice(
+        currentPageNumber * collectionPageSize,
+        (currentPageNumber + 1) * collectionPageSize,
+      );
+  const rowTotal = realtimeRepository ? totalElements : filteredRows.length;
+  const rowStart =
+    rowTotal === 0 ? 0 : currentPageNumber * collectionPageSize + 1;
+  const rowEnd = Math.min(
+    (currentPageNumber + 1) * collectionPageSize,
+    rowTotal,
+  );
   const objectTypes = getMarketObjectTypeOptions(context.productId);
   const sourceItem = productItems[0];
   const selectedItem =
@@ -737,50 +828,95 @@ export function ProductMarketCollectionWorkspace({
         role="search"
       >
         <label>
-          <span>采集日期</span>
-          <input
-            aria-label="采集日期"
-            value={collectionDate}
-            onChange={(event) => setCollectionDate(event.target.value)}
-            type="date"
-          />
-        </label>
-        <RegionCascadeSelector
-          authorizedRegionIds={scope.authorization.authorizedRegionIds}
-          maxLevel="village"
-          value={regionValue}
-          onChange={(value) => {
-            setLowerRegion(value);
-            onScopeChange({ regionId: scopeRegionId(value) });
-          }}
-        />
-        <label>
-          <span>监测批次</span>
+          <span>调查年份</span>
           <select
-            aria-label="监测批次"
-            value={scope.coordinates.periodKey ?? ""}
-            onChange={(event) =>
-              onScopeChange({ periodKey: event.target.value || undefined })
-            }
+            aria-label="调查年份"
+            required
+            value={surveyYear}
+            onChange={(event) => {
+              setSurveyYear(event.target.value);
+              setPageNumber(0);
+            }}
           >
-            <option value="">全部可用监测期</option>
-            {marketTaskPeriods.map((period) => (
-              <option key={period.id} value={period.id}>
-                {period.label}
+            {surveyYearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year} 年
               </option>
             ))}
           </select>
         </label>
         <label>
+          <span>调查月份</span>
+          <select
+            aria-label="调查月份"
+            value={surveyMonth}
+            onChange={(event) => {
+              setSurveyMonth(event.target.value);
+              setPageNumber(0);
+            }}
+          >
+            <option value="">全年（含年度与月度数据）</option>
+            {surveyMonthOptions.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {realtimeRepository ? (
+          <RealtimeRegionFilterSelect
+            authorizedRegionCodes={scope.authorization.authorizedRegionIds}
+            disabled={!masterData}
+            onChange={(regionCode) => {
+              setRealtimeRegionCode(regionCode);
+              setPageNumber(0);
+            }}
+            regions={masterData?.regions ?? []}
+            value={realtimeRegionCode}
+          />
+        ) : (
+          <RegionCascadeSelector
+            authorizedRegionIds={scope.authorization.authorizedRegionIds}
+            maxLevel="village"
+            value={regionValue}
+            onChange={(value) => {
+              setLowerRegion(value);
+              setPageNumber(0);
+              onScopeChange({ regionId: scopeRegionId(value) });
+            }}
+          />
+        )}
+        {!realtimeRepository && (
+          <label>
+            <span>监测批次</span>
+            <select
+              aria-label="监测批次"
+              value={scope.coordinates.periodKey ?? ""}
+              onChange={(event) => {
+                setPageNumber(0);
+                onScopeChange({ periodKey: event.target.value || undefined });
+              }}
+            >
+              <option value="">全部可用监测期</option>
+              {marketTaskPeriods.map((period) => (
+                <option key={period.id} value={period.id}>
+                  {period.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label>
           <span>对象类型</span>
           <select
             aria-label="对象类型"
             value={objectType}
-            onChange={(event) =>
+            onChange={(event) => {
+              setPageNumber(0);
               setObjectType(
                 event.target.value as "" | MarketBusinessObjectTypeId,
-              )
-            }
+              );
+            }}
           >
             <option value="">全部适用对象</option>
             {objectTypes.map(({ id, label }) => (
@@ -790,29 +926,62 @@ export function ProductMarketCollectionWorkspace({
             ))}
           </select>
         </label>
+        {!realtimeRepository &&
+          (authorizedCultivars.length > 0 || scope.coordinates.cultivarId) && (
+            <label>
+              <span>具体品种</span>
+              <select
+                aria-label="具体品种"
+                value={scope.coordinates.cultivarId ?? ""}
+                onChange={(event) => {
+                  setPageNumber(0);
+                  onScopeChange({
+                    cultivarId: event.target.value || undefined,
+                  });
+                }}
+              >
+                <option value="">全部{context.productLabel}品种</option>
+                {authorizedCultivars.map(({ id, label }) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         <label>
-          <span>具体品种</span>
-          <select
-            aria-label="具体品种"
-            value={scope.coordinates.cultivarId ?? ""}
-            onChange={(event) =>
-              onScopeChange({ cultivarId: event.target.value || undefined })
-            }
-          >
-            <option value="">全部{context.productLabel}品种</option>
-            {authorizedCultivars.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <span>填报日期起</span>
+          <input
+            aria-label="填报日期起"
+            type="date"
+            value={fillingDateFrom}
+            onChange={(event) => {
+              setFillingDateFrom(event.target.value);
+              setPageNumber(0);
+            }}
+          />
+        </label>
+        <label>
+          <span>填报日期止</span>
+          <input
+            aria-label="填报日期止"
+            type="date"
+            value={fillingDateTo}
+            onChange={(event) => {
+              setFillingDateTo(event.target.value);
+              setPageNumber(0);
+            }}
+          />
         </label>
         <label>
           <span>填报状态</span>
           <select
             aria-label="填报状态"
             value={state}
-            onChange={(event) => setState(event.target.value)}
+            onChange={(event) => {
+              setState(event.target.value);
+              setPageNumber(0);
+            }}
           >
             <option value="">全部状态</option>
             <option value="填写中">填写中</option>
@@ -834,8 +1003,13 @@ export function ProductMarketCollectionWorkspace({
             onClick={() => {
               setObjectType("");
               setState("");
-              setCollectionDate(defaultCollectionDate);
+              setSurveyYear(currentSurveyYear);
+              setSurveyMonth("");
+              setFillingDateFrom("");
+              setFillingDateTo("");
               setLowerRegion({});
+              setRealtimeRegionCode("");
+              setPageNumber(0);
               onScopeChange({
                 regionId: "authorized-all",
                 periodKey: undefined,
@@ -857,6 +1031,11 @@ export function ProductMarketCollectionWorkspace({
       {recordsError && (
         <div className="market-task6-alert" role="alert">
           {recordsError}
+        </div>
+      )}
+      {masterDataError && (
+        <div className="market-task6-alert" role="alert">
+          {masterDataError}
         </div>
       )}
 
@@ -922,7 +1101,7 @@ export function ProductMarketCollectionWorkspace({
             <thead>
               <tr>
                 <th rowSpan={2}>序号</th>
-                <th rowSpan={2}>采集日期</th>
+                <th rowSpan={2}>调查期间</th>
                 <th rowSpan={2}>填报日期</th>
                 <th rowSpan={2}>采集对象</th>
                 <th rowSpan={2}>对象类型</th>
@@ -1002,13 +1181,14 @@ export function ProductMarketCollectionWorkspace({
             本页已填 {completedFields} 项，缺失 {missingFields} 项，异常{" "}
             {abnormalRows} 项
           </span>
-          <nav aria-label="采集表分页">
-            <button type="button">‹</button>
-            <button className="is-current" type="button">
-              1
-            </button>
-            <button type="button">›</button>
-          </nav>
+          <WorkspacePagination
+            end={rowEnd}
+            onPageChange={(nextPage) => setPageNumber(nextPage - 1)}
+            page={currentPageNumber + 1}
+            pages={pageCount}
+            start={rowStart}
+            total={rowTotal}
+          />
         </footer>
       </section>
 

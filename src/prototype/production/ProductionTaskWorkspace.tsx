@@ -5,20 +5,15 @@ import {
   type BusinessWorkProjection,
 } from "../application/businessWorkProjection";
 import type { BusinessWorkItem } from "../core/businessWork";
-import { businessClassifications } from "../core/businessClassification";
 import type { OperationalScope } from "../core/operationalScope";
 import { getApplicableCultivars } from "../core/platformMasterData";
 import { businessWorkFixtures } from "../data/businessWorkFixtures";
 import { productionDocumentFixtures } from "../data/productionDocumentFixtures";
-import { getEnterpriseScopeRegion } from "../enterpriseRegions";
 import type {
   BusinessCoordinates,
   FormalSelection,
 } from "../formalEnterpriseModel";
-import {
-  productionTaskPeriods,
-  productionTaskStateOptions,
-} from "../productionMonitoringData";
+import { productionTaskStateOptions } from "../productionMonitoringData";
 import {
   formatProductionDateTime,
   governedProductionName,
@@ -93,10 +88,6 @@ const emptyStateFilters: TaskStateFilters = {
   release: "",
 };
 
-function regionName(id: string): string {
-  return getEnterpriseScopeRegion(id)?.label ?? "地区名称待维护";
-}
-
 function stateTone(value: string): string {
   if (
     value.includes("阻断") ||
@@ -167,40 +158,94 @@ function activeAdvancedFilterCount(
 function taskSubjectName(item: BusinessWorkItem): string {
   return item.subject.kind === "monitoring-object"
     ? item.subject.objectName
-    : "监测对象名称待维护";
+    : "未提供监测对象名称";
 }
 
 function TaskFilters({
   scope,
+  workItems,
   onScopeChange,
   stateFilters,
   onStateFiltersChange,
 }: {
   scope: OperationalScope;
+  workItems: readonly BusinessWorkItem[];
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   stateFilters: TaskStateFilters;
   onStateFiltersChange: (filters: TaskStateFilters) => void;
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const regions = scope.authorization.authorizedRegionIds.map((id) => ({
-    id,
-    label: regionName(id),
-  }));
-  const classifications = businessClassifications.filter(
-    ({ domain, id }) =>
-      domain === "production" &&
-      scope.authorization.authorizedBusinessClassificationIds.includes(id),
+  const productionItems = workItems.filter(
+    ({ domain }) => domain === "production",
   );
-  const products = scope.authorization.authorizedProductIds
-    .filter((id) => Object.hasOwn(productionProductNames, id))
-    .map((id) => ({
-      id,
-      label: governedProductionName(
-        productionProductNames,
-        id,
-        "产品名称待维护",
+  const regions = [
+    ...new Map(
+      productionItems
+        .filter(({ regionId, regionLabel }) => regionId && regionLabel.trim())
+        .map(({ regionId, regionLabel }) => [regionId, regionLabel] as const),
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const classifications = [
+    ...new Map(
+      productionItems.map(({ businessSubtypeId, businessLabel }) => [
+        businessSubtypeId,
+        businessLabel.trim() || "未提供业务分类",
+      ]),
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const products = [
+    ...new Map(
+      productionItems.flatMap((item) =>
+        item.productId
+          ? [
+              [
+                item.productId,
+                item.productLabel?.trim() ||
+                  governedProductionName(
+                    productionProductNames,
+                    item.productId,
+                    "未提供产品名称",
+                  ),
+              ] as const,
+            ]
+          : [],
       ),
-    }));
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const periods = [
+    ...new Map(
+      productionItems
+        .filter(({ periodKey }) => Boolean(periodKey))
+        .map(
+          (item) =>
+            [
+              item.periodKey,
+              governedProductionName(
+                productionPeriodNames,
+                item.periodKey,
+                item.effectivePeriod.trim() || "未提供任务期间",
+              ),
+            ] as const,
+        ),
+    ).entries(),
+  ].map(([id, label]) => ({ id, label }));
+  const regionInvalid =
+    scope.coordinates.regionId !== "authorized-all" &&
+    !regions.some(({ id }) => id === scope.coordinates.regionId);
+  const classificationInvalid = Boolean(
+    scope.coordinates.businessSubtypeId &&
+    !classifications.some(
+      ({ id }) => id === scope.coordinates.businessSubtypeId,
+    ),
+  );
+  const productInvalid = Boolean(
+    scope.coordinates.productId &&
+    !products.some(({ id }) => id === scope.coordinates.productId),
+  );
+  const periodInvalid = Boolean(
+    scope.coordinates.periodKey &&
+    !periods.some(({ id }) => id === scope.coordinates.periodKey),
+  );
   const selectedProductId = scope.coordinates.productId ?? "";
   const cultivars = selectedProductId
     ? getApplicableCultivars(selectedProductId).filter(({ id }) =>
@@ -245,87 +290,110 @@ function TaskFilters({
       className="production-task5-filter-surface"
     >
       <div className="production-task5-filter-grid production-task5-filter-grid--task-primary">
-        <label>
-          <span>业务地区</span>
-          <select
-            aria-label="业务地区"
-            value={scope.coordinates.regionId}
-            onChange={(event) =>
-              onScopeChange({ regionId: event.target.value })
-            }
-          >
-            <option value="authorized-all">全部已授权范围</option>
-            {regions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>业务分类</span>
-          <select
-            aria-label="业务分类"
-            value={scope.coordinates.businessSubtypeId ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                businessSubtypeId: event.target.value || undefined,
-              })
-            }
-          >
-            <option value="">全部已授权分类</option>
-            {classifications.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>产品或作物</span>
-          <select
-            aria-label="产品或作物"
-            value={scope.coordinates.productId ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                productId: event.target.value || undefined,
-                cultivarId: undefined,
-              })
-            }
-          >
-            <option value="">全部已授权产品</option>
-            {products.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>任务期间</span>
-          <select
-            aria-label="任务期间"
-            value={scope.coordinates.periodKey ?? ""}
-            onChange={(event) =>
-              onScopeChange({ periodKey: event.target.value || undefined })
-            }
-          >
-            <option value="">全部可用期间</option>
-            {productionTaskPeriods.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-            {scope.coordinates.periodKey &&
-              !productionTaskPeriods.some(
-                ({ id }) => id === scope.coordinates.periodKey,
-              ) && (
-                <option disabled value={scope.coordinates.periodKey}>
-                  无效任务期间（请重新选择）
+        {(regions.length > 1 || regionInvalid) && (
+          <label>
+            <span>业务地区</span>
+            <select
+              aria-label="业务地区"
+              value={scope.coordinates.regionId}
+              onChange={(event) =>
+                onScopeChange({ regionId: event.target.value })
+              }
+            >
+              <option value="authorized-all">全部地区</option>
+              {regionInvalid && (
+                <option disabled value={scope.coordinates.regionId}>
+                  所选地区当前无任务（请重新选择）
                 </option>
               )}
-          </select>
-        </label>
+              {regions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(classifications.length > 1 || classificationInvalid) && (
+          <label>
+            <span>业务分类</span>
+            <select
+              aria-label="业务分类"
+              value={scope.coordinates.businessSubtypeId ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  businessSubtypeId: event.target.value || undefined,
+                })
+              }
+            >
+              <option value="">全部业务分类</option>
+              {classificationInvalid && (
+                <option disabled value={scope.coordinates.businessSubtypeId}>
+                  所选分类当前无任务（请重新选择）
+                </option>
+              )}
+              {classifications.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(products.length > 1 || productInvalid) && (
+          <label>
+            <span>产品或作物</span>
+            <select
+              aria-label="产品或作物"
+              value={scope.coordinates.productId ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  productId: event.target.value || undefined,
+                  cultivarId: undefined,
+                })
+              }
+            >
+              <option value="">全部产品或作物</option>
+              {productInvalid && (
+                <option disabled value={scope.coordinates.productId}>
+                  所选产品当前无任务（请重新选择）
+                </option>
+              )}
+              {products.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(periods.length > 1 || periodInvalid) && (
+          <label>
+            <span>任务期间</span>
+            <select
+              aria-label="任务期间"
+              value={scope.coordinates.periodKey ?? ""}
+              onChange={(event) =>
+                onScopeChange({ periodKey: event.target.value || undefined })
+              }
+            >
+              <option value="">全部任务期间</option>
+              {periods.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+              {scope.coordinates.periodKey &&
+                !periods.some(
+                  ({ id }) => id === scope.coordinates.periodKey,
+                ) && (
+                  <option disabled value={scope.coordinates.periodKey}>
+                    无效任务期间（请重新选择）
+                  </option>
+                )}
+            </select>
+          </label>
+        )}
       </div>
       <div className="production-task5-filter-actions">
         <button
@@ -444,18 +512,29 @@ export function ProductionTaskWorkspace({
   const [stateFilters, setStateFilters] =
     useState<TaskStateFilters>(emptyStateFilters);
   const [page, setPage] = useState(1);
+  const availablePeriods = useMemo(
+    () => [
+      ...new Set(
+        workItems
+          .filter(({ domain }) => domain === "production")
+          .map(({ periodKey }) => periodKey)
+          .filter(Boolean),
+      ),
+    ],
+    [workItems],
+  );
   const periodInvalid =
     scope.coordinates.periodKey !== undefined &&
-    !productionTaskPeriods.some(({ id }) => id === scope.coordinates.periodKey);
+    !availablePeriods.includes(scope.coordinates.periodKey);
   const projections = useMemo(
     () =>
       projectDomainTasks(workItems, {
         domain: "production",
         scope,
         queryAllowed: queryAllowed && !periodInvalid,
-        availablePeriodKeys: productionTaskPeriods.map(({ id }) => id),
+        availablePeriodKeys: availablePeriods,
       }),
-    [periodInvalid, queryAllowed, scope, workItems],
+    [availablePeriods, periodInvalid, queryAllowed, scope, workItems],
   );
   const visible = projections.filter((projection) =>
     matchesStateFilters(projection, stateFilters),
@@ -496,6 +575,7 @@ export function ProductionTaskWorkspace({
         }}
         scope={scope}
         stateFilters={stateFilters}
+        workItems={workItems}
       />
       {!queryAllowed && (
         <div className="production-task5-alert" role="alert">
@@ -523,7 +603,7 @@ export function ProductionTaskWorkspace({
           {governedProductionName(
             productionPeriodNames,
             scope.coordinates.periodKey,
-            "全部可用期间",
+            "全部任务期间",
           )}
         </span>
         <span>{visible.length} 项任务</span>
@@ -544,7 +624,7 @@ export function ProductionTaskWorkspace({
               {governedProductionName(
                 productionPeriodNames,
                 scope.coordinates.periodKey,
-                "全部可用期间",
+                "全部任务期间",
               )}
               · 五类状态独立保存，可在当前节点中展开查看
             </p>
@@ -592,15 +672,15 @@ export function ProductionTaskWorkspace({
                         <small>{taskSubjectName(item)}</small>
                       </span>
                     </th>
-                    <td>{item.businessLabel || "业务分类名称待维护"}</td>
+                    <td>{item.businessLabel || "未提供业务分类"}</td>
                     <td>
                       <span className="production-task5-cell-stack">
-                        <strong>{item.regionLabel || "地区名称待维护"}</strong>
+                        <strong>{item.regionLabel || "未提供业务地区"}</strong>
                         <small>
                           {governedProductionName(
                             productionProductNames,
                             item.productId,
-                            "产品名称待维护",
+                            item.productLabel?.trim() || "未提供产品名称",
                           )}
                           {item.cultivarIds.length > 0
                             ? ` · ${item.cultivarIds
@@ -608,7 +688,7 @@ export function ProductionTaskWorkspace({
                                   governedProductionName(
                                     productionCultivarNames,
                                     id,
-                                    "品种名称待维护",
+                                    "未提供品种名称",
                                   ),
                                 )
                                 .join("、")}`
@@ -622,7 +702,7 @@ export function ProductionTaskWorkspace({
                           {governedProductionName(
                             productionPeriodNames,
                             item.periodKey,
-                            "任务期间待维护",
+                            item.effectivePeriod.trim() || "未提供任务期间",
                           )}
                         </strong>
                         <small>
@@ -633,12 +713,13 @@ export function ProductionTaskWorkspace({
                     <td>
                       <span className="production-task5-cell-stack">
                         <strong>
-                          {item.responsiblePerson || "责任人待维护"} ·{" "}
-                          {item.responsiblePost || "岗位待维护"}
+                          {item.responsiblePerson || "未提供责任人"} ·{" "}
+                          {item.responsiblePost || "未提供责任岗位"}
                         </strong>
                         <small>
-                          已完成 {item.completedFields}/{item.applicableFields}{" "}
-                          项
+                          {item.applicableFields > 0
+                            ? `已完成 ${item.completedFields}/${item.applicableFields} 项`
+                            : "系统流程任务"}
                         </small>
                       </span>
                     </td>
@@ -715,7 +796,7 @@ export function ProductionTaskWorkspace({
       )}
       {selected && !selectedDocument && (
         <div className="production-task5-alert" role="alert">
-          任务单据配置待维护，系统未打开其他单据。
+          当前任务尚未配置可打开的业务单据，系统未跳转到其他单据。
         </div>
       )}
     </div>

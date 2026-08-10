@@ -39,6 +39,7 @@ export const formalSectionsByApplication = {
     "analysis",
   ],
   supply: [
+    "balance",
     "corn-balance",
     "soybean-balance",
     "paddy-balance",
@@ -133,6 +134,7 @@ const formalBusinessRouteNames = {
   supply: {
     application: "供需分析",
     sections: {
+      balance: "供需平衡",
       "corn-balance": "玉米供需平衡",
       "soybean-balance": "大豆供需平衡",
       "paddy-balance": "稻谷供需平衡",

@@ -1,175 +1,73 @@
-import {
-  cleanup,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type {
+  BusinessRecordListInput,
+  RealtimeBusinessRepository,
+} from "@/platform/api/realtimeBusinessRepository";
+
 import type { OperationalScope } from "../core/operationalScope";
 import { prototypeOperationalIdentity } from "../formalEnterpriseData";
-import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import { LogisticsMonitoringWorkspace } from "./LogisticsMonitoringWorkspace";
 
 afterEach(cleanup);
 
-const authorizedScope: OperationalScope = {
+const scope: OperationalScope = {
   ...prototypeOperationalIdentity,
   coordinates: { regionId: "authorized-all" },
-  authorization: {
-    ...prototypeOperationalIdentity.authorization,
-    authorizedBusinessClassificationIds: ["market.logistics"],
-    authorizedProductIds: ["corn", "soybean", "paddy"],
-    authorizedCultivarIds: [],
-  },
   savedView: null,
 };
 
+const realtimeScope: OperationalScope = {
+  ...scope,
+  authorization: {
+    ...scope.authorization,
+    authorizedRegionIds: [
+      "230202",
+    ] as unknown as OperationalScope["authorization"]["authorizedRegionIds"],
+  },
+};
+
+const loadMasterData = vi.fn().mockResolvedValue({
+  products: [{ code: "CORN", name: "玉米" }],
+  periods: [{ code: "2026-W32", name: "2026年第32周" }],
+  regions: [
+    {
+      code: "230200",
+      name: "齐齐哈尔市",
+      parentCode: null,
+      level: "PREFECTURE",
+    },
+    {
+      code: "230202",
+      name: "龙沙区",
+      parentCode: "230200",
+      level: "COUNTY",
+    },
+  ],
+});
+
 describe("logistics monitoring workspace", () => {
-  it("uses a dedicated node ledger instead of mixing logistics into market subjects", () => {
-    render(
-      <LogisticsMonitoringWorkspace
-        onScopeChange={vi.fn()}
-        onSelectionChange={vi.fn()}
-        productCode="CORN"
-        queryAllowed
-        scope={authorizedScope}
-      />,
-    );
-
-    expect(
-      screen.getByRole("heading", { name: "粮食物流节点监测表" }),
-    ).toBeVisible();
-    expect(
-      within(screen.getByRole("combobox", { name: "节点类型" })).getByRole(
-        "option",
-        { name: "铁路站点" },
-      ),
-    ).toBeVisible();
-    const table = screen.getByRole("table", {
-      name: "粮食物流节点监测表",
-    });
-    expect(
-      within(table).getByRole("columnheader", { name: "流入量" }),
-    ).toBeVisible();
-    expect(
-      within(table).getByRole("columnheader", { name: "流出量" }),
-    ).toBeVisible();
-    expect(table).toHaveTextContent("齐齐哈尔铁路货运站");
-    expect(table).toHaveTextContent("待审核");
-    expect(table).toHaveTextContent("质量警告");
-  });
-
-  it("lists persisted logistics records by product without falling back to preset rows", async () => {
+  it("queries by survey year and month, real filling dates and logistics status", async () => {
     const user = userEvent.setup();
-    const listLogistics = vi.fn().mockResolvedValue({
-      items: [
-        {
-          id: "LOG-DB-001",
-          productCode: "CORN",
-          values: {},
-          displayValues: {
-            LOG_COLLECTION_DATE: "2026-08-08",
-            LOG_ORIGIN: "齐齐哈尔",
-            LOG_DESTINATION: "黑河",
-            LOG_TRANSPORT_MODE: "铁路",
-            LOG_DIRECTION: "流出",
-            LOG_ROUTE_VOLUME: "680 吨",
-            LOG_FREIGHT_RATE: "86 元/吨",
-            LOG_TRANSIT_TIME: "18 小时",
-            LOG_SOURCE_ORGANIZATION: "齐齐哈尔物流中心",
-            LOG_STATUS: "已核定",
-          },
-          status: "APPROVED",
-          returnReason: null,
-          allowedActions: [],
-          version: 1,
-        },
-      ],
-      pageNumber: 0,
-      pageSize: 100,
-      totalElements: 1,
-      totalPages: 1,
-    });
-    const onCreateRecord = vi.fn();
-    const onEditRecord = vi.fn();
+    const listLogistics = vi
+      .fn<RealtimeBusinessRepository["listLogistics"]>()
+      .mockResolvedValue({
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
+      });
     const repository = {
       listLogistics,
-    } as unknown as RealtimeBusinessRepository;
-
-    render(
-      <LogisticsMonitoringWorkspace
-        onScopeChange={vi.fn()}
-        onSelectionChange={vi.fn()}
-        productCode="SOYBEAN"
-        queryAllowed
-        realtimeRepository={repository}
-        scope={authorizedScope}
-        onCreateRecord={onCreateRecord}
-        onEditRecord={onEditRecord}
-      />,
-    );
-
-    expect(await screen.findByText("LOG-DB-001")).toBeVisible();
-    expect(screen.getByText("齐齐哈尔 → 黑河")).toBeVisible();
-    expect(screen.queryByText("齐齐哈尔铁路货运站")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "批量导入" }),
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "查询" }));
-    await waitFor(() => expect(listLogistics).toHaveBeenCalledTimes(2));
-
-    expect(
-      screen.queryByRole("combobox", { name: "产品品种" }),
-    ).not.toBeInTheDocument();
-    expect(listLogistics).toHaveBeenLastCalledWith({
-      page: 0,
-      pageSize: 100,
-      productCode: "SOYBEAN",
-    });
-    await user.click(screen.getByRole("button", { name: "新建监测记录" }));
-    expect(onCreateRecord).toHaveBeenCalledWith("SOYBEAN");
-    await user.click(screen.getByRole("button", { name: "查看" }));
-    expect(onEditRecord).toHaveBeenCalledWith("SOYBEAN", "LOG-DB-001");
-  });
-
-  it("downloads and imports the same product-specific logistics workbook", async () => {
-    const user = userEvent.setup();
-    const listLogistics = vi.fn().mockResolvedValue({
-      items: [],
-      pageNumber: 0,
-      pageSize: 100,
-      totalElements: 0,
-      totalPages: 0,
-    });
-    const downloadLogisticsXlsxTemplate = vi
-      .fn()
-      .mockResolvedValue(new Blob(["workbook"]));
-    const importLogisticsWorkbook = vi.fn().mockResolvedValue({
-      id: "IMPORT-LOGISTICS-1",
-      domainCode: "LOGISTICS",
-      statusCode: "COMPLETED",
-      importedRows: 1,
-      failedRows: 0,
-    });
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: vi.fn(() => "blob:logistics-template"),
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      value: vi.fn(),
-    });
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
-      () => undefined,
-    );
-    const repository = {
-      listLogistics,
-      downloadLogisticsXlsxTemplate,
-      importLogisticsWorkbook,
+      loadMasterData,
+      loadLogisticsDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        fields: [],
+        actions: [],
+      }),
     } as unknown as RealtimeBusinessRepository;
     render(
       <LogisticsMonitoringWorkspace
@@ -178,102 +76,83 @@ describe("logistics monitoring workspace", () => {
         productCode="CORN"
         queryAllowed
         realtimeRepository={repository}
-        scope={authorizedScope}
+        scope={realtimeScope}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "下载 XLSX 模板" }));
-    expect(downloadLogisticsXlsxTemplate).toHaveBeenCalledWith("CORN");
-    await user.upload(
-      screen.getByLabelText("批量导入物流记录"),
-      new File(["xlsx"], "物流.xlsx", {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    await screen.findByRole("combobox", { name: "调查年份" });
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "调查月份" }),
+      "8",
+    );
+    await user.type(screen.getByLabelText("填报日期起"), "2026-08-01");
+    await user.type(screen.getByLabelText("填报日期止"), "2026-08-31");
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "填报状态" }),
+      "PENDING_REVIEW",
+    );
+
+    await waitFor(() =>
+      expect(listLogistics.mock.lastCall?.[0].filters).toMatchObject({
+        surveyYear: "2026",
+        surveyMonth: "8",
+        fillingDateFrom: "2026-08-01",
+        fillingDateTo: "2026-08-31",
+        status: "PENDING_REVIEW",
       }),
     );
-    await waitFor(() =>
-      expect(importLogisticsWorkbook).toHaveBeenCalledWith(
-        expect.any(File),
-        "CORN",
-      ),
-    );
     expect(
-      await screen.findByText("导入完成：成功 1 条，失败 0 条。"),
-    ).toBeVisible();
-    expect(listLogistics).toHaveBeenCalledTimes(2);
+      screen.queryByRole("combobox", { name: "监测期" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("uses the same active field definition for the logistics form ledger", async () => {
-    const loadLogisticsDefinition = vi.fn().mockResolvedValue({
+  it("loads the next persisted logistics page from the backend", async () => {
+    const user = userEvent.setup();
+    const records = Array.from({ length: 25 }, (_, index) => ({
+      id: `LOG-PAGE-${String(index + 1).padStart(2, "0")}`,
       productCode: "CORN",
-      fields: [
-        {
-          code: "LOG_COLLECTION_DATE",
-          label: "采集日期",
-          controlType: "DATE",
-          unit: null,
-          precision: null,
-          scale: null,
-          required: true,
-          readOnly: false,
-          sortOrder: 10,
-          options: [],
-        },
-        {
-          code: "LOG_REPORTER",
-          label: "填报人",
-          controlType: "TEXT",
-          unit: null,
-          precision: null,
-          scale: null,
-          required: true,
-          readOnly: true,
-          sortOrder: 20,
-          options: [],
-        },
-        {
-          code: "LOG_ROUTE_VOLUME",
-          label: "运输数量",
-          controlType: "DECIMAL",
-          unit: "吨",
-          precision: 18,
-          scale: 4,
-          required: true,
-          readOnly: false,
-          sortOrder: 30,
-          options: [],
-        },
-      ],
-      actions: [],
-    });
-    const listLogistics = vi.fn().mockResolvedValue({
-      items: [
-        {
-          id: "LOG-EXACT-001",
-          productCode: "CORN",
-          values: {
-            LOG_COLLECTION_DATE: "2026-08-09",
-            LOG_REPORTER: "张三",
-            LOG_ROUTE_VOLUME: "500",
-          },
-          displayValues: {
-            LOG_COLLECTION_DATE: "2026-08-09",
-            LOG_REPORTER: "张三",
-            LOG_ROUTE_VOLUME: "500 吨",
-          },
-          status: "PENDING_REVIEW",
-          returnReason: null,
-          allowedActions: [],
-          version: 1,
-        },
-      ],
-      pageNumber: 0,
-      pageSize: 100,
-      totalElements: 1,
-      totalPages: 1,
-    });
+      values: {
+        LOG_STATUS: "DRAFT",
+        LOG_ORIGIN: "齐齐哈尔验收铁路站",
+        LOG_DESTINATION: "齐齐哈尔验收公路节点",
+        LOG_SOURCE_ORGANIZATION: `第 ${index + 1} 个物流台账`,
+      },
+      displayValues: {},
+      status: "DRAFT",
+      returnReason: null,
+      allowedActions: [],
+      version: 1,
+    }));
+    const listLogistics = vi.fn(({ page = 0 }: BusinessRecordListInput) =>
+      Promise.resolve({
+        items: records.slice(page * 20, page * 20 + 20),
+        pageNumber: page,
+        pageSize: 20,
+        totalElements: records.length,
+        totalPages: 2,
+      }),
+    );
     const repository = {
       listLogistics,
-      loadLogisticsDefinition,
+      loadMasterData,
+      loadLogisticsDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        fields: [
+          {
+            code: "LOG_SOURCE_ORGANIZATION",
+            label: "来源单位",
+            controlType: "TEXT",
+            unit: null,
+            precision: null,
+            scale: null,
+            required: true,
+            readOnly: false,
+            sortOrder: 1,
+            options: [],
+          },
+        ],
+        actions: [],
+      }),
     } as unknown as RealtimeBusinessRepository;
 
     render(
@@ -283,19 +162,32 @@ describe("logistics monitoring workspace", () => {
         productCode="CORN"
         queryAllowed
         realtimeRepository={repository}
-        scope={authorizedScope}
+        scope={realtimeScope}
       />,
     );
 
-    expect(
-      await screen.findByRole("columnheader", { name: "采集日期" }),
-    ).toBeVisible();
-    expect(screen.getByRole("columnheader", { name: "填报人" })).toBeVisible();
-    expect(
-      screen.getByRole("columnheader", { name: "运输数量（吨）" }),
-    ).toBeVisible();
-    expect(screen.getByText("张三")).toBeVisible();
-    expect(screen.getByText("500 吨")).toBeVisible();
-    expect(screen.getByRole("cell", { name: "待审核" })).toBeVisible();
+    expect(await screen.findByText("第 1 个物流台账")).toBeVisible();
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "业务地区" }),
+      "230202",
+    );
+    await waitFor(() => {
+      expect(listLogistics.mock.lastCall?.[0].page).toBe(0);
+      expect(listLogistics.mock.lastCall?.[0].filters).toMatchObject({
+        regionCode: "230202",
+        surveyYear: "2026",
+      });
+    });
+    await user.click(screen.getByRole("button", { name: "下一页" }));
+
+    expect(await screen.findByText("第 21 个物流台账")).toBeVisible();
+    expect(listLogistics.mock.lastCall?.[0]).toMatchObject({
+      page: 1,
+      pageSize: 20,
+    });
+    expect(listLogistics.mock.lastCall?.[0].filters).toMatchObject({
+      regionCode: "230202",
+      surveyYear: "2026",
+    });
   });
 });

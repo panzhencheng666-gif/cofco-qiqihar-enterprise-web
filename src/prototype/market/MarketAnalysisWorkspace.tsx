@@ -30,6 +30,7 @@ import {
   marketPriceStatisticLabel,
   marketProductMasterData,
 } from "../marketMonitoringModel";
+import { surveyYearOptions } from "../realtime/explicitRecordTime";
 import { WorkspaceHeader } from "../UnifiedWorkspacePrimitives";
 
 interface GovernedMarketMetric {
@@ -55,6 +56,7 @@ const marketReportTemplateByClassification: Readonly<Record<string, string>> = {
 
 const marketReportPeriodByAnalysisPeriod: Readonly<Record<string, string>> = {
   "2026-W31": "2026年第31周",
+  "2026": "2026年度",
 };
 
 function unavailableReason(reason: string): string {
@@ -64,7 +66,7 @@ function unavailableReason(reason: string): string {
 }
 
 function currentYear(periodKey: string | undefined): number | null {
-  const match = /^(\d{4})-W\d+$/.exec(periodKey ?? "");
+  const match = /^(\d{4})(?:-W\d+)?$/.exec(periodKey ?? "");
   return match ? Number(match[1]) : null;
 }
 
@@ -150,7 +152,7 @@ function AnalysisFilters({
             )}
             {scope.authorization.authorizedRegionIds.map((id) => (
               <option key={id} value={id}>
-                {getEnterpriseScopeRegion(id)?.label ?? "地区名称待维护"}
+                {getEnterpriseScopeRegion(id)?.label ?? "地区名称未提供"}
               </option>
             ))}
           </select>
@@ -177,10 +179,10 @@ function AnalysisFilters({
           </select>
         </label>,
         <label key="period">
-          <span>分析期间</span>
+          <span>调查期间</span>
           <select
-            aria-label="分析期间"
-            value={scope.coordinates.periodKey ?? ""}
+            aria-label="调查期间"
+            value={currentYear(scope.coordinates.periodKey)?.toString() ?? ""}
             onChange={(event) =>
               onScopeChange({
                 periodKey: event.target.value || undefined,
@@ -188,10 +190,10 @@ function AnalysisFilters({
               })
             }
           >
-            <option value="">请选择分析期间</option>
-            {marketAnalysisCoordinateOptions.periods.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
+            <option value="">请选择调查期间</option>
+            {surveyYearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year} 年（年度及月度调查数据）
               </option>
             ))}
           </select>
@@ -218,7 +220,7 @@ function AnalysisFilters({
             </option>
             {cultivars.map((id) => (
               <option key={id} value={id}>
-                {governedMarketName(marketCultivarNames, id, "品种名称待维护")}
+                {governedMarketName(marketCultivarNames, id, "品种名称未提供")}
               </option>
             ))}
           </select>
@@ -464,7 +466,7 @@ export function MarketAnalysisWorkspace({
       : !reportUsesOfficialData
         ? "只有正式发布数据可用于编制报告。"
         : !reportCoordinatesComplete
-          ? "请选择具体业务地区、业务分类、产品、品种口径、分析期间和采用数据后编制报告。"
+          ? "请选择具体业务地区、业务分类、产品、品种口径、调查期间和采用数据后编制报告。"
           : !approvedReportDataset
             ? "当前地区、业务分类、产品、具体品种、期间和采用数据尚无完全匹配的已核定报告数据，系统未改用其他范围。"
             : null;
@@ -548,7 +550,7 @@ export function MarketAnalysisWorkspace({
       )}
       {!completeCoordinates && !cultivarMismatch && (
         <div className="market-task6-empty" role="status">
-          请选择业务分类、产品或品类、分析期间和采用数据后查询。
+          请选择业务分类、产品或品类、调查期间和采用数据后查询。
         </div>
       )}
       {invalidSelectedMetric && (

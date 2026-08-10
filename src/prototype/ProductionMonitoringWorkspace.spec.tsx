@@ -204,8 +204,11 @@ describe("production monitoring workspace", () => {
       screen.getByRole("navigation", { name: "表格分页" }),
     ).toHaveTextContent("共 3 条 · 当前 1–3");
     expect(screen.queryByText("产情对象名录")).not.toBeInTheDocument();
-    for (const filter of ["业务地区", "业务分类", "产品或作物", "任务期间"]) {
-      expect(screen.getByRole("combobox", { name: filter })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "产品或作物" })).toBeVisible();
+    for (const singleValueFilter of ["业务地区", "业务分类", "任务期间"]) {
+      expect(
+        screen.queryByRole("combobox", { name: singleValueFilter }),
+      ).not.toBeInTheDocument();
     }
     for (const hiddenFilter of [
       "具体品种",
@@ -495,23 +498,24 @@ describe("production monitoring workspace", () => {
     expect(screen.getByRole("heading", { name: "产情对象名录" })).toBeVisible();
     const registry = screen.getByRole("table", { name: "产情监测对象名录" });
     expect(screen.getByRole("navigation", { name: "表格分页" })).toBeVisible();
-    for (const filter of ["对象类型", "业务地区", "作物", "有效状态"]) {
-      expect(screen.getByRole("combobox", { name: filter })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "作物" })).toBeVisible();
+    for (const singleValueFilter of ["对象类型", "业务地区", "有效状态"]) {
+      expect(
+        screen.queryByRole("combobox", { name: singleValueFilter }),
+      ).not.toBeInTheDocument();
     }
+    expect(
+      screen.queryByRole("button", { name: "更多筛选" }),
+    ).not.toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "作物" }),
+      "corn",
+    );
     await user.click(screen.getByRole("button", { name: "更多筛选" }));
-    for (const filter of ["具体品种", "来源渠道"]) {
-      expect(screen.getByRole("combobox", { name: filter })).toBeVisible();
-    }
+    expect(screen.getByRole("combobox", { name: "具体品种" })).toBeVisible();
     expect(
-      within(screen.getByRole("combobox", { name: "对象类型" }))
-        .getAllByRole("option")
-        .map(({ textContent }) => textContent),
-    ).not.toContain("田间样方");
-    expect(
-      within(screen.getByRole("combobox", { name: "来源渠道" }))
-        .getAllByRole("option")
-        .map(({ textContent }) => textContent),
-    ).not.toContain("田间测产");
+      screen.queryByRole("combobox", { name: "来源渠道" }),
+    ).not.toBeInTheDocument();
     for (const column of [
       "对象名称",
       "对象类型",
@@ -706,8 +710,7 @@ describe("production monitoring workspace", () => {
     ).toBeVisible();
   });
 
-  it("keeps object type in the primary object filters and moves secondary conditions behind more filters", async () => {
-    const user = userEvent.setup();
+  it("keeps only object filters that can distinguish the current records", () => {
     render(
       <ProductionHarness
         authorization={{
@@ -721,34 +724,23 @@ describe("production monitoring workspace", () => {
     );
 
     const filters = screen.getByRole("region", { name: "产情对象筛选" });
-    for (const primaryFilter of ["对象类型", "业务地区", "作物", "有效状态"]) {
+    expect(
+      within(filters).getByRole("combobox", { name: "作物" }),
+    ).toBeVisible();
+    for (const singleValueFilter of [
+      "对象类型",
+      "业务地区",
+      "有效状态",
+      "具体品种",
+      "来源渠道",
+    ]) {
       expect(
-        within(filters).getByRole("combobox", { name: primaryFilter }),
-      ).toBeVisible();
-    }
-    for (const secondaryFilter of ["具体品种", "来源渠道"]) {
-      expect(
-        within(filters).queryByRole("combobox", { name: secondaryFilter }),
+        within(filters).queryByRole("combobox", { name: singleValueFilter }),
       ).not.toBeInTheDocument();
     }
-    const moreFilters = within(filters).getByRole("button", {
-      name: "更多筛选",
-    });
-    expect(moreFilters).toHaveAttribute("aria-expanded", "false");
-    await user.click(moreFilters);
-
-    const cultivars = within(filters).getByRole("combobox", {
-      name: "具体品种",
-    });
     expect(
-      within(cultivars).getByRole("option", { name: "黑农84" }),
-    ).toBeVisible();
-    expect(
-      within(cultivars).queryByRole("option", { name: "京科968" }),
+      within(filters).queryByRole("button", { name: "更多筛选" }),
     ).not.toBeInTheDocument();
-    expect(
-      within(filters).getByRole("combobox", { name: "来源渠道" }),
-    ).toBeVisible();
 
     const summary = screen.getByRole("region", {
       name: "产情对象结果摘要",
@@ -777,16 +769,19 @@ describe("production monitoring workspace", () => {
     render(<ProductionHarness section="objects" />);
 
     const products = screen.getByRole("combobox", { name: "作物" });
-    for (const crop of ["玉米", "大豆", "稻谷", "小麦"]) {
+    for (const crop of ["玉米", "大豆", "稻谷"]) {
       expect(
         within(products).getByRole("option", { name: crop }),
       ).toBeVisible();
     }
     expect(
+      within(products).queryByRole("option", { name: "小麦" }),
+    ).not.toBeInTheDocument();
+    expect(
       within(products).queryByRole("option", { name: "大米" }),
     ).not.toBeInTheDocument();
     expect(
-      within(products).queryByRole("option", { name: "作物名称待维护" }),
+      within(products).queryByRole("option", { name: "作物名称未提供" }),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "新增监测对象" }));
@@ -1146,12 +1141,29 @@ describe("production monitoring workspace", () => {
       "业务分类",
       "业务地区",
       "产品或作物",
-      "分析期间",
+      "调查期间",
     ]) {
       expect(
         within(filters).getByRole("combobox", { name: primaryFilter }),
       ).toBeVisible();
     }
+    const surveyPeriod = within(filters).getByRole("combobox", {
+      name: "调查期间",
+    });
+    expect(
+      within(surveyPeriod).getByRole("option", {
+        name: "2026 年（年度及月度调查数据）",
+      }),
+    ).toBeVisible();
+    expect(
+      within(surveyPeriod).queryByRole("option", { name: /周/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(filters).queryByLabelText("填报日期起"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(filters).queryByLabelText("填报日期止"),
+    ).not.toBeInTheDocument();
     for (const secondaryFilter of ["具体品种", "数据状态", "采用数据"]) {
       expect(
         within(filters).queryByRole("combobox", { name: secondaryFilter }),
@@ -1197,7 +1209,7 @@ describe("production monitoring workspace", () => {
       within(products).queryByRole("option", { name: "大米" }),
     ).not.toBeInTheDocument();
     expect(
-      within(products).queryByRole("option", { name: "产品名称待维护" }),
+      within(products).queryByRole("option", { name: "产品名称未提供" }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "更多条件" }));
     const cultivars = screen.getByRole("combobox", { name: "具体品种" });

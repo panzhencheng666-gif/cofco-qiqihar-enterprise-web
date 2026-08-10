@@ -26,7 +26,6 @@ import type {
   BusinessCoordinates,
   FormalSelection,
 } from "../formalEnterpriseModel";
-import { marketTaskPeriods } from "../marketMonitoringData";
 import { marketLifecycleLabels } from "../marketMonitoringModel";
 import {
   MarketDocumentWorkbench,
@@ -37,6 +36,26 @@ import {
   awaitBusinessImport,
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
+import { RealtimeRegionFilterSelect } from "../realtime/RealtimeRegionFilterSelect";
+import {
+  currentSurveyYear,
+  formatExplicitSurveyPeriod,
+  formatRealFillingTime,
+  formatSurveyPeriodFromDate,
+  matchesFillingDateRange,
+  matchesSurveyPeriod,
+  surveyMonthOptions,
+  surveyYearOptions,
+} from "../realtime/explicitRecordTime";
+import { useRealtimeMasterData } from "../realtime/useRealtimeMasterData";
+import { WorkspacePagination } from "../UnifiedWorkspacePrimitives";
+
+const collectionPageSize = 20;
+
+const logisticsNodeTypeCodeById: Readonly<Record<string, string>> = {
+  "rail-node": "RAIL_NODE",
+  "road-node": "ROAD_NODE",
+};
 
 const aggregateRegionByCity = {
   qiqihar: "qiqihar-all",
@@ -53,6 +72,8 @@ interface LogisticsRow {
   workId: string;
   number: number;
   product: string;
+  surveyPeriod: string;
+  fillingTime: string;
   node: string;
   nodeType: string;
   region: string;
@@ -79,8 +100,32 @@ const logisticsStatusLabels: Readonly<Record<string, string>> = {
   RETURNED: "退回待补充",
 };
 
+function fixtureLogisticsStatus(item: BusinessWorkItem): string {
+  if (item.reviewStatus === "approved") return "APPROVED";
+  if (item.reviewStatus === "returned" || item.documentStatus === "returned") {
+    return "RETURNED";
+  }
+  if (item.documentStatus === "submitted") return "PENDING_REVIEW";
+  return "DRAFT";
+}
+
 function persistedValue(record: LogisticsRecordRow, code: string): string {
   return record.displayValues[code] ?? record.values[code] ?? "—";
+}
+
+function persistedSurveyPeriod(record: LogisticsRecordRow): string {
+  return formatExplicitSurveyPeriod(
+    { ...record.values, ...record.displayValues },
+    "LOG",
+    "LOG_COLLECTION_DATE",
+  );
+}
+
+function persistedFillingTime(record: LogisticsRecordRow): string {
+  return formatRealFillingTime(
+    { ...record.values, ...record.displayValues },
+    "LOG",
+  );
 }
 
 function persistedRow(
@@ -98,6 +143,8 @@ function persistedRow(
     product:
       logisticsProducts.find(({ code }) => code === record.productCode)
         ?.label ?? record.productCode,
+    surveyPeriod: persistedSurveyPeriod(record),
+    fillingTime: persistedFillingTime(record),
     node: record.id,
     nodeType: persistedValue(record, "LOG_TRANSPORT_MODE"),
     region: persistedValue(record, "LOG_REGION"),
@@ -208,9 +255,18 @@ export function LogisticsMonitoringWorkspace({
 }) {
   const [nodeType, setNodeType] = useState("");
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
+  const [realtimeRegionCode, setRealtimeRegionCode] = useState("");
+  const [surveyYear, setSurveyYear] = useState(currentSurveyYear);
+  const [surveyMonth, setSurveyMonth] = useState("");
+  const [fillingDateFrom, setFillingDateFrom] = useState("");
+  const [fillingDateTo, setFillingDateTo] = useState("");
+  const [status, setStatus] = useState("");
   const [persistedRecords, setPersistedRecords] = useState<
     readonly LogisticsRecordRow[]
   >([]);
+  const [pageNumber, setPageNumber] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [recordsError, setRecordsError] = useState("");
   const [selectedPersistedId, setSelectedPersistedId] = useState<string>();
@@ -221,6 +277,8 @@ export function LogisticsMonitoringWorkspace({
   const [definition, setDefinition] = useState<LogisticsDefinition | null>(
     null,
   );
+  const { masterData, masterDataError } =
+    useRealtimeMasterData(realtimeRepository);
 
   async function downloadTemplate() {
     if (!realtimeRepository?.downloadLogisticsXlsxTemplate) return;
@@ -257,12 +315,8 @@ export function LogisticsMonitoringWorkspace({
         onUpdate: setImportJob,
       });
       if (result.statusCode !== "FAILED") {
-        const page = await realtimeRepository.listLogistics({
-          productCode,
-          page: 0,
-          pageSize: 100,
-        });
-        setPersistedRecords(page.items);
+        setPageNumber(0);
+        setRecordsRevision((value) => value + 1);
       }
     } catch {
       setImportMessage("物流记录导入失败，请核对模板和填报内容。");
@@ -323,9 +377,33 @@ export function LogisticsMonitoringWorkspace({
       setSelectedPersistedId(undefined);
     });
     void realtimeRepository
-      .listLogistics({ productCode, page: 0, pageSize: 100 })
+      .listLogistics({
+        productCode,
+        page: pageNumber,
+        pageSize: collectionPageSize,
+        filters: {
+          regionCode: realtimeRegionCode || undefined,
+          surveyYear,
+          surveyMonth: surveyMonth || undefined,
+          fillingDateFrom: fillingDateFrom || undefined,
+          fillingDateTo: fillingDateTo || undefined,
+          status: status || undefined,
+          nodeTypeCode: nodeType
+            ? logisticsNodeTypeCodeById[nodeType]
+            : undefined,
+        },
+      })
       .then((page) => {
-        if (!cancelled) setPersistedRecords(page.items);
+        if (!cancelled) {
+          const nextTotalPages = Math.max(1, page.totalPages);
+          if (pageNumber >= nextTotalPages && pageNumber > 0) {
+            setPageNumber(nextTotalPages - 1);
+            return;
+          }
+          setPersistedRecords(page.items);
+          setTotalElements(page.totalElements);
+          setServerTotalPages(nextTotalPages);
+        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -339,7 +417,20 @@ export function LogisticsMonitoringWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [productCode, realtimeRefreshToken, realtimeRepository, recordsRevision]);
+  }, [
+    nodeType,
+    fillingDateFrom,
+    fillingDateTo,
+    pageNumber,
+    productCode,
+    realtimeRefreshToken,
+    realtimeRegionCode,
+    realtimeRepository,
+    recordsRevision,
+    status,
+    surveyMonth,
+    surveyYear,
+  ]);
   useEffect(() => {
     if (!realtimeRepository?.loadLogisticsDefinition) return;
     let cancelled = false;
@@ -379,13 +470,25 @@ export function LogisticsMonitoringWorkspace({
           item.domain === "market" &&
           item.businessSubtypeId === "market.logistics" &&
           regionContains(scope.coordinates.regionId, item.regionId) &&
-          (!scope.coordinates.periodKey ||
-            item.periodKey === scope.coordinates.periodKey) &&
+          matchesSurveyPeriod(
+            item.deadline.slice(0, 10),
+            surveyYear,
+            surveyMonth,
+          ) &&
+          (!status || fixtureLogisticsStatus(item) === status) &&
           (!nodeType ||
             (item.subject.kind === "monitoring-object" &&
               item.subject.objectTypeId === nodeType)),
       ),
-    [nodeType, queryAllowed, scope.coordinates, workItems],
+    [
+      nodeType,
+      queryAllowed,
+      scope.coordinates.regionId,
+      status,
+      surveyMonth,
+      surveyYear,
+      workItems,
+    ],
   );
   const rows: readonly LogisticsRow[] = items.map((item, index) => {
     const objectTypeId =
@@ -400,10 +503,12 @@ export function LogisticsMonitoringWorkspace({
       product:
         logisticsProducts.find(({ code }) => code === productCode)?.label ??
         productCode,
+      surveyPeriod: formatSurveyPeriodFromDate(item.deadline.slice(0, 10)),
+      fillingTime: "—",
       node:
         item.subject.kind === "monitoring-object"
           ? item.subject.objectName
-          : "物流节点待维护",
+          : "物流节点未提供",
       nodeType: nodeTypeLabels[objectTypeId] ?? "其他物流节点",
       region: item.regionLabel,
       inflow: firstAvailable(item.workId, ["railArrival", "roadInflow"]),
@@ -421,11 +526,37 @@ export function LogisticsMonitoringWorkspace({
       state: `${marketLifecycleLabels.review[item.reviewStatus]} · ${marketLifecycleLabels.quality[item.qualityStatus]}`,
     };
   });
+  const filteredRows = rows.filter((row) =>
+    matchesFillingDateRange(row.fillingTime, fillingDateFrom, fillingDateTo),
+  );
+  const fixturePageCount = Math.max(
+    1,
+    Math.ceil(filteredRows.length / collectionPageSize),
+  );
+  const pageCount = realtimeRepository ? serverTotalPages : fixturePageCount;
+  const currentPageNumber = Math.min(pageNumber, pageCount - 1);
   const displayedRows = realtimeRepository
-    ? persistedRecords.map((record, index) => persistedRow(record, index + 1))
-    : rows;
+    ? persistedRecords.map((record, index) =>
+        persistedRow(
+          record,
+          currentPageNumber * collectionPageSize + index + 1,
+        ),
+      )
+    : filteredRows.slice(
+        currentPageNumber * collectionPageSize,
+        (currentPageNumber + 1) * collectionPageSize,
+      );
+  const rowTotal = realtimeRepository ? totalElements : filteredRows.length;
+  const rowStart =
+    rowTotal === 0 ? 0 : currentPageNumber * collectionPageSize + 1;
+  const rowEnd = Math.min(
+    (currentPageNumber + 1) * collectionPageSize,
+    rowTotal,
+  );
   const definitionFields =
-    definition?.fields.filter(({ code }) => code !== "LOG_STATUS") ?? [];
+    definition?.fields.filter(
+      ({ code }) => code !== "LOG_STATUS" && code !== "LOG_REPORTED_AT",
+    ) ?? [];
   const selectedPersistedRecord = realtimeRepository
     ? persistedRecords.find(({ id }) => id === selectedPersistedId)
     : undefined;
@@ -458,21 +589,74 @@ export function LogisticsMonitoringWorkspace({
         className="enterprise-ledger-query enterprise-ledger-query--logistics"
         role="search"
       >
-        <RegionCascadeSelector
-          authorizedRegionIds={scope.authorization.authorizedRegionIds}
-          maxLevel="county"
-          value={regionValue}
-          onChange={(value) => {
-            setLowerRegion(value);
-            onScopeChange({ regionId: scopeRegionId(value) });
-          }}
-        />
+        <label>
+          <span>调查年份</span>
+          <select
+            aria-label="调查年份"
+            required
+            value={surveyYear}
+            onChange={(event) => {
+              setSurveyYear(event.target.value);
+              setPageNumber(0);
+            }}
+          >
+            {surveyYearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year} 年
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>调查月份</span>
+          <select
+            aria-label="调查月份"
+            value={surveyMonth}
+            onChange={(event) => {
+              setSurveyMonth(event.target.value);
+              setPageNumber(0);
+            }}
+          >
+            <option value="">全年（含年度与月度数据）</option>
+            {surveyMonthOptions.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {realtimeRepository ? (
+          <RealtimeRegionFilterSelect
+            authorizedRegionCodes={scope.authorization.authorizedRegionIds}
+            disabled={!masterData}
+            onChange={(regionCode) => {
+              setRealtimeRegionCode(regionCode);
+              setPageNumber(0);
+            }}
+            regions={masterData?.regions ?? []}
+            value={realtimeRegionCode}
+          />
+        ) : (
+          <RegionCascadeSelector
+            authorizedRegionIds={scope.authorization.authorizedRegionIds}
+            maxLevel="county"
+            value={regionValue}
+            onChange={(value) => {
+              setLowerRegion(value);
+              setPageNumber(0);
+              onScopeChange({ regionId: scopeRegionId(value) });
+            }}
+          />
+        )}
         <label>
           <span>节点类型</span>
           <select
             aria-label="节点类型"
             value={nodeType}
-            onChange={(event) => setNodeType(event.target.value)}
+            onChange={(event) => {
+              setNodeType(event.target.value);
+              setPageNumber(0);
+            }}
           >
             <option value="">全部节点类型</option>
             <option value="rail-node">铁路站点</option>
@@ -480,20 +664,44 @@ export function LogisticsMonitoringWorkspace({
           </select>
         </label>
         <label>
-          <span>监测期</span>
+          <span>填报日期起</span>
+          <input
+            aria-label="填报日期起"
+            type="date"
+            value={fillingDateFrom}
+            onChange={(event) => {
+              setFillingDateFrom(event.target.value);
+              setPageNumber(0);
+            }}
+          />
+        </label>
+        <label>
+          <span>填报日期止</span>
+          <input
+            aria-label="填报日期止"
+            type="date"
+            value={fillingDateTo}
+            onChange={(event) => {
+              setFillingDateTo(event.target.value);
+              setPageNumber(0);
+            }}
+          />
+        </label>
+        <label>
+          <span>填报状态</span>
           <select
-            aria-label="监测期"
-            value={scope.coordinates.periodKey ?? ""}
-            onChange={(event) =>
-              onScopeChange({ periodKey: event.target.value || undefined })
-            }
+            aria-label="填报状态"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPageNumber(0);
+            }}
           >
-            <option value="">全部可用监测期</option>
-            {marketTaskPeriods.map((period) => (
-              <option key={period.id} value={period.id}>
-                {period.label}
-              </option>
-            ))}
+            <option value="">全部状态</option>
+            <option value="DRAFT">填写中</option>
+            <option value="PENDING_REVIEW">待审核</option>
+            <option value="APPROVED">已核定</option>
+            <option value="RETURNED">退回待补充</option>
           </select>
         </label>
         <div className="enterprise-ledger-query__actions">
@@ -509,6 +717,13 @@ export function LogisticsMonitoringWorkspace({
             onClick={() => {
               setNodeType("");
               setLowerRegion({});
+              setRealtimeRegionCode("");
+              setSurveyYear(currentSurveyYear);
+              setSurveyMonth("");
+              setFillingDateFrom("");
+              setFillingDateTo("");
+              setStatus("");
+              setPageNumber(0);
               onScopeChange({
                 regionId: "qiqihar-all",
                 periodKey: undefined,
@@ -531,6 +746,11 @@ export function LogisticsMonitoringWorkspace({
           {recordsError}
         </div>
       )}
+      {masterDataError && (
+        <div className="market-task6-alert" role="alert">
+          {masterDataError}
+        </div>
+      )}
       {!importJob && importMessage && (
         <div className="market-task6-alert" role="status">
           {importMessage}
@@ -546,7 +766,10 @@ export function LogisticsMonitoringWorkspace({
 
       <header className="enterprise-ledger-title">
         <h1>粮食物流节点监测表</h1>
-        <p>铁路站点与公路物流节点 · 当前监测期 · 当前授权地区</p>
+        <p>
+          铁路站点与公路物流节点 · {surveyYear}年
+          {surveyMonth ? `${Number(surveyMonth)}月` : "全年"} · 当前授权地区
+        </p>
       </header>
 
       <section
@@ -592,6 +815,8 @@ export function LogisticsMonitoringWorkspace({
                 <tr>
                   <th>序号</th>
                   <th>产品品种</th>
+                  <th>调查期间</th>
+                  <th>填报日期</th>
                   {definitionFields.map((field) => (
                     <th key={field.code}>
                       {field.label}
@@ -606,6 +831,8 @@ export function LogisticsMonitoringWorkspace({
                   <tr>
                     <th rowSpan={2}>序号</th>
                     <th rowSpan={2}>产品品种</th>
+                    <th rowSpan={2}>调查期间</th>
+                    <th rowSpan={2}>填报日期</th>
                     <th rowSpan={2}>物流节点</th>
                     <th rowSpan={2}>节点类型</th>
                     <th rowSpan={2}>行政区划</th>
@@ -629,12 +856,16 @@ export function LogisticsMonitoringWorkspace({
               {realtimeRepository && definition
                 ? persistedRecords.map((record, index) => (
                     <tr key={record.id}>
-                      <td>{index + 1}</td>
+                      <td>
+                        {currentPageNumber * collectionPageSize + index + 1}
+                      </td>
                       <td>
                         {logisticsProducts.find(
                           ({ code }) => code === record.productCode,
                         )?.label ?? record.productCode}
                       </td>
+                      <td>{persistedSurveyPeriod(record)}</td>
+                      <td>{persistedFillingTime(record)}</td>
                       {definitionFields.map(({ code }) => (
                         <td className="is-operational" key={code}>
                           {persistedValue(record, code)}
@@ -664,6 +895,8 @@ export function LogisticsMonitoringWorkspace({
                     <tr key={row.workId}>
                       <td>{row.number}</td>
                       <td>{row.product}</td>
+                      <td>{row.surveyPeriod}</td>
+                      <td>{row.fillingTime}</td>
                       <th scope="row">{row.node}</th>
                       <td>{row.nodeType}</td>
                       <td>{row.region}</td>
@@ -704,8 +937,8 @@ export function LogisticsMonitoringWorkspace({
                     className="enterprise-ledger-table__empty"
                     colSpan={
                       realtimeRepository && definition
-                        ? definitionFields.length + 4
-                        : 13
+                        ? definitionFields.length + 6
+                        : 15
                     }
                   >
                     当前范围暂无粮食物流节点监测记录
@@ -721,13 +954,14 @@ export function LogisticsMonitoringWorkspace({
               ? `本页共 ${displayedRows.length} 条业务记录`
               : `本页已填 ${completedFields} 项，缺失 ${missingFields} 项`}
           </span>
-          <nav aria-label="物流节点监测表分页">
-            <button type="button">‹</button>
-            <button className="is-current" type="button">
-              1
-            </button>
-            <button type="button">›</button>
-          </nav>
+          <WorkspacePagination
+            end={rowEnd}
+            onPageChange={(nextPage) => setPageNumber(nextPage - 1)}
+            page={currentPageNumber + 1}
+            pages={pageCount}
+            start={rowStart}
+            total={rowTotal}
+          />
         </footer>
       </section>
 
@@ -737,7 +971,8 @@ export function LogisticsMonitoringWorkspace({
           <p>
             {persistedValue(selectedPersistedRecord, "LOG_ORIGIN")} →{" "}
             {persistedValue(selectedPersistedRecord, "LOG_DESTINATION")} ·{" "}
-            {persistedValue(selectedPersistedRecord, "LOG_COLLECTION_DATE")}
+            {persistedSurveyPeriod(selectedPersistedRecord)} ·{" "}
+            {persistedFillingTime(selectedPersistedRecord)}
           </p>
         </section>
       )}

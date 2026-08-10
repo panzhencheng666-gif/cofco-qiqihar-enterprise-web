@@ -6,6 +6,8 @@ import {
   type RealtimeBusinessRepository,
   type SupplyAccountRow,
   type SupplyInputWorkspace,
+  type SupplySurveyPeriod,
+  type SupplySourceReleaseInput,
 } from "@/platform/api/realtimeBusinessRepository";
 
 import { RealtimeRegionCascadePicker } from "./RealtimeRegionCascadePicker";
@@ -13,9 +15,17 @@ import { RealtimeRegionCascadePicker } from "./RealtimeRegionCascadePicker";
 interface RealtimeSupplyBalancePanelProps {
   productCode?: string;
   regionCode?: string;
-  marketingYear?: string;
+  periodCode?: string;
+  onPeriodCodeChange?: (periodCode: string) => void;
   permissions?: readonly string[];
   repository?: RealtimeBusinessRepository;
+}
+
+interface SupplySourceCandidate extends SupplySourceReleaseInput {
+  key: string;
+  roleLabel: string;
+  contextLabel: string;
+  valueLabel: string;
 }
 
 const roleGroups: Readonly<Record<string, string>> = {
@@ -29,16 +39,13 @@ const sourceDomainLabels: Readonly<Record<string, string>> = {
   MARKET: "市场监测",
   LOGISTICS: "物流监测",
   SUPPLY: "供需分析",
-  MANUAL: "核定调整",
+  MANUAL: "人工登记来源",
 };
 
 const resultStateLabels: Readonly<Record<string, string>> = {
   DRAFT: "待核定",
-  CALCULATED: "已计算",
+  CONFIRMED: "已确认",
   PUBLISHED: "已发布",
-  TRIAL: "试算结果",
-  FORMAL_CANDIDATE: "待发布",
-  FORMAL: "已发布",
   BLOCKED: "已阻断",
 };
 
@@ -77,14 +84,17 @@ function resultStateLabel(account: SupplyAccountRow): string {
 export function RealtimeSupplyBalancePanel({
   productCode: initialProductCode = "CORN",
   regionCode: initialRegionCode = "230200",
-  marketingYear: initialMarketingYear = "2026-W32",
+  periodCode: initialPeriodCode = "",
+  onPeriodCodeChange,
   permissions = [],
   repository = realtimeBusinessRepository,
 }: RealtimeSupplyBalancePanelProps) {
   const [master, setMaster] = useState<MasterDataSnapshot | null>(null);
+  const [surveyPeriods, setSurveyPeriods] = useState<readonly SupplySurveyPeriod[]>([]);
   const [productCode, setProductCode] = useState(initialProductCode);
   const [regionCode, setRegionCode] = useState(initialRegionCode);
-  const [marketingYear, setMarketingYear] = useState(initialMarketingYear);
+  const [periodCode, setPeriodCode] = useState(initialPeriodCode);
+  const [marketingYear, setMarketingYear] = useState("");
   const [workspace, setWorkspace] = useState<SupplyInputWorkspace | null>(null);
   const [accounts, setAccounts] = useState<readonly SupplyAccountRow[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
@@ -92,6 +102,11 @@ export function RealtimeSupplyBalancePanel({
   const [error, setError] = useState("");
   const [operationBusy, setOperationBusy] = useState(false);
   const [operationMessage, setOperationMessage] = useState("");
+  const [sourceCandidates, setSourceCandidates] = useState<
+    readonly SupplySourceCandidate[]
+  >([]);
+  const [sourceCandidatesLoaded, setSourceCandidatesLoaded] = useState(false);
+  const [sourceCandidatesLoading, setSourceCandidatesLoading] = useState(false);
   const [selectedSources, setSelectedSources] = useState<
     Record<string, string>
   >({});
@@ -103,12 +118,33 @@ export function RealtimeSupplyBalancePanel({
   const [adjustmentValue, setAdjustmentValue] = useState("");
   const [adjustmentReason, setAdjustmentReason] = useState("");
   const requestSequence = useRef(0);
-  const activeScope = `${productCode}|${regionCode}|${marketingYear}`;
+  const routeProductCodeRef = useRef(initialProductCode);
+  const resetOperationDrafts = useCallback((): void => {
+    setSelectedSources({});
+    setManualDrafts({});
+    setInputSetReason("");
+    setInputSetId("");
+    setAdjustmentValue("");
+    setAdjustmentReason("");
+    setSourceCandidates([]);
+    setSourceCandidatesLoaded(false);
+    setSourceCandidatesLoading(false);
+    setOperationMessage("");
+    setError("");
+  }, []);
+  const activeScope = `${productCode}|${regionCode}|${periodCode}`;
   const activeScopeRef = useRef(activeScope);
 
   useEffect(() => {
     activeScopeRef.current = activeScope;
   }, [activeScope]);
+
+  useEffect(() => {
+    if (routeProductCodeRef.current === initialProductCode) return;
+    routeProductCodeRef.current = initialProductCode;
+    resetOperationDrafts();
+    setProductCode(initialProductCode);
+  }, [initialProductCode, resetOperationDrafts]);
 
   const activeAccount =
     accounts.find(({ id }) => id === selectedAccountId) ?? accounts[0] ?? null;
@@ -139,21 +175,34 @@ export function RealtimeSupplyBalancePanel({
     setSelectedAccountId("");
     setError("");
     try {
-      const [nextMaster, nextWorkspace, nextAccounts] = await Promise.all([
+      const [nextMaster, nextSurveyPeriods] = await Promise.all([
         repository.loadMasterData(),
+        repository.loadSupplySurveyPeriods(),
+      ]);
+      if (sequence !== requestSequence.current) return;
+      const selectedPeriod =
+        nextSurveyPeriods.find(({ code }) => code === periodCode) ??
+        nextSurveyPeriods[0];
+      const effectivePeriodCode = selectedPeriod?.code ?? periodCode;
+      if (!selectedPeriod) throw new Error("No governed business period");
+      const effectiveMarketingYear = selectedPeriod.marketingYearCode;
+      const [nextWorkspace, nextAccounts] = await Promise.all([
         repository.loadSupplyInputWorkspace({
           productCode,
           regionCode,
-          marketingYear,
+          periodCode: effectivePeriodCode,
         }),
         repository.listSupplyAccounts({
           productCode,
           regionCode,
-          marketingYear,
+          periodCode: effectivePeriodCode,
         }),
       ]);
       if (sequence !== requestSequence.current) return;
       setMaster(nextMaster);
+      setSurveyPeriods(nextSurveyPeriods);
+      setPeriodCode(effectivePeriodCode);
+      setMarketingYear(effectiveMarketingYear);
       setWorkspace(nextWorkspace);
       setAccounts(nextAccounts);
       setSelectedAccountId(nextAccounts[0]?.id ?? "");
@@ -176,7 +225,7 @@ export function RealtimeSupplyBalancePanel({
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
     }
-  }, [marketingYear, productCode, regionCode, repository]);
+  }, [periodCode, productCode, regionCode, repository]);
 
   useEffect(() => {
     queueMicrotask(() => void reload());
@@ -191,17 +240,6 @@ export function RealtimeSupplyBalancePanel({
     (role) => selectedSources[role.code],
   );
 
-  function resetOperationDrafts(): void {
-    setSelectedSources({});
-    setManualDrafts({});
-    setInputSetReason("");
-    setInputSetId("");
-    setAdjustmentValue("");
-    setAdjustmentReason("");
-    setOperationMessage("");
-    setError("");
-  }
-
   function changeScope(action: () => void): void {
     if (operationBusy) return;
     resetOperationDrafts();
@@ -214,7 +252,141 @@ export function RealtimeSupplyBalancePanel({
       [roleCode]: sourceReleaseId,
     }));
     setInputSetId("");
-    setOperationMessage("来源选择已变化，请重新固化本次测算来源。");
+    setOperationMessage("数据来源已变化，请重新确认本次数据来源。");
+  }
+
+  async function loadSourceCandidates(): Promise<void> {
+    if (!mayUpdateCalculation) return;
+    setSourceCandidatesLoading(true);
+    setOperationMessage("");
+    setError("");
+    const operationScope = activeScope;
+    try {
+      const [productionPage, logisticsPage] = await Promise.all([
+        repository.listProduction({
+          productCode,
+          page: 0,
+          pageSize: 100,
+          filters: { regionCode, status: "APPROVED" },
+        }),
+        repository.listLogistics({
+          productCode,
+          page: 0,
+          pageSize: 100,
+          filters: {
+            regionCode,
+            periodCode,
+            status: "APPROVED",
+          },
+        }),
+      ]);
+      if (activeScopeRef.current !== operationScope) return;
+      const productionCandidates = productionPage.items.map(
+        (record): SupplySourceCandidate => ({
+          key: `PRODUCTION:${record.id}:${record.version}`,
+          sourceDomain: "PRODUCTION",
+          sourceRecordId: record.id,
+          sourceVersion: record.version,
+          productCode,
+          regionCode,
+          periodCode,
+          roleCode: "LOCAL_PRODUCTION",
+          roleLabel: "本地生产",
+          sourceFieldCode: "PROD_ESTIMATED_OUTPUT",
+          qualityState: "PASSED",
+          contextLabel: `${display(record.values.PROD_REGION)} · ${display(record.values.PROD_SURVEY_DATE)}`,
+          valueLabel: `${display(record.values.PROD_ESTIMATED_OUTPUT)} 公斤`,
+        }),
+      );
+      const logisticsCandidates = logisticsPage.items.flatMap(
+        (record): readonly SupplySourceCandidate[] => {
+          const direction = record.values.LOG_DIRECTION;
+          const role =
+            direction === "INFLOW"
+              ? ({ code: "EXTERNAL_INFLOW", label: "区域外流入" } as const)
+              : direction === "OUTFLOW"
+                ? ({ code: "EXTERNAL_OUTFLOW", label: "区域外流出" } as const)
+                : null;
+          if (!role) return [];
+          return [
+            {
+              key: `LOGISTICS:${record.id}:${record.version}:${role.code}`,
+              sourceDomain: "LOGISTICS",
+              sourceRecordId: record.id,
+              sourceVersion: record.version,
+              productCode,
+              regionCode,
+              periodCode,
+              roleCode: role.code,
+              roleLabel: role.label,
+              sourceFieldCode: "ROUTE_VOLUME",
+              qualityState: "PASSED",
+              contextLabel: record.displayValues.LOG_DIRECTION ?? role.label,
+              valueLabel: `${display(record.values.LOG_ROUTE_VOLUME)} 吨`,
+            },
+          ];
+        },
+      );
+      setSourceCandidates(
+        [...productionCandidates, ...logisticsCandidates].filter(
+          (candidate) =>
+            !workspace?.roles.some(
+              (role) =>
+                role.code === candidate.roleCode &&
+                role.releases.some(
+                  (release) =>
+                    release.sourceDomain === candidate.sourceDomain &&
+                    release.sourceRecordId === candidate.sourceRecordId &&
+                    release.sourceVersion === candidate.sourceVersion,
+                ),
+            ),
+        ),
+      );
+      setSourceCandidatesLoaded(true);
+    } catch {
+      if (activeScopeRef.current !== operationScope) return;
+      setSourceCandidates([]);
+      setSourceCandidatesLoaded(true);
+      setError("已审核业务来源读取失败，请确认当前地区和统计时间后重试。");
+    } finally {
+      if (activeScopeRef.current === operationScope)
+        setSourceCandidatesLoading(false);
+    }
+  }
+
+  async function releaseSourceCandidate(
+    candidate: SupplySourceCandidate,
+  ): Promise<void> {
+    if (!mayUpdateCalculation) return;
+    setOperationBusy(true);
+    setOperationMessage("");
+    setError("");
+    const operationScope = activeScope;
+    try {
+      const releaseInput: SupplySourceReleaseInput = {
+        sourceDomain: candidate.sourceDomain,
+        sourceRecordId: candidate.sourceRecordId,
+        sourceVersion: candidate.sourceVersion,
+        productCode: candidate.productCode,
+        regionCode: candidate.regionCode,
+        periodCode: candidate.periodCode,
+        roleCode: candidate.roleCode,
+        sourceFieldCode: candidate.sourceFieldCode,
+        qualityState: candidate.qualityState,
+      };
+      await repository.releaseSupplySource(releaseInput);
+      if (activeScopeRef.current !== operationScope) return;
+      await reload();
+      setSourceCandidates((current) =>
+        current.filter((item) => item.key !== candidate.key),
+      );
+      setOperationMessage(`${candidate.roleLabel}已发布为可选测算来源。`);
+    } catch {
+      if (activeScopeRef.current !== operationScope) return;
+      setError("业务来源发布未完成，请确认记录已审核且尚未变更后重试。");
+    } finally {
+      setOperationBusy(false);
+    }
   }
 
   async function approveManual(roleCode: string): Promise<void> {
@@ -233,7 +405,7 @@ export function RealtimeSupplyBalancePanel({
       await repository.approveSupplyManualDecision({
         productCode,
         regionCode,
-        marketingYear,
+        periodCode,
         roleCode,
         value: draft.value,
         reason: draft.reason,
@@ -245,9 +417,11 @@ export function RealtimeSupplyBalancePanel({
       }));
       if (activeScopeRef.current !== operationScope) return;
       await reload();
-      setOperationMessage(`${role.label}已完成核定并写入来源记录。`);
+      setOperationMessage(`${role.label}已核定并登记为可选来源。`);
     } catch {
-      setError("人工来源核定未完成，请检查数值、依据和当前版本后重试。");
+      setError(
+        "人工数据登记失败，请检查数值和数据出处，或确认数据是否已被他人更新。",
+      );
     } finally {
       setOperationBusy(false);
     }
@@ -269,7 +443,7 @@ export function RealtimeSupplyBalancePanel({
       const created = await repository.createSupplyInputSet({
         productCode,
         regionCode,
-        marketingYear,
+        periodCode,
         reason: inputSetReason,
         expectedVersion: workspace.inputSetVersion,
         items: requiredRoles.map((role) => ({
@@ -281,9 +455,9 @@ export function RealtimeSupplyBalancePanel({
       await reload();
       setInputSetId(created.id);
       setInputSetReason("");
-      setOperationMessage("本次测算来源已固化，可以进行试算或正式发布。");
+      setOperationMessage("本次数据来源已确认，可以进行试算或正式发布。");
     } catch {
-      setError("测算来源未能固化，请确认全部必需来源已经核定且未被他人更新。");
+      setError("数据来源确认失败，请确认全部必需来源已经审核且未被他人更新。");
     } finally {
       setOperationBusy(false);
     }
@@ -307,7 +481,7 @@ export function RealtimeSupplyBalancePanel({
       const result = await repository.runSupplyAccount({
         productCode,
         regionCode,
-        marketingYear,
+        periodCode,
         inputSetId,
         adjustmentProposalValue: adjustmentValue,
         adjustmentProposalReason: adjustmentReason,
@@ -318,13 +492,15 @@ export function RealtimeSupplyBalancePanel({
       await reload();
       setOperationMessage(
         publish
-          ? result.resultState === "FORMAL"
+          ? result.resultState === "PUBLISHED"
             ? "供需测算已运行并正式发布。"
             : "供需测算已完成，但校验未通过，结果未正式发布。"
           : "供需试算已完成，结果尚未正式发布。",
       );
     } catch {
-      setError("供需测算未完成，请确认来源、调整说明和当前核定版本后重试。");
+      setError(
+        "供需测算未完成，请检查数据来源、调整原因，或确认数据是否已被他人更新。",
+      );
     } finally {
       setOperationBusy(false);
     }
@@ -348,7 +524,7 @@ export function RealtimeSupplyBalancePanel({
           <p className="realtime-supply-eyebrow">经营决策分析</p>
           <h2>实时供需平衡</h2>
           <p>
-            展示核定结果、计算公式与不可变来源；被授权员工可在本页完成核定与发布。
+            展示已确认的供需结果、计算公式和数据来源；被授权员工可在本页确认来源、试算并发布。
           </p>
         </div>
         <button type="button" onClick={() => void reload()} disabled={loading}>
@@ -361,23 +537,25 @@ export function RealtimeSupplyBalancePanel({
         className="enterprise-ledger-query realtime-supply-query"
         role="search"
       >
-        <label>
-          <span>产品品种</span>
-          <select
-            aria-label="产品品种"
-            disabled={operationBusy}
-            value={productCode}
-            onChange={(event) =>
-              changeScope(() => setProductCode(event.target.value))
-            }
-          >
-            {master?.products.map((product) => (
-              <option key={product.code} value={product.code}>
-                {product.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {(master?.products.length ?? 0) > 1 && (
+          <label>
+            <span>产品或作物</span>
+            <select
+              aria-label="产品或作物"
+              disabled={operationBusy}
+              value={productCode}
+              onChange={(event) =>
+                changeScope(() => setProductCode(event.target.value))
+              }
+            >
+              {master?.products.map((product) => (
+                <option key={product.code} value={product.code}>
+                  {product.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <RealtimeRegionCascadePicker
           ariaLabel="统计地区"
           disabled={operationBusy}
@@ -388,53 +566,84 @@ export function RealtimeSupplyBalancePanel({
           requireVillage={false}
           value={regionCode}
         />
-        <label>
-          <span>统计时间</span>
-          <select
-            aria-label="统计时间"
-            disabled={operationBusy}
-            value={marketingYear}
-            onChange={(event) =>
-              changeScope(() => setMarketingYear(event.target.value))
-            }
-          >
-            {master?.periods.map((period) => (
-              <option key={period.code} value={period.code}>
-                {period.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>测算批次</span>
-          <select
-            aria-label="测算批次"
-            disabled={operationBusy || accounts.length === 0}
-            value={activeAccount?.id ?? ""}
-            onChange={(event) => setSelectedAccountId(event.target.value)}
-          >
-            {accounts.length === 0 ? (
-              <option value="">暂无已形成结果</option>
-            ) : (
-              accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  第 {account.resultVersion} 次测算 · 第{" "}
-                  {account.decisionVersion} 次核定
+        {surveyPeriods.length > 1 && (
+          <label>
+            <span>调查期间</span>
+            <select
+              aria-label="调查期间"
+              disabled={operationBusy}
+              value={periodCode}
+              onChange={(event) =>
+                changeScope(() => {
+                  const nextPeriodCode = event.target.value;
+                  const nextPeriod = surveyPeriods.find(
+                    ({ code }) => code === nextPeriodCode,
+                  );
+                  setPeriodCode(nextPeriodCode);
+                  setMarketingYear(nextPeriod?.marketingYearCode ?? "");
+                  onPeriodCodeChange?.(nextPeriodCode);
+                })
+              }
+            >
+              {surveyPeriods.map((period) => (
+                <option key={period.code} value={period.code}>
+                  {period.name}
                 </option>
-              ))
-            )}
-          </select>
-        </label>
+              ))}
+            </select>
+          </label>
+        )}
+        {accounts.length > 1 && (
+          <label>
+            <span>结果版本</span>
+            <select
+              aria-label="结果版本"
+              disabled={operationBusy}
+              value={activeAccount?.id ?? ""}
+              onChange={(event) => setSelectedAccountId(event.target.value)}
+            >
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.surveyQuarter ?? "年度"} · 第 {account.resultVersion} 版 · {businessLabel(
+                    resultStateLabels,
+                    account.resultState,
+                    "已形成结果",
+                  )}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <p className="enterprise-ledger-query__summary">
+          当前范围：
+          {master?.products.find(({ code }) => code === productCode)?.name ??
+            "尚无产品"}
+          {" · "}
+          {surveyPeriods.find(({ code }) => code === (activeAccount?.periodCode ?? periodCode))?.name ??
+            "尚无调查期间"}
+          {" · "}
+          {activeAccount?.marketingYear
+            ? `${activeAccount.marketingYear}营销年度`
+            : surveyPeriods.find(({ code }) => code === periodCode)?.marketingYearName ??
+              `${marketingYear}营销年度`}
+          {" · "}
+          {master?.regions.find(({ code }) => code === regionCode)?.name ??
+            regionCode}
+          {" · "}
+          {activeAccount
+            ? `${businessLabel(resultStateLabels, activeAccount.resultState, "已形成结果")} · 第${activeAccount.resultVersion}版`
+            : "尚未形成测算结果"}
+        </p>
       </section>
 
       {workspace && mayOperate && (
         <section
-          aria-label="测算来源与发布"
+          aria-label="数据来源确认与发布"
           className="realtime-supply-operations"
         >
           <header>
             <div>
-              <h3>测算来源核定</h3>
+              <h3>确认供需数据来源</h3>
               <p>只显示当前范围内已经审核并可用于测算的业务来源。</p>
             </div>
             <span>
@@ -446,6 +655,53 @@ export function RealtimeSupplyBalancePanel({
               /{requiredRoles.length} 项必需来源
             </span>
           </header>
+
+          {mayUpdateCalculation && (
+            <section
+              aria-label="可发布业务来源"
+              className="realtime-supply-candidates"
+            >
+              <header>
+                <div>
+                  <h4>可发布业务来源</h4>
+                  <p>
+                    从当前地区已审核的产情和物流记录中选择，无需填写系统编号。
+                  </p>
+                </div>
+                <button
+                  disabled={operationBusy || sourceCandidatesLoading}
+                  onClick={() => void loadSourceCandidates()}
+                  type="button"
+                >
+                  {sourceCandidatesLoading
+                    ? "正在读取……"
+                    : "读取已审核业务来源"}
+                </button>
+              </header>
+              {sourceCandidates.map((candidate) => (
+                <article
+                  aria-label={`${candidate.roleLabel}候选来源`}
+                  key={candidate.key}
+                >
+                  <div>
+                    <strong>{candidate.roleLabel}</strong>
+                    <span>{candidate.contextLabel}</span>
+                  </div>
+                  <b>{candidate.valueLabel}</b>
+                  <button
+                    disabled={operationBusy}
+                    onClick={() => void releaseSourceCandidate(candidate)}
+                    type="button"
+                  >
+                    发布为供需来源
+                  </button>
+                </article>
+              ))}
+              {sourceCandidatesLoaded && sourceCandidates.length === 0 && (
+                <p>当前范围暂无尚可发布的已审核产情或物流记录。</p>
+              )}
+            </section>
+          )}
 
           <div className="realtime-supply-source-grid">
             {workspace.roles.map((role) => {
@@ -459,77 +715,91 @@ export function RealtimeSupplyBalancePanel({
                     <strong>{role.label}</strong>
                     <span>{role.required ? "必需来源" : "可选来源"}</span>
                   </div>
-                  <label>
-                    <span>采用来源</span>
-                    <select
-                      aria-label={`${role.label}采用来源`}
-                      disabled={!mayCreateInputSet || operationBusy}
-                      onChange={(event) =>
-                        changeSelectedSource(role.code, event.target.value)
-                      }
-                      value={selectedSources[role.code] ?? ""}
-                    >
-                      <option value="">尚未选择</option>
-                      {role.releases.map((release) => (
-                        <option key={release.id} value={release.id}>
-                          {businessLabel(
-                            sourceDomainLabels,
-                            release.sourceDomain,
-                            "业务核定来源",
-                          )}
-                          · {release.value} {release.unitCode} · 第{" "}
-                          {release.sourceVersion} 次修订
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {mayApprove && role.manualAllowed && (
-                    <div className="realtime-supply-manual-fields">
-                      <label>
-                        <span>人工核定值</span>
-                        <input
-                          aria-label={`${role.label}人工核定值`}
-                          inputMode="decimal"
-                          onChange={(event) =>
-                            setManualDrafts((current) => ({
-                              ...current,
-                              [role.code]: {
-                                ...manual,
-                                value: event.target.value,
-                              },
-                            }))
-                          }
-                          value={manual.value}
-                        />
-                      </label>
-                      <label>
-                        <span>核定依据</span>
-                        <input
-                          aria-label={`${role.label}核定依据`}
-                          onChange={(event) =>
-                            setManualDrafts((current) => ({
-                              ...current,
-                              [role.code]: {
-                                ...manual,
-                                reason: event.target.value,
-                              },
-                            }))
-                          }
-                          value={manual.reason}
-                        />
-                      </label>
-                      <button
-                        disabled={
-                          operationBusy ||
-                          !manual.value.trim() ||
-                          !manual.reason.trim()
+                  {role.releases.length === 0 ? (
+                    <p className="realtime-supply-source-empty" role="status">
+                      暂无可采用的已审核来源
+                    </p>
+                  ) : (
+                    <label>
+                      <span>选择数据来源</span>
+                      <select
+                        aria-label={`${role.label}采用来源`}
+                        disabled={!mayCreateInputSet || operationBusy}
+                        onChange={(event) =>
+                          changeSelectedSource(role.code, event.target.value)
                         }
-                        onClick={() => void approveManual(role.code)}
-                        type="button"
+                        value={selectedSources[role.code] ?? ""}
                       >
-                        核定{role.label}
-                      </button>
-                    </div>
+                        <option value="">请选择已审核来源</option>
+                        {role.releases.map((release) => (
+                          <option key={release.id} value={release.id}>
+                            {businessLabel(
+                              sourceDomainLabels,
+                              release.sourceDomain,
+                              "业务核定来源",
+                            )}
+                            · {release.value} {release.unitCode} · 第{" "}
+                            {release.sourceVersion} 次修订
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {mayApprove && role.manualAllowed && (
+                    <details className="realtime-supply-manual-entry">
+                      <summary>没有合适来源？填写拟采用数值</summary>
+                      <div className="realtime-supply-manual-fields">
+                        <small>
+                          仅在没有可采用的已审核来源时填写；请填写拟采用数值，并写明可复核的数据出处。
+                        </small>
+                        <label>
+                          <span>拟采用数值（万吨）</span>
+                          <input
+                            aria-label={`${role.label}拟采用数值（万吨）`}
+                            inputMode="decimal"
+                            onChange={(event) =>
+                              setManualDrafts((current) => ({
+                                ...current,
+                                [role.code]: {
+                                  ...manual,
+                                  value: event.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="例如：12.5000"
+                            value={manual.value}
+                          />
+                        </label>
+                        <label>
+                          <span>调整原因与数据出处</span>
+                          <input
+                            aria-label={`${role.label}调整原因与数据出处`}
+                            onChange={(event) =>
+                              setManualDrafts((current) => ({
+                                ...current,
+                                [role.code]: {
+                                  ...manual,
+                                  reason: event.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="例如：依据本期库存盘点表，经负责人复核"
+                            value={manual.reason}
+                          />
+                        </label>
+                        <button
+                          disabled={
+                            operationBusy ||
+                            !manual.value.trim() ||
+                            !manual.reason.trim()
+                          }
+                          onClick={() => void approveManual(role.code)}
+                          type="button"
+                        >
+                          核定并登记{role.label}
+                        </button>
+                      </div>
+                    </details>
                   )}
                 </article>
               );
@@ -539,9 +809,9 @@ export function RealtimeSupplyBalancePanel({
           {mayCreateInputSet && (
             <div className="realtime-supply-input-set">
               <label>
-                <span>输入集采用理由</span>
+                <span>本次数据来源说明</span>
                 <textarea
-                  aria-label="输入集采用理由"
+                  aria-label="本次数据来源说明"
                   onChange={(event) => setInputSetReason(event.target.value)}
                   value={inputSetReason}
                 />
@@ -553,7 +823,7 @@ export function RealtimeSupplyBalancePanel({
                 onClick={() => void createInputSet()}
                 type="button"
               >
-                固化本次测算来源
+                确认本次数据来源
               </button>
             </div>
           )}
@@ -561,18 +831,18 @@ export function RealtimeSupplyBalancePanel({
           {mayUpdateCalculation && (
             <div className="realtime-supply-runner">
               <label>
-                <span>核定调整</span>
+                <span>期末库存调整量（万吨）</span>
                 <input
-                  aria-label="核定调整"
+                  aria-label="期末库存调整量（万吨）"
                   inputMode="decimal"
                   onChange={(event) => setAdjustmentValue(event.target.value)}
                   value={adjustmentValue}
                 />
               </label>
               <label>
-                <span>调整说明</span>
+                <span>调整原因与依据</span>
                 <input
-                  aria-label="调整说明"
+                  aria-label="调整原因与依据"
                   onChange={(event) => setAdjustmentReason(event.target.value)}
                   value={adjustmentReason}
                 />
@@ -635,7 +905,7 @@ export function RealtimeSupplyBalancePanel({
         >
           <div>
             <strong>尚未形成核定计算结果</strong>
-            <p>完成全部必需来源的审核与输入集固化后，系统才会展示计算结论。</p>
+            <p>完成全部必需来源的审核与确认后，系统才会展示计算结论。</p>
           </div>
           <table>
             <thead>
@@ -679,7 +949,7 @@ export function RealtimeSupplyBalancePanel({
               </strong>
               <small>
                 第 {activeAccount.resultVersion} 次测算 · 第{" "}
-                {activeAccount.decisionVersion} 次核定 · 来源已固化
+                {activeAccount.decisionVersion} 次核定 · 数据来源已确认
               </small>
             </div>
             <dl className="realtime-supply-kpis">
@@ -699,7 +969,7 @@ export function RealtimeSupplyBalancePanel({
                 <small>万吨</small>
               </div>
               <div>
-                <dt>核定调整</dt>
+                <dt>期末库存调整量</dt>
                 <dd>{display(activeAccount.approvedAdjustment)}</dd>
                 <small>万吨</small>
               </div>
@@ -743,7 +1013,7 @@ export function RealtimeSupplyBalancePanel({
                 </div>
                 <b aria-hidden="true">+</b>
                 <div data-tone="adjustment">
-                  <span>核定调整</span>
+                  <span>期末库存调整量</span>
                   <strong>{display(activeAccount.approvedAdjustment)}</strong>
                 </div>
                 <b aria-hidden="true">=</b>
@@ -776,9 +1046,9 @@ export function RealtimeSupplyBalancePanel({
                     <ul>
                       {sourcesByGroup[groupCode].map((source) => (
                         <li key={`${source.roleCode}-${source.sourceRecordId}`}>
-                          <span>{source.label}</span>
+                          <span>{source.roleLabel}</span>
                           <strong>
-                            {source.value} {source.unitCode}
+                            {source.adoptedValue} {source.unitCode}
                           </strong>
                         </li>
                       ))}
@@ -829,8 +1099,8 @@ export function RealtimeSupplyBalancePanel({
                     <td>万吨</td>
                   </tr>
                   <tr>
-                    <td>04 应用核定调整</td>
-                    <td>计算期末库存 + 核定调整</td>
+                    <td>04 应用期末库存调整</td>
+                    <td>计算期末库存 + 期末库存调整量</td>
                     <td>{display(activeAccount.adoptedEndingInventory)}</td>
                     <td>万吨</td>
                   </tr>
@@ -851,10 +1121,12 @@ export function RealtimeSupplyBalancePanel({
             <header>
               <div>
                 <h3>来源追溯</h3>
-                <p>以下来源随本次测算一同固化，不读取当前工作区的可变选择。</p>
+                <p>以下来源随本次测算一同保存，不受当前可选来源变化影响。</p>
               </div>
               <span>
-                {activeAccount.inputSetId ? "测算来源已固化" : "暂无固化来源"}
+                {activeAccount.inputSetId
+                  ? "本次数据来源已保存"
+                  : "暂无已保存的数据来源"}
               </span>
             </header>
             <div className="realtime-supply-table-wrap">
@@ -873,7 +1145,7 @@ export function RealtimeSupplyBalancePanel({
                   {activeAccount.sources.length > 0 ? (
                     activeAccount.sources.map((source) => (
                       <tr key={`${source.roleCode}-${source.sourceRecordId}`}>
-                        <td>{source.label}</td>
+                        <td>{source.roleLabel}</td>
                         <td>
                           {businessLabel(
                             sourceDomainLabels,
@@ -883,9 +1155,9 @@ export function RealtimeSupplyBalancePanel({
                         </td>
                         <td>已核定业务记录</td>
                         <td>第 {source.sourceVersion} 次修订</td>
-                        <td>{source.label}</td>
+                        <td>{source.roleLabel}</td>
                         <td>
-                          {source.value} {source.unitCode}
+                          {source.adoptedValue} {source.unitCode}
                         </td>
                       </tr>
                     ))

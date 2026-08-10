@@ -637,7 +637,7 @@ function coordinateReason(
     return "同期间键不一致";
   const fromDomain = from.coordinate.domainDimensions;
   const toDomain = to.coordinate.domainDimensions;
-  if (fromDomain.domain !== toDomain.domain) return "业务域坐标不一致";
+  if (fromDomain.domain !== toDomain.domain) return "指标所属业务类型不一致";
   const domainReason = governedCoordinateReason(
     fromDomain,
     toDomain,

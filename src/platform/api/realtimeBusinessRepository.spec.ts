@@ -15,6 +15,18 @@ function client() {
     if (path.endsWith("/products"))
       return Promise.resolve([{ code: "CORN", name: "玉米" }]);
     if (path.endsWith("/business-periods")) return Promise.resolve([]);
+    if (path.endsWith("/supply-survey-periods"))
+      return Promise.resolve([
+        {
+          code: "2026",
+          name: "2026年度",
+          surveyYear: 2026,
+          surveyQuarter: null,
+          precision: "YEAR",
+          marketingYearCode: "2026/27",
+          marketingYearName: "2026/27营销年度",
+        },
+      ]);
     if (path.endsWith("/regions"))
       return Promise.resolve([
         {
@@ -93,6 +105,26 @@ function client() {
 }
 
 describe("realtime business repository", () => {
+  it("publishes an approved business record as a governed supply source", async () => {
+    const { api, post } = client();
+    const repository = createRealtimeBusinessRepository(api);
+    const input = {
+      sourceDomain: "PRODUCTION" as const,
+      sourceRecordId: "production-1",
+      sourceVersion: 2,
+      productCode: "CORN",
+      regionCode: "230200",
+      periodCode: "2026-Q3",
+      roleCode: "LOCAL_PRODUCTION" as const,
+      sourceFieldCode: "PROD_ESTIMATED_OUTPUT" as const,
+      qualityState: "PASSED" as const,
+    };
+
+    await repository.releaseSupplySource(input);
+
+    expect(post).toHaveBeenCalledWith("/api/v1/supply-sources/releases", input);
+  });
+
   it("reads and exports governed employee obligation reports", async () => {
     const { api, download, get, post } = client();
     get.mockResolvedValueOnce({
@@ -272,6 +304,16 @@ describe("realtime business repository", () => {
     expect(result.periods).toEqual([]);
     expect(result.regions[0]?.code).toBe("230200");
     expect(get).toHaveBeenCalledTimes(3);
+  });
+
+  it("loads governed supply survey years and nullable quarters", async () => {
+    const { api, get } = client();
+    const periods = await createRealtimeBusinessRepository(api).loadSupplySurveyPeriods();
+
+    expect(periods).toEqual([
+      expect.objectContaining({ code: "2026", surveyQuarter: null, precision: "YEAR" }),
+    ]);
+    expect(get).toHaveBeenCalledWith("/api/v1/master-data/supply-survey-periods");
   });
 
   it("reads the authenticated employee profile from the server", async () => {

@@ -129,14 +129,15 @@ describe("realtime annual comparison panel", () => {
     expect(screen.getAllByText("2023年").length).toBeGreaterThan(0);
     expect(screen.getAllByText("2026年").length).toBeGreaterThan(0);
     expect(screen.getByText("同比 +8.3%")).toBeVisible();
-    expect(screen.getByLabelText("产品品种")).toBeVisible();
+    expect(screen.queryByLabelText("产品或作物")).not.toBeInTheDocument();
     expect(screen.getByLabelText("具体品种")).toBeVisible();
     expect(screen.getByRole("group", { name: "统计地区" })).toBeVisible();
     expect(screen.getByRole("searchbox", { name: "搜索地级市" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "区县" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "乡镇" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "行政村" })).toBeVisible();
-    expect(screen.getByLabelText("统计时间")).toBeVisible();
+    expect(screen.queryByLabelText("统计时间")).not.toBeInTheDocument();
+    expect(screen.getByText("当前范围：玉米 · 2026年第32周")).toBeVisible();
     expect(screen.getByLabelText("分析指标")).toBeVisible();
     expect(screen.getByLabelText("分析指标")).toHaveTextContent(
       "产情核定期初库存",

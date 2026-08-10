@@ -15,12 +15,14 @@ const validPng = Buffer.from(
 
 async function openProductionWorkItem(
   page: Page,
-  recordId: string,
   actionName: "继续产情填报" | "补充产情填报" | "审核产情单据",
   dialogName: "补充产情填报" | "产情单据审核",
 ) {
-  const row = page.getByRole("row", { name: new RegExp(recordId, "u") });
-  await expect(row).toBeVisible({ timeout: 10_000 });
+  const row = page
+    .getByRole("row")
+    .filter({ hasText: "大豆种植生产" })
+    .filter({ has: page.getByRole("button", { name: actionName }) });
+  await expect(row).toHaveCount(1, { timeout: 10_000 });
   await row.getByRole("button", { name: actionName }).click();
   const dialog = page.getByRole("dialog", { name: dialogName });
   await expect(dialog).toBeVisible();
@@ -141,7 +143,6 @@ test("persists production data, refreshes a colleague, and enforces region acces
   await page.goto("/#/我的工作/待我处理");
   let operatorDialog = await openProductionWorkItem(
     page,
-    recordId,
     "继续产情填报",
     "补充产情填报",
   );
@@ -149,7 +150,12 @@ test("persists production data, refreshes a colleague, and enforces region acces
     operatorDialog.getByRole("button", { name: "审核通过" }),
   ).toHaveCount(0);
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
-  await expect(operatorDialog.getByText("提交成功")).toBeVisible();
+  await expect(operatorDialog.locator("form > header strong")).toContainText(
+    "待审核",
+  );
+  await expect(
+    operatorDialog.getByRole("button", { name: "提交审核" }),
+  ).toHaveCount(0);
   await operatorDialog
     .getByRole("button", { name: "关闭补充产情填报" })
     .click();
@@ -162,7 +168,6 @@ test("persists production data, refreshes a colleague, and enforces region acces
   );
   let reviewerDialog = await openProductionWorkItem(
     reviewerPage,
-    recordId,
     "审核产情单据",
     "产情单据审核",
   );
@@ -175,7 +180,6 @@ test("persists production data, refreshes a colleague, and enforces region acces
 
   operatorDialog = await openProductionWorkItem(
     page,
-    recordId,
     "补充产情填报",
     "补充产情填报",
   );
@@ -184,7 +188,6 @@ test("persists production data, refreshes a colleague, and enforces region acces
   await expect(operatorDialog).toHaveCount(0);
   operatorDialog = await openProductionWorkItem(
     page,
-    recordId,
     "补充产情填报",
     "补充产情填报",
   );
@@ -204,7 +207,6 @@ test("persists production data, refreshes a colleague, and enforces region acces
 
   reviewerDialog = await openProductionWorkItem(
     reviewerPage,
-    recordId,
     "审核产情单据",
     "产情单据审核",
   );

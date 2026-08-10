@@ -215,43 +215,47 @@ export function RealtimeAnnualComparisonPanel({
         aria-label="年度对比筛选条件"
         role="search"
       >
-        <label>
-          <span>产品品种</span>
-          <select
-            aria-label="产品品种"
-            value={productCode}
-            onChange={(event) =>
-              changeAnalysisScope(() => {
-                setProductCode(event.target.value);
-                setCultivarCode("");
-                setIndicatorCode("");
-              })
-            }
-          >
-            {master?.products.map((product) => (
-              <option key={product.code} value={product.code}>
-                {product.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>具体品种</span>
-          <select
-            aria-label="具体品种"
-            value={cultivarCode}
-            onChange={(event) =>
-              changeAnalysisScope(() => setCultivarCode(event.target.value))
-            }
-          >
-            <option value="">全部具体品种</option>
-            {cultivars.map((cultivar) => (
-              <option key={cultivar.code} value={cultivar.code}>
-                {cultivar.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {(master?.products.length ?? 0) > 1 && (
+          <label>
+            <span>产品或作物</span>
+            <select
+              aria-label="产品或作物"
+              value={productCode}
+              onChange={(event) =>
+                changeAnalysisScope(() => {
+                  setProductCode(event.target.value);
+                  setCultivarCode("");
+                  setIndicatorCode("");
+                })
+              }
+            >
+              {master?.products.map((product) => (
+                <option key={product.code} value={product.code}>
+                  {product.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {cultivars.length > 0 && (
+          <label>
+            <span>具体品种</span>
+            <select
+              aria-label="具体品种"
+              value={cultivarCode}
+              onChange={(event) =>
+                changeAnalysisScope(() => setCultivarCode(event.target.value))
+              }
+            >
+              <option value="">全部具体品种</option>
+              {cultivars.map((cultivar) => (
+                <option key={cultivar.code} value={cultivar.code}>
+                  {cultivar.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <RealtimeRegionCascadePicker
           ariaLabel="统计地区"
           onChange={(nextRegionCode) =>
@@ -261,38 +265,50 @@ export function RealtimeAnnualComparisonPanel({
           requireVillage={false}
           value={regionCode}
         />
-        <label>
-          <span>统计时间</span>
-          <select
-            aria-label="统计时间"
-            value={periodCode}
-            onChange={(event) =>
-              changeAnalysisScope(() => setPeriodCode(event.target.value))
-            }
-          >
-            {master?.periods.map((period) => (
-              <option key={period.code} value={period.code}>
-                {period.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>分析指标</span>
-          <select
-            aria-label="分析指标"
-            value={indicatorCode}
-            onChange={(event) =>
-              changeAnalysisScope(() => setIndicatorCode(event.target.value))
-            }
-          >
-            {indicatorOptions.map((indicator) => (
-              <option key={indicator.code} value={indicator.code}>
-                {indicator.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {(master?.periods.length ?? 0) > 1 && (
+          <label>
+            <span>统计时间</span>
+            <select
+              aria-label="统计时间"
+              value={periodCode}
+              onChange={(event) =>
+                changeAnalysisScope(() => setPeriodCode(event.target.value))
+              }
+            >
+              {master?.periods.map((period) => (
+                <option key={period.code} value={period.code}>
+                  {period.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {indicatorOptions.length > 1 && (
+          <label>
+            <span>分析指标</span>
+            <select
+              aria-label="分析指标"
+              value={indicatorCode}
+              onChange={(event) =>
+                changeAnalysisScope(() => setIndicatorCode(event.target.value))
+              }
+            >
+              {indicatorOptions.map((indicator) => (
+                <option key={indicator.code} value={indicator.code}>
+                  {indicator.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <p className="enterprise-ledger-query__summary">
+          当前范围：
+          {master?.products.find(({ code }) => code === productCode)?.name ??
+            "尚无产品"}
+          {" · "}
+          {master?.periods.find(({ code }) => code === periodCode)?.name ??
+            "尚无统计时间"}
+        </p>
       </section>
 
       {error && (

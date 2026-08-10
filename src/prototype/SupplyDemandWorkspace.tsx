@@ -867,7 +867,8 @@ export function SupplyDemandWorkspace({
   const effectiveSection: SupplyResultSection =
     section === "records"
       ? "versions"
-      : section === "corn-balance" ||
+      : section === "balance" ||
+          section === "corn-balance" ||
           section === "soybean-balance" ||
           section === "paddy-balance"
         ? "calculation"
@@ -1215,7 +1216,7 @@ export function SupplyDemandWorkspace({
               </div>
               <div>
                 <dt>当前处理人</dt>
-                <dd>{requestedWorkItem.reviewer || "审核人待维护"}</dd>
+                <dd>{requestedWorkItem.reviewer || "审核人未提供"}</dd>
               </div>
               <div>
                 <dt>处理节点</dt>

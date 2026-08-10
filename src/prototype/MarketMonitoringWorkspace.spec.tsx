@@ -277,10 +277,12 @@ describe("market monitoring workspace", () => {
     expect(screen.getByRole("combobox", { name: "产品或品类" })).toHaveValue(
       "",
     );
-    expect(screen.getByRole("combobox", { name: "任务期间" })).toHaveValue("");
+    expect(
+      screen.queryByRole("combobox", { name: "任务期间" }),
+    ).not.toBeInTheDocument();
     expect(
       container.querySelectorAll(".market-task6-filter-grid > label > select"),
-    ).toHaveLength(5);
+    ).toHaveLength(4);
     expect(screen.getByText("更多筛选（0 项已生效）")).toBeVisible();
     await user.click(screen.getByText("更多筛选（0 项已生效）"));
     await user.selectOptions(
@@ -819,12 +821,9 @@ describe("market monitoring workspace", () => {
     expect(pagination).toHaveTextContent("1/ 1");
     expect(registry).toHaveTextContent("分页监测对象12");
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "有效状态" }),
-      "inactive",
-    );
-    expect(pagination).toHaveTextContent("共 0 条 · 当前 0–0");
-    expect(within(registry).getAllByRole("row")).toHaveLength(1);
+    expect(
+      screen.queryByRole("combobox", { name: "有效状态" }),
+    ).not.toBeInTheDocument();
   });
 
   it("paginates the market task ledger by ten and resets to page one after filtering", async () => {
@@ -923,7 +922,18 @@ describe("market monitoring workspace", () => {
     expect(screen.getByRole("combobox", { name: "产品或品类" })).toHaveValue(
       "",
     );
-    expect(screen.getByRole("combobox", { name: "分析期间" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "调查期间" })).toHaveValue("");
+    const surveyPeriod = screen.getByRole("combobox", { name: "调查期间" });
+    expect(
+      within(surveyPeriod).getByRole("option", {
+        name: "2026 年（年度及月度调查数据）",
+      }),
+    ).toBeVisible();
+    expect(
+      within(surveyPeriod).queryByRole("option", { name: /周/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("填报日期起")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("填报日期止")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "数据状态" }),
     ).not.toBeInTheDocument();
@@ -944,7 +954,7 @@ describe("market monitoring workspace", () => {
     expect(screen.queryByText("请选择分析条件")).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("分析坐标");
     expect(
-      screen.getByText(/请选择业务分类、产品或品类、分析期间和采用数据/),
+      screen.getByText(/请选择业务分类、产品或品类、调查期间和采用数据/),
     ).toBeVisible();
   });
 

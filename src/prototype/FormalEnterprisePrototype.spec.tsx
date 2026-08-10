@@ -1152,7 +1152,7 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(18);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(16);
     expect(within(navigation).getByText("玉米产情填报")).toBeVisible();
     expect(within(navigation).getByText("大豆产情填报")).toBeVisible();
     expect(within(navigation).getByText("稻谷产情填报")).toBeVisible();
@@ -1161,7 +1161,16 @@ describe("formal enterprise prototype", () => {
     expect(within(navigation).getByText("玉米物流监测")).toBeVisible();
     expect(within(navigation).getByText("大豆物流监测")).toBeVisible();
     expect(within(navigation).getByText("稻谷物流监测")).toBeVisible();
-    expect(within(navigation).getByText("玉米供需平衡")).toBeVisible();
+    expect(within(navigation).getByText("供需平衡")).toBeVisible();
+    expect(
+      within(navigation).queryByText("玉米供需平衡"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(navigation).queryByText("大豆供需平衡"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(navigation).queryByText("稻谷供需平衡"),
+    ).not.toBeInTheDocument();
     expect(within(navigation).getByText("业务报告")).toBeVisible();
     expect(within(navigation).getByText("待我处理")).toBeVisible();
     expect(within(navigation).queryByText("产情任务")).not.toBeInTheDocument();
@@ -1184,11 +1193,11 @@ describe("formal enterprise prototype", () => {
 
     expect(window.location.search).toBe("");
     expect(decodeURIComponent(window.location.hash)).toBe(
-      "#/供需分析/玉米供需平衡",
+      "#/供需分析/供需平衡",
     );
     expect(
       screen.getByRole("navigation", { name: "供需分析模块" }),
-    ).toHaveTextContent("玉米供需平衡");
+    ).toHaveTextContent("供需平衡");
   });
 
   it("ignores unauthorized URL coordinates without exposing the raw value", () => {

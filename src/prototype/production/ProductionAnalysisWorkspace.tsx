@@ -36,6 +36,7 @@ import {
   productionCultivarNames,
   productionProductNames,
 } from "../productionMonitoringModel";
+import { surveyYearOptions } from "../realtime/explicitRecordTime";
 import { WorkspaceHeader } from "../UnifiedWorkspacePrimitives";
 
 interface GovernedMetric {
@@ -65,6 +66,7 @@ const productionReportTemplateByClassification: Readonly<
 const productionReportPeriodByAnalysisPeriod: Readonly<Record<string, string>> =
   {
     "2026-W31": "2026年第31周",
+    "2026": "2026年度",
   };
 
 function unavailableReason(reason: string): string {
@@ -74,7 +76,7 @@ function unavailableReason(reason: string): string {
 }
 
 function regionName(id: string): string {
-  return getEnterpriseScopeRegion(id)?.label ?? "地区名称待维护";
+  return getEnterpriseScopeRegion(id)?.label ?? "地区名称未提供";
 }
 
 function localizedModel(
@@ -91,7 +93,7 @@ function localizedModel(
 }
 
 function currentYear(periodKey: string | undefined): number | null {
-  const match = /^(\d{4})-W\d+$/.exec(periodKey ?? "");
+  const match = /^(\d{4})(?:-W\d+)?$/.exec(periodKey ?? "");
   return match ? Number(match[1]) : null;
 }
 
@@ -196,10 +198,10 @@ function AnalysisFilters({
           </select>
         </label>,
         <label key="period">
-          <span>分析期间</span>
+          <span>调查期间</span>
           <select
-            aria-label="分析期间"
-            value={scope.coordinates.periodKey ?? ""}
+            aria-label="调查期间"
+            value={currentYear(scope.coordinates.periodKey)?.toString() ?? ""}
             onChange={(event) =>
               onScopeChange({
                 periodKey: event.target.value || undefined,
@@ -207,20 +209,12 @@ function AnalysisFilters({
               })
             }
           >
-            <option value="">请选择分析期间</option>
-            {productionAnalysisCoordinateOptions.periods.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
+            <option value="">请选择调查期间</option>
+            {surveyYearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year} 年（年度及月度调查数据）
               </option>
             ))}
-            {scope.coordinates.periodKey &&
-              !productionAnalysisCoordinateOptions.periods.some(
-                ({ id }) => id === scope.coordinates.periodKey,
-              ) && (
-                <option disabled value={scope.coordinates.periodKey}>
-                  无效分析期间（请重新选择）
-                </option>
-              )}
           </select>
         </label>,
       ]}
@@ -377,7 +371,7 @@ export function ProductionAnalysisWorkspace({
           businessClassificationLabel:
             businessClassifications.find(
               ({ id }) => id === definition.businessSubtype,
-            )?.label ?? "业务分类待维护",
+            )?.label ?? "业务分类未提供",
           reason: unavailableReason(result.reason),
         });
         continue;
@@ -395,7 +389,7 @@ export function ProductionAnalysisWorkspace({
           businessClassificationLabel:
             businessClassifications.find(
               ({ id }) => id === result.definition.businessSubtype,
-            )?.label ?? "业务分类待维护",
+            )?.label ?? "业务分类未提供",
           reason: "采用数据名称尚未完成业务确认",
         });
         continue;
@@ -408,7 +402,7 @@ export function ProductionAnalysisWorkspace({
           businessClassificationLabel:
             businessClassifications.find(
               ({ id }) => id === result.definition.businessSubtype,
-            )?.label ?? "业务分类待维护",
+            )?.label ?? "业务分类未提供",
           reason: "当前年度数据尚未完成核定",
         });
         continue;
@@ -425,7 +419,7 @@ export function ProductionAnalysisWorkspace({
         sourceVersionLabel:
           productionMetricReleaseNames[
             current.coordinate.metricReleaseVersionId
-          ] ?? "采用数据名称待维护",
+          ] ?? "采用数据名称未提供",
         definitionLabel: `${result.definition.label}${productionMetricGovernanceLabels.definitionEdition}`,
         comparabilityLabel:
           productionMetricGovernanceLabels.comparabilityEdition,
@@ -537,7 +531,7 @@ export function ProductionAnalysisWorkspace({
       : scope.coordinates.dataLayer !== "official"
         ? "只有已核定数据可用于编制报告。"
         : !reportCoordinatesComplete
-          ? "请选择具体业务地区、业务分类、产品、品种口径、分析期间和采用数据后编制报告。"
+          ? "请选择具体业务地区、业务分类、产品、品种口径、调查期间和采用数据后编制报告。"
           : !approvedReportDataset
             ? "当前地区、业务分类、产品、具体品种、期间和采用数据尚无完全匹配的已核定报告数据，系统未改用其他范围。"
             : null;
@@ -616,12 +610,12 @@ export function ProductionAnalysisWorkspace({
       )}
       {!completeCoordinates && (
         <div className="production-task5-empty" role="status">
-          请选择产品或作物、分析期间、数据状态和采用数据后查询。
+          请选择产品或作物、调查期间、数据状态和采用数据后查询。
         </div>
       )}
       {unmappedVersion && (
         <div className="production-task5-alert" role="alert">
-          采用数据名称待维护，相关指标已停止展示且没有改用其他数据。
+          采用数据名称未提供，相关指标已停止展示且没有改用其他数据。
         </div>
       )}
       {invalidSelectedMetric && (

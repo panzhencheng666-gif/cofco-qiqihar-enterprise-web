@@ -105,7 +105,7 @@ test("offers twelve scoped report types and exports only a previewed range", asy
   expect(download.suggestedFilename()).toMatch(/\.xlsx$/i);
 
   await page.goto(
-    `${liveBrowserAccounts.reporter.url}/#/供需分析/玉米供需平衡`,
+    `${liveBrowserAccounts.reporter.url}/#/供需分析/供需平衡`,
   );
   await expect(
     page.getByRole("heading", { name: "实时供需平衡" }),
