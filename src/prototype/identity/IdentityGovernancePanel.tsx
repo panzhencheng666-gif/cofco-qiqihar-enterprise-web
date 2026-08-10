@@ -329,9 +329,7 @@ export function IdentityGovernancePanel({
   const mayAdminister = session.permissions.includes("IDENTITY_ADMIN");
   const mayReview = session.permissions.includes("ACCESS_REVIEW");
   const mayReadAudit = session.permissions.includes("AUDIT_READ");
-  const [view, setView] = useState<GovernanceView>(
-    initialView === "organization" ? "profile" : initialView,
-  );
+  const [view, setView] = useState<GovernanceView>(initialView);
   const [employees, setEmployees] = useState<readonly EmployeeProfile[]>([]);
   const [options, setOptions] =
     useState<IdentityAssignmentOptions>(emptyOptions);
@@ -567,6 +565,13 @@ export function IdentityGovernancePanel({
           >
             我的账号
           </button>
+          <button
+            aria-current={view === "organization" ? "page" : undefined}
+            type="button"
+            onClick={() => setView("organization")}
+          >
+            当前单位
+          </button>
           {mayReadEmployees && (
             <button
               aria-current={view === "employees" ? "page" : undefined}
@@ -614,12 +619,12 @@ export function IdentityGovernancePanel({
               <article>
                 <span>员工</span>
                 <strong>{session.displayName}</strong>
-                <small>{session.subjectId}</small>
+                <small>企业员工身份已认证</small>
               </article>
               <article>
                 <span>工作单位</span>
                 <strong>{session.workUnitName}</strong>
-                <small>{session.workUnitCode}</small>
+                <small>当前登录账号所属单位</small>
               </article>
               <article>
                 <span>主岗位</span>
@@ -664,6 +669,66 @@ export function IdentityGovernancePanel({
                   {logoutUrl && <a href={logoutUrl}>退出登录</a>}
                 </div>
               </article>
+            </section>
+          )}
+          {view === "organization" && (
+            <section
+              aria-label="当前单位责任范围"
+              className="identity-organization-view"
+            >
+              <div className="identity-governance-toolbar">
+                <div>
+                  <small>当前登录账号所属单位</small>
+                  <h3>{session.workUnitName}</h3>
+                  <p>
+                    展示本单位岗位、业务角色与责任地区；所有业务操作均按当前账号的有效授权执行。
+                  </p>
+                </div>
+                {mayReadEmployees && (
+                  <button
+                    className="is-primary"
+                    type="button"
+                    onClick={() => setView("employees")}
+                  >
+                    管理员工与授权
+                  </button>
+                )}
+              </div>
+              <div className="identity-profile-grid">
+                <article>
+                  <span>当前员工</span>
+                  <strong>{session.displayName}</strong>
+                  <small>企业员工身份已认证</small>
+                </article>
+                <article>
+                  <span>主岗位</span>
+                  <strong>{primaryPosition?.name ?? "未分配岗位"}</strong>
+                  <small>
+                    {session.positions.length > 1
+                      ? `兼任：${session.positions
+                          .filter(({ code }) => code !== primaryPosition?.code)
+                          .map(({ name }) => name)
+                          .join("、")}`
+                      : "已配置为主岗位"}
+                  </small>
+                </article>
+                <article className="is-wide">
+                  <span>业务职责</span>
+                  <strong>
+                    {session.roleCodes.map(roleLabel).join("、") ||
+                      "未分配业务职责"}
+                  </strong>
+                </article>
+                <article className="is-wide">
+                  <span>责任地区</span>
+                  <strong>
+                    {session.regionCodes.join("、") || "未分配责任地区"}
+                  </strong>
+                  <small>
+                    填报、查询、审核、分析、照片和导出均受责任地区约束
+                  </small>
+                </article>
+              </div>
             </section>
           )}
           {view === "employees" && mayReadEmployees && (

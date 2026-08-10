@@ -131,6 +131,39 @@ function repository() {
 }
 
 describe("IdentityGovernancePanel", () => {
+  it("opens the authenticated work unit as a real organization responsibility view", async () => {
+    const user = userEvent.setup();
+    render(
+      <IdentityGovernancePanel
+        initialView="organization"
+        onClose={vi.fn()}
+        repository={repository() as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "当前单位" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    const unit = screen.getByRole("region", { name: "当前单位责任范围" });
+    expect(
+      within(unit).getByRole("heading", { name: "齐齐哈尔经营部" }),
+    ).toBeVisible();
+    expect(within(unit).getByText("单位负责人")).toBeVisible();
+    expect(within(unit).getByText("230200")).toBeVisible();
+    expect(within(unit).getByText("李主任")).toBeVisible();
+
+    await user.click(
+      within(unit).getByRole("button", { name: "管理员工与授权" }),
+    );
+    expect(screen.getByRole("button", { name: "员工与授权" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(await screen.findByText("张敏")).toBeVisible();
+  });
+
   it("shows the authenticated account, position, organization and responsibility scope", () => {
     render(
       <IdentityGovernancePanel
