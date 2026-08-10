@@ -64,6 +64,32 @@ describe("realtime work item projection", () => {
     expect(item.obligationStatus).toBe("in-progress");
   });
 
+  it("marks unfinished assigned records as overdue after their reporting deadline", () => {
+    const item = projectRealtimeWorkItem(
+      {
+        id: "WI-OVERDUE",
+        task: "逾期产情填报",
+        domain: "PRODUCTION",
+        regionCode: "230221",
+        region: "龙江县",
+        product: "玉米",
+        businessPeriod: "2025年第1周",
+        dueAt: "2025-01-05T23:59:59+08:00",
+        workflowNode: "填报",
+        statusCode: "TO_FILL",
+        status: "待填报",
+        responsiblePartyCode: "production-reporter",
+        responsibleParty: "产情填报员",
+        sourceType: "PRODUCTION",
+        sourceId: "production-overdue-1",
+      },
+      [{ code: "CORN", name: "玉米" }],
+    );
+
+    expect(item.obligationStatus).toBe("missed");
+    expect(item.deadline).toBe("2025-01-05T23:59:59+08:00");
+  });
+
   it("projects logistics sources into the logistics work route", () => {
     const item = projectRealtimeWorkItem(
       {

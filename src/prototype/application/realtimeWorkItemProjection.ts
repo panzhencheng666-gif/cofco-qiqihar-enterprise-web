@@ -25,6 +25,10 @@ function statusOf(
   const draft = status === "DRAFT" || status === "TO_FILL";
   const returned = status === "RETURNED";
   const approved = status === "APPROVED";
+  const overdue =
+    row.dueAt !== null &&
+    Number.isFinite(Date.parse(row.dueAt)) &&
+    Date.parse(row.dueAt) < Date.now();
   const reviewStatus = approved
     ? "approved"
     : returned
@@ -34,7 +38,12 @@ function statusOf(
   return {
     documentStatus,
     reviewStatus,
-    obligationStatus: draft ? "in-progress" : "on-time",
+    obligationStatus:
+      (draft || returned) && overdue
+        ? "missed"
+        : draft
+          ? "in-progress"
+          : "on-time",
     qualityStatus: "passed",
     releaseStatus: approved ? "published" : "pending",
   };
