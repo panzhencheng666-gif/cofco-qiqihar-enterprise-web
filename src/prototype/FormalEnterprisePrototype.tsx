@@ -38,7 +38,10 @@ import {
   savePrototypeOperationalState,
 } from "./prototypeOperationalState";
 import { projectReportWorkflowIntoWorkItems } from "./application/reportWorkItemProjection";
-import { projectRealtimeWorkItems } from "./application/realtimeWorkItemProjection";
+import {
+  projectRealtimeWorkItems,
+  realtimeWorkItemScope,
+} from "./application/realtimeWorkItemProjection";
 import { realtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import type {
@@ -585,7 +588,11 @@ export function FormalEnterprisePrototype({
     void Promise.all([
       repository.loadMasterData(),
       repository.listWorkItems({
-        scope: "PENDING",
+        scope: realtimeWorkItemScope(
+          location.route.application === "work"
+            ? location.route.section
+            : "tasks",
+        ),
         page: 0,
         pageSize: 100,
       }),
@@ -612,7 +619,14 @@ export function FormalEnterprisePrototype({
     return () => {
       cancelled = true;
     };
-  }, [realtimeMode, realtimeRefreshToken, repository, sessionReady]);
+  }, [
+    location.route.application,
+    location.route.section,
+    realtimeMode,
+    realtimeRefreshToken,
+    repository,
+    sessionReady,
+  ]);
 
   useEffect(() => {
     if (!notificationsConfigured || !sessionReady) return;
@@ -863,11 +877,13 @@ export function FormalEnterprisePrototype({
         if (realtimeMode) {
           return (
             <RealtimeSupplyBalancePanel
+              permissions={currentSession?.permissions ?? []}
               productCode={realtimeSupplyProductCode(location.route.section)}
               regionCode={realtimeSupplyRegionCode(scope.coordinates.regionId)}
               marketingYear={realtimeSupplyMarketingYear(
                 scope.coordinates.periodKey,
               )}
+              repository={repository}
             />
           );
         }
@@ -885,7 +901,12 @@ export function FormalEnterprisePrototype({
         );
       case "reporting":
         if (realtimeMode)
-          return <RealtimeReportCenterPanel repository={repository} />;
+          return (
+            <RealtimeReportCenterPanel
+              permissions={currentSession?.permissions ?? []}
+              repository={repository}
+            />
+          );
         return (
           <FormalReportCenterWorkspace
             queryAllowed={queryAllowed}

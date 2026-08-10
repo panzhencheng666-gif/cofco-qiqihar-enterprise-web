@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   realtimeBusinessRepository,
   type MasterDataSnapshot,
   type ReportParameterOptions,
   type ReportPreview,
+  type ReportExport,
   type RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 
@@ -22,22 +23,34 @@ function saveReport(blob: Blob, filename: string): void {
 }
 
 export function RealtimeReportCenterPanel({
+  permissions = [],
   repository = realtimeBusinessRepository,
 }: {
+  permissions?: readonly string[];
   repository?: RealtimeBusinessRepository;
 }) {
   const [master, setMaster] = useState<MasterDataSnapshot | null>(null);
   const [options, setOptions] = useState<ReportParameterOptions | null>(null);
   const [definitionCode, setDefinitionCode] = useState("");
   const [productCode, setProductCode] = useState("");
+  const [cultivarCode, setCultivarCode] = useState("");
+  const [cultivars, setCultivars] = useState<
+    readonly { code: string; name: string }[]
+  >([]);
   const [regionCode, setRegionCode] = useState("");
   const [periodCode, setPeriodCode] = useState("");
   const [formatCode, setFormatCode] = useState("CSV");
   const [preview, setPreview] = useState<ReportPreview | null>(null);
+  const [reportExport, setReportExport] = useState<ReportExport | null>(null);
   const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [publishedPreviewId, setPublishedPreviewId] = useState("");
+  const previewSequence = useRef(0);
+  const exportSequence = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +82,26 @@ export function RealtimeReportCenterPanel({
     };
   }, [repository]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!productCode) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    repository
+      .listCultivars(productCode)
+      .then((nextCultivars) => {
+        if (!cancelled) setCultivars(nextCultivars);
+      })
+      .catch(() => {
+        if (!cancelled) setCultivars([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productCode, repository]);
+
   const selectedRegion = useMemo(
     () => master?.regions.find((region) => region.code === regionCode),
     [master, regionCode],
@@ -81,44 +114,98 @@ export function RealtimeReportCenterPanel({
   );
 
   function changeScope(action: () => void): void {
+    previewSequence.current += 1;
+    exportSequence.current += 1;
     action();
     setPreview(null);
+    setReportExport(null);
+    setPublishedPreviewId("");
+    setPreviewing(false);
+    setExporting(false);
+    setPublishing(false);
     setError("");
+    setNotice("");
   }
 
   async function createPreview(): Promise<void> {
     if (!ready || !selectedRegion) return;
+    const sequence = ++previewSequence.current;
+    exportSequence.current += 1;
     setPreviewing(true);
+    setExporting(false);
+    setPublishing(false);
+    setPreview(null);
+    setReportExport(null);
+    setPublishedPreviewId("");
     setError("");
+    setNotice("");
     try {
-      setPreview(
-        await repository.createReportPreview({
-          definitionCode,
-          productCode,
-          regionLevel: selectedRegion.level,
-          regionCode,
-          periodCode,
-        }),
-      );
+      const created = await repository.createReportPreview({
+        definitionCode,
+        productCode,
+        ...(cultivarCode ? { cultivarCode } : {}),
+        regionLevel: selectedRegion.level,
+        regionCode,
+        periodCode,
+      });
+      if (sequence === previewSequence.current) setPreview(created);
     } catch {
-      setError("当前范围暂无可生成报告的已核定数据，请调整筛选条件。");
+      if (sequence === previewSequence.current)
+        setError("当前范围暂无可生成报告的已核定数据，请调整筛选条件。");
     } finally {
-      setPreviewing(false);
+      if (sequence === previewSequence.current) setPreviewing(false);
     }
   }
 
   async function exportPreview(): Promise<void> {
     if (!preview) return;
+    const sequence = ++exportSequence.current;
+    const previewId = preview.id;
     setExporting(true);
     setError("");
     try {
-      const task = await repository.createReportExport(preview.id, formatCode);
+      const task = await repository.createReportExport(previewId, formatCode);
+      if (sequence !== exportSequence.current || task.previewId !== previewId)
+        return;
       const blob = await repository.downloadReportExport(task.id);
+      if (sequence !== exportSequence.current) return;
+      setReportExport(task);
       saveReport(blob, task.filename || `${preview.title}.csv`);
+      setNotice("报告文件已生成并开始下载，可继续执行正式发布。");
     } catch {
-      setError("当前报告导出未完成，请重新生成预览后再试。");
+      if (sequence === exportSequence.current)
+        setError("当前报告导出未完成，请重新生成预览后再试。");
     } finally {
-      setExporting(false);
+      if (sequence === exportSequence.current) setExporting(false);
+    }
+  }
+
+  async function publishPreview(): Promise<void> {
+    if (
+      !preview ||
+      !reportExport ||
+      reportExport.previewId !== preview.id ||
+      publishedPreviewId === preview.id
+    )
+      return;
+    const sequence = exportSequence.current;
+    setPublishing(true);
+    setError("");
+    setNotice("");
+    try {
+      await repository.createReportPublication(
+        preview.id,
+        reportExport.id,
+        preview.version,
+      );
+      if (sequence !== exportSequence.current) return;
+      setPublishedPreviewId(preview.id);
+      setNotice("报告已正式发布并完成留痕。");
+    } catch {
+      if (sequence === exportSequence.current)
+        setError("当前报告未能发布，请重新生成预览和发布文件后再试。");
+    } finally {
+      if (sequence === exportSequence.current) setPublishing(false);
     }
   }
 
@@ -164,12 +251,33 @@ export function RealtimeReportCenterPanel({
               aria-label="产品品种"
               value={productCode}
               onChange={(event) =>
-                changeScope(() => setProductCode(event.target.value))
+                changeScope(() => {
+                  setProductCode(event.target.value);
+                  setCultivarCode("");
+                  setCultivars([]);
+                })
               }
             >
               {master?.products.map((product) => (
                 <option key={product.code} value={product.code}>
                   {product.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>具体品种</span>
+            <select
+              aria-label="具体品种"
+              value={cultivarCode}
+              onChange={(event) =>
+                changeScope(() => setCultivarCode(event.target.value))
+              }
+            >
+              <option value="">全部品种</option>
+              {cultivars.map((cultivar) => (
+                <option key={cultivar.code} value={cultivar.code}>
+                  {cultivar.name}
                 </option>
               ))}
             </select>
@@ -204,7 +312,15 @@ export function RealtimeReportCenterPanel({
             <select
               aria-label="导出格式"
               value={formatCode}
-              onChange={(event) => setFormatCode(event.target.value)}
+              onChange={(event) => {
+                exportSequence.current += 1;
+                setExporting(false);
+                setPublishing(false);
+                setFormatCode(event.target.value);
+                setReportExport(null);
+                setNotice("");
+                setError("");
+              }}
             >
               {options?.formats.map((format) => (
                 <option key={format.code} value={format.code}>
@@ -213,13 +329,15 @@ export function RealtimeReportCenterPanel({
               ))}
             </select>
           </label>
-          <button
-            disabled={!ready || previewing}
-            onClick={() => void createPreview()}
-            type="button"
-          >
-            {previewing ? "正在生成……" : "生成报告预览"}
-          </button>
+          {permissions.includes("REPORT_PREVIEW") && (
+            <button
+              disabled={!ready || previewing}
+              onClick={() => void createPreview()}
+              type="button"
+            >
+              {previewing ? "正在生成……" : "生成报告预览"}
+            </button>
+          )}
         </section>
       )}
 
@@ -227,6 +345,11 @@ export function RealtimeReportCenterPanel({
         <div className="market-task6-alert" role="alert">
           {error}
         </div>
+      )}
+      {notice && (
+        <p className="realtime-business-success" role="status">
+          {notice}
+        </p>
       )}
 
       {preview && (
@@ -240,13 +363,28 @@ export function RealtimeReportCenterPanel({
               <h2>{preview.title}</h2>
               <p>统计时间：{selectedPeriod?.name ?? "当前所选时间"}</p>
             </div>
-            <button
-              disabled={exporting}
-              onClick={() => void exportPreview()}
-              type="button"
-            >
-              {exporting ? "正在导出……" : "导出当前报告"}
-            </button>
+            <div className="realtime-report-center__actions">
+              {permissions.includes("REPORT_EXPORT") && (
+                <button
+                  disabled={exporting || publishing}
+                  onClick={() => void exportPreview()}
+                  type="button"
+                >
+                  {exporting ? "正在导出……" : "导出当前报告"}
+                </button>
+              )}
+              {permissions.includes("REPORT_PUBLISH") &&
+                reportExport?.previewId === preview.id &&
+                publishedPreviewId !== preview.id && (
+                  <button
+                    disabled={exporting || publishing}
+                    onClick={() => void publishPreview()}
+                    type="button"
+                  >
+                    {publishing ? "正在发布……" : "正式发布报告"}
+                  </button>
+                )}
+            </div>
           </header>
           <div className="realtime-report-center__metrics">
             {preview.lines.map((line) => (

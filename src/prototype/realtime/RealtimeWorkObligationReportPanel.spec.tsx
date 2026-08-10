@@ -23,7 +23,12 @@ const session: CurrentSession = {
   employmentStatus: "ACTIVE",
   roleCodes: ["BUSINESS_REVIEWER"],
   positions: [],
-  permissions: ["OBLIGATION_REPORT_READ", "OBLIGATION_REPORT_UNIT"],
+  permissions: [
+    "OBLIGATION_REPORT_READ",
+    "OBLIGATION_REPORT_UNIT",
+    "OBLIGATION_REPORT_EXPORT",
+    "IDENTITY_READ",
+  ],
   regionCodes: ["230200"],
 };
 
@@ -41,6 +46,20 @@ function repository() {
         },
       ],
     }),
+    listEmployees: vi.fn().mockResolvedValue([
+      {
+        subjectId: "employee-2",
+        displayName: "填报员工乙",
+        workUnitCode: "UNIT-1",
+        workUnitName: "经营一部",
+        accountStatus: "ACTIVE",
+        employmentStatus: "ACTIVE",
+        roles: [],
+        positions: [],
+        regionCodes: ["230200"],
+        version: 0,
+      },
+    ]),
     loadWorkObligationWeeklyReport: vi.fn().mockResolvedValue({
       weekStart: "2026-08-03",
       weekEnd: "2026-08-09",
@@ -120,6 +139,7 @@ describe("RealtimeWorkObligationReportPanel", () => {
     expect(
       screen.getByRole("option", { name: "本单位全部人员" }),
     ).toBeVisible();
+    expect(screen.getByRole("option", { name: "填报员工乙" })).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "一键导出 XLSX" }));
     await waitFor(() =>
@@ -130,6 +150,23 @@ describe("RealtimeWorkObligationReportPanel", () => {
     expect(gateway.downloadWorkObligationReport).toHaveBeenCalledWith(
       "export-1",
     );
+  });
+
+  it("does not expose report export without the assigned export permission", async () => {
+    render(
+      <RealtimeWorkObligationReportPanel
+        repository={repository() as unknown as RealtimeBusinessRepository}
+        session={{
+          ...session,
+          permissions: ["OBLIGATION_REPORT_READ"],
+        }}
+      />,
+    );
+
+    await screen.findByText("已逾期未完成");
+    expect(
+      screen.queryByRole("button", { name: "一键导出 XLSX" }),
+    ).not.toBeInTheDocument();
   });
 
   it("allows a governed supervisor to query the whole work unit", async () => {

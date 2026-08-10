@@ -3946,6 +3946,103 @@ body {
   margin-top: 1.1rem;
 }
 
+.realtime-supply-operations {
+  border: 1px solid #c7d8e4;
+  border-radius: 0.65rem;
+  background: #f8fbfd;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.realtime-supply-operations > header,
+.realtime-supply-source-grid article > div,
+.realtime-supply-input-set,
+.realtime-supply-runner,
+.realtime-report-center__actions {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.realtime-supply-operations h3,
+.realtime-supply-operations p {
+  margin: 0;
+}
+
+.realtime-supply-operations > header > span,
+.realtime-supply-source-grid article > div > span {
+  color: #526b7e;
+  font-size: 0.78rem;
+}
+
+.realtime-supply-source-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.realtime-supply-source-grid article {
+  border: 1px solid #d8e3eb;
+  border-radius: 0.5rem;
+  background: #fff;
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.8rem;
+}
+
+.realtime-supply-operations label,
+.realtime-supply-manual-fields {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.realtime-supply-manual-fields {
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr) auto;
+}
+
+.realtime-supply-operations input,
+.realtime-supply-operations select,
+.realtime-supply-operations textarea {
+  border: 1px solid #b8cad7;
+  border-radius: 0.35rem;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+}
+
+.realtime-supply-operations button,
+.realtime-report-center__actions button {
+  border: 1px solid #1f625f;
+  border-radius: 0.35rem;
+  background: #1f625f;
+  color: #fff;
+  cursor: pointer;
+  padding: 0.52rem 0.75rem;
+}
+
+.realtime-supply-input-set,
+.realtime-supply-runner {
+  align-items: end;
+  border-top: 1px solid #d8e3eb;
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.realtime-supply-input-set label,
+.realtime-supply-runner label {
+  flex: 1;
+}
+
+.realtime-business-success {
+  border: 1px solid #a9d5c4;
+  border-radius: 0.45rem;
+  background: #effaf5;
+  color: #176348;
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.85rem;
+}
+
 .realtime-supply-loading,
 .realtime-supply-empty-result {
   border: 1px dashed #a9bdce;
@@ -4244,7 +4341,16 @@ body {
 @media (max-width: 1000px) {
   .realtime-supply-query,
   .realtime-supply-analysis-grid,
-  .realtime-supply-validation {
+  .realtime-supply-validation,
+  .realtime-supply-source-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .realtime-supply-input-set,
+  .realtime-supply-runner,
+  .realtime-supply-manual-fields {
+    align-items: stretch;
+    display: grid;
     grid-template-columns: 1fr;
   }
 

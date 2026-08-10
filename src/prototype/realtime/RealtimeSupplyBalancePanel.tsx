@@ -14,6 +14,7 @@ interface RealtimeSupplyBalancePanelProps {
   productCode?: string;
   regionCode?: string;
   marketingYear?: string;
+  permissions?: readonly string[];
   repository?: RealtimeBusinessRepository;
 }
 
@@ -35,6 +36,9 @@ const resultStateLabels: Readonly<Record<string, string>> = {
   DRAFT: "待核定",
   CALCULATED: "已计算",
   PUBLISHED: "已发布",
+  TRIAL: "试算结果",
+  FORMAL_CANDIDATE: "待发布",
+  FORMAL: "已发布",
   BLOCKED: "已阻断",
 };
 
@@ -74,6 +78,7 @@ export function RealtimeSupplyBalancePanel({
   productCode: initialProductCode = "CORN",
   regionCode: initialRegionCode = "230200",
   marketingYear: initialMarketingYear = "2026-W32",
+  permissions = [],
   repository = realtimeBusinessRepository,
 }: RealtimeSupplyBalancePanelProps) {
   const [master, setMaster] = useState<MasterDataSnapshot | null>(null);
@@ -85,7 +90,25 @@ export function RealtimeSupplyBalancePanel({
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [operationBusy, setOperationBusy] = useState(false);
+  const [operationMessage, setOperationMessage] = useState("");
+  const [selectedSources, setSelectedSources] = useState<
+    Record<string, string>
+  >({});
+  const [manualDrafts, setManualDrafts] = useState<
+    Record<string, { value: string; reason: string }>
+  >({});
+  const [inputSetReason, setInputSetReason] = useState("");
+  const [inputSetId, setInputSetId] = useState("");
+  const [adjustmentValue, setAdjustmentValue] = useState("");
+  const [adjustmentReason, setAdjustmentReason] = useState("");
   const requestSequence = useRef(0);
+  const activeScope = `${productCode}|${regionCode}|${marketingYear}`;
+  const activeScopeRef = useRef(activeScope);
+
+  useEffect(() => {
+    activeScopeRef.current = activeScope;
+  }, [activeScope]);
 
   const activeAccount =
     accounts.find(({ id }) => id === selectedAccountId) ?? accounts[0] ?? null;
@@ -134,6 +157,17 @@ export function RealtimeSupplyBalancePanel({
       setWorkspace(nextWorkspace);
       setAccounts(nextAccounts);
       setSelectedAccountId(nextAccounts[0]?.id ?? "");
+      setSelectedSources(
+        Object.fromEntries(
+          nextWorkspace.roles.map((role) => [
+            role.code,
+            role.selectedReleaseId ?? role.releases[0]?.id ?? "",
+          ]),
+        ),
+      );
+      setInputSetId(
+        nextWorkspace.latestInputSetId ?? nextAccounts[0]?.inputSetId ?? "",
+      );
     } catch (cause) {
       if (sequence !== requestSequence.current) return;
       setWorkspace(null);
@@ -147,6 +181,154 @@ export function RealtimeSupplyBalancePanel({
   useEffect(() => {
     queueMicrotask(() => void reload());
   }, [reload]);
+
+  const mayCreateInputSet = permissions.includes("BUSINESS_CREATE");
+  const mayUpdateCalculation = permissions.includes("BUSINESS_UPDATE");
+  const mayApprove = permissions.includes("BUSINESS_APPROVE");
+  const mayOperate = mayCreateInputSet || mayUpdateCalculation || mayApprove;
+  const requiredRoles = workspace?.roles.filter((role) => role.required) ?? [];
+  const sourcesComplete = requiredRoles.every(
+    (role) => selectedSources[role.code],
+  );
+
+  function resetOperationDrafts(): void {
+    setSelectedSources({});
+    setManualDrafts({});
+    setInputSetReason("");
+    setInputSetId("");
+    setAdjustmentValue("");
+    setAdjustmentReason("");
+    setOperationMessage("");
+    setError("");
+  }
+
+  function changeScope(action: () => void): void {
+    if (operationBusy) return;
+    resetOperationDrafts();
+    action();
+  }
+
+  function changeSelectedSource(roleCode: string, sourceReleaseId: string) {
+    setSelectedSources((current) => ({
+      ...current,
+      [roleCode]: sourceReleaseId,
+    }));
+    setInputSetId("");
+    setOperationMessage("来源选择已变化，请重新固化本次测算来源。");
+  }
+
+  async function approveManual(roleCode: string): Promise<void> {
+    if (!workspace || !mayApprove) return;
+    const role = workspace.roles.find(
+      (candidate) => candidate.code === roleCode,
+    );
+    const draft = manualDrafts[roleCode];
+    if (!role?.manualAllowed || !draft?.value.trim() || !draft.reason.trim())
+      return;
+    setOperationBusy(true);
+    setOperationMessage("");
+    setError("");
+    const operationScope = activeScope;
+    try {
+      await repository.approveSupplyManualDecision({
+        productCode,
+        regionCode,
+        marketingYear,
+        roleCode,
+        value: draft.value,
+        reason: draft.reason,
+        expectedVersion: role.manualDecisionVersion,
+      });
+      setManualDrafts((current) => ({
+        ...current,
+        [roleCode]: { value: "", reason: "" },
+      }));
+      if (activeScopeRef.current !== operationScope) return;
+      await reload();
+      setOperationMessage(`${role.label}已完成核定并写入来源记录。`);
+    } catch {
+      setError("人工来源核定未完成，请检查数值、依据和当前版本后重试。");
+    } finally {
+      setOperationBusy(false);
+    }
+  }
+
+  async function createInputSet(): Promise<void> {
+    if (
+      !workspace ||
+      !mayCreateInputSet ||
+      !sourcesComplete ||
+      !inputSetReason.trim()
+    )
+      return;
+    setOperationBusy(true);
+    setOperationMessage("");
+    setError("");
+    const operationScope = activeScope;
+    try {
+      const created = await repository.createSupplyInputSet({
+        productCode,
+        regionCode,
+        marketingYear,
+        reason: inputSetReason,
+        expectedVersion: workspace.inputSetVersion,
+        items: requiredRoles.map((role) => ({
+          roleCode: role.code,
+          sourceReleaseId: selectedSources[role.code] ?? "",
+        })),
+      });
+      if (activeScopeRef.current !== operationScope) return;
+      await reload();
+      setInputSetId(created.id);
+      setInputSetReason("");
+      setOperationMessage("本次测算来源已固化，可以进行试算或正式发布。");
+    } catch {
+      setError("测算来源未能固化，请确认全部必需来源已经核定且未被他人更新。");
+    } finally {
+      setOperationBusy(false);
+    }
+  }
+
+  async function runCalculation(publish: boolean): Promise<void> {
+    if (
+      !workspace ||
+      !mayUpdateCalculation ||
+      (publish && !mayApprove) ||
+      !inputSetId ||
+      !adjustmentValue.trim() ||
+      !adjustmentReason.trim()
+    )
+      return;
+    setOperationBusy(true);
+    setOperationMessage("");
+    setError("");
+    const operationScope = activeScope;
+    try {
+      const result = await repository.runSupplyAccount({
+        productCode,
+        regionCode,
+        marketingYear,
+        inputSetId,
+        adjustmentProposalValue: adjustmentValue,
+        adjustmentProposalReason: adjustmentReason,
+        expectedDecisionVersion: workspace.decisionVersion,
+        publish,
+      });
+      if (activeScopeRef.current !== operationScope) return;
+      await reload();
+      setOperationMessage(
+        publish
+          ? result.resultState === "FORMAL"
+            ? "供需测算已运行并正式发布。"
+            : "供需测算已完成，但校验未通过，结果未正式发布。"
+          : "供需试算已完成，结果尚未正式发布。",
+      );
+    } catch {
+      setError("供需测算未完成，请确认来源、调整说明和当前核定版本后重试。");
+    } finally {
+      setOperationBusy(false);
+    }
+  }
 
   if (loading && !master) {
     return (
@@ -165,7 +347,9 @@ export function RealtimeSupplyBalancePanel({
         <div>
           <p className="realtime-supply-eyebrow">经营决策分析</p>
           <h2>实时供需平衡</h2>
-          <p>只读展示核定结果、计算公式与不可变数据来源。</p>
+          <p>
+            展示核定结果、计算公式与不可变来源；被授权员工可在本页完成核定与发布。
+          </p>
         </div>
         <button type="button" onClick={() => void reload()} disabled={loading}>
           {loading ? "更新中" : "刷新结果"}
@@ -181,8 +365,11 @@ export function RealtimeSupplyBalancePanel({
           <span>产品品种</span>
           <select
             aria-label="产品品种"
+            disabled={operationBusy}
             value={productCode}
-            onChange={(event) => setProductCode(event.target.value)}
+            onChange={(event) =>
+              changeScope(() => setProductCode(event.target.value))
+            }
           >
             {master?.products.map((product) => (
               <option key={product.code} value={product.code}>
@@ -193,7 +380,10 @@ export function RealtimeSupplyBalancePanel({
         </label>
         <RealtimeRegionCascadePicker
           ariaLabel="统计地区"
-          onChange={setRegionCode}
+          disabled={operationBusy}
+          onChange={(nextRegionCode) =>
+            changeScope(() => setRegionCode(nextRegionCode))
+          }
           regions={master?.regions ?? []}
           requireVillage={false}
           value={regionCode}
@@ -202,8 +392,11 @@ export function RealtimeSupplyBalancePanel({
           <span>统计时间</span>
           <select
             aria-label="统计时间"
+            disabled={operationBusy}
             value={marketingYear}
-            onChange={(event) => setMarketingYear(event.target.value)}
+            onChange={(event) =>
+              changeScope(() => setMarketingYear(event.target.value))
+            }
           >
             {master?.periods.map((period) => (
               <option key={period.code} value={period.code}>
@@ -216,9 +409,9 @@ export function RealtimeSupplyBalancePanel({
           <span>测算批次</span>
           <select
             aria-label="测算批次"
+            disabled={operationBusy || accounts.length === 0}
             value={activeAccount?.id ?? ""}
             onChange={(event) => setSelectedAccountId(event.target.value)}
-            disabled={accounts.length === 0}
           >
             {accounts.length === 0 ? (
               <option value="">暂无已形成结果</option>
@@ -233,6 +426,193 @@ export function RealtimeSupplyBalancePanel({
           </select>
         </label>
       </section>
+
+      {workspace && mayOperate && (
+        <section
+          aria-label="测算来源与发布"
+          className="realtime-supply-operations"
+        >
+          <header>
+            <div>
+              <h3>测算来源核定</h3>
+              <p>只显示当前范围内已经审核并可用于测算的业务来源。</p>
+            </div>
+            <span>
+              已选{" "}
+              {
+                requiredRoles.filter((role) => selectedSources[role.code])
+                  .length
+              }
+              /{requiredRoles.length} 项必需来源
+            </span>
+          </header>
+
+          <div className="realtime-supply-source-grid">
+            {workspace.roles.map((role) => {
+              const manual = manualDrafts[role.code] ?? {
+                value: "",
+                reason: "",
+              };
+              return (
+                <article key={role.code}>
+                  <div>
+                    <strong>{role.label}</strong>
+                    <span>{role.required ? "必需来源" : "可选来源"}</span>
+                  </div>
+                  <label>
+                    <span>采用来源</span>
+                    <select
+                      aria-label={`${role.label}采用来源`}
+                      disabled={!mayCreateInputSet || operationBusy}
+                      onChange={(event) =>
+                        changeSelectedSource(role.code, event.target.value)
+                      }
+                      value={selectedSources[role.code] ?? ""}
+                    >
+                      <option value="">尚未选择</option>
+                      {role.releases.map((release) => (
+                        <option key={release.id} value={release.id}>
+                          {businessLabel(
+                            sourceDomainLabels,
+                            release.sourceDomain,
+                            "业务核定来源",
+                          )}
+                          · {release.value} {release.unitCode} · 第{" "}
+                          {release.sourceVersion} 次修订
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {mayApprove && role.manualAllowed && (
+                    <div className="realtime-supply-manual-fields">
+                      <label>
+                        <span>人工核定值</span>
+                        <input
+                          aria-label={`${role.label}人工核定值`}
+                          inputMode="decimal"
+                          onChange={(event) =>
+                            setManualDrafts((current) => ({
+                              ...current,
+                              [role.code]: {
+                                ...manual,
+                                value: event.target.value,
+                              },
+                            }))
+                          }
+                          value={manual.value}
+                        />
+                      </label>
+                      <label>
+                        <span>核定依据</span>
+                        <input
+                          aria-label={`${role.label}核定依据`}
+                          onChange={(event) =>
+                            setManualDrafts((current) => ({
+                              ...current,
+                              [role.code]: {
+                                ...manual,
+                                reason: event.target.value,
+                              },
+                            }))
+                          }
+                          value={manual.reason}
+                        />
+                      </label>
+                      <button
+                        disabled={
+                          operationBusy ||
+                          !manual.value.trim() ||
+                          !manual.reason.trim()
+                        }
+                        onClick={() => void approveManual(role.code)}
+                        type="button"
+                      >
+                        核定{role.label}
+                      </button>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+
+          {mayCreateInputSet && (
+            <div className="realtime-supply-input-set">
+              <label>
+                <span>输入集采用理由</span>
+                <textarea
+                  aria-label="输入集采用理由"
+                  onChange={(event) => setInputSetReason(event.target.value)}
+                  value={inputSetReason}
+                />
+              </label>
+              <button
+                disabled={
+                  operationBusy || !sourcesComplete || !inputSetReason.trim()
+                }
+                onClick={() => void createInputSet()}
+                type="button"
+              >
+                固化本次测算来源
+              </button>
+            </div>
+          )}
+
+          {mayUpdateCalculation && (
+            <div className="realtime-supply-runner">
+              <label>
+                <span>核定调整</span>
+                <input
+                  aria-label="核定调整"
+                  inputMode="decimal"
+                  onChange={(event) => setAdjustmentValue(event.target.value)}
+                  value={adjustmentValue}
+                />
+              </label>
+              <label>
+                <span>调整说明</span>
+                <input
+                  aria-label="调整说明"
+                  onChange={(event) => setAdjustmentReason(event.target.value)}
+                  value={adjustmentReason}
+                />
+              </label>
+              <button
+                disabled={
+                  operationBusy ||
+                  !inputSetId ||
+                  !adjustmentValue.trim() ||
+                  !adjustmentReason.trim()
+                }
+                onClick={() => void runCalculation(false)}
+                type="button"
+              >
+                执行试算
+              </button>
+              {mayApprove && (
+                <button
+                  disabled={
+                    operationBusy ||
+                    !inputSetId ||
+                    !adjustmentValue.trim() ||
+                    !adjustmentReason.trim()
+                  }
+                  onClick={() => void runCalculation(true)}
+                  type="button"
+                >
+                  运行并发布
+                </button>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {operationMessage && (
+        <p className="realtime-business-success" role="status">
+          {operationMessage}
+        </p>
+      )}
 
       {error && (
         <p className="realtime-business-error" role="alert">

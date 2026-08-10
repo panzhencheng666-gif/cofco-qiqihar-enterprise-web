@@ -88,11 +88,14 @@ export interface ReportParameterOptions {
 export interface ReportPreview {
   id: string;
   definitionCode: string;
+  datasetId: string;
   title: string;
   dataCutoffLabel: string;
   lines: readonly { label: string; value: string; note: string }[];
   sections: readonly { code: string; title: string; body: string }[];
   expiresAt: string;
+  version: number;
+  legacyReadOnly: boolean;
 }
 
 export interface ReportExport {
@@ -102,6 +105,14 @@ export interface ReportExport {
   filename: string;
   contentType: string;
   requestedAt: string;
+}
+
+export interface ReportPublication {
+  id: string;
+  previewId: string;
+  exportTaskId: string;
+  publishedAt: string;
+  version: number;
 }
 
 export interface CurrentSession {
@@ -397,12 +408,19 @@ export interface SupplyReleaseRow {
   sourceDomain: string;
   sourceRecordId: string;
   sourceVersion: number;
-  roleCode: string;
   sourceFieldCode: string;
   value: string;
   unitCode: string;
   qualityState: string;
-  approvedAt: string | null;
+  approvedAt: string;
+}
+
+export interface SupplyReleaseMutationResult extends Omit<
+  SupplyReleaseRow,
+  "approvedAt"
+> {
+  roleCode: string;
+  approvalState: string;
 }
 
 export interface SupplyInputRole {
@@ -655,6 +673,11 @@ export interface RealtimeBusinessRepository {
     formatCode: string,
   ): Promise<ReportExport>;
   downloadReportExport(exportId: string): Promise<Blob>;
+  createReportPublication(
+    previewId: string,
+    exportTaskId: string,
+    expectedVersion: number,
+  ): Promise<ReportPublication>;
   listCultivars(productCode: string): Promise<readonly MasterCultivar[]>;
   listObjectTypes(
     productCode: string,
@@ -734,7 +757,7 @@ export interface RealtimeBusinessRepository {
     value: string;
     reason: string;
     expectedVersion: number;
-  }): Promise<SupplyReleaseRow>;
+  }): Promise<SupplyReleaseMutationResult>;
   runSupplyAccount(input: {
     productCode: string;
     regionCode: string;
@@ -967,6 +990,11 @@ export function createRealtimeBusinessRepository(
       client.download(
         `/api/v1/reports/exports/${encodeURIComponent(exportId)}/content`,
       ),
+    createReportPublication: (previewId, exportTaskId, expectedVersion) =>
+      client.post<ReportPublication>(
+        `/api/v1/reports/previews/${encodeURIComponent(previewId)}/publications`,
+        { exportTaskId, expectedVersion },
+      ),
     listCultivars: (productCode) =>
       client.get<MasterCultivar[]>(
         `/api/v1/master-data/products/${encodeURIComponent(productCode)}/cultivars`,
@@ -1048,7 +1076,7 @@ export function createRealtimeBusinessRepository(
     createSupplyInputSet: (input) =>
       client.post<SupplyInputSetRow>("/api/v1/supply-input-sets", input),
     approveSupplyManualDecision: (input) =>
-      client.post<SupplyReleaseRow>(
+      client.post<SupplyReleaseMutationResult>(
         "/api/v1/supply-inputs/manual-decisions",
         input,
       ),

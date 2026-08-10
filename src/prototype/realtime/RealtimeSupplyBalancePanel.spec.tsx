@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -17,7 +17,7 @@ function account(overrides: Partial<SupplyAccountRow> = {}): SupplyAccountRow {
     marketingYear: "2026-W32",
     resultVersion: 1,
     decisionVersion: 0,
-    resultState: "PUBLISHED",
+    resultState: "FORMAL",
     validationCodes: [],
     balanced: true,
     publishable: true,
@@ -74,12 +74,22 @@ function repository(): RealtimeBusinessRepository {
           sourceDomain: "PRODUCTION",
           sourceRecordId: "production-1",
           sourceVersion: 1,
-          roleCode: "OPENING_INVENTORY",
           sourceFieldCode: "OPENING_INVENTORY",
           value: "101.0000",
           unitCode: "万吨",
           qualityState: "PASSED",
           approvedAt: "2026-08-08T08:00:00Z",
+        },
+        {
+          id: "release-opening-revised",
+          sourceDomain: "PRODUCTION",
+          sourceRecordId: "production-2",
+          sourceVersion: 2,
+          sourceFieldCode: "OPENING_INVENTORY",
+          value: "102.0000",
+          unitCode: "万吨",
+          qualityState: "PASSED",
+          approvedAt: "2026-08-09T08:00:00Z",
         },
       ],
     },
@@ -151,9 +161,32 @@ function repository(): RealtimeBusinessRepository {
       }),
     ),
     listSupplyAccounts: vi.fn(() => Promise.resolve([account()])),
-    createSupplyInputSet: vi.fn(),
-    approveSupplyManualDecision: vi.fn(),
-    runSupplyAccount: vi.fn(),
+    createSupplyInputSet: vi.fn(() =>
+      Promise.resolve({
+        id: "input-set-created",
+        version: 1,
+        productCode: "CORN",
+        regionCode: "230200",
+        marketingYear: "2026-W32",
+      }),
+    ),
+    approveSupplyManualDecision: vi.fn(() =>
+      Promise.resolve({
+        id: "manual-release",
+        sourceDomain: "MANUAL",
+        sourceRecordId: "manual-decision-1",
+        sourceVersion: 0,
+        roleCode: "OPENING_INVENTORY",
+        sourceFieldCode: "MANUAL_APPROVED_VALUE",
+        value: "102.5000",
+        unitCode: "万吨",
+        qualityState: "PASSED",
+        approvalState: "APPROVED",
+      }),
+    ),
+    runSupplyAccount: vi.fn(() =>
+      Promise.resolve(account({ resultState: "FORMAL" })),
+    ),
   } as unknown as RealtimeBusinessRepository;
 }
 
@@ -187,6 +220,91 @@ describe("RealtimeSupplyBalancePanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("lets authorized employees govern sources, freeze an input set and publish a calculation", async () => {
+    const user = userEvent.setup();
+    const nextRepository = repository();
+    const approveManual = vi.spyOn(
+      nextRepository,
+      "approveSupplyManualDecision",
+    );
+    const createInputSet = vi.spyOn(nextRepository, "createSupplyInputSet");
+    const runSupplyAccount = vi.spyOn(nextRepository, "runSupplyAccount");
+
+    render(
+      <RealtimeSupplyBalancePanel
+        permissions={["BUSINESS_CREATE", "BUSINESS_UPDATE", "BUSINESS_APPROVE"]}
+        repository={nextRepository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "测算来源核定" }),
+    ).toBeVisible();
+    await user.type(
+      screen.getByRole("textbox", { name: "期初库存人工核定值" }),
+      "102.5000",
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "期初库存核定依据" }),
+      "库存盘点复核一致",
+    );
+    await user.click(screen.getByRole("button", { name: "核定期初库存" }));
+    await waitFor(() =>
+      expect(approveManual).toHaveBeenCalledWith({
+        productCode: "CORN",
+        regionCode: "230200",
+        marketingYear: "2026-W32",
+        roleCode: "OPENING_INVENTORY",
+        value: "102.5000",
+        reason: "库存盘点复核一致",
+        expectedVersion: 0,
+      }),
+    );
+
+    await user.type(
+      screen.getByRole("textbox", { name: "输入集采用理由" }),
+      "采用本期全部已核定来源",
+    );
+    await user.click(screen.getByRole("button", { name: "固化本次测算来源" }));
+    await waitFor(() =>
+      expect(createInputSet).toHaveBeenCalledWith({
+        productCode: "CORN",
+        regionCode: "230200",
+        marketingYear: "2026-W32",
+        reason: "采用本期全部已核定来源",
+        expectedVersion: 0,
+        items: [
+          {
+            roleCode: "OPENING_INVENTORY",
+            sourceReleaseId: "release-opening",
+          },
+        ],
+      }),
+    );
+
+    await user.type(screen.getByRole("textbox", { name: "核定调整" }), "0");
+    await user.type(
+      screen.getByRole("textbox", { name: "调整说明" }),
+      "本期无需额外调整",
+    );
+    await user.click(screen.getByRole("button", { name: "运行并发布" }));
+    await waitFor(() =>
+      expect(runSupplyAccount).toHaveBeenCalledWith({
+        productCode: "CORN",
+        regionCode: "230200",
+        marketingYear: "2026-W32",
+        inputSetId: "input-set-created",
+        adjustmentProposalValue: "0",
+        adjustmentProposalReason: "本期无需额外调整",
+        expectedDecisionVersion: 0,
+        publish: true,
+      }),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "供需测算已运行并正式发布",
+    );
+  });
+
   it("shows provenance from the immutable result instead of the mutable input workspace", async () => {
     const nextRepository = repository();
     vi.spyOn(nextRepository, "loadSupplyInputWorkspace").mockResolvedValue({
@@ -212,7 +330,6 @@ describe("RealtimeSupplyBalancePanel", () => {
               sourceDomain: "PRODUCTION",
               sourceRecordId: "mutable-new-source",
               sourceVersion: 2,
-              roleCode: "OPENING_INVENTORY",
               sourceFieldCode: "OPENING_INVENTORY",
               value: "999.0000",
               unitCode: "万吨",
@@ -250,6 +367,61 @@ describe("RealtimeSupplyBalancePanel", () => {
     expect(screen.getByText("第 1 次修订")).toBeVisible();
     expect(screen.queryByText("mutable-new-source")).not.toBeInTheDocument();
     expect(screen.getByText("测算来源已固化")).toBeVisible();
+  });
+
+  it("does not report a blocked two-hundred response as formally published", async () => {
+    const user = userEvent.setup();
+    const nextRepository = repository();
+    vi.spyOn(nextRepository, "runSupplyAccount").mockResolvedValue(
+      account({
+        resultState: "TRIAL",
+        publishable: false,
+        validationCodes: ["MISSING_REQUIRED_SOURCE"],
+      }),
+    );
+
+    render(
+      <RealtimeSupplyBalancePanel
+        permissions={["BUSINESS_UPDATE", "BUSINESS_APPROVE"]}
+        repository={nextRepository}
+      />,
+    );
+    await screen.findByRole("heading", { name: "测算来源核定" });
+    await user.type(screen.getByRole("textbox", { name: "核定调整" }), "0");
+    await user.type(
+      screen.getByRole("textbox", { name: "调整说明" }),
+      "等待补齐来源",
+    );
+    await user.click(screen.getByRole("button", { name: "运行并发布" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "校验未通过，结果未正式发布",
+    );
+    expect(screen.getByRole("status")).not.toHaveTextContent("已正式发布");
+  });
+
+  it("requires a new immutable input set after the employee changes a source", async () => {
+    const user = userEvent.setup();
+    render(
+      <RealtimeSupplyBalancePanel
+        permissions={["BUSINESS_CREATE", "BUSINESS_UPDATE", "BUSINESS_APPROVE"]}
+        repository={repository()}
+      />,
+    );
+    const source = await screen.findByRole("combobox", {
+      name: "期初库存采用来源",
+    });
+    await user.type(screen.getByRole("textbox", { name: "核定调整" }), "0");
+    await user.type(
+      screen.getByRole("textbox", { name: "调整说明" }),
+      "确认当前来源",
+    );
+    expect(screen.getByRole("button", { name: "运行并发布" })).toBeEnabled();
+    await user.selectOptions(source, "release-opening-revised");
+    expect(screen.getByRole("button", { name: "运行并发布" })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "请重新固化本次测算来源",
+    );
   });
 
   it("keeps the newest filter result when an older request finishes last", async () => {

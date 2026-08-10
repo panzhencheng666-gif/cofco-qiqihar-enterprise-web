@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { projectRealtimeWorkItem } from "./realtimeWorkItemProjection";
+import {
+  projectRealtimeWorkItem,
+  realtimeWorkItemScope,
+} from "./realtimeWorkItemProjection";
 
 describe("realtime work item projection", () => {
   it("maps backend status and master product names without fixture data", () => {
@@ -95,7 +98,7 @@ describe("realtime work item projection", () => {
       {
         id: "WI-LOGISTICS",
         task: "物流监测 · logistics-record-1",
-        domain: "MARKET",
+        domain: "LOGISTICS",
         regionCode: "230202",
         region: "龙沙区",
         product: "玉米",
@@ -119,5 +122,11 @@ describe("realtime work item projection", () => {
       objectId: "logistics-record-1",
       objectTypeId: "LOGISTICS",
     });
+  });
+
+  it("loads completed backend work for the completed employee view", () => {
+    expect(realtimeWorkItemScope("completed")).toBe("COMPLETED");
+    expect(realtimeWorkItemScope("tasks")).toBe("PENDING");
+    expect(realtimeWorkItemScope("review")).toBe("PENDING");
   });
 });

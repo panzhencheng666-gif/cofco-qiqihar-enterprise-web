@@ -537,7 +537,7 @@ describe("realtime business repository", () => {
     );
   });
 
-  it("creates a scoped report preview before exporting its immutable result", async () => {
+  it("creates a scoped report preview before exporting and publishing its immutable result", async () => {
     const { api, download, get, post } = client();
     get.mockImplementationOnce(
       () => Promise.resolve({ definitions: [], formats: [] }) as never,
@@ -553,6 +553,14 @@ describe("realtime business repository", () => {
       .mockImplementationOnce(
         () =>
           Promise.resolve({ id: "export-1", previewId: "preview-1" }) as never,
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          id: "publication-1",
+          previewId: "preview-1",
+          exportTaskId: "export-1",
+          version: 1,
+        }),
       );
     const repository = createRealtimeBusinessRepository(api);
 
@@ -567,6 +575,7 @@ describe("realtime business repository", () => {
     });
     await repository.createReportExport(preview.id, "CSV");
     await repository.downloadReportExport("export-1");
+    await repository.createReportPublication(preview.id, "export-1", 0);
 
     expect(get).toHaveBeenCalledWith("/api/v1/reports/parameter-options");
     expect(post).toHaveBeenNthCalledWith(1, "/api/v1/reports/previews", {
@@ -584,6 +593,11 @@ describe("realtime business repository", () => {
     );
     expect(download).toHaveBeenCalledWith(
       "/api/v1/reports/exports/export-1/content",
+    );
+    expect(post).toHaveBeenNthCalledWith(
+      3,
+      "/api/v1/reports/previews/preview-1/publications",
+      { exportTaskId: "export-1", expectedVersion: 0 },
     );
   });
 });

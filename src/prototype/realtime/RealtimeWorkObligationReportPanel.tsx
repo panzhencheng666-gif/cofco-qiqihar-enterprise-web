@@ -65,9 +65,8 @@ export function RealtimeWorkObligationReportPanel({
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const mayReadUnit = session.permissions.includes("OBLIGATION_REPORT_UNIT");
-  const mayReadEmployees = session.permissions.includes(
-    "IDENTITY_EMPLOYEE_READ",
-  );
+  const mayReadEmployees = session.permissions.includes("IDENTITY_READ");
+  const mayExport = session.permissions.includes("OBLIGATION_REPORT_EXPORT");
 
   const input = useMemo<WorkObligationReportInput>(
     () => ({
@@ -217,13 +216,15 @@ export function RealtimeWorkObligationReportPanel({
           >
             {loading ? "正在查询……" : "查询"}
           </button>
-          <button
-            disabled={loading || exporting || !report}
-            onClick={() => void exportReport()}
-            type="button"
-          >
-            {exporting ? "正在导出……" : "一键导出 XLSX"}
-          </button>
+          {mayExport && (
+            <button
+              disabled={loading || exporting || !report}
+              onClick={() => void exportReport()}
+              type="button"
+            >
+              {exporting ? "正在导出……" : "一键导出 XLSX"}
+            </button>
+          )}
         </div>
       </section>
 

@@ -6,6 +6,7 @@ import type {
 
 function domainOf(row: WorkItemRow): BusinessWorkItem["domain"] {
   if (row.domain === "MARKET") return "market";
+  if (row.domain === "LOGISTICS") return "market";
   if (row.domain === "SUPPLY") return "supply";
   if (row.domain === "REPORTING") return "reporting";
   return "production";
@@ -69,7 +70,9 @@ export function projectRealtimeWorkItem(
   const domain = domainOf(row);
   const status = statusOf(row);
   const now = new Date().toISOString();
-  const logistics = row.sourceType?.toUpperCase() === "LOGISTICS";
+  const logistics =
+    row.domain.toUpperCase() === "LOGISTICS" ||
+    row.sourceType?.toUpperCase() === "LOGISTICS";
   const subtype = logistics
     ? "market.logistics"
     : domain === "production"
@@ -139,4 +142,10 @@ export function projectRealtimeWorkItems(
   products: readonly MasterProduct[],
 ): readonly BusinessWorkItem[] {
   return rows.map((row) => projectRealtimeWorkItem(row, products));
+}
+
+export function realtimeWorkItemScope(
+  section: string,
+): "PENDING" | "COMPLETED" {
+  return section === "completed" ? "COMPLETED" : "PENDING";
 }

@@ -31,6 +31,7 @@ function repository(): RealtimeBusinessRepository {
     createReportPreview: vi.fn(),
     createReportExport: vi.fn(),
     downloadReportExport: vi.fn(),
+    createReportPublication: vi.fn(),
     listCultivars: vi.fn(),
     listObjectTypes: vi.fn(),
     loadProductionDefinition: vi.fn(),
