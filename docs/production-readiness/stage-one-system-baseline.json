@@ -1,0 +1,1090 @@
+{
+  "schemaVersion": 1,
+  "scope": "阶段一：现有架构与唯一系统基线复核",
+  "statusSemantics": {
+    "IMPLEMENTED": "已找到实现位置，仅表示阶段一可追踪，不代表后续功能验收通过",
+    "PARTIAL": "已找到部分实现或入口，后续指定阶段仍需关闭缺口",
+    "NOT_EVIDENCED": "未取得与后续门禁同义的新鲜证据"
+  },
+  "canonicalAcceptanceEntry": {
+    "url": "http://127.0.0.1:63182/",
+    "host": "127.0.0.1",
+    "port": 63182,
+    "path": "/",
+    "ownerRepository": "cofco-qiqihar-enterprise-web",
+    "status": "IMPLEMENTED"
+  },
+  "productionDomainAssignment": {
+    "domain": "PENDING_ENTERPRISE_APPROVAL",
+    "canonicalPath": "/",
+    "owner": "平台部署负责人",
+    "status": "NOT_EVIDENCED",
+    "verificationStage": "阶段十（阿里云预生产、DNS 与 TLS）",
+    "rule": "批准域名只能映射到业务 Web 根入口；不得暴露内部 API 或总揽渲染器端口"
+  },
+  "repositoryResponsibilities": [
+    {
+      "repository": "cofco-qiqihar-enterprise-backend",
+      "responsibilities": [
+        "模块化单体业务 API、领域边界与授权执行",
+        "PostgreSQL/Flyway 迁移顺序、事务、审计与后台任务",
+        "三进程本地运行监督、健康检查与唯一入口所有权"
+      ]
+    },
+    {
+      "repository": "cofco-qiqihar-enterprise-frontend",
+      "responsibilities": [
+        "总揽监测地图与指标渲染组件",
+        "仅通过业务入口的同源 /overview-monitoring 前缀提供内容",
+        "地图几何、地区钻取和样本点展示"
+      ]
+    },
+    {
+      "repository": "cofco-qiqihar-enterprise-web",
+      "responsibilities": [
+        "63182 唯一用户入口、企业壳层与业务导航",
+        "填报、审核、供需、报告、通知与总揽嵌入工作区",
+        "阶段一系统基线、追踪矩阵和三仓门禁执行器"
+      ]
+    }
+  ],
+  "runtimeComponents": [
+    {
+      "id": "desktop-acceptance-launcher",
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "exposure": "只打开 63182 根入口；不读取 Desktop 下同名仓库",
+      "process": "/Users/federal/Desktop/启动齐齐哈尔粮食商情系统.command -> formal runtime backend scripts/local-runtime.sh",
+      "port": null,
+      "deploymentComponent": "macOS 用户启动命令（由 Backend 契约脚本核验）"
+    },
+    {
+      "id": "local-stack-supervisor",
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "exposure": "内部监督进程，不提供用户入口",
+      "process": "com.cofco.qiqihar.enterprise.local-stack / scripts/start-local.sh",
+      "port": null,
+      "deploymentComponent": "macOS LaunchAgent（本地正式验收）"
+    },
+    {
+      "id": "business-web",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "exposure": "唯一用户验收入口",
+      "process": "Vite 企业业务 Web",
+      "port": 63182,
+      "deploymentComponent": "业务 Web 静态制品与同源网关"
+    },
+    {
+      "id": "overview-renderer",
+      "ownerRepository": "cofco-qiqihar-enterprise-frontend",
+      "exposure": "numeric loopback 内部组件；直接 63200 不作为验收入口",
+      "process": "Vite 总揽渲染器",
+      "port": 63200,
+      "deploymentComponent": "总揽监测静态制品，经 63182 /overview-monitoring 代理"
+    },
+    {
+      "id": "business-api",
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "exposure": "numeric loopback 内部 API；浏览器只走 63182 /api",
+      "process": "Spring Boot 模块化单体",
+      "port": 8090,
+      "deploymentComponent": "grain-trade-enterprise-backend JAR"
+    },
+    {
+      "id": "business-database",
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "exposure": "仅后端连接，不是浏览器或用户入口",
+      "process": "PostgreSQL/PostGIS",
+      "port": 5432,
+      "deploymentComponent": "Flyway 管理的业务数据库"
+    }
+  ],
+  "primaryMenuInventory": [
+    {
+      "application": "work",
+      "label": "我的工作",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/formalEnterpriseData.ts",
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "overview",
+      "label": "总揽监测",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/OverviewMonitoringFrame.tsx",
+        "cofco-qiqihar-enterprise-frontend:src/modules/overview/ui/pages/OverviewPage.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "production",
+      "label": "产情监测",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "label": "市场监测",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/ProductMarketCollectionWorkspace.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/market/LogisticsMonitoringWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "supply",
+      "label": "供需分析",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/SupplyDemandWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "reporting",
+      "label": "报表中心",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ReportCenterWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    }
+  ],
+  "menuInventory": [
+    {
+      "application": "work",
+      "section": "tasks",
+      "label": "待我处理",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "work",
+      "section": "submitted",
+      "label": "待我填报",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "work",
+      "section": "review",
+      "label": "待我审核",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "work",
+      "section": "exceptions",
+      "label": "退回与异常",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "work",
+      "section": "completed",
+      "label": "已办事项",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "work",
+      "section": "obligations",
+      "label": "填报履职周报",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/workflow/interfaceadapter/WorkObligationReportController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "overview",
+      "section": "map",
+      "label": "总揽监测",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/OverviewMonitoringFrame.tsx",
+        "cofco-qiqihar-enterprise-frontend:src/modules/overview/ui/pages/OverviewPage.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "overview",
+      "section": "risks",
+      "label": "风险事项",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ExecutiveOverviewWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "overview",
+      "section": "duty",
+      "label": "履责监督",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ExecutiveOverviewWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "overview",
+      "section": "releases",
+      "label": "发布成果",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ExecutiveOverviewWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "production",
+      "section": "corn-collection",
+      "label": "玉米产情填报",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "production",
+      "section": "soybean-collection",
+      "label": "大豆产情填报",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "production",
+      "section": "rice-collection",
+      "label": "稻谷产情填报",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "production",
+      "section": "tasks",
+      "label": "产情任务",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductionTaskWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "production",
+      "section": "objects",
+      "label": "调查对象",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductionObjectRegistry.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "production",
+      "section": "review",
+      "label": "数据审核",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductionTaskWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "production",
+      "section": "analysis",
+      "label": "产情分析",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductionAnalysisWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "corn-collection",
+      "label": "玉米市场采集",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/ProductMarketCollectionWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "soybean-collection",
+      "label": "大豆市场采集",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/ProductMarketCollectionWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "paddy-collection",
+      "label": "稻谷市场采集",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/ProductMarketCollectionWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "corn-logistics",
+      "label": "玉米物流监测",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/LogisticsMonitoringWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "soybean-logistics",
+      "label": "大豆物流监测",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/LogisticsMonitoringWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "paddy-logistics",
+      "label": "稻谷物流监测",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/LogisticsMonitoringWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "tasks",
+      "label": "采集任务",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/MarketTaskWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "objects",
+      "label": "监测对象",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/MarketObjectRegistry.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "review",
+      "label": "数据审核",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/MarketTaskWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "market",
+      "section": "analysis",
+      "label": "市场分析",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/market/MarketAnalysisWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "supply",
+      "section": "balance",
+      "label": "供需平衡",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/SupplyDemandWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "supply",
+      "section": "records",
+      "label": "计算记录",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/SupplyDemandWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "reporting",
+      "section": "compose",
+      "label": "业务报告",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ReportCenterWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    }
+  ],
+  "uiInteractionInventory": {
+    "path": "docs/production-readiness/stage-one-ui-inventory.json",
+    "sourceBoundary": "src/business 下全部非测试 TSX",
+    "itemCount": 379,
+    "ownerRepository": "cofco-qiqihar-enterprise-web",
+    "status": "IMPLEMENTED",
+    "verificationStage": "阶段二/三",
+    "rule": "逐节点登记按钮、链接、筛选/输入与弹框；登记不等于后续真实浏览器和数据库行为验收通过"
+  },
+  "actionInventory": [
+    {
+      "id": "shell.application-launcher",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/EnterpriseApplicationLauncher.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段三"
+    },
+    {
+      "id": "shell.business-navigation",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/components/BusinessNavigationTree.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段三"
+    },
+    {
+      "id": "shell.unit-scope",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/EnterpriseShell.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/useFormalEnterpriseLocation.ts"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "PARTIAL",
+      "verificationStage": "阶段三/四"
+    },
+    {
+      "id": "shell.global-search",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/EnterpriseShell.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "PARTIAL",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "shell.pending-work",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/EnterpriseShell.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段三"
+    },
+    {
+      "id": "shell.notifications",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/EnterpriseShell.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/notification/interfaceadapter/BusinessNotificationController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段三/六"
+    },
+    {
+      "id": "shell.help",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/EnterpriseShell.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段三"
+    },
+    {
+      "id": "shell.account-security",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/EnterpriseShell.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "PARTIAL",
+      "verificationStage": "阶段四"
+    },
+    {
+      "id": "common.filters",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/components/CompactBusinessQuery.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/components/RegionCascadeSelector.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "common.list-detail",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/components/EnterpriseWorkTable.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/market/MarketDocumentWorkbench.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "business.create",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/market/ProductMarketCollectionWorkspace.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/market/LogisticsMonitoringWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "business.save-draft",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/production/interfaceadapter/ProductionRecordController.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/market/interfaceadapter/MarketMonitoringCommandController.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/logistics/interfaceadapter/LogisticsController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "business.submit",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/production/interfaceadapter/ProductionRecordController.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/market/interfaceadapter/MarketMonitoringCommandController.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/logistics/interfaceadapter/LogisticsController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "business.approve",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/production/interfaceadapter/ProductionRecordController.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/market/interfaceadapter/MarketMonitoringCommandController.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/logistics/interfaceadapter/LogisticsController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/四"
+    },
+    {
+      "id": "business.return",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/production/interfaceadapter/ProductionRecordController.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/market/interfaceadapter/MarketMonitoringCommandController.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/logistics/interfaceadapter/LogisticsController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/四"
+    },
+    {
+      "id": "business.evidence-photo",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/market/ProductMarketCollectionWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/evidence/interfaceadapter/EvidencePhotoController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/八"
+    },
+    {
+      "id": "work.open-source-record",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/workflow/interfaceadapter/WorkItemController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段三"
+    },
+    {
+      "id": "overview.scope-filter",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-frontend:src/modules/overview/ui/pages/OverviewPage.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-frontend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "overview.region-drill",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-frontend:src/modules/overview/ui/components/TerrainReliefBoundaryMap.tsx",
+        "cofco-qiqihar-enterprise-frontend:src/modules/overview/ui/components/RegionDirectorySearch.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-frontend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "overview.sample-point-detail",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-frontend:src/modules/overview/ui/components/OverviewSamplePointPanel.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-frontend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/五"
+    },
+    {
+      "id": "overview.business-jump",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-frontend:src/modules/overview/ui/businessPlatformNavigation.ts"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-frontend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段三"
+    },
+    {
+      "id": "analysis.chart-interactions",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/components/ComparisonCharts.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/components/AnnualComparisonTrack.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "supply.manage-inputs",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/SupplyDemandWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/supply/interfaceadapter/SupplyAccountController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/六"
+    },
+    {
+      "id": "supply.run-calculation",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/SupplyDemandWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/supply/interfaceadapter/SupplyAccountController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/六"
+    },
+    {
+      "id": "supply.release-source",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/SupplyDemandWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/supply/interfaceadapter/SupplyAccountController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/六"
+    },
+    {
+      "id": "report.preview",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ReportCenterWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/reporting/interfaceadapter/ReportingController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/六"
+    },
+    {
+      "id": "report.export",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/components/QuickReportExportMenu.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/reporting/interfaceadapter/ReportingController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "PARTIAL",
+      "verificationStage": "阶段二/三/六"
+    },
+    {
+      "id": "report.publish",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ReportCenterWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/reporting/interfaceadapter/ReportingController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/六"
+    },
+    {
+      "id": "identity.employee-governance",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/identity/IdentityGovernancePanel.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/identity/interfaceadapter/IdentityGovernanceController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "PARTIAL",
+      "verificationStage": "阶段四"
+    },
+    {
+      "id": "identity.access-review",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/identity/IdentityGovernancePanel.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/identity/interfaceadapter/AccessReviewController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "PARTIAL",
+      "verificationStage": "阶段四"
+    }
+  ],
+  "businessStateInventory": [
+    {
+      "id": "business-record.lifecycle",
+      "values": ["DRAFT", "PENDING_REVIEW", "APPROVED", "RETURNED"],
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/production/domain/ProductionStatus.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/market/domain/MarketStatus.java",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/logistics/domain/LogisticsStatus.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/四"
+    },
+    {
+      "id": "document-review-quality-release.lifecycle",
+      "values": [
+        "draft/submitted/returned/corrected",
+        "pending/reviewing/approved/returned",
+        "passed/warning/blocking/awaiting-explanation",
+        "unreleased/pending/published/superseded"
+      ],
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/core/businessWork.ts",
+        "cofco-qiqihar-enterprise-web:src/business/production/ProductionDocumentWorkbench.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/market/MarketDocumentWorkbench.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/四"
+    },
+    {
+      "id": "work-item.lifecycle",
+      "values": ["TO_FILL", "TO_REVIEW", "RETURNED", "EXCEPTION"],
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/workflow/domain/WorkItemStatus.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/四"
+    },
+    {
+      "id": "import-job.lifecycle",
+      "values": [
+        "QUEUED",
+        "PROCESSING",
+        "COMPLETED",
+        "COMPLETED_WITH_ERRORS",
+        "FAILED"
+      ],
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/importing/infrastructure/JdbcImportJobRepository.java",
+        "cofco-qiqihar-enterprise-web:src/business/importing/BusinessImportStatus.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/七"
+    },
+    {
+      "id": "supply-result.lifecycle",
+      "values": ["DRAFT", "CONFIRMED", "PUBLISHED"],
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/supply/domain/SupplyResultState.java",
+        "cofco-qiqihar-enterprise-web:src/business/SupplyDemandWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/六"
+    }
+  ],
+  "importExportInventory": [
+    {
+      "id": "production.xlsx-template-import-result-retry",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/importing/BusinessImportStatus.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/importing/interfaceadapter/ProductionImportController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "market.xlsx-template-import-result-retry",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/importing/BusinessImportStatus.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/importing/interfaceadapter/MarketImportController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "logistics.xlsx-template-import-result-retry",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/importing/BusinessImportStatus.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/importing/interfaceadapter/LogisticsImportController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "work-obligation.csv-export-download",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/workflow/interfaceadapter/WorkObligationReportController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "business-report.preview-export-download",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ReportCenterWorkspace.tsx",
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/reporting/interfaceadapter/ReportingController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "PARTIAL",
+      "verificationStage": "阶段二/三/六"
+    },
+    {
+      "id": "evidence-photo.upload-download",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/evidence/interfaceadapter/EvidencePhotoController.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/八"
+    }
+  ],
+  "backgroundTaskInventory": [
+    {
+      "id": "import.queue-poll-and-recovery",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/importing/application/BusinessImportQueueWorker.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/七"
+    },
+    {
+      "id": "import.queued-domain-processors",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/importing/application/QueuedImportProcessor.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "id": "notification.sse-connection-executor",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/notification/application/BusinessEventStreamService.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "PARTIAL",
+      "verificationStage": "阶段六"
+    },
+    {
+      "id": "database.flyway-startup-migrations",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:src/main/resources/db/migration",
+        "cofco-qiqihar-enterprise-backend:src/test/java/com/cofco/qiqihar/graintrade/masterdata/infrastructure/FlywayMigrationReplayTest.java"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段一/五"
+    },
+    {
+      "id": "runtime.local-stack-supervision",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-backend:scripts/start-local.sh",
+        "cofco-qiqihar-enterprise-backend:ops/launchd/com.cofco.qiqihar.enterprise.local-stack.plist"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段一"
+    }
+  ],
+  "historicalRequirementSources": [
+    {
+      "repository": "cofco-qiqihar-enterprise-backend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "paths": [
+        "docs/superpowers/plans/2026-08-08-market-submission-evidence-import.md",
+        "docs/superpowers/specs/2026-08-08-market-logistics-submission-evidence-import-design.md"
+      ]
+    },
+    {
+      "repository": "cofco-qiqihar-enterprise-frontend",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三/五",
+      "paths": [
+        "docs/superpowers/plans/2026-08-03-overview-golden-rebuild.md",
+        "docs/superpowers/plans/2026-08-03-overview-spatial-narration.md",
+        "docs/superpowers/plans/2026-08-04-township-map-and-region-directory.md",
+        "docs/superpowers/plans/2026-08-05-overview-map-stabilization.md",
+        "docs/superpowers/plans/2026-08-10-supply-period-version-history.md",
+        "docs/superpowers/plans/2026-08-11-county-sample-point-icons.md",
+        "docs/superpowers/specs/2026-08-03-openmct-executive-command-center-design.md",
+        "docs/superpowers/specs/2026-08-03-overview-golden-rebuild-design.md",
+        "docs/superpowers/specs/2026-08-03-overview-spatial-narration-design.md",
+        "docs/superpowers/specs/2026-08-04-township-map-and-region-directory-design.md",
+        "docs/superpowers/specs/2026-08-11-county-sample-point-icons-design.md"
+      ]
+    },
+    {
+      "repository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段一至十二（按各来源对应门禁继续验证）",
+      "paths": [
+        "docs/specs/2026-07-30-grain-enterprise-logical-data-model.md",
+        "docs/specs/2026-07-30-grain-enterprise-unified-business-architecture-spec.md",
+        "docs/specs/2026-07-31-mature-enterprise-platform-architecture-design.md",
+        "docs/superpowers/plans/2026-07-30-enterprise-foundation-first-vertical-slice.md",
+        "docs/superpowers/plans/2026-07-30-enterprise-platform-roadmap.md",
+        "docs/superpowers/plans/2026-07-31-contextual-business-report-and-regional-balance.md",
+        "docs/superpowers/plans/2026-07-31-enterprise-platform-information-architecture-redesign.md",
+        "docs/superpowers/plans/2026-07-31-enterprise-reporting-visual-prototype.md",
+        "docs/superpowers/plans/2026-07-31-enterprise-visual-fusion-prototype.md",
+        "docs/superpowers/plans/2026-07-31-enterprise-visual-prototype.md",
+        "docs/superpowers/plans/2026-07-31-market-monitoring-visual-prototype.md",
+        "docs/superpowers/plans/2026-07-31-operational-workspaces-business-clarity.md",
+        "docs/superpowers/plans/2026-07-31-table-centric-enterprise-shell-redesign.md",
+        "docs/superpowers/plans/2026-07-31-unified-enterprise-workspaces.md",
+        "docs/superpowers/plans/2026-07-31-unified-region-and-flat-workspace-remediation.md",
+        "docs/superpowers/plans/2026-08-02-table-led-grain-enterprise-platform-implementation.md",
+        "docs/superpowers/plans/2026-08-06-realtime-business-system-integration.md",
+        "docs/superpowers/plans/2026-08-08-enterprise-production-program.md",
+        "docs/superpowers/plans/2026-08-08-production-foundation-security.md",
+        "docs/superpowers/plans/2026-08-08-production-submission-evidence-import.md",
+        "docs/superpowers/plans/2026-08-09-menu-locked-product-and-workbook-contract.md",
+        "docs/superpowers/specs/2026-07-31-contextual-business-report-export-and-enterprise-shell-optimization-design.md",
+        "docs/superpowers/specs/2026-07-31-enterprise-platform-information-architecture-redesign-design.md",
+        "docs/superpowers/specs/2026-07-31-enterprise-visual-fusion-design.md",
+        "docs/superpowers/specs/2026-07-31-integrated-reporting-responsibility-enterprise-ui-design.md",
+        "docs/superpowers/specs/2026-07-31-market-monitoring-sample-network-and-data-collection-design.md",
+        "docs/superpowers/specs/2026-07-31-operational-workspaces-business-clarity-design.md",
+        "docs/superpowers/specs/2026-07-31-table-centric-de-dashboard-enterprise-shell-design.md",
+        "docs/superpowers/specs/2026-07-31-unified-enterprise-workspace-redesign-design.md",
+        "docs/superpowers/specs/2026-07-31-unified-region-and-flat-workspace-remediation-design.md",
+        "docs/superpowers/specs/2026-08-02-table-led-grain-enterprise-platform-final-design.md",
+        "docs/superpowers/specs/2026-08-08-enterprise-production-system-design.md",
+        "docs/superpowers/specs/2026-08-08-production-submission-evidence-import-design.md",
+        "docs/superpowers/specs/2026-08-09-enterprise-production-readiness-and-go-live-design.md"
+      ]
+    }
+  ],
+  "stageOneGateOwnership": [
+    {
+      "id": "S1-1",
+      "owner": "发布负责人",
+      "evidence": "三仓分支、SHA、上游与工作树快照"
+    },
+    {
+      "id": "S1-2",
+      "owner": "Web 前端架构负责人",
+      "evidence": "63182 根入口唯一；内部 63200/8090 已认领"
+    },
+    {
+      "id": "S1-3",
+      "owner": "三仓架构负责人",
+      "evidence": "依赖边界、领域架构与 Flyway 回放门禁"
+    },
+    {
+      "id": "S1-4",
+      "owner": "Backend/DBA",
+      "evidence": "clean verify 内 FlywayMigrationReplayTest"
+    },
+    {
+      "id": "S1-5",
+      "owner": "发布负责人",
+      "evidence": "run-stage-one-gate.mjs 生成的单一 Run 快照"
+    },
+    {
+      "id": "S1-6",
+      "owner": "产品与 QA",
+      "evidence": "本文件菜单、动作、导入导出、后台任务与历史来源清单"
+    }
+  ]
+}

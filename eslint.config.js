@@ -5,13 +5,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: [
-      "dist",
-      "dist-prototype",
-      "coverage",
-      "playwright-report",
-      "test-results",
-    ],
+    ignores: ["dist", "coverage", "playwright-report", "test-results"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

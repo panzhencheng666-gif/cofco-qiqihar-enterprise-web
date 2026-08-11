@@ -1,7 +1,7 @@
 # 齐齐哈尔粮食商情企业系统前端
 
-独立 React 企业前端。当前检查点只包含技术兼容门禁、企业壳层和规范
-任务—对象—业务单据纵切，使用确定性模拟数据，不连接数据库或生产 API。
+企业业务平台前端，负责唯一用户入口、业务导航、填报审核、供需分析与报告工作区。
+正式运行默认连接受控 API；本地验收通过同源代理接入正式 Backend 代码路径。
 
 ## Runtime
 
@@ -24,9 +24,9 @@ npm run format
 npm run verify
 ```
 
-Local URL: `http://127.0.0.1:63180`
+本地正式验收唯一入口：`http://127.0.0.1:63182/`
 
-业务版原型入口（本地联调）：`http://127.0.0.1:63182/prototype.html`
+总揽渲染器 `63200` 和 API `8090` 仅为回环内部组件，不是用户入口。
 
 `npm run test:e2e` first creates the production build, enforces the bundle
 budget, then starts fixed-port `vite preview` for serial Chromium acceptance.

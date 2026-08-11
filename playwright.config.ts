@@ -19,7 +19,7 @@ export default defineConfig({
       timeout: 120000,
     },
     {
-      command: "npm run preview",
+      command: "npm run preview:e2e",
       url: "http://127.0.0.1:63180",
       env: {
         E2E_API_TARGET: "http://127.0.0.1:63181",
