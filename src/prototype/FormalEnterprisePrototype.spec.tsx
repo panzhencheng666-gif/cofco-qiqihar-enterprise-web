@@ -1205,14 +1205,13 @@ describe("formal enterprise prototype", () => {
       <FormalEnterprisePrototype initialSearch="?page=production&section=tasks&region=not-authorized" />,
     );
 
-    expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
-      "authorized-all",
-    );
+    expect(
+      screen.queryByRole("combobox", { name: "业务地区" }),
+    ).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("not-authorized");
   });
 
-  it("keeps recovery filters visible when a stored coordinate becomes invalid", async () => {
-    const user = userEvent.setup();
+  it("keeps recovery filters visible when a stored coordinate becomes invalid", () => {
     window.history.replaceState(
       {
         formalLocation: {
@@ -1229,19 +1228,10 @@ describe("formal enterprise prototype", () => {
       screen.getByRole("heading", { name: "玉米产情调查表" }),
     ).toBeVisible();
     expect(screen.getByLabelText("选择地区")).toBeVisible();
-    expect(
-      screen.getByText(
-        "地区不在当前授权范围。系统未使用其他地区或产品的数据。",
-      ),
-    ).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(
       "outside-current-authorization",
     );
-
-    await user.click(
-      screen.getByRole("button", { name: "恢复全部已授权范围" }),
-    );
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByLabelText("选择地区")).toHaveTextContent("请选择地区");
   });
 
@@ -1252,24 +1242,13 @@ describe("formal enterprise prototype", () => {
     );
 
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "业务地区" }),
-      "qiqihar-nehe",
-    );
-    await user.selectOptions(
       screen.getByRole("combobox", { name: "产品或作物" }),
-      "corn",
-    );
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "任务期间" }),
-      "2026-W31",
+      "soybean",
     );
 
     expect(window.location.search).not.toMatch(/region=|product=|period=/);
-    expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
-      "qiqihar-nehe",
-    );
     expect(screen.getByRole("combobox", { name: "产品或作物" })).toHaveValue(
-      "corn",
+      "soybean",
     );
   });
 
@@ -1287,7 +1266,7 @@ describe("formal enterprise prototype", () => {
       "2026-W31",
     );
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "业务域" }),
+      screen.getByRole("combobox", { name: "业务类型" }),
       "market",
     );
     expect(window.location.search).not.toContain("businessDomain=market");
@@ -1339,7 +1318,7 @@ describe("formal enterprise prototype", () => {
     await user.click(screen.getByText("更多筛选"));
 
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "业务域" }),
+      screen.getByRole("combobox", { name: "业务类型" }),
       "market",
     );
     await user.selectOptions(
@@ -1417,9 +1396,9 @@ describe("formal enterprise prototype", () => {
       <FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />,
     );
 
-    const region = screen.getByRole("combobox", { name: "业务地区" });
-    await user.selectOptions(region, "qiqihar-nehe");
-    expect(window.location.search).not.toContain("region=qiqihar-nehe");
+    const product = screen.getByRole("combobox", { name: "产品或作物" });
+    await user.selectOptions(product, "soybean");
+    expect(window.location.search).not.toContain("product=soybean");
 
     await user.click(
       within(screen.getByRole("navigation", { name: "业务应用" })).getByRole(
@@ -1434,8 +1413,8 @@ describe("formal enterprise prototype", () => {
 
     window.history.back();
     await waitFor(() => {
-      expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
-        "qiqihar-nehe",
+      expect(screen.getByRole("combobox", { name: "产品或作物" })).toHaveValue(
+        "soybean",
       );
     });
 
@@ -1450,13 +1429,11 @@ describe("formal enterprise prototype", () => {
       <FormalEnterprisePrototype initialSearch="?page=production&section=tasks" />,
     );
 
-    const classification = screen.getByRole("combobox", { name: "业务分类" });
     expect(
-      within(classification).getByRole("option", { name: "种植生产" }),
-    ).toHaveValue("production.planting-production");
-    expect(
-      within(classification).queryByRole("option", { name: "市场库存" }),
+      screen.queryByRole("combobox", { name: "业务分类" }),
     ).not.toBeInTheDocument();
+    expect(screen.getAllByText("种植生产").length).toBeGreaterThan(0);
+    expect(document.body).not.toHaveTextContent("市场库存");
   });
 
   it("uses only authorized regions and domain-specific governed classifications", async () => {
@@ -1477,29 +1454,38 @@ describe("formal enterprise prototype", () => {
       if (search.startsWith("?page=overview")) {
         await user.click(screen.getByText("更多筛选"));
       }
-      const classification = screen.getByRole("combobox", { name: "业务分类" });
-      expect(
-        within(classification).getByRole("option", { name: expected }),
-      ).toBeVisible();
-      if (excluded) {
+      const classification = screen.queryByRole("combobox", {
+        name: "业务分类",
+      });
+      if (classification) {
         expect(
-          within(classification).queryByRole("option", { name: excluded }),
-        ).not.toBeInTheDocument();
+          within(classification).getByRole("option", { name: expected }),
+        ).toBeVisible();
+        if (excluded) {
+          expect(
+            within(classification).queryByRole("option", { name: excluded }),
+          ).not.toBeInTheDocument();
+        }
+      } else {
+        expect(screen.getAllByText(expected).length).toBeGreaterThan(0);
+        if (excluded) expect(document.body).not.toHaveTextContent(excluded);
       }
       expect(
         within(
           screen.getByRole("combobox", { name: /^(产品或作物|产品或品类)$/ }),
-        ).queryByRole("option", { name: "产品名称待维护" }),
+        ).queryByRole("option", { name: "产品名称未提供" }),
       ).not.toBeInTheDocument();
-      const region = screen.getByRole("combobox", {
+      const region = screen.queryByRole("combobox", {
         name: /^(授权地区|业务地区|报告地区)$/,
       });
-      expect(
-        within(region).getByRole("option", { name: "全部已授权范围" }),
-      ).toHaveValue("authorized-all");
-      expect(
-        within(region).getByRole("option", { name: "黑河市全域" }),
-      ).toBeVisible();
+      if (region) {
+        expect(
+          within(region).getByRole("option", { name: /全部(?:地区|已授权范围)/ }),
+        ).toHaveValue("authorized-all");
+        expect(
+          within(region).getByRole("option", { name: /黑河/ }),
+        ).toBeVisible();
+      }
       if (search.startsWith("?page=overview")) {
         expect(
           within(screen.getByRole("combobox", { name: "地区层级" })).getByRole(

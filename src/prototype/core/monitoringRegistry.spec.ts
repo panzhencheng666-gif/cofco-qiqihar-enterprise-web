@@ -146,7 +146,7 @@ describe("monitoring registry", () => {
     ).toEqual([
       {
         roleLabel: "产情调查对象",
-        templateLabel: "适用能力名称待维护",
+        templateLabel: "适用能力名称未提供",
         capabilityLabels: [],
       },
     ]);
@@ -160,7 +160,7 @@ describe("monitoring registry", () => {
           object,
           productionCapabilityTemplates,
           "2026-08-01",
-        ).every(({ templateLabel }) => templateLabel !== "适用能力名称待维护"),
+        ).every(({ templateLabel }) => templateLabel !== "适用能力名称未提供"),
       ).toBe(true);
     }
     expect(

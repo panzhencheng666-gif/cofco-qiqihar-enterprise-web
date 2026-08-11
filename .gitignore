@@ -1,5 +1,8 @@
 .worktrees/
 .superpowers/
+.idea/
+.local-runtime/
+artifacts/
 node_modules/
 dist/
 dist-prototype/

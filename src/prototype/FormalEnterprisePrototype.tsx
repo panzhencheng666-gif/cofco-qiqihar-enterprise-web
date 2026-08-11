@@ -623,6 +623,8 @@ export function FormalEnterprisePrototype({
         const workItems = projectRealtimeWorkItems(
           workPage.items,
           masterData.products,
+          masterData.periods,
+          masterData.regions,
         );
         setOperationalState((current) => ({ ...current, workItems }));
         setRealtimeStatus(

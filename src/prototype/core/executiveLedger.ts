@@ -206,6 +206,7 @@ function isRiskState(
 
 export function getExecutiveScopeCoordinateIssues(
   scope: OperationalScope,
+  supportedPeriodKeys: readonly string[] = prototypeExecutiveSupportedPeriodKeys,
 ): readonly ExecutiveScopeCoordinateIssue[] {
   const issues: ExecutiveScopeCoordinateIssue[] = [];
   const { businessDomainId, riskState } = scope.coordinates;
@@ -214,7 +215,7 @@ export function getExecutiveScopeCoordinateIssues(
   }
   if (
     !scope.coordinates.periodKey ||
-    !prototypeExecutiveSupportedPeriodKeys.some(
+    !supportedPeriodKeys.some(
       (periodKey) => periodKey === scope.coordinates.periodKey,
     )
   ) {
@@ -300,9 +301,15 @@ function queryIsAuthorized(
   scope: OperationalScope,
   query: ExecutiveLedgerQuery,
 ): boolean {
-  if (!scope.authorization.permissionKeys.includes("prototype:read"))
+  const serverAuthoritative =
+    scope.authorization.serverAuthoritative === true;
+  if (
+    !serverAuthoritative &&
+    !scope.authorization.permissionKeys.includes("prototype:read")
+  )
     return false;
   if (
+    !serverAuthoritative &&
     query.regionId !== "authorized-all" &&
     !scope.authorization.authorizedRegionIds.includes(
       query.regionId as OperationalScope["authorization"]["authorizedRegionIds"][number],
@@ -311,6 +318,7 @@ function queryIsAuthorized(
     return false;
   }
   if (
+    !serverAuthoritative &&
     query.businessSubtype !== null &&
     !scope.authorization.authorizedBusinessClassificationIds.includes(
       query.businessSubtype,
@@ -326,18 +334,21 @@ function queryIsAuthorized(
     return false;
   }
   if (
+    !serverAuthoritative &&
     query.productId !== null &&
     !scope.authorization.authorizedProductIds.includes(query.productId)
   ) {
     return false;
   }
   if (
+    !serverAuthoritative &&
     query.cultivarId !== null &&
     !scope.authorization.authorizedCultivarIds.includes(query.cultivarId)
   ) {
     return false;
   }
   if (
+    !serverAuthoritative &&
     query.releaseVersion !== null &&
     !scope.authorization.authorizedReleaseVersionIds.includes(
       query.releaseVersion,
@@ -346,6 +357,7 @@ function queryIsAuthorized(
     return false;
   }
   return (
+    serverAuthoritative ||
     query.regionId !== "authorized-all" ||
     resolveExecutiveAggregateMembership(scope, query) !== null
   );
@@ -614,6 +626,8 @@ function businessWorkMatches(
   query: ExecutiveLedgerQuery,
   item: BusinessWorkItem,
 ): boolean {
+  const serverAuthoritative =
+    scope.authorization.serverAuthoritative === true;
   if (query.dataLayer !== "official") return false;
   if (query.domain !== "all" && query.domain !== item.domain) return false;
   if (
@@ -622,23 +636,31 @@ function businessWorkMatches(
   )
     return false;
   if (item.periodKey !== query.periodKey) return false;
-  if (!pointRegionMatches(scope, query, item.regionId)) return false;
+  if (
+    serverAuthoritative
+      ? query.regionId !== "authorized-all" && query.regionId !== item.regionId
+      : !pointRegionMatches(scope, query, item.regionId)
+  )
+    return false;
   if (query.productId !== null && query.productId !== item.productId)
     return false;
   if (query.cultivarId !== null && !item.cultivarIds.includes(query.cultivarId))
     return false;
   if (
-    !scope.authorization.authorizedBusinessClassificationIds.includes(
-      item.businessSubtypeId,
-    ) ||
-    !scope.authorization.authorizedRegionIds.includes(
-      item.regionId as OperationalScope["authorization"]["authorizedRegionIds"][number],
-    ) ||
-    (item.productId !== null &&
-      !scope.authorization.authorizedProductIds.includes(item.productId)) ||
-    item.cultivarIds.some(
-      (cultivarId) =>
-        !scope.authorization.authorizedCultivarIds.includes(cultivarId),
+    !serverAuthoritative &&
+    (
+      !scope.authorization.authorizedBusinessClassificationIds.includes(
+        item.businessSubtypeId,
+      ) ||
+      !scope.authorization.authorizedRegionIds.includes(
+        item.regionId as OperationalScope["authorization"]["authorizedRegionIds"][number],
+      ) ||
+      (item.productId !== null &&
+        !scope.authorization.authorizedProductIds.includes(item.productId)) ||
+      item.cultivarIds.some(
+        (cultivarId) =>
+          !scope.authorization.authorizedCultivarIds.includes(cultivarId),
+      )
     )
   ) {
     return false;
@@ -988,11 +1010,21 @@ export function queryExecutiveLedger(
   projection: ExecutiveLedgerProjectionInput = {},
 ): ExecutiveLedgerResult {
   const currentYear = parseCurrentYear(query.periodKey);
-  const periodSupported = prototypeExecutiveSupportedPeriodKeys.some(
+  const supportedPeriodKeys =
+    projection.workItems === undefined
+      ? prototypeExecutiveSupportedPeriodKeys
+      : [
+          ...new Set(
+            projection.workItems
+              .map(({ periodKey }) => periodKey)
+              .filter(Boolean),
+          ),
+        ];
+  const periodSupported = supportedPeriodKeys.some(
     (periodKey) => periodKey === query.periodKey,
   );
   if (
-    getExecutiveScopeCoordinateIssues(scope).length > 0 ||
+    getExecutiveScopeCoordinateIssues(scope, supportedPeriodKeys).length > 0 ||
     !isQueryDomain(query.domain) ||
     !isRiskState(query.riskState) ||
     currentYear === null ||
@@ -1005,7 +1037,10 @@ export function queryExecutiveLedger(
     case "operations":
       return {
         view: "operations",
-        metrics: operationsRows(scope, query, currentYear),
+        metrics:
+          scope.authorization.serverAuthoritative === true
+            ? []
+            : operationsRows(scope, query, currentYear),
       };
     case "risks":
       return {

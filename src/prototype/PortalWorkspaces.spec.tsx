@@ -26,12 +26,14 @@ function ExecutiveHarness({
   authorization = {},
   onCoordinateChange = vi.fn(),
   onRouteChange = vi.fn(),
+  workItems,
 }: {
   initialSection?: OverviewSection;
   initialCoordinates?: Partial<OperationalScope["coordinates"]>;
   authorization?: Partial<OperationalScope["authorization"]>;
   onCoordinateChange?: (coordinates: Partial<BusinessCoordinates>) => void;
   onRouteChange?: (route: FormalRoute) => void;
+  workItems?: readonly BusinessWorkItem[];
 }) {
   const [section, setSection] = useState<OverviewSection>(initialSection);
   const [scope, setScope] = useState<OperationalScope>({
@@ -51,6 +53,7 @@ function ExecutiveHarness({
     <ExecutiveOverviewWorkspace
       section={section}
       scope={scope}
+      workItems={workItems}
       onScopeChange={(coordinates) => {
         onCoordinateChange(coordinates);
         setScope((current) => ({
@@ -73,6 +76,7 @@ function MyWorkHarness({
   identity = prototypeOperationalIdentity.identity,
   onCoordinateChange = vi.fn(),
   onOpenBusiness = vi.fn(),
+  workItems = businessWorkFixtures,
 }: {
   initialSection?: WorkSection;
   initialCoordinates?: Partial<OperationalScope["coordinates"]>;
@@ -80,6 +84,7 @@ function MyWorkHarness({
   identity?: OperationalScope["identity"];
   onCoordinateChange?: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness?: (route: FormalRoute, selection?: FormalSelection) => void;
+  workItems?: readonly BusinessWorkItem[];
 }) {
   const [scope, setScope] = useState<OperationalScope>({
     ...prototypeOperationalIdentity,
@@ -106,11 +111,72 @@ function MyWorkHarness({
         }));
       }}
       onOpenBusiness={onOpenBusiness}
+      workItems={workItems}
     />
   );
 }
 
 describe("enterprise portal workspaces", () => {
+  it("builds the realtime executive filters only from visible workflow records and never presents prototype metrics", () => {
+    const source = businessWorkFixtures.find(
+      ({ workId }) => workId === "WORK-PRODUCTION-FILL-W31",
+    );
+    if (!source) throw new Error("missing production work fixture");
+    const workItems: readonly BusinessWorkItem[] = [
+      {
+        ...source,
+        regionId: "230200",
+        regionLabel: "齐齐哈尔市",
+        productId: "corn",
+        productLabel: "玉米",
+        periodKey: "2026-W32",
+        effectivePeriod: "2026年第32周",
+      },
+      {
+        ...source,
+        workId: "realtime-soybean-work",
+        regionId: "230281",
+        regionLabel: "讷河市",
+        productId: "soybean",
+        productLabel: "大豆",
+        periodKey: "2026-W32",
+        effectivePeriod: "2026年第32周",
+      },
+    ];
+    render(
+      <ExecutiveHarness
+        authorization={{
+          serverAuthoritative: true,
+          authorizedRegionIds: ["authorized-all"],
+          authorizedBusinessClassificationIds: [],
+          authorizedProductIds: [],
+          authorizedCultivarIds: [],
+          authorizedReleaseVersionIds: [],
+          permissionKeys: [],
+        }}
+        initialCoordinates={{ periodKey: "2026-W32" }}
+        workItems={workItems}
+      />,
+    );
+
+    expect(screen.queryByRole("combobox", { name: "业务类型" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "任务期间" })).toBeNull();
+    expect(
+      within(screen.getByRole("combobox", { name: "业务地区" }))
+        .getAllByRole("option")
+        .map(({ textContent }) => textContent),
+    ).toEqual(["全部地区", "齐齐哈尔市", "讷河市"]);
+    expect(
+      within(screen.getByRole("combobox", { name: "产品或作物" }))
+        .getAllByRole("option")
+        .map(({ textContent }) => textContent),
+    ).toEqual(["全部产品或作物", "玉米", "大豆"]);
+    expect(screen.getByText("当前筛选范围没有可用经营指标")).toBeVisible();
+    expect(document.body).not.toHaveTextContent(
+      /2026 年第 31 周|地区名称待维护|业务域|产品名称待维护|METRIC-/,
+    );
+  });
+
   it("keeps the executive ledger dense, horizontally operable, and keyboard visible", () => {
     const css = readFileSync("src/prototype/unified-workspaces.css", "utf8");
     const marker = css.slice(
@@ -217,7 +283,7 @@ describe("enterprise portal workspaces", () => {
     expect(screen.getByRole("tab", { name: "履责监督" })).toBeVisible();
     expect(screen.getByRole("tab", { name: "发布成果" })).toBeVisible();
     expect(screen.getByRole("table", { name: "经营运行台账" })).toBeVisible();
-    for (const label of ["业务域", "授权地区", "经营期间", "产品或作物"]) {
+    for (const label of ["业务类型", "授权地区", "经营期间", "产品或作物"]) {
       expect(screen.getByRole("combobox", { name: label })).toBeVisible();
     }
     expect(
@@ -428,11 +494,11 @@ describe("enterprise portal workspaces", () => {
     );
 
     expect(
-      screen.getByRole("option", { name: "产品名称待维护" }),
+      screen.getByRole("option", { name: "所选产品已不可用" }),
     ).toBeVisible();
     expect(
       screen.getByRole("option", {
-        name: "采用数据名称待维护",
+        name: "所选采用数据已不可用",
         hidden: true,
       }),
     ).not.toBeVisible();
@@ -502,7 +568,7 @@ describe("enterprise portal workspaces", () => {
       screen.queryByRole("button", { name: "分析播种面积" }),
     ).not.toBeInTheDocument();
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "业务域" }),
+      screen.getByRole("combobox", { name: "业务类型" }),
       "market",
     );
     expect(onCoordinateChange).toHaveBeenCalledWith(
@@ -609,9 +675,10 @@ describe("enterprise portal workspaces", () => {
       screen.getByRole("navigation", { name: "表格分页" }),
     ).toHaveTextContent(/共 [1-9]\d* 条/);
     expect(container.querySelectorAll("table")).toHaveLength(1);
-    for (const label of ["业务域", "业务地区", "产品或作物", "任务期间"]) {
+    for (const label of ["业务类型", "业务地区", "产品或作物"]) {
       expect(screen.getByRole("combobox", { name: label })).toBeVisible();
     }
+    expect(screen.getByRole("combobox", { name: "任务期间" })).toBeVisible();
     expect(
       screen.queryByRole("combobox", { name: "业务分类" }),
     ).not.toBeInTheDocument();
@@ -622,7 +689,6 @@ describe("enterprise portal workspaces", () => {
     expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
       "authorized-all",
     );
-    expect(screen.getByRole("combobox", { name: "任务期间" })).toHaveValue("");
     expect(
       within(ledger)
         .getAllByRole("columnheader")
@@ -674,7 +740,7 @@ describe("enterprise portal workspaces", () => {
     ).not.toBeInTheDocument();
 
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "业务域" }),
+      screen.getByRole("combobox", { name: "业务类型" }),
       "market",
     );
     expect(onCoordinateChange).toHaveBeenLastCalledWith({
@@ -683,6 +749,54 @@ describe("enterprise portal workspaces", () => {
     });
     expect(within(ledger).getAllByText("市场监测").length).toBeGreaterThan(0);
     expect(within(ledger).queryByText("产情监测")).not.toBeInTheDocument();
+  });
+
+  it("derives My Work filters from real rows, removes duplicates, and hides single-value dimensions", () => {
+    const first = businessWorkFixtures[0];
+    const second: BusinessWorkItem = {
+      ...first,
+      workId: `${first.workId}-second`,
+      regionId: "230281",
+      regionLabel: "讷河市",
+      productId: "soybean",
+      productLabel: "大豆",
+      periodKey: "2026-W32",
+      effectivePeriod: "2026 年第 32 周",
+    };
+
+    const { rerender } = render(<MyWorkHarness workItems={[first, second]} />);
+
+    expect(
+      screen.queryByRole("combobox", { name: "业务类型" }),
+    ).not.toBeInTheDocument();
+    const region = screen.getByRole("combobox", { name: "业务地区" });
+    expect(
+      within(region)
+        .getAllByRole("option")
+        .map(({ textContent }) => textContent),
+    ).toEqual(["全部地区", first.regionLabel, "讷河市"]);
+    expect(
+      within(region).queryByText("地区名称待维护"),
+    ).not.toBeInTheDocument();
+    const product = screen.getByRole("combobox", { name: "产品或作物" });
+    expect(
+      within(product)
+        .getAllByRole("option")
+        .map(({ textContent }) => textContent),
+    ).toEqual(["全部产品或作物", expect.any(String), "大豆"]);
+    const period = screen.getByRole("combobox", { name: "任务期间" });
+    expect(
+      within(period)
+        .getAllByRole("option")
+        .map(({ textContent }) => textContent),
+    ).toEqual(["全部任务期间", "2026 年第 31 周", "2026 年第 32 周"]);
+
+    rerender(<MyWorkHarness workItems={[first]} />);
+    for (const label of ["业务类型", "业务地区", "产品或作物", "任务期间"]) {
+      expect(
+        screen.queryByRole("combobox", { name: label }),
+      ).not.toBeInTheDocument();
+    }
   });
 
   it("shows a governed empty state for unauthorized My Work coordinates without fallback", () => {

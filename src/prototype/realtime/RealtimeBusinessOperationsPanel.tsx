@@ -143,12 +143,16 @@ export function RealtimeBusinessOperationsPanel({
       .then((session) => {
         if (cancelled) return;
         setAuthenticatedName(session.displayName);
-        setValues((current) => ({
-          ...current,
-          ...(domain === "production"
-            ? { PROD_REPORTER_NAME: session.displayName }
-            : { MKT_REPORTER_NAME: session.displayName }),
-        }));
+        setValues((current) =>
+          selectedRecordId.current
+            ? current
+            : {
+                ...current,
+                ...(domain === "production"
+                  ? { PROD_REPORTER_NAME: session.displayName }
+                  : { MKT_REPORTER_NAME: session.displayName }),
+              },
+        );
         setIdentityError("");
       })
       .catch(() => {
@@ -168,12 +172,16 @@ export function RealtimeBusinessOperationsPanel({
       .then((snapshot) => {
         if (cancelled) return;
         setMaster(snapshot);
-        setValues((current) => ({
-          ...current,
-          ...(domain === "production"
-            ? { PROD_REPORTER_NAME: authenticatedName }
-            : { MKT_REPORTER_NAME: authenticatedName }),
-        }));
+        setValues((current) =>
+          selectedRecordId.current
+            ? current
+            : {
+                ...current,
+                ...(domain === "production"
+                  ? { PROD_REPORTER_NAME: authenticatedName }
+                  : { MKT_REPORTER_NAME: authenticatedName }),
+              },
+        );
         const configured = snapshot.products.some(
           ({ code }) => code.toUpperCase() === productCode,
         );

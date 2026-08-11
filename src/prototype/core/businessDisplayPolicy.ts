@@ -15,7 +15,7 @@ export function businessComparisonReason(
     return "各年度统计口径尚未完成可比性确认";
   }
   if (/期间键|同期间|比较期间/.test(normalized)) return "比较期间不一致";
-  if (/业务域坐标|业务坐标|同坐标/.test(normalized)) {
+  if (/业务域坐标|业务类型坐标|业务坐标|同坐标/.test(normalized)) {
     return "指标所属业务范围不一致";
   }
   if (/数据层/.test(normalized)) return "各年度数据状态不一致";
@@ -53,12 +53,12 @@ export function businessDataBatchLabel(
 
 export function chineseDateTime(value: string | null | undefined): string {
   const normalized = value?.trim();
-  if (!normalized) return "时间待维护";
+  if (!normalized) return "时间未提供";
   const match =
     /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?$/.exec(
       normalized,
     );
-  if (!match) return "时间待维护";
+  if (!match) return "时间未提供";
   const [, year, month, day, hour, minute] = match;
   const date = `${year}年${Number(month)}月${Number(day)}日`;
   return hour && minute ? `${date} ${hour}:${minute}` : date;
@@ -66,7 +66,7 @@ export function chineseDateTime(value: string | null | undefined): string {
 
 export function chinesePeriodRange(value: string | null | undefined): string {
   const normalized = value?.trim();
-  if (!normalized) return "有效期待维护";
+  if (!normalized) return "有效期未提供";
   const range =
     /^(\d{4})-(\d{2})-(\d{2})\s*(?:至|到|—|~)\s*(\d{4})-(\d{2})-(\d{2})$/.exec(
       normalized,
@@ -79,5 +79,5 @@ export function chinesePeriodRange(value: string | null | undefined): string {
   if (!/[A-Za-z_]/.test(normalized) && /[年月日周季]/.test(normalized)) {
     return normalized;
   }
-  return "有效期待维护";
+  return "有效期未提供";
 }

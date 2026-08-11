@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -244,7 +245,10 @@ describe("RealtimeBusinessOperationsPanel", () => {
       costs: {},
       insurance: {},
       subsidies: {},
-      submissionMetadata: { PROD_SAMPLE_NAME: "龙东村样本户" },
+      submissionMetadata: {
+        PROD_REPORTER_NAME: "原始填报员",
+        PROD_SAMPLE_NAME: "龙东村样本户",
+      },
       reportedAt: "2026-08-08T10:00:00+08:00",
       estimatedOutputKilograms: "65000",
       status: "PENDING_REVIEW",
@@ -266,6 +270,16 @@ describe("RealtimeBusinessOperationsPanel", () => {
       ],
       version: 3,
     };
+    let resolveSession!: (session: {
+      subjectId: string;
+      displayName: string;
+      workUnitCode: string;
+      permissions: string[];
+      regionCodes: string[];
+    }) => void;
+    api.loadCurrentSession = vi.fn(
+      () => new Promise((resolve) => { resolveSession = resolve; }),
+    );
     getProduction.mockResolvedValue(pending);
     transitionProduction.mockResolvedValue({
       ...pending,
@@ -292,6 +306,18 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       await screen.findByRole("heading", { name: "产情单据审核" }),
     ).toBeVisible();
+    expect(screen.getByLabelText("填报人")).toHaveTextContent("原始填报员");
+    await act(async () => {
+      resolveSession({
+        subjectId: "reviewer",
+        displayName: "当前审核员",
+        workUnitCode: "QIQIHAR_BUSINESS",
+        permissions: ["BUSINESS_APPROVE"],
+        regionCodes: ["230200"],
+      });
+      await Promise.resolve();
+    });
+    expect(screen.getByLabelText("填报人")).toHaveTextContent("原始填报员");
     expect(screen.getByLabelText("调查日期")).toBeDisabled();
     expect(
       screen.queryByRole("button", { name: "保存业务记录" }),

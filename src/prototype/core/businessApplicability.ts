@@ -6,6 +6,7 @@ export type ProductionBusinessObjectTypeId =
 export type MarketBusinessObjectTypeId =
   | "trader"
   | "deep-processing"
+  | "rice-mill"
   | "breeding-farm"
   | "feed-mill"
   | "wholesale-market"
@@ -37,6 +38,7 @@ const productionObjectTypes = [
 const marketObjectTypes = {
   trader: { id: "trader", label: "贸易商" },
   "deep-processing": { id: "deep-processing", label: "深加工企业" },
+  "rice-mill": { id: "rice-mill", label: "米厂" },
   "breeding-farm": { id: "breeding-farm", label: "养殖场" },
   "feed-mill": { id: "feed-mill", label: "饲料厂" },
   "wholesale-market": { id: "wholesale-market", label: "批发市场" },
@@ -210,7 +212,11 @@ export function getMarketCapabilityGroups(
       { id: "sales", label: "销售", fields: salesFields },
     ];
   }
-  if (objectTypeId === "deep-processing" || objectTypeId === "feed-mill") {
+  if (
+    objectTypeId === "deep-processing" ||
+    objectTypeId === "rice-mill" ||
+    objectTypeId === "feed-mill"
+  ) {
     return [
       procurement,
       quality,

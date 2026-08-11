@@ -70,10 +70,10 @@ export function validateMetricDefinition(
     throw new Error("价格统计口径不能为空");
   }
   if (!definition.businessSubtype.startsWith(`${definition.domain}.`)) {
-    throw new Error("指标业务域与业务分类不一致");
+    throw new Error("指标业务类型与业务分类不一致");
   }
   if (!definition.metricId.startsWith(`${definition.domain}.`)) {
-    throw new Error("指标编号与业务域不一致");
+    throw new Error("指标编号与业务类型不一致");
   }
   if (
     definition.comparisonPolicy.cagr === "allowed" &&

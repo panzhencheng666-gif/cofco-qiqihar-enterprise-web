@@ -43,7 +43,7 @@ const primaryBusinessApplications = [
   {
     key: "supply",
     label: "供需分析",
-    route: createFormalRoute("supply", "corn-balance"),
+    route: createFormalRoute("supply", "balance"),
   },
   {
     key: "reporting",
@@ -313,7 +313,13 @@ export function EnterpriseShell({
   const currentPageLabel =
     currentApplication.navigation.find(
       ({ route }) => route.section === location.route.section,
-    )?.label ?? "当前业务";
+    )?.label ??
+    (location.route.application === "supply" &&
+    ["corn-balance", "soybean-balance", "paddy-balance"].includes(
+      location.route.section,
+    )
+      ? "供需平衡"
+      : "当前业务");
   const currentHelp = pageHelpContent(location.route);
   const searchablePages: SearchResult[] = formalApplicationDefinitions
     .filter(

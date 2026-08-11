@@ -46,6 +46,70 @@ const domainLabels = new Map(
   executiveCoordinateOptions.domains.map(({ id, label }) => [id, label]),
 );
 
+interface ExecutiveFilterOption {
+  id: string;
+  label: string;
+}
+
+interface RealtimeExecutiveOptions {
+  domains: readonly ExecutiveFilterOption[];
+  regions: readonly ExecutiveFilterOption[];
+  products: readonly ExecutiveFilterOption[];
+  periods: readonly ExecutiveFilterOption[];
+  classifications: readonly (ExecutiveFilterOption & {
+    domain: BusinessWorkItem["domain"];
+  })[];
+}
+
+function realtimeExecutiveOptions(
+  workItems: readonly BusinessWorkItem[],
+): RealtimeExecutiveOptions {
+  const regions = new Map<string, string>();
+  const products = new Map<string, string>();
+  const periods = new Map<string, string>();
+  const domains = new Set<BusinessWorkItem["domain"]>();
+  const classifications = new Map<
+    string,
+    ExecutiveFilterOption & { domain: BusinessWorkItem["domain"] }
+  >();
+  for (const item of workItems) {
+    domains.add(item.domain);
+    if (item.regionId && item.regionLabel.trim() && !regions.has(item.regionId)) {
+      regions.set(item.regionId, item.regionLabel.trim());
+    }
+    if (item.productId && !products.has(item.productId)) {
+      const label = item.productLabel?.trim();
+      if (label) products.set(item.productId, label);
+    }
+    if (item.periodKey && !periods.has(item.periodKey)) {
+      periods.set(
+        item.periodKey,
+        item.effectivePeriod.trim() || item.periodKey,
+      );
+    }
+    if (
+      item.businessSubtypeId &&
+      !classifications.has(item.businessSubtypeId)
+    ) {
+      classifications.set(item.businessSubtypeId, {
+        id: item.businessSubtypeId,
+        label: item.businessLabel.trim() || domainLabels.get(item.domain) || "业务事项",
+        domain: item.domain,
+      });
+    }
+  }
+  return {
+    domains: [...domains].map((id) => ({
+      id,
+      label: domainLabels.get(id) ?? "业务事项",
+    })),
+    regions: [...regions].map(([id, label]) => ({ id, label })),
+    products: [...products].map(([id, label]) => ({ id, label })),
+    periods: [...periods].map(([id, label]) => ({ id, label })),
+    classifications: [...classifications.values()],
+  };
+}
+
 function optionLabel(
   options: readonly { id: string; label: string }[],
   id: string | null | undefined,
@@ -58,13 +122,13 @@ function optionLabel(
 
 function regionLabel(regionId: string): string {
   if (!regionId) return "未选择授权地区";
-  return getEnterpriseScopeRegion(regionId)?.label ?? "地区名称待维护";
+  return getEnterpriseScopeRegion(regionId)?.label ?? "所选地区已不可用";
 }
 
 function classificationLabel(classificationId: string): string {
   return (
     businessClassifications.find(({ id }) => id === classificationId)?.label ??
-    "业务分类名称待维护"
+    "所选业务分类已不可用"
   );
 }
 
@@ -100,7 +164,7 @@ function executiveVersionLabel(versionId: string): string {
   if (annualMetric) {
     return `${annualMetric[1]}年度已核定数据`;
   }
-  return "采用数据名称待维护";
+  return "所选采用数据已不可用";
 }
 
 function qualityStateLabel(qualityState: string): string {
@@ -126,11 +190,11 @@ function definitionVersionLabel(
   metricLabel: string,
   versionId: string,
 ): string {
-  return versionId ? `${metricLabel}统计公式` : "统计公式待维护";
+  return versionId ? `${metricLabel}统计公式` : "未提供统计公式版本";
 }
 
 function comparabilityVersionLabel(versionId: string): string {
-  return versionId ? "四年统计口径连续可比" : "可比性说明待维护";
+  return versionId ? "四年统计口径连续可比" : "未提供可比性说明";
 }
 
 function localizedComparison(
@@ -254,7 +318,7 @@ function OperationsLedger({
                   >
                     <strong>{row.comparison.metricLabel}</strong>
                     <span>
-                      {domainLabels.get(row.domain) ?? "业务域名称待维护"}
+                      {domainLabels.get(row.domain) ?? "业务类型已不可用"}
                     </span>
                     <span className="executive-ledger-select__action">
                       分析{row.comparison.metricLabel}
@@ -551,7 +615,7 @@ function ReleasesLedger({
                 <span className="executive-ledger-stack">
                   <strong>
                     {domainLabels.get(row.sourceBusinessDomain) ??
-                      "来源业务名称待维护"}
+                      "来源业务已不可用"}
                   </strong>
                   <small>
                     {classificationLabel(row.sourceBusinessSubtype)}
@@ -619,10 +683,17 @@ function ExecutiveResultSummary({
   section,
   query,
   totalRows,
+  labels,
 }: {
   section: ExecutiveLedgerQuery["view"];
   query: ExecutiveLedgerQuery;
   totalRows: number;
+  labels?: {
+    region: string;
+    period: string;
+    business: string;
+    version: string;
+  };
 }) {
   const viewLabels: Readonly<Record<ExecutiveLedgerQuery["view"], string>> = {
     operations: "经营指标",
@@ -640,28 +711,34 @@ function ExecutiveResultSummary({
       <strong>
         {viewLabels[section]} {totalRows} 项
       </strong>
-      <span>{regionLabel(query.regionId)}</span>
+      <span>{labels?.region ?? regionLabel(query.regionId)}</span>
       <span>
-        {optionLabel(
-          executiveCoordinateOptions.periods,
-          query.periodKey,
-          "尚未选择经营期间",
-          "经营期间名称待维护",
+        {labels?.period ??
+          optionLabel(
+            executiveCoordinateOptions.periods,
+            query.periodKey,
+            "尚未选择经营期间",
+            "所选经营期间已不可用",
+          )}
+      </span>
+      <span>
+        {labels?.business ?? (
+          <>
+            {domainLabels.get(query.domain) ?? "所选业务类型已不可用"} ·{" "}
+            {optionLabel(
+              executiveCoordinateOptions.products,
+              query.productId,
+              "全部已授权产品",
+              "所选产品已不可用",
+            )}
+          </>
         )}
       </span>
       <span>
-        {domainLabels.get(query.domain) ?? "业务域名称待维护"} ·{" "}
-        {optionLabel(
-          executiveCoordinateOptions.products,
-          query.productId,
-          "全部已授权产品",
-          "产品名称待维护",
-        )}
-      </span>
-      <span>
-        {query.releaseVersion
-          ? executiveVersionLabel(query.releaseVersion)
-          : "全部已核定数据"}
+        {labels?.version ??
+          (query.releaseVersion
+            ? executiveVersionLabel(query.releaseVersion)
+            : "全部已核定数据")}
       </span>
       {section === "operations" &&
         query.productId === null &&
@@ -714,9 +791,213 @@ function ExecutivePagination({
   );
 }
 
+function RealtimeExecutiveFilters({
+  query,
+  options,
+  onScopeChange,
+}: {
+  query: ExecutiveLedgerQuery;
+  options: RealtimeExecutiveOptions;
+  onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+}) {
+  const visibleClassifications = options.classifications.filter(
+    ({ domain }) => query.domain === "all" || domain === query.domain,
+  );
+  const domainInvalid =
+    query.domain !== "all" &&
+    !options.domains.some(({ id }) => id === query.domain);
+  const regionInvalid =
+    query.regionId !== "authorized-all" &&
+    !options.regions.some(({ id }) => id === query.regionId);
+  const productInvalid =
+    query.productId !== null &&
+    !options.products.some(({ id }) => id === query.productId);
+  const periodInvalid = !options.periods.some(
+    ({ id }) => id === query.periodKey,
+  );
+  const classificationInvalid =
+    query.businessSubtype !== null &&
+    !visibleClassifications.some(({ id }) => id === query.businessSubtype);
+  const showDomain = options.domains.length > 1 || domainInvalid;
+  const showRegion = options.regions.length > 1 || regionInvalid;
+  const showProduct = options.products.length > 1 || productInvalid;
+  const showPeriod = options.periods.length > 1 || periodInvalid;
+  const showClassification =
+    visibleClassifications.length > 1 || classificationInvalid;
+
+  if (
+    !showDomain &&
+    !showRegion &&
+    !showProduct &&
+    !showPeriod &&
+    !showClassification
+  ) {
+    return null;
+  }
+
+  return (
+    <section aria-label="经营总览业务筛选" className="executive-filter-surface">
+      <div className="executive-filter-grid executive-filter-grid--primary">
+        {showDomain && (
+          <label>
+            <span>业务类型</span>
+            <select
+              aria-label="业务类型"
+              value={domainInvalid ? "__invalid-domain__" : query.domain}
+              onChange={(event) => {
+                const domain = event.target
+                  .value as ExecutiveLedgerQuery["domain"];
+                onScopeChange({
+                  businessDomainId: domain === "all" ? undefined : domain,
+                  businessSubtypeId: undefined,
+                  selectedMetricId: undefined,
+                });
+              }}
+            >
+              {domainInvalid && (
+                <option disabled value="__invalid-domain__">
+                  所选业务类型已不可用
+                </option>
+              )}
+              <option value="all">全部业务类型</option>
+              {options.domains.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {showRegion && (
+          <label>
+            <span>业务地区</span>
+            <select
+              aria-label="业务地区"
+              value={query.regionId}
+              onChange={(event) =>
+                onScopeChange({
+                  regionId: event.target.value,
+                  regionLevel: undefined,
+                  selectedMetricId: undefined,
+                })
+              }
+            >
+              {regionInvalid && (
+                <option disabled value={query.regionId}>
+                  所选地区已不可用
+                </option>
+              )}
+              <option value="authorized-all">全部地区</option>
+              {options.regions.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {showPeriod && (
+          <label>
+            <span>任务期间</span>
+            <select
+              aria-label="任务期间"
+              value={periodInvalid ? "__invalid-period__" : query.periodKey}
+              onChange={(event) =>
+                onScopeChange({
+                  periodKey: event.target.value,
+                  selectedMetricId: undefined,
+                })
+              }
+            >
+              {periodInvalid && (
+                <option disabled value="__invalid-period__">
+                  {query.periodKey ? "所选任务期间已不可用" : "暂无任务期间"}
+                </option>
+              )}
+              {options.periods.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {showProduct && (
+          <label>
+            <span>产品或作物</span>
+            <select
+              aria-label="产品或作物"
+              value={productInvalid ? "__invalid-product__" : query.productId ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  productId: event.target.value || undefined,
+                  cultivarId: undefined,
+                  selectedMetricId: undefined,
+                })
+              }
+            >
+              {productInvalid && (
+                <option disabled value="__invalid-product__">
+                  所选产品或作物已不可用
+                </option>
+              )}
+              <option value="">全部产品或作物</option>
+              {options.products.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      {showClassification && (
+        <details className="executive-more-filters">
+          <summary>
+            <strong>更多筛选</strong>
+            <span>按真实业务分类进一步缩小范围</span>
+          </summary>
+          <div className="executive-filter-grid executive-filter-grid--secondary">
+            <label>
+              <span>业务分类</span>
+              <select
+                aria-label="业务分类"
+                value={
+                  classificationInvalid
+                    ? "__invalid-classification__"
+                    : query.businessSubtype ?? ""
+                }
+                onChange={(event) =>
+                  onScopeChange({
+                    businessSubtypeId: event.target.value || undefined,
+                    selectedMetricId: undefined,
+                  })
+                }
+              >
+                {classificationInvalid && (
+                  <option disabled value="__invalid-classification__">
+                    所选业务分类已不可用
+                  </option>
+                )}
+                <option value="">全部业务分类</option>
+                {visibleClassifications.map(({ id, label }) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </details>
+      )}
+    </section>
+  );
+}
+
 function ExecutiveFilters({
   scope,
   query,
+  workItems,
   onScopeChange,
   invalidBusinessDomain,
   invalidPeriod,
@@ -724,12 +1005,22 @@ function ExecutiveFilters({
 }: {
   scope: OperationalScope;
   query: ExecutiveLedgerQuery;
+  workItems: readonly BusinessWorkItem[];
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   invalidBusinessDomain: boolean;
   invalidPeriod: boolean;
   invalidRiskState: boolean;
 }) {
   const [cascadeNotice, setCascadeNotice] = useState<string | null>(null);
+  if (scope.authorization.serverAuthoritative === true) {
+    return (
+      <RealtimeExecutiveFilters
+        onScopeChange={onScopeChange}
+        options={realtimeExecutiveOptions(workItems)}
+        query={query}
+      />
+    );
+  }
   const visibleClassifications = businessClassifications.filter(
     ({ id, domain }) =>
       scope.authorization.authorizedBusinessClassificationIds.includes(id) &&
@@ -759,7 +1050,7 @@ function ExecutiveFilters({
     ...(query.productId &&
     scope.authorization.authorizedProductIds.includes(query.productId) &&
     !authorizedMasterData.products.some(({ id }) => id === query.productId)
-      ? [{ id: query.productId, label: "产品名称待维护" }]
+      ? [{ id: query.productId, label: "所选产品已不可用" }]
       : []),
   ];
   const selectedProductId = query.productId;
@@ -782,7 +1073,7 @@ function ExecutiveFilters({
     !authorizedMasterData.releaseBatches.some(
       ({ id }) => id === query.releaseVersion,
     )
-      ? [{ id: query.releaseVersion, label: "采用数据名称待维护" }]
+      ? [{ id: query.releaseVersion, label: "所选采用数据已不可用" }]
       : []),
   ];
   const selectedRegionAuthorized =
@@ -792,9 +1083,9 @@ function ExecutiveFilters({
     <section aria-label="经营总览业务筛选" className="executive-filter-surface">
       <div className="executive-filter-grid executive-filter-grid--primary">
         <label>
-          <span>业务域</span>
+          <span>业务类型</span>
           <select
-            aria-label="业务域"
+            aria-label="业务类型"
             value={
               invalidBusinessDomain
                 ? "__invalid-business-domain__"
@@ -817,7 +1108,7 @@ function ExecutiveFilters({
           >
             {invalidBusinessDomain && (
               <option disabled value="__invalid-business-domain__">
-                无效业务域（请重新选择）
+                所选业务类型已不可用
               </option>
             )}
             {executiveCoordinateOptions.domains.map((option) => (
@@ -846,7 +1137,7 @@ function ExecutiveFilters({
             {!query.regionId && <option value="">请选择授权地区</option>}
             {query.regionId && !selectedRegionAuthorized && (
               <option disabled value={query.regionId}>
-                地区名称待维护（不在当前授权范围）
+                所选地区不在当前授权范围
               </option>
             )}
             {regionCoordinateConflict && selectedRegionAuthorized && (
@@ -1113,12 +1404,31 @@ export function ExecutiveOverviewWorkspace({
 }) {
   const [page, setPage] = useState(1);
   if (section === "map") return null;
+  const realtimeMode = scope.authorization.serverAuthoritative === true;
+  const currentWorkItems = workItems ?? [];
+  const realtimeOptions = realtimeExecutiveOptions(currentWorkItems);
+  const effectivePeriodKey =
+    scope.coordinates.periodKey ?? realtimeOptions.periods[0]?.id ?? "";
+  const queryScope = realtimeMode
+    ? {
+        ...scope,
+        coordinates: {
+          ...scope.coordinates,
+          periodKey: effectivePeriodKey,
+        },
+      }
+    : scope;
   const query = {
-    ...createDefaultExecutiveLedgerQuery(scope),
+    ...createDefaultExecutiveLedgerQuery(queryScope),
     view: section,
-    regionId: scope.coordinates.regionId,
+    regionId: queryScope.coordinates.regionId,
   };
-  const coordinateIssues = getExecutiveScopeCoordinateIssues(scope);
+  const coordinateIssues = getExecutiveScopeCoordinateIssues(
+    queryScope,
+    realtimeMode
+      ? realtimeOptions.periods.map(({ id }) => id)
+      : undefined,
+  );
   const invalidBusinessDomain = coordinateIssues.some(
     ({ coordinate }) => coordinate === "business-domain",
   );
@@ -1129,17 +1439,19 @@ export function ExecutiveOverviewWorkspace({
     ({ coordinate }) => coordinate === "risk-state",
   );
   const selectedRegionLevel =
-    scope.coordinates.regionLevel ?? regionLevelForId(query.regionId);
+    queryScope.coordinates.regionLevel ?? regionLevelForId(query.regionId);
   const regionSelectionMissing = query.regionId.length === 0;
   const regionCoordinateConflict =
+    !realtimeMode &&
     !regionSelectionMissing &&
     regionLevelForId(query.regionId) !== selectedRegionLevel;
   const aggregateCoverageMissing =
+    !realtimeMode &&
     coordinateIssues.length === 0 &&
     query.regionId === "authorized-all" &&
     resolveExecutiveAggregateMembership(scope, query) === null;
   const result = queryExecutiveLedger(
-    scope,
+    queryScope,
     regionCoordinateConflict
       ? { ...query, regionId: "__inconsistent-region-level__" }
       : query,
@@ -1169,6 +1481,30 @@ export function ExecutiveOverviewWorkspace({
     : undefined;
   const openTarget = (target: ExecutiveDrillDownTarget) =>
     onOpenRoute(routeForTarget(target));
+  const realtimeSummaryLabels = realtimeMode
+    ? {
+        region:
+          query.regionId === "authorized-all"
+            ? "全部地区"
+            : realtimeOptions.regions.find(({ id }) => id === query.regionId)
+                ?.label ?? "所选地区已不可用",
+        period:
+          realtimeOptions.periods.find(({ id }) => id === query.periodKey)
+            ?.label ?? "当前没有可用任务期间",
+        business: `${
+          query.domain === "all"
+            ? "全部业务类型"
+            : realtimeOptions.domains.find(({ id }) => id === query.domain)
+                ?.label ?? "所选业务类型已不可用"
+        } · ${
+          query.productId === null
+            ? "全部产品或作物"
+            : realtimeOptions.products.find(({ id }) => id === query.productId)
+                ?.label ?? "所选产品或作物已不可用"
+        }`,
+        version: "当前业务数据",
+      }
+    : undefined;
 
   return (
     <div className="unified-workspace executive-ledger-workspace">
@@ -1189,6 +1525,7 @@ export function ExecutiveOverviewWorkspace({
       <ExecutiveFilters
         scope={scope}
         query={query}
+        workItems={currentWorkItems}
         onScopeChange={(coordinates) => {
           setPage(1);
           onScopeChange(coordinates);
@@ -1198,6 +1535,7 @@ export function ExecutiveOverviewWorkspace({
         invalidRiskState={invalidRiskState}
       />
       <ExecutiveResultSummary
+        labels={realtimeSummaryLabels}
         section={section}
         query={query}
         totalRows={totalRows}
@@ -1211,7 +1549,7 @@ export function ExecutiveOverviewWorkspace({
           </strong>
           {invalidBusinessDomain || invalidRiskState ? (
             <span>
-              当前链接中的业务域、风险状态或经营期间缺少有效筛选值；系统未执行数据查询，请重新选择。
+              当前链接中的业务类型、风险状态或经营期间缺少有效筛选值；系统未执行数据查询，请重新选择。
             </span>
           ) : (
             <span>

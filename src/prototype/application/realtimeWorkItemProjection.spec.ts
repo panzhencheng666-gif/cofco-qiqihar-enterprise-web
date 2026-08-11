@@ -113,15 +113,42 @@ describe("realtime work item projection", () => {
         sourceId: "logistics-record-1",
       },
       [{ code: "CORN", name: "玉米" }],
+      [
+        {
+          code: "2026-W31",
+          name: "2026 年第 31 周",
+          startsOn: "2026-07-27",
+          endsOn: "2026-08-02",
+          marketingYearCode: "2026/27",
+          marketingYearName: "2026/27营销年度",
+        },
+      ],
+      [
+        {
+          code: "230202",
+          name: "龙沙区",
+          parentCode: "230200",
+          level: "COUNTY",
+        },
+      ],
     );
 
     expect(item.domain).toBe("market");
+    expect(item.title).toBe("玉米物流监测审核任务");
+    expect(item.title).not.toContain("logistics-record-1");
+    expect(item.regionLabel).toBe("龙沙区");
+    expect(item.productLabel).toBe("玉米");
+    expect(item.effectivePeriod).toBe("2026 年第 31 周");
     expect(item.businessSubtypeId).toBe("market.logistics");
     expect(item.subject).toMatchObject({
       kind: "monitoring-object",
       objectId: "logistics-record-1",
       objectTypeId: "LOGISTICS",
     });
+    expect(item.subject.kind).toBe("monitoring-object");
+    if (item.subject.kind === "monitoring-object") {
+      expect(item.subject.objectName).not.toContain("logistics-record-1");
+    }
   });
 
   it("loads completed backend work for the completed employee view", () => {

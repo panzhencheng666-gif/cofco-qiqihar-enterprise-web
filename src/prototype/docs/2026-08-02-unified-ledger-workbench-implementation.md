@@ -35,7 +35,7 @@
 - [ ] **Step 1: Add failing contract assertions**
 
 ```ts
-expect(css).toContain("--enterprise-query-control-width: 176px");
+expect(css).toContain("--enterprise-query-control-width: 188px");
 expect(css).toContain("--enterprise-query-region-width: 220px");
 expect(css).toMatch(
   /\.enterprise-ledger-query__actions\s*\{[^}]*margin-inline-start:\s*auto/s,
@@ -55,7 +55,7 @@ Expected: FAIL only on the new query-layout assertions.
 
 ```css
 .enterprise-ledger-query {
-  --enterprise-query-control-width: 176px;
+  --enterprise-query-control-width: 188px;
   --enterprise-query-region-width: 220px;
   display: flex;
   flex-wrap: wrap;

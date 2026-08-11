@@ -44,7 +44,7 @@ describe("business display policy", () => {
     expect(chineseDateTime("2026-07-31T17:00:00+08:00")).toBe(
       "2026年7月31日 17:00",
     );
-    expect(chineseDateTime("BUILD_INTERNAL_42")).toBe("时间待维护");
+    expect(chineseDateTime("BUILD_INTERNAL_42")).toBe("时间未提供");
   });
 
   it("formats a stored responsibility period as a Chinese business range", () => {
@@ -52,6 +52,6 @@ describe("business display policy", () => {
       "2026年1月1日至2026年12月31日",
     );
     expect(chinesePeriodRange("2026 年度")).toBe("2026 年度");
-    expect(chinesePeriodRange("BUILD_INTERNAL_42")).toBe("有效期待维护");
+    expect(chinesePeriodRange("BUILD_INTERNAL_42")).toBe("有效期未提供");
   });
 });

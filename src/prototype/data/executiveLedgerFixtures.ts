@@ -63,7 +63,7 @@ export const executiveAggregateRegionMembershipFixtures: readonly ExecutiveAggre
 
 export const executiveCoordinateOptions = {
   domains: [
-    { id: "all", label: "全部业务域" },
+    { id: "all", label: "全部业务类型" },
     { id: "production", label: "产情监测" },
     { id: "market", label: "市场监测" },
     { id: "supply", label: "供需核算" },

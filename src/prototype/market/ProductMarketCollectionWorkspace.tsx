@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type {
   BusinessRecordListItem,
   MarketDefinition,
+  MasterObjectType,
   ProductionImportJob,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
@@ -223,11 +224,31 @@ const marketObjectTypeCode: Readonly<
 > = {
   trader: "TRADER",
   "deep-processing": "DEEP_PROCESSOR",
+  "rice-mill": "RICE_MILL",
   "breeding-farm": "BREEDING_FACTORY",
   "feed-mill": "FEED_MILL",
   "wholesale-market": "WHOLESALE_MARKET",
   "reserve-storage": "RESERVE_ENTERPRISE",
 };
+
+const marketObjectTypeIdByCode: Readonly<
+  Record<string, MarketBusinessObjectTypeId>
+> = {
+  TRADER: "trader",
+  DEEP_PROCESSOR: "deep-processing",
+  RICE_MILL: "rice-mill",
+  BREEDING_FACTORY: "breeding-farm",
+  FEED_MILL: "feed-mill",
+  WHOLESALE_MARKET: "wholesale-market",
+  RESERVE_ENTERPRISE: "reserve-storage",
+};
+
+function formalMarketObjectTypeOptions(types: readonly MasterObjectType[]) {
+  return types.flatMap(({ code, name }) => {
+    const id = marketObjectTypeIdByCode[code];
+    return id ? [{ id, label: name }] : [];
+  });
+}
 
 const marketBaseListCodes = new Set([
   "MKT_OBJECT_TYPE",
@@ -430,11 +451,41 @@ export function ProductMarketCollectionWorkspace({
   const [recordsError, setRecordsError] = useState("");
   const [marketDefinition, setMarketDefinition] =
     useState<MarketDefinition | null>(null);
+  const [formalObjectTypes, setFormalObjectTypes] = useState<
+    readonly { id: MarketBusinessObjectTypeId; label: string }[]
+  >([]);
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const { masterData, masterDataError } =
     useRealtimeMasterData(realtimeRepository);
+  const objectTypes = realtimeRepository
+    ? formalObjectTypes
+    : getMarketObjectTypeOptions(context.productId);
+  useEffect(() => {
+    if (!realtimeRepository) return;
+    let cancelled = false;
+    setObjectType("");
+    if (typeof realtimeRepository.listObjectTypes !== "function") {
+      setFormalObjectTypes(getMarketObjectTypeOptions(context.productId));
+      return;
+    }
+    setFormalObjectTypes([]);
+    void realtimeRepository
+      .listObjectTypes(productCode, "MARKET")
+      .then((types) => {
+        if (!cancelled) setFormalObjectTypes(formalMarketObjectTypeOptions(types));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFormalObjectTypes([]);
+          setRecordsError("当前产品对象类型暂时无法读取，请稍后重试。");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [context.productId, productCode, realtimeRepository]);
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -586,9 +637,9 @@ export function ProductMarketCollectionWorkspace({
   const persistedRows: readonly MarketCollectionRow[] = persistedRecords.map(
     (record, index) => {
       const rawObjectType = record.values.MKT_OBJECT_TYPE ?? "TRADER";
-      const itemObjectTypeId = normalizeMarketObjectType(
-        rawObjectType.toLowerCase().replaceAll("_", "-"),
-      );
+      const itemObjectTypeId =
+        marketObjectTypeIdByCode[rawObjectType] ??
+        normalizeMarketObjectType(rawObjectType.toLowerCase().replaceAll("_", "-"));
       return {
         rowId: record.id,
         workId: record.id,
@@ -659,7 +710,6 @@ export function ProductMarketCollectionWorkspace({
     (currentPageNumber + 1) * collectionPageSize,
     rowTotal,
   );
-  const objectTypes = getMarketObjectTypeOptions(context.productId);
   const sourceItem = productItems[0];
   const selectedItem =
     selection?.type === "work-item"
@@ -696,10 +746,7 @@ export function ProductMarketCollectionWorkspace({
         : context.productId === "soybean"
           ? "SOYBEAN"
           : "RICE";
-    const objectTypeCode =
-      displayedObjectType === "deep-processing" && context.productId === "paddy"
-        ? "RICE_MILL"
-        : marketObjectTypeCode[displayedObjectType];
+    const objectTypeCode = marketObjectTypeCode[displayedObjectType];
     void realtimeRepository
       .loadMarketDefinition(productCode, objectTypeCode)
       .then((definition) => {

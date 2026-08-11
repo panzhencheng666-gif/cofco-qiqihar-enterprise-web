@@ -75,7 +75,7 @@ describe("MetricDefinition", () => {
   it("requires the governed classification domain and CAGR policy to agree", () => {
     expect(() =>
       validateMetricDefinition(definition({ domain: "market" })),
-    ).toThrow("指标业务域与业务分类不一致");
+    ).toThrow("指标业务类型与业务分类不一致");
     expect(() =>
       validateMetricDefinition(
         definition({
@@ -132,6 +132,6 @@ describe("MetricDefinition", () => {
     ).toThrow("价格统计口径不能为空");
     expect(() =>
       validateMetricDefinition(definition({ metricId: "market.trade-volume" })),
-    ).toThrow("指标编号与业务域不一致");
+    ).toThrow("指标编号与业务类型不一致");
   });
 });

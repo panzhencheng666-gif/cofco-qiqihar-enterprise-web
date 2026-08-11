@@ -229,59 +229,65 @@ export function RealtimeReportCenterPanel({
           className="enterprise-ledger-query"
           role="search"
         >
-          <label>
-            <span>报告类型</span>
-            <select
-              aria-label="报告类型"
-              value={definitionCode}
-              onChange={(event) =>
-                changeScope(() => setDefinitionCode(event.target.value))
-              }
-            >
-              {options?.definitions.map((definition) => (
-                <option key={definition.code} value={definition.code}>
-                  {definition.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>产品品种</span>
-            <select
-              aria-label="产品品种"
-              value={productCode}
-              onChange={(event) =>
-                changeScope(() => {
-                  setProductCode(event.target.value);
-                  setCultivarCode("");
-                  setCultivars([]);
-                })
-              }
-            >
-              {master?.products.map((product) => (
-                <option key={product.code} value={product.code}>
-                  {product.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>具体品种</span>
-            <select
-              aria-label="具体品种"
-              value={cultivarCode}
-              onChange={(event) =>
-                changeScope(() => setCultivarCode(event.target.value))
-              }
-            >
-              <option value="">全部品种</option>
-              {cultivars.map((cultivar) => (
-                <option key={cultivar.code} value={cultivar.code}>
-                  {cultivar.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {(options?.definitions.length ?? 0) > 1 && (
+            <label>
+              <span>报告类型</span>
+              <select
+                aria-label="报告类型"
+                value={definitionCode}
+                onChange={(event) =>
+                  changeScope(() => setDefinitionCode(event.target.value))
+                }
+              >
+                {options?.definitions.map((definition) => (
+                  <option key={definition.code} value={definition.code}>
+                    {definition.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {(master?.products.length ?? 0) > 1 && (
+            <label>
+              <span>产品或作物</span>
+              <select
+                aria-label="产品或作物"
+                value={productCode}
+                onChange={(event) =>
+                  changeScope(() => {
+                    setProductCode(event.target.value);
+                    setCultivarCode("");
+                    setCultivars([]);
+                  })
+                }
+              >
+                {master?.products.map((product) => (
+                  <option key={product.code} value={product.code}>
+                    {product.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {cultivars.length > 0 && (
+            <label>
+              <span>具体品种</span>
+              <select
+                aria-label="具体品种"
+                value={cultivarCode}
+                onChange={(event) =>
+                  changeScope(() => setCultivarCode(event.target.value))
+                }
+              >
+                <option value="">全部品种</option>
+                {cultivars.map((cultivar) => (
+                  <option key={cultivar.code} value={cultivar.code}>
+                    {cultivar.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <RealtimeRegionCascadePicker
             ariaLabel="统计地区"
             onChange={(nextRegionCode) =>
@@ -291,44 +297,59 @@ export function RealtimeReportCenterPanel({
             requireVillage={false}
             value={regionCode}
           />
-          <label>
-            <span>统计时间</span>
-            <select
-              aria-label="统计时间"
-              value={periodCode}
-              onChange={(event) =>
-                changeScope(() => setPeriodCode(event.target.value))
-              }
-            >
-              {master?.periods.map((period) => (
-                <option key={period.code} value={period.code}>
-                  {period.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>导出格式</span>
-            <select
-              aria-label="导出格式"
-              value={formatCode}
-              onChange={(event) => {
-                exportSequence.current += 1;
-                setExporting(false);
-                setPublishing(false);
-                setFormatCode(event.target.value);
-                setReportExport(null);
-                setNotice("");
-                setError("");
-              }}
-            >
-              {options?.formats.map((format) => (
-                <option key={format.code} value={format.code}>
-                  {format.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {(master?.periods.length ?? 0) > 1 && (
+            <label>
+              <span>统计时间</span>
+              <select
+                aria-label="统计时间"
+                value={periodCode}
+                onChange={(event) =>
+                  changeScope(() => setPeriodCode(event.target.value))
+                }
+              >
+                {master?.periods.map((period) => (
+                  <option key={period.code} value={period.code}>
+                    {period.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {(options?.formats.length ?? 0) > 1 && (
+            <label>
+              <span>导出格式</span>
+              <select
+                aria-label="导出格式"
+                value={formatCode}
+                onChange={(event) => {
+                  exportSequence.current += 1;
+                  setExporting(false);
+                  setPublishing(false);
+                  setFormatCode(event.target.value);
+                  setReportExport(null);
+                  setNotice("");
+                  setError("");
+                }}
+              >
+                {options?.formats.map((format) => (
+                  <option key={format.code} value={format.code}>
+                    {format.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <p className="enterprise-ledger-query__summary">
+            当前范围：
+            {options?.definitions.find(({ code }) => code === definitionCode)
+              ?.name ?? "尚无报告类型"}
+            {" · "}
+            {master?.products.find(({ code }) => code === productCode)?.name ??
+              "尚无产品"}
+            {" · "}
+            {master?.periods.find(({ code }) => code === periodCode)?.name ??
+              "尚无统计时间"}
+          </p>
           {permissions.includes("REPORT_PREVIEW") && (
             <button
               disabled={!ready || previewing}

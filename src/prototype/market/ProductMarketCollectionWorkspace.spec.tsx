@@ -55,6 +55,49 @@ const loadMasterData = vi.fn().mockResolvedValue({
 });
 
 describe("product market collection workspace", () => {
+  it("uses the formal product object-type applicability and names from the backend", async () => {
+    const listObjectTypes = vi.fn().mockResolvedValue([
+      { code: "TRADER", name: "贸易商", domain: "MARKET" },
+      { code: "DEEP_PROCESSOR", name: "深加工企业", domain: "MARKET" },
+      { code: "BREEDING_FACTORY", name: "养殖场", domain: "MARKET" },
+    ]);
+    const repository = {
+      listMarket: vi.fn().mockResolvedValue({
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
+      }),
+      listObjectTypes,
+      loadMasterData,
+      loadMarketDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        objectTypeCode: "TRADER",
+        coreFields: [],
+        groups: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductMarketCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(listObjectTypes).toHaveBeenCalledWith("CORN", "MARKET"),
+    );
+    expect(screen.getByRole("option", { name: "深加工企业" })).toBeVisible();
+    expect(screen.getByRole("option", { name: "养殖场" })).toBeVisible();
+    expect(screen.queryByRole("option", { name: "米厂" })).not.toBeInTheDocument();
+  });
+
   it("queries by mandatory survey year, optional month and real filling dates", async () => {
     const user = userEvent.setup();
     const listMarket = vi

@@ -13,7 +13,7 @@ test("uses durable notifications, permission-scoped work navigation, and page he
   page,
 }) => {
   const eventId = randomUUID();
-  const aggregateId = randomUUID();
+  const submissionAuditId = randomUUID();
   const productionRecordId = randomUUID();
   queryE2eDatabase(`
     INSERT INTO platform.business_event_outbox(
@@ -21,7 +21,7 @@ test("uses durable notifications, permission-scoped work navigation, and page he
       actor_subject_id, work_unit_code, region_codes, product_code,
       occurred_at, detail
     ) VALUES (
-      '${eventId}'::uuid, 'PRODUCTION_RECORD', '${aggregateId}',
+      '${eventId}'::uuid, 'PRODUCTION_RECORD', '${productionRecordId}',
       'PRODUCTION_RECORD_CREATED', 'e2e-operator-two', 'E2E_QIQIHAR',
       ARRAY['230208101001'], 'CORN', now(),
       '{"source":"live-header-tools"}'::jsonb
@@ -36,6 +36,17 @@ test("uses durable notifications, permission-scoped work navigation, and page he
       '${productionRecordId}', 'CORN', 'FARMER', '230208101001',
       DATE '2026-08-09', TIMESTAMPTZ '2026-08-09 10:30:00+08',
       135, 482, 'PENDING_REVIEW', 'e2e-operator-one'
+    )
+  `);
+  queryE2eDatabase(`
+    INSERT INTO platform.business_audit_event(
+      event_id, aggregate_type, aggregate_id, action_code,
+      actor_subject_id, work_unit_code, occurred_at, detail
+    ) VALUES (
+      '${submissionAuditId}'::uuid, 'PRODUCTION_RECORD', '${productionRecordId}',
+      'PRODUCTION_RECORD_SUBMITTED', 'e2e-operator-one', 'E2E_QIQIHAR',
+      TIMESTAMPTZ '2026-08-09 10:31:00+08',
+      '{"source":"live-header-tools"}'::jsonb
     )
   `);
 
@@ -70,7 +81,7 @@ test("uses durable notifications, permission-scoped work navigation, and page he
         return state.formalLocation?.selection;
       }),
     )
-    .toEqual({ type: "document", id: aggregateId });
+    .toEqual({ type: "document", id: productionRecordId });
   await expect
     .poll(() =>
       queryE2eDatabase(`
@@ -95,11 +106,11 @@ test("uses durable notifications, permission-scoped work navigation, and page he
     page.getByRole("heading", { name: "待我处理", exact: true }),
   ).toBeVisible();
 
-  await expect(
-    page.getByRole("row", {
-      name: new RegExp(productionRecordId, "u"),
-    }),
-  ).toHaveCount(0);
+  const operatorReviewItem = page
+    .getByRole("row")
+    .filter({ hasText: "玉米种植生产" })
+    .filter({ has: page.getByRole("button", { name: "审核产情单据" }) });
+  await expect(operatorReviewItem).toHaveCount(0);
 
   const reviewerContext = await browser.newContext();
   const reviewerPage = await reviewerContext.newPage();
@@ -107,9 +118,13 @@ test("uses durable notifications, permission-scoped work navigation, and page he
   await reviewerPage.goto(
     `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
   );
-  const sourceWorkItem = reviewerPage.getByRole("row", {
-    name: new RegExp(productionRecordId, "u"),
-  });
+  const sourceWorkItem = reviewerPage
+    .getByRole("row")
+    .filter({ hasText: "玉米种植生产" })
+    .filter({
+      has: reviewerPage.getByRole("button", { name: "审核产情单据" }),
+    });
+  await expect(sourceWorkItem).toHaveCount(1);
   await sourceWorkItem.getByRole("button", { name: "审核产情单据" }).click();
   const recordDialog = reviewerPage.getByRole("dialog", {
     name: "产情单据审核",

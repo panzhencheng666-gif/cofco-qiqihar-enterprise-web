@@ -171,6 +171,6 @@ export function governedProductionName(
 
 export function formatProductionDateTime(value: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
-  if (!match) return "时间待维护";
+  if (!match) return "时间未提供";
   return `${match[1]}年${String(Number(match[2]))}月${String(Number(match[3]))}日 ${match[4]}:${match[5]}`;
 }

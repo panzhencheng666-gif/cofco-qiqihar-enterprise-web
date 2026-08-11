@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
 
 describe("OverviewMonitoringFrame", () => {
-  it("opens the real map application's overview route instead of the prototype shell", () => {
+  it("opens the map through the business platform same-origin gateway", () => {
     render(<OverviewMonitoringFrame />);
 
     const frame = screen.getByTitle("齐齐哈尔粮食商情总览监测地图");
-    expect(frame.getAttribute("src")).toMatch(
-      /^https?:\/\/(?:[^/]+):63200\/\?embed=1#\/overview$/,
+    expect(frame.getAttribute("src")).toBe(
+      "/overview-monitoring/?embed=1#/overview",
     );
   });
 });

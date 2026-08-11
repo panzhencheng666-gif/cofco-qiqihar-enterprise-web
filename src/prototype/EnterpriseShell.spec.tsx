@@ -266,15 +266,15 @@ describe("EnterpriseShell", () => {
 
     await user.type(
       screen.getByRole("searchbox", { name: "全局搜索" }),
-      "玉米供需平衡",
+      "供需平衡",
     );
     await user.click(
       screen.getByRole("option", {
-        name: /供需分析 · 玉米供需平衡.*业务页面/,
+        name: /供需分析 · 供需平衡.*业务页面/,
       }),
     );
     expect(onNavigate).toHaveBeenCalledWith(
-      createFormalRoute("supply", "corn-balance"),
+      createFormalRoute("supply", "balance"),
     );
 
     await user.type(

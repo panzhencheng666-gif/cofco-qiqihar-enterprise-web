@@ -26,6 +26,8 @@ npm run verify
 
 Local URL: `http://127.0.0.1:63180`
 
+业务版原型入口（本地联调）：`http://127.0.0.1:63182/prototype.html`
+
 `npm run test:e2e` first creates the production build, enforces the bundle
 budget, then starts fixed-port `vite preview` for serial Chromium acceptance.
 `npm run verify` uses the same production-preview path.

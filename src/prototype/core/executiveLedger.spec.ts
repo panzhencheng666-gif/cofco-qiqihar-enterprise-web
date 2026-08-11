@@ -90,6 +90,55 @@ function expectStringFields<T extends object>(
 }
 
 describe("ExecutiveLedger", () => {
+  it("uses the server-scoped workflow snapshot without falling back to prototype metrics or local authorization lists", () => {
+    const source = businessWorkFixtures.find(
+      ({ workId }) => workId === "WORK-PRODUCTION-FILL-W31",
+    );
+    if (!source) throw new Error("missing production work fixture");
+    const realtimeScope: OperationalScope = {
+      ...scope({ periodKey: "2026-W32" }),
+      authorization: {
+        serverAuthoritative: true,
+        authorizedRegionIds: ["authorized-all"],
+        authorizedBusinessClassificationIds: [],
+        authorizedProductIds: [],
+        authorizedCultivarIds: [],
+        authorizedReleaseVersionIds: [],
+        permissionKeys: [],
+      },
+    };
+    const workItem = {
+      ...source,
+      title: "第32周玉米产情审核",
+      regionId: "230200",
+      regionLabel: "齐齐哈尔市",
+      periodKey: "2026-W32",
+      effectivePeriod: "2026年第32周",
+      productId: "corn",
+      productLabel: "玉米",
+    };
+
+    expect(
+      queryExecutiveLedger(
+        realtimeScope,
+        query(realtimeScope, { view: "operations" }),
+        { workItems: [workItem], reportRecords: [] },
+      ),
+    ).toEqual({ view: "operations", metrics: [] });
+
+    const duties = queryExecutiveLedger(
+      realtimeScope,
+      query(realtimeScope, { view: "duty" }),
+      { workItems: [workItem], reportRecords: [] },
+    );
+    expect(duties.view).toBe("duty");
+    if (duties.view !== "duty") throw new Error("unexpected view");
+    expect(duties.duties).toHaveLength(1);
+    expect(duties.duties[0]?.assignment.businessItem).toBe(
+      "第32周玉米产情审核",
+    );
+  });
+
   it("resolves an authorized aggregate only from one explicit coordinate-bound member snapshot", () => {
     const currentScope = scope();
     const membership = resolveExecutiveAggregateMembership(

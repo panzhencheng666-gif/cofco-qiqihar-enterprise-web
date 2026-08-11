@@ -9,7 +9,6 @@ import { businessClassifications } from "./core/businessClassification";
 import type { OperationalScope } from "./core/operationalScope";
 import { platformProducts } from "./core/platformMasterData";
 import { businessWorkFixtures } from "./data/businessWorkFixtures";
-import { getEnterpriseScopeRegion } from "./enterpriseRegions";
 import type {
   BusinessCoordinates,
   FormalRoute,
@@ -111,26 +110,25 @@ function governedPeriodName(item: BusinessWorkItem): string {
     "",
   );
   if (taskPeriod) return taskPeriod;
-  return item.frequency === "按年度"
-    ? item.effectivePeriod || "任务期间名称待维护"
-    : "任务期间名称待维护";
+  return item.effectivePeriod.trim() || "未提供任务期间";
 }
 
 function governedSubjectName(item: BusinessWorkItem): string {
   if (item.subject.kind === "monitoring-object") {
-    return item.subject.objectName || "监测对象名称待维护";
+    return item.subject.objectName || "未提供监测对象名称";
   }
   if (item.subject.kind === "supply-account") {
-    return item.subject.accountLabel || "产品账户名称待维护";
+    return item.subject.accountLabel || "未提供产品账户名称";
   }
-  return item.subject.reportLabel || "报告名称待维护";
+  return item.subject.reportLabel || "未提供报告名称";
 }
 
 function governedProductName(item: BusinessWorkItem): string {
+  if (item.productLabel?.trim()) return item.productLabel.trim();
   if (item.productId) {
     return (
       platformProducts.find(({ id }) => id === item.productId)?.label ??
-      "产品名称待维护"
+      "未提供产品名称"
     );
   }
   if (item.subject.kind === "supply-account") return "按产品账户";
@@ -142,7 +140,7 @@ function governedCultivarNames(item: BusinessWorkItem): string {
   if (item.cultivarIds.length === 0) return "";
   return item.cultivarIds
     .map((id) =>
-      governedProductionName(productionCultivarNames, id, "品种名称待维护"),
+      governedProductionName(productionCultivarNames, id, "未提供品种名称"),
     )
     .join("、");
 }
@@ -265,20 +263,15 @@ function scopeAllowsQuery(
 function workProductOptions(
   workItems: readonly BusinessWorkItem[],
 ): readonly { id: string; label: string }[] {
-  const productIds = new Set(
-    workItems
-      .filter((item) => item.productId !== null)
-      .map((item) => item.productId as string),
-  );
-  return [...productIds].flatMap((id) => {
-    const product = platformProducts.find((item) => item.id === id);
-    // The work ledger's “产品或作物” filter is deliberately sourced from
-    // current work items.  Non-grain business products are not crops and do
-    // not belong in this selector.
-    return product?.kind === "粮食作物"
-      ? [{ id: product.id, label: product.label }]
-      : [];
-  });
+  const options = new Map<string, string>();
+  for (const item of workItems) {
+    if (!item.productId || options.has(item.productId)) continue;
+    const label = governedProductName(item);
+    if (label !== "未提供产品名称" && label !== "未指定产品") {
+      options.set(item.productId, label);
+    }
+  }
+  return [...options].map(([id, label]) => ({ id, label }));
 }
 
 function workPeriodOptions(
@@ -287,40 +280,91 @@ function workPeriodOptions(
   const options = new Map<string, string>();
   for (const item of workItems) {
     if (!item.periodKey || options.has(item.periodKey)) continue;
-    const label = item.effectivePeriod.trim() || governedPeriodName(item);
-    options.set(
-      item.periodKey,
-      label === "任务期间名称待维护" ? item.periodKey : label,
-    );
+    const governedLabel = governedPeriodName(item);
+    const label =
+      governedLabel === "未提供任务期间"
+        ? item.effectivePeriod.trim() || item.periodKey
+        : governedLabel;
+    options.set(item.periodKey, label);
   }
   return [...options].map(([id, label]) => ({ id, label }));
+}
+
+function workDomainOptions(
+  workItems: readonly BusinessWorkItem[],
+): readonly { id: BusinessWorkItem["domain"]; label: string }[] {
+  const domains = new Set(workItems.map(({ domain }) => domain));
+  return Object.entries(domainLabels).flatMap(([id, label]) =>
+    domains.has(id as BusinessWorkItem["domain"])
+      ? [{ id: id as BusinessWorkItem["domain"], label }]
+      : [],
+  );
+}
+
+function workRegionOptions(
+  workItems: readonly BusinessWorkItem[],
+): readonly { id: string; label: string }[] {
+  const options = new Map<string, string>();
+  for (const item of workItems) {
+    const label = item.regionLabel.trim();
+    if (!item.regionId || !label || options.has(item.regionId)) continue;
+    options.set(item.regionId, label);
+  }
+  return [...options].map(([id, label]) => ({ id, label }));
+}
+
+function workClassificationOptions(
+  workItems: readonly BusinessWorkItem[],
+): readonly {
+  id: string;
+  label: string;
+  domain: BusinessWorkItem["domain"];
+}[] {
+  const options = new Map<
+    string,
+    { id: string; label: string; domain: BusinessWorkItem["domain"] }
+  >();
+  for (const item of workItems) {
+    if (!item.businessSubtypeId || options.has(item.businessSubtypeId))
+      continue;
+    options.set(item.businessSubtypeId, {
+      id: item.businessSubtypeId,
+      label: item.businessLabel.trim() || domainLabels[item.domain],
+      domain: item.domain,
+    });
+  }
+  return [...options.values()];
 }
 
 function Filters({
   scope,
   onScopeChange,
+  domainOptions,
+  regionOptions,
   productOptions,
   periodOptions,
+  availableClassificationOptions,
 }: {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  domainOptions: readonly {
+    id: BusinessWorkItem["domain"];
+    label: string;
+  }[];
+  regionOptions: readonly { id: string; label: string }[];
   productOptions: readonly { id: string; label: string }[];
   periodOptions: readonly { id: string; label: string }[];
+  availableClassificationOptions: readonly {
+    id: string;
+    label: string;
+    domain: BusinessWorkItem["domain"];
+  }[];
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const domainOptions = Object.entries(domainLabels).filter(([domain]) =>
-    businessClassifications.some(
-      ({ id, domain: classificationDomain }) =>
-        classificationDomain === domain &&
-        scope.authorization.authorizedBusinessClassificationIds.includes(id),
-    ),
-  );
-  const classificationOptions = businessClassifications.filter(
-    ({ id, domain }) =>
-      scope.authorization.authorizedBusinessClassificationIds.includes(id) &&
-      domain !== "operations" &&
-      (!scope.coordinates.businessDomainId ||
-        domain === scope.coordinates.businessDomainId),
+  const classificationOptions = availableClassificationOptions.filter(
+    ({ domain }) =>
+      !scope.coordinates.businessDomainId ||
+      domain === scope.coordinates.businessDomainId,
   );
   const selectedClassification = classificationOptions.find(
     ({ id }) =>
@@ -329,17 +373,15 @@ function Filters({
         ? id.endsWith(`.${scope.coordinates.businessSubtypeId}`)
         : false),
   )?.id;
-  const regionOptions = scope.authorization.authorizedRegionIds.map((id) => ({
-    id,
-    label: getEnterpriseScopeRegion(id)?.label ?? "地区名称待维护",
-  }));
   const products = productOptions.filter(({ id }) =>
-    scope.authorization.authorizedProductIds.includes(id),
+    scope.authorization.serverAuthoritative === true
+      ? true
+      : scope.authorization.authorizedProductIds.includes(id),
   );
   const periods = periodOptions;
   const domainInvalid =
     scope.coordinates.businessDomainId !== undefined &&
-    !domainOptions.some(([id]) => id === scope.coordinates.businessDomainId);
+    !domainOptions.some(({ id }) => id === scope.coordinates.businessDomainId);
   const classificationInvalid =
     scope.coordinates.businessSubtypeId !== undefined &&
     selectedClassification === undefined;
@@ -350,120 +392,142 @@ function Filters({
     scope.coordinates.productId !== undefined &&
     !products.some(({ id }) => id === scope.coordinates.productId);
   const activeAdvancedCount = scope.coordinates.businessSubtypeId ? 1 : 0;
+  const showDomain = domainOptions.length > 1 || domainInvalid;
+  const showRegion = regionOptions.length > 1 || regionInvalid;
+  const showProduct = products.length > 1 || productInvalid;
+  const periodInvalid = Boolean(
+    scope.coordinates.periodKey &&
+    !periods.some(({ id }) => id === scope.coordinates.periodKey),
+  );
+  const showPeriod = periods.length > 1 || periodInvalid;
+  const showAdvanced =
+    classificationOptions.length > 1 || classificationInvalid;
 
   return (
     <section aria-label="我的工作筛选" className="my-work-task5-filter-surface">
       <div className="my-work-task5-filter-grid my-work-task5-filter-grid--primary">
-        <label>
-          <span>业务域</span>
-          <select
-            aria-label="业务域"
-            value={scope.coordinates.businessDomainId ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                businessDomainId: event.target.value || undefined,
-                businessSubtypeId: undefined,
-              })
-            }
-          >
-            <option value="">全部已授权业务域</option>
-            {domainInvalid && (
-              <option disabled value={scope.coordinates.businessDomainId}>
-                业务域无效（请重新选择）
-              </option>
-            )}
-            {domainOptions.map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>业务地区</span>
-          <select
-            aria-label="业务地区"
-            value={scope.coordinates.regionId}
-            onChange={(event) =>
-              onScopeChange({ regionId: event.target.value })
-            }
-          >
-            <option value="authorized-all">全部已授权范围</option>
-            {regionInvalid && (
-              <option disabled value={scope.coordinates.regionId}>
-                业务地区无效（请重新选择）
-              </option>
-            )}
-            {regionOptions.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>产品或作物</span>
-          <select
-            aria-label="产品或作物"
-            value={scope.coordinates.productId ?? ""}
-            onChange={(event) =>
-              onScopeChange({
-                productId: event.target.value || undefined,
-                cultivarId: undefined,
-              })
-            }
-          >
-            <option value="">全部当前事项作物</option>
-            {productInvalid && (
-              <option disabled value={scope.coordinates.productId}>
-                产品名称无效（请重新选择）
-              </option>
-            )}
-            {products.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>任务期间</span>
-          <select
-            aria-label="任务期间"
-            value={scope.coordinates.periodKey ?? ""}
-            onChange={(event) =>
-              onScopeChange({ periodKey: event.target.value || undefined })
-            }
-          >
-            <option value="">全部可用期间</option>
-            {periods.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-            {scope.coordinates.periodKey &&
-              !periods.some(({ id }) => id === scope.coordinates.periodKey) && (
-                <option disabled value={scope.coordinates.periodKey}>
-                  任务期间无效（请重新选择）
+        {showDomain && (
+          <label>
+            <span>业务类型</span>
+            <select
+              aria-label="业务类型"
+              value={scope.coordinates.businessDomainId ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  businessDomainId: event.target.value || undefined,
+                  businessSubtypeId: undefined,
+                })
+              }
+            >
+              <option value="">全部业务类型</option>
+              {domainInvalid && (
+                <option disabled value={scope.coordinates.businessDomainId}>
+                  业务类型无效（请重新选择）
                 </option>
               )}
-          </select>
-        </label>
+              {domainOptions.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {showRegion && (
+          <label>
+            <span>业务地区</span>
+            <select
+              aria-label="业务地区"
+              value={scope.coordinates.regionId}
+              onChange={(event) =>
+                onScopeChange({ regionId: event.target.value })
+              }
+            >
+              <option value="authorized-all">全部地区</option>
+              {regionInvalid && (
+                <option disabled value={scope.coordinates.regionId}>
+                  业务地区无效（请重新选择）
+                </option>
+              )}
+              {regionOptions.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {showProduct && (
+          <label>
+            <span>产品或作物</span>
+            <select
+              aria-label="产品或作物"
+              value={scope.coordinates.productId ?? ""}
+              onChange={(event) =>
+                onScopeChange({
+                  productId: event.target.value || undefined,
+                  cultivarId: undefined,
+                })
+              }
+            >
+              <option value="">全部产品或作物</option>
+              {productInvalid && (
+                <option disabled value={scope.coordinates.productId}>
+                  产品名称无效（请重新选择）
+                </option>
+              )}
+              {products.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {showPeriod && (
+          <label>
+            <span>任务期间</span>
+            <select
+              aria-label="任务期间"
+              value={scope.coordinates.periodKey ?? ""}
+              onChange={(event) =>
+                onScopeChange({ periodKey: event.target.value || undefined })
+              }
+            >
+              <option value="">全部任务期间</option>
+              {periods.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+              {scope.coordinates.periodKey &&
+                !periods.some(
+                  ({ id }) => id === scope.coordinates.periodKey,
+                ) && (
+                  <option disabled value={scope.coordinates.periodKey}>
+                    任务期间无效（请重新选择）
+                  </option>
+                )}
+            </select>
+          </label>
+        )}
       </div>
-      <div className="my-work-task5-filter-actions">
-        <button
-          aria-controls="my-work-more-filters"
-          aria-expanded={advancedOpen}
-          className="my-work-task5-filter-toggle"
-          type="button"
-          onClick={() => setAdvancedOpen((current) => !current)}
-        >
-          {activeAdvancedCount > 0
-            ? `更多筛选（已启用 ${activeAdvancedCount} 项）`
-            : "更多筛选"}
-        </button>
-      </div>
-      {advancedOpen && (
+      {showAdvanced && (
+        <div className="my-work-task5-filter-actions">
+          <button
+            aria-controls="my-work-more-filters"
+            aria-expanded={advancedOpen}
+            className="my-work-task5-filter-toggle"
+            type="button"
+            onClick={() => setAdvancedOpen((current) => !current)}
+          >
+            {activeAdvancedCount > 0
+              ? `更多筛选（已启用 ${activeAdvancedCount} 项）`
+              : "更多筛选"}
+          </button>
+        </div>
+      )}
+      {showAdvanced && advancedOpen && (
         <div
           className="my-work-task5-filter-grid my-work-task5-filter-grid--advanced"
           id="my-work-more-filters"
@@ -483,7 +547,7 @@ function Filters({
                 })
               }
             >
-              <option value="">全部已授权分类</option>
+              <option value="">全部业务分类</option>
               {classificationInvalid && (
                 <option disabled value={scope.coordinates.businessSubtypeId}>
                   业务分类无效（请重新选择）
@@ -570,8 +634,11 @@ function MyWorkLedger({
   workItems: readonly BusinessWorkItem[];
 }) {
   const [page, setPage] = useState(1);
+  const domainOptions = workDomainOptions(workItems);
+  const regionOptions = workRegionOptions(workItems);
   const productOptions = workProductOptions(workItems);
   const periodOptions = workPeriodOptions(workItems);
+  const classificationOptions = workClassificationOptions(workItems);
   const periodKeys = useMemo(
     () => periodOptions.map(({ id }) => id),
     [periodOptions],
@@ -605,11 +672,14 @@ function MyWorkLedger({
         summary="统一汇总本人待填报、待审核、待发布、退回、异常与逾期事项，按截止时间和风险排序，并直达原业务单据。"
       />
       <Filters
+        availableClassificationOptions={classificationOptions}
+        domainOptions={domainOptions}
         onScopeChange={(coordinates) => {
           setPage(1);
           onScopeChange(coordinates);
         }}
         productOptions={productOptions}
+        regionOptions={regionOptions}
         periodOptions={periodOptions}
         scope={scope}
       />
@@ -669,7 +739,7 @@ function MyWorkLedger({
                   <tr key={item.workId}>
                     <th className="my-work-task5-sticky" scope="row">
                       <span className="my-work-task5-cell-stack">
-                        <strong>{item.title || "任务名称待维护"}</strong>
+                        <strong>{item.title || "未提供任务名称"}</strong>
                         <small>{governedSubjectName(item)}</small>
                       </span>
                     </th>
@@ -677,13 +747,13 @@ function MyWorkLedger({
                       <span className="my-work-task5-cell-stack">
                         <strong>{domainLabels[item.domain]}</strong>
                         <small>
-                          {item.businessLabel || "业务分类名称待维护"}
+                          {item.businessLabel || "未提供业务分类"}
                         </small>
                       </span>
                     </td>
                     <td>
                       <span className="my-work-task5-cell-stack">
-                        <strong>{item.regionLabel || "地区名称待维护"}</strong>
+                        <strong>{item.regionLabel || "未提供业务地区"}</strong>
                         <small>
                           {governedProductName(item)}
                           {cultivars ? ` · ${cultivars}` : ""}
@@ -701,12 +771,14 @@ function MyWorkLedger({
                     <td>
                       <span className="my-work-task5-cell-stack">
                         <strong>
-                          {item.responsiblePerson || "责任人待维护"} ·{" "}
-                          {item.responsiblePost || "责任岗位待维护"}
+                          {item.responsiblePerson || "未提供责任人"} ·{" "}
+                          {item.responsiblePost || "未提供责任岗位"}
                         </strong>
                         <small>
-                          {isResponsible ? "本人负责" : "本人审核"} · 已完成{" "}
-                          {item.completedFields}/{item.applicableFields} 项
+                          {isResponsible ? "本人负责" : "本人审核"}
+                          {item.applicableFields > 0
+                            ? ` · 已完成 ${item.completedFields}/${item.applicableFields} 项`
+                            : " · 系统流程任务"}
                         </small>
                       </span>
                     </td>

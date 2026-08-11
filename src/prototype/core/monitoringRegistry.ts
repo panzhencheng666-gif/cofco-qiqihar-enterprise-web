@@ -117,8 +117,8 @@ export function getActiveObjectCapabilities(
       .replace(/(?:字段)?模板/g, "")
       .trim();
     return {
-      roleLabel: role.label || "业务角色名称待维护",
-      templateLabel: businessLabel || "适用能力名称待维护",
+      roleLabel: role.label || "业务角色名称未提供",
+      templateLabel: businessLabel || "适用能力名称未提供",
       capabilityLabels: template?.capabilityLabels ?? [],
     };
   });
@@ -131,6 +131,7 @@ export function projectMonitoringObjects(
   domain: MonitoringDomain = "production",
 ): readonly MonitoringObject[] {
   const requestedSubtype = scope.coordinates.businessSubtypeId;
+  const serverAuthoritative = scope.authorization.serverAuthoritative === true;
   const authorizedDomainClassifications =
     scope.authorization.authorizedBusinessClassificationIds.filter((id) =>
       id.startsWith(`${domain}.`),
@@ -141,11 +142,13 @@ export function projectMonitoringObjects(
       )
     : [];
   const subtypeAllowed =
-    authorizedDomainClassifications.length > 0 &&
-    (requestedSubtype === undefined || matchedSubtypes.length === 1);
+    serverAuthoritative ||
+    (authorizedDomainClassifications.length > 0 &&
+      (requestedSubtype === undefined || matchedSubtypes.length === 1));
   if (
     !queryAllowed ||
-    !scope.authorization.permissionKeys.includes("prototype:read") ||
+    (!serverAuthoritative &&
+      !scope.authorization.permissionKeys.includes("prototype:read")) ||
     (scope.coordinates.businessDomainId !== undefined &&
       scope.coordinates.businessDomainId !== domain) ||
     !subtypeAllowed
@@ -153,13 +156,18 @@ export function projectMonitoringObjects(
     return [];
   }
   return objects.flatMap((object) => {
-    const regionAllowed = scope.authorization.authorizedRegionIds.some(
-      (regionId) => regionId === object.regionId,
-    );
-    const productAllowed = object.productIds.some((productId) =>
-      scope.authorization.authorizedProductIds.includes(productId),
-    );
+    const regionAllowed =
+      serverAuthoritative ||
+      scope.authorization.authorizedRegionIds.some(
+        (regionId) => regionId === object.regionId,
+      );
+    const productAllowed =
+      serverAuthoritative ||
+      object.productIds.some((productId) =>
+        scope.authorization.authorizedProductIds.includes(productId),
+      );
     const cultivarAllowed =
+      serverAuthoritative ||
       object.cultivarIds.length === 0 ||
       object.cultivarIds.some((cultivarId) =>
         scope.authorization.authorizedCultivarIds.includes(cultivarId),
@@ -176,22 +184,24 @@ export function projectMonitoringObjects(
         object.cultivarIds.includes(scope.coordinates.cultivarId));
     if (!visible) return [];
     const productCoordinates = object.productIds.flatMap((productId, index) =>
+      serverAuthoritative ||
       scope.authorization.authorizedProductIds.includes(productId)
         ? [
             {
               id: productId,
-              label: object.productLabels[index] ?? "作物名称待维护",
+              label: object.productLabels[index] ?? "未提供作物名称",
             },
           ]
         : [],
     );
     const cultivarCoordinates = object.cultivarIds.flatMap(
       (cultivarId, index) =>
+        serverAuthoritative ||
         scope.authorization.authorizedCultivarIds.includes(cultivarId)
           ? [
               {
                 id: cultivarId,
-                label: object.cultivarLabels[index] ?? "品种名称待维护",
+                label: object.cultivarLabels[index] ?? "未提供品种名称",
               },
             ]
           : [],

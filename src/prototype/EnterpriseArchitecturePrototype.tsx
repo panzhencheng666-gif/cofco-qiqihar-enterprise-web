@@ -119,7 +119,7 @@ const contentByPage: Record<PrototypePage, PageContent> = {
         tone: "good",
       },
     ],
-    columns: ["事项", "业务域", "当前状态", "责任岗位", "完成时限"],
+    columns: ["事项", "业务类型", "当前状态", "责任岗位", "完成时限"],
     rows: [
       [
         "讷河市秋粮产量复核",
@@ -533,7 +533,7 @@ const fusionMetaByPage: Record<PrototypePage, FusionPageMeta> = {
       { label: "正式发布", detail: "4 项受影响", state: "open" },
     ],
     context: [],
-    filters: ["全部业务域", "全部状态", "今日及逾期"],
+    filters: ["全部业务类型", "全部状态", "今日及逾期"],
   },
   production: {
     application: "产情监测",

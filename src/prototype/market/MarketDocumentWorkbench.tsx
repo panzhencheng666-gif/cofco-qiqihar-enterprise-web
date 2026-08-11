@@ -210,7 +210,7 @@ function MarketDocumentSession({
   );
   const [precheck, setPrecheck] = useState<PrecheckState>("idle");
   const [feedback, setFeedback] = useState(
-    currentChannel(document, initialMode)?.instruction ?? "采集方式配置待维护",
+    currentChannel(document, initialMode)?.instruction ?? "采集方式配置未提供",
   );
   const [lastSavedLabel, setLastSavedLabel] = useState(document.lastSavedLabel);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -222,7 +222,7 @@ function MarketDocumentSession({
   const [reviewReason, setReviewReason] = useState("");
 
   const channel = currentChannel(document, mode);
-  if (!channel) return <div role="alert">采集方式配置待维护</div>;
+  if (!channel) return <div role="alert">采集方式配置未提供</div>;
 
   const latestSubmission = work.submissionHistory.at(-1);
   const latestReview = work.reviewHistory.at(-1);
@@ -271,7 +271,7 @@ function MarketDocumentSession({
   ) {
     setMode(nextMode);
     setFeedback(
-      currentChannel(document, nextMode)?.instruction ?? "采集方式配置待维护",
+      currentChannel(document, nextMode)?.instruction ?? "采集方式配置未提供",
     );
   }
 
@@ -698,13 +698,13 @@ function MarketDocumentSession({
           <div>
             <dt>责任人</dt>
             <dd>
-              {work.responsiblePerson || "责任人待维护"} ·{" "}
-              {work.responsiblePost || "岗位待维护"}
+              {work.responsiblePerson || "责任人未提供"} ·{" "}
+              {work.responsiblePost || "岗位未提供"}
             </dd>
           </div>
           <div>
             <dt>审核人</dt>
-            <dd>{work.reviewer || "审核人待维护"}</dd>
+            <dd>{work.reviewer || "审核人未提供"}</dd>
           </div>
           <div>
             <dt>业务截止</dt>
@@ -748,7 +748,7 @@ function MarketDocumentSession({
             <h4>最近提交</h4>
             <p>
               {latestSubmission
-                ? `${submissionLabels[latestSubmission.kind]} · ${latestSubmission.submittedBy || "提交人待维护"} · ${formatMarketDateTime(latestSubmission.submittedAt)}`
+                ? `${submissionLabels[latestSubmission.kind]} · ${latestSubmission.submittedBy || "提交人未提供"} · ${formatMarketDateTime(latestSubmission.submittedAt)}`
                 : "尚未形成提交记录"}
             </p>
           </section>
@@ -756,7 +756,7 @@ function MarketDocumentSession({
             <h4>最近审核</h4>
             <p>
               {latestReview
-                ? `${reviewActionLabels[latestReview.action]} · ${latestReview.reviewer || "审核人待维护"} · ${formatMarketDateTime(latestReview.at)}`
+                ? `${reviewActionLabels[latestReview.action]} · ${latestReview.reviewer || "审核人未提供"} · ${formatMarketDateTime(latestReview.at)}`
                 : "尚未形成审核记录"}
             </p>
             {latestReview?.reason && <p>审核意见：{latestReview.reason}</p>}
@@ -765,7 +765,7 @@ function MarketDocumentSession({
             <h4>最近发布</h4>
             <p>
               {latestRelease
-                ? `${releaseActionLabels[latestRelease.action]} · ${latestRelease.actor || "发布责任人待维护"} · ${formatMarketDateTime(latestRelease.at)}`
+                ? `${releaseActionLabels[latestRelease.action]} · ${latestRelease.actor || "发布责任人未提供"} · ${formatMarketDateTime(latestRelease.at)}`
                 : "尚未申请发布"}
             </p>
           </section>
@@ -783,7 +783,7 @@ function MarketDocumentSession({
           <h3>当前处理</h3>
           {canEdit && (
             <div>
-              <p>填报责任人：{work.responsiblePerson || "责任人待维护"}</p>
+              <p>填报责任人：{work.responsiblePerson || "责任人未提供"}</p>
               <button type="button" onClick={saveDraft}>
                 {work.documentStatus === "returned"
                   ? "保存更正草稿"
@@ -805,7 +805,7 @@ function MarketDocumentSession({
             work.reviewStatus === "pending" &&
             isReviewer && (
               <div>
-                <p>指派审核人：{work.reviewer || "审核人待维护"}</p>
+                <p>指派审核人：{work.reviewer || "审核人未提供"}</p>
                 <button type="button" onClick={claimReview}>
                   领取审核
                 </button>
