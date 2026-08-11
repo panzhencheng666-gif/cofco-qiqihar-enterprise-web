@@ -31,6 +31,37 @@ const menuRoutes = [
   ["/#/报表中心/业务报告", "业务报告"],
 ] as const;
 
+const entryContracts = new Map<
+  string,
+  { create: string; dialog: string; form: string }
+>([
+  ...["玉米", "大豆", "稻谷"].map(
+    (product) =>
+      [
+        `/#/产情监测/${product}产情填报`,
+        { create: "新建调查记录", dialog: "新建产情填报", form: "产情填报" },
+      ] as const,
+  ),
+  ...["玉米", "大豆", "稻谷"].map(
+    (product) =>
+      [
+        `/#/市场监测/${product}市场采集`,
+        { create: "新建采集记录", dialog: "新建市场填报", form: "市场采集" },
+      ] as const,
+  ),
+  ...["玉米", "大豆", "稻谷"].map(
+    (product) =>
+      [
+        `/#/市场监测/${product}物流监测`,
+        {
+          create: "新建监测记录",
+          dialog: "新建物流监测填报",
+          form: "物流监测填报",
+        },
+      ] as const,
+  ),
+]);
+
 test("opens every formal business menu against the real backend without shell errors", async ({
   page,
 }) => {
@@ -46,6 +77,36 @@ test("opens every formal business menu against the real backend without shell er
       await expect(main).not.toContainText(
         /8090|63182|后端端口|本地数据库|演示数据|VITE_|\bmock\b|\bdemo\b/iu,
       );
+      const unnamedButtons = await page
+        .locator("button:visible")
+        .evaluateAll((buttons) =>
+          buttons
+            .filter(
+              (button) =>
+                !button.getAttribute("aria-label")?.trim() &&
+                !button.getAttribute("title")?.trim() &&
+                !button.textContent?.trim(),
+            )
+            .map((button) => button.outerHTML),
+        );
+      expect(unnamedButtons).toEqual([]);
+
+      const entry = entryContracts.get(route);
+      if (entry) {
+        await page.getByRole("button", { name: entry.create }).click();
+        const dialog = page.getByRole("dialog", { name: entry.dialog });
+        await expect(dialog).toBeVisible();
+        await expect(
+          dialog.getByRole("region", { name: entry.form }),
+        ).toBeVisible();
+        await expect(
+          dialog.getByRole("combobox", { name: "品种" }),
+        ).toHaveCount(0);
+        await dialog
+          .getByRole("button", { name: `关闭${entry.dialog}` })
+          .click();
+        await expect(dialog).toHaveCount(0);
+      }
     });
   }
 

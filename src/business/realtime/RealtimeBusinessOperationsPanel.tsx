@@ -285,13 +285,15 @@ export function RealtimeBusinessOperationsPanel({
       code: field.code,
       label: field.label,
       type:
-        field.controlType === "SELECT"
-          ? "select"
-          : field.controlType === "DATE"
-            ? "date"
-            : field.controlType === "DECIMAL"
-              ? "decimal"
-              : "text",
+        field.controlType === "REGION_HIERARCHY"
+          ? "region"
+          : field.controlType === "SELECT"
+            ? "select"
+            : field.controlType === "DATE"
+              ? "date"
+              : field.controlType === "DECIMAL"
+                ? "decimal"
+                : "text",
       required: field.required,
       readOnly: field.controlType.startsWith("READONLY"),
       unit: field.unit,
@@ -838,6 +840,7 @@ export function RealtimeBusinessOperationsPanel({
                     const accountLocked = isAccountLockedReporter(field.code);
                     const readOnly = accountLocked || field.readOnly;
                     const regionField =
+                      field.type === "region" ||
                       field.code === "regionCode" ||
                       field.code === "MKT_REGION";
                     const visibleOptions = fieldOptions;
@@ -849,6 +852,7 @@ export function RealtimeBusinessOperationsPanel({
                         >
                           <span>{field.label} *</span>
                           <RealtimeRegionCascadePicker
+                            ariaLabel={field.label}
                             regions={master?.regions ?? []}
                             value={values[field.code] ?? ""}
                             onChange={(regionCode) =>

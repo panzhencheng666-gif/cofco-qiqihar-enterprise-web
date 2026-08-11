@@ -139,11 +139,8 @@ describe("realtime report center", () => {
     expect(screen.getByLabelText("报告类型")).toHaveTextContent(
       "产情日报市场日报物流周报供需月报",
     );
-    await waitFor(() =>
-      expect(screen.getByLabelText("具体品种")).toHaveTextContent(
-        "全部品种普通玉米",
-      ),
-    );
+    const cultivar = screen.getByRole("textbox", { name: "具体品种" });
+    expect(cultivar).toBeVisible();
     expect(screen.getByRole("group", { name: "统计地区" })).toBeVisible();
     expect(screen.getByRole("searchbox", { name: "搜索地级市" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "地级市" })).toBeVisible();
@@ -155,12 +152,14 @@ describe("realtime report center", () => {
     ).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText("报告类型"), "MARKET_DAILY");
+    await user.type(cultivar, "龙单86");
     await user.click(screen.getByRole("button", { name: "生成报告预览" }));
 
     await waitFor(() =>
       expect(createReportPreview).toHaveBeenCalledWith({
         definitionCode: "MARKET_DAILY",
         productCode: "CORN",
+        cultivarCode: "龙单86",
         regionLevel: "PREFECTURE",
         regionCode: "230200",
         periodCode: "2026-W32",

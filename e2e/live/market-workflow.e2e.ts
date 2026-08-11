@@ -75,10 +75,17 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   await expect(form.getByLabel("对象销售价格")).toBeVisible();
   await expect(form.getByLabel(/买卖方向/u)).toHaveCount(0);
 
-  await form.getByRole("combobox", { name: "地级市" }).selectOption("230200");
-  await form.getByRole("combobox", { name: "区县" }).selectOption("230208");
-  await form.getByRole("combobox", { name: "乡镇" }).selectOption("230208101");
-  await form
+  const surveyRegion = form.getByRole("group", { name: "地区", exact: true });
+  await surveyRegion
+    .getByRole("combobox", { name: "地级市" })
+    .selectOption("230200");
+  await surveyRegion
+    .getByRole("combobox", { name: "区县" })
+    .selectOption("230208");
+  await surveyRegion
+    .getByRole("combobox", { name: "乡镇" })
+    .selectOption("230208101");
+  await surveyRegion
     .getByRole("combobox", { name: "行政村" })
     .selectOption("230208101001");
   await form.getByLabel("交易日期").fill("2026-08-09");
@@ -103,6 +110,24 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   await form.getByLabel("期初库存").fill("300");
   await form.getByLabel("出库量").fill("70");
   await form.getByLabel("期末库存").fill("350");
+  await form.getByLabel("库存填报主体唯一标识").fill("e2e-trader-yinqin-1");
+  await form.getByLabel("库存权属").selectOption("OWNED");
+  const storageRegion = form.getByRole("group", { name: "库存存放地区" });
+  await storageRegion
+    .getByRole("combobox", { name: "地级市" })
+    .selectOption("230200");
+  await storageRegion
+    .getByRole("combobox", { name: "区县" })
+    .selectOption("230208");
+  await storageRegion
+    .getByRole("combobox", { name: "乡镇" })
+    .selectOption("230208101");
+  await storageRegion
+    .getByRole("combobox", { name: "行政村" })
+    .selectOption("230208101001");
+  await form.getByLabel("货主唯一标识").fill("e2e-trader-yinqin-1");
+  await form.getByLabel("库存统计截止日").fill("2026-08-09");
+  await form.getByLabel("库存政策属性").selectOption("COMMERCIAL");
   await form.getByLabel("现场水印照片").setInputFiles({
     name: "e2e-market-scene.png",
     mimeType: "image/png",
@@ -137,7 +162,12 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   await page.goto("/#/我的工作/待我处理");
   let operatorDialog = await openWorkItem(page, "继续市场填报", "补充市场填报");
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
-  await expect(operatorDialog.getByText("提交成功")).toBeVisible();
+  await expect(operatorDialog.locator("form > header strong")).toContainText(
+    "待审核",
+  );
+  await expect(
+    operatorDialog.getByRole("button", { name: "提交审核" }),
+  ).toHaveCount(0);
   await operatorDialog
     .getByRole("button", { name: "关闭补充市场填报" })
     .click();
@@ -173,7 +203,12 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   await expect(operatorDialog).toHaveCount(0);
   operatorDialog = await openWorkItem(page, "补充市场填报", "补充市场填报");
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
-  await expect(operatorDialog.getByText("提交成功")).toBeVisible();
+  await expect(operatorDialog.locator("form > header strong")).toContainText(
+    "待审核",
+  );
+  await expect(
+    operatorDialog.getByRole("button", { name: "提交审核" }),
+  ).toHaveCount(0);
   await operatorDialog
     .getByRole("button", { name: "关闭补充市场填报" })
     .click();
@@ -207,6 +242,12 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
         MKT_PURCHASE_BASE_PRICE: "4380.0000",
         MKT_SALE_BASE_PRICE: "4460.0000",
         MKT_REPORTER_NAME: "验收填报员甲",
+        MKT_INVENTORY_HOLDER_CODE: "e2e-trader-yinqin-1",
+        MKT_INVENTORY_OWNERSHIP_TYPE: "OWNED",
+        MKT_STORAGE_REGION_CODE: "230208101001",
+        MKT_CARGO_OWNER_CODE: "e2e-trader-yinqin-1",
+        MKT_INVENTORY_CUTOFF_DATE: "2026-08-09",
+        MKT_INVENTORY_POLICY_ATTRIBUTE: "COMMERCIAL",
       },
     },
   });

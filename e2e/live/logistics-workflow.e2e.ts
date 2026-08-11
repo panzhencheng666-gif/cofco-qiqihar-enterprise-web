@@ -108,7 +108,12 @@ test("runs a logistics return, revision, resubmission, and approval against Post
     "补充物流监测填报",
   );
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
-  await expect(operatorDialog.getByText("提交成功")).toBeVisible();
+  await expect(operatorDialog.locator("form > header strong")).toContainText(
+    "待审核",
+  );
+  await expect(
+    operatorDialog.getByRole("button", { name: "提交审核" }),
+  ).toHaveCount(0);
   await operatorDialog
     .getByRole("button", { name: "关闭补充物流监测填报" })
     .click();
@@ -137,7 +142,12 @@ test("runs a logistics return, revision, resubmission, and approval against Post
 
   operatorDialog = await openWorkItem(page, "补充物流填报", "补充物流监测填报");
   await operatorDialog.getByRole("button", { name: "提交审核" }).click();
-  await expect(operatorDialog.getByText("提交成功")).toBeVisible();
+  await expect(operatorDialog.locator("form > header strong")).toContainText(
+    "待审核",
+  );
+  await expect(
+    operatorDialog.getByRole("button", { name: "提交审核" }),
+  ).toHaveCount(0);
   await operatorDialog
     .getByRole("button", { name: "关闭补充物流监测填报" })
     .click();

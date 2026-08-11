@@ -69,6 +69,8 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
     PROD_SALES_VOLUME: "5",
     PROD_SELF_USE: "3",
     PROD_ENDING_INVENTORY: "12",
+    PROD_SURPLUS_SUBJECT_CODE: "e2e-farmer-yinqin-xlsx-1",
+    PROD_SURPLUS_CUTOFF_DATE: "2026-08-09",
     MOISTURE: "14.2",
     evidencePhotoId: productionPhotoId,
   });
@@ -78,6 +80,8 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
       "PROD_SAMPLE_NAME",
       "PROD_OPENING_INVENTORY",
       "PROD_ENDING_INVENTORY",
+      "PROD_SURPLUS_SUBJECT_CODE",
+      "PROD_SURPLUS_CUTOFF_DATE",
       "evidencePhotoId",
     ]),
   );
@@ -117,6 +121,12 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
     OPENING_INVENTORY: "300",
     STOCK_OUTFLOW: "70",
     ENDING_INVENTORY: "350",
+    MKT_INVENTORY_HOLDER_CODE: "e2e-trader-yinqin-xlsx-1",
+    MKT_INVENTORY_OWNERSHIP_TYPE: "OWNED",
+    MKT_STORAGE_REGION_CODE: "230208101001",
+    MKT_CARGO_OWNER_CODE: "e2e-trader-yinqin-xlsx-1",
+    MKT_INVENTORY_CUTOFF_DATE: "2026-08-09",
+    MKT_INVENTORY_POLICY_ATTRIBUTE: "COMMERCIAL",
     evidencePhotoId: marketPhotoId,
   });
   expect(marketWorkbook.headers).toEqual(
@@ -127,6 +137,12 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
       "SALES_VOLUME",
       "OPENING_INVENTORY",
       "ENDING_INVENTORY",
+      "MKT_INVENTORY_HOLDER_CODE",
+      "MKT_INVENTORY_OWNERSHIP_TYPE",
+      "MKT_STORAGE_REGION_CODE",
+      "MKT_CARGO_OWNER_CODE",
+      "MKT_INVENTORY_CUTOFF_DATE",
+      "MKT_INVENTORY_POLICY_ATTRIBUTE",
       "evidencePhotoId",
     ]),
   );
@@ -188,9 +204,25 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
   ).toBe(productionMarker);
   expect(
     queryE2eDatabase(
+      "SELECT value FROM production.production_record_submission_metadata WHERE field_code='PROD_SURPLUS_SUBJECT_CODE' AND value='e2e-farmer-yinqin-xlsx-1'",
+    ),
+  ).toBe("e2e-farmer-yinqin-xlsx-1");
+  expect(
+    queryE2eDatabase(
       `SELECT value FROM market.market_record_core_value WHERE field_code='MKT_SAMPLE_NAME' AND value='${marketMarker}'`,
     ),
   ).toBe(marketMarker);
+  expect(
+    queryE2eDatabase(
+      `SELECT storage.value
+         FROM market.market_record_core_value storage
+         JOIN market.market_record_core_value sample
+           ON sample.record_id=storage.record_id
+          AND sample.field_code='MKT_SAMPLE_NAME'
+          AND sample.value='${marketMarker}'
+        WHERE storage.field_code='MKT_STORAGE_REGION_CODE'`,
+    ),
+  ).toBe("230208101001");
   expect(
     queryE2eDatabase(
       `SELECT source_organization FROM logistics.route_event WHERE source_organization='${logisticsMarker}'`,

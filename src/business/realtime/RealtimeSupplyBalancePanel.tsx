@@ -1030,8 +1030,12 @@ export function RealtimeSupplyBalancePanel({
                 </div>
               </div>
               <p>
-                计算规则：{activeAccount.formula.name}，结果保留{" "}
-                {activeAccount.formula.scale} 位小数，允许差额{" "}
+                计算规则：{activeAccount.formula.name}（
+                <code>
+                  {activeAccount.formula.code} · v
+                  {activeAccount.formula.version}
+                </code>
+                ），结果保留 {activeAccount.formula.scale} 位小数，允许差额{" "}
                 {activeAccount.formula.tolerance}。
               </p>
             </figure>
@@ -1220,6 +1224,12 @@ export function RealtimeSupplyBalancePanel({
                   : activeAccount.legacyReadOnly
                     ? "历史结果只读"
                     : "等待校验"}
+              </strong>
+            </div>
+            <div>
+              <span>计算校验码</span>
+              <strong>
+                <code>{activeAccount.calculationChecksum ?? "未生成"}</code>
               </strong>
             </div>
           </section>

@@ -18,12 +18,22 @@ function seedApprovedComparisonFacts(): void {
         `('live-analysis-market-${year}','CORN','TRADER','230208101001',DATE '${year}-08-05',TIMESTAMPTZ '${year}-08-06 08:00:00+08',${2400 + index * 100},'PURCHASE',10,5,20,'BULK','APPROVED','e2e-reviewer')`,
     )
     .join(",\n");
+  const productionCultivars = [2023, 2024, 2025, 2026]
+    .map(
+      (year) =>
+        `('live-analysis-production-${year}','PROD_CULTIVAR_NAME','E2E-四年图表玉米')`,
+    )
+    .join(",\n");
 
   queryE2eDatabase(`
     INSERT INTO production.production_record(
       record_id,product_code,object_type_code,region_code,survey_date,reported_at,
       cultivated_area_mu,yield_per_mu_kg,status_code,last_modified_by
     ) VALUES ${productionRows};
+
+    INSERT INTO production.production_record_submission_metadata(
+      record_id, field_code, value
+    ) VALUES ${productionCultivars};
 
     INSERT INTO market.market_record(
       record_id,product_code,object_type_code,region_code,trade_date,reported_at,
@@ -70,6 +80,12 @@ test("reads dynamic production and market indicators with interactive enterprise
   ).toBeVisible();
   await expect(page.getByLabel("分析指标")).toContainText("平均成交价");
   await expect(page.getByLabel(/四年对比柱状图/)).toBeVisible();
+  await expect(page.getByLabel(/四年趋势折线图/)).toBeVisible();
+  await expect(page.getByLabel(/四年合计占比环图/)).toBeVisible();
+  await page.getByRole("button", { name: /柱状图 2024年/ }).hover();
+  await expect(
+    page.getByRole("status", { name: "当前图表数据" }),
+  ).toContainText("2024年");
 
   await context.close();
 });
@@ -90,10 +106,13 @@ test("offers twelve scoped report types and exports only a previewed range", asy
   await expect(page.getByLabel("报告类型")).toContainText("市场日报");
   await expect(page.getByLabel("报告类型")).toContainText("物流周报");
   await expect(page.getByLabel("报告类型")).toContainText("供需月报");
-  await expect(page.getByLabel("具体品种")).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "具体品种" })).toBeVisible();
   await expect(page.getByRole("group", { name: "统计地区" })).toBeVisible();
 
   await page.getByLabel("报告类型").selectOption("PRODUCTION_DAILY");
+  await page
+    .getByRole("textbox", { name: "具体品种" })
+    .fill("E2E-四年图表玉米");
   await page.getByRole("button", { name: "生成报告预览" }).click();
   await expect(page.getByRole("region", { name: "报告预览" })).toContainText(
     "核定数据条数",

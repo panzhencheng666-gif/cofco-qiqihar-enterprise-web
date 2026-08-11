@@ -8,7 +8,7 @@ import type {
 export interface RealtimeFormField {
   code: string;
   label: string;
-  type: "text" | "date" | "decimal" | "select";
+  type: "text" | "date" | "decimal" | "select" | "region";
   required?: boolean;
   unit?: string | null;
   options?: readonly { value: string; label: string }[];

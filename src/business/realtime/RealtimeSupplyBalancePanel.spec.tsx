@@ -42,6 +42,7 @@ function account(overrides: Partial<SupplyAccountRow> = {}): SupplyAccountRow {
     surveyedEndingInventory: "51.0000",
     inventoryReconciliationDifference: "0.0000",
     inputSetId: "input-set-1",
+    calculationChecksum: "supply-checksum-001",
     legacyReadOnly: false,
     adjustmentProposal: null,
     formula: {
@@ -407,6 +408,8 @@ describe("RealtimeSupplyBalancePanel", () => {
     expect(screen.getByRole("region", { name: "计算明细" })).toBeVisible();
     expect(screen.getByRole("region", { name: "来源追溯" })).toBeVisible();
     expect(screen.getAllByText("201.0000").length).toBeGreaterThan(0);
+    expect(screen.getByText("GRAIN_BALANCE · v1")).toBeVisible();
+    expect(screen.getByText("supply-checksum-001")).toBeVisible();
     expect(
       screen.queryByRole("button", {
         name: /批准手工来源|创建不可变输入集|试算|运行并发布/,

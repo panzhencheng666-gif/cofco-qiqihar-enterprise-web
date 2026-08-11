@@ -68,6 +68,8 @@ test("persists production data, refreshes a colleague, and enforces region acces
   await form.getByLabel("销售数量").fill("4");
   await form.getByLabel("自用数量").fill("2");
   await form.getByLabel("期末余粮").fill("12");
+  await form.getByLabel("余粮主体唯一标识").fill("e2e-farmer-yinqin-1");
+  await form.getByLabel("余粮统计截止日").fill("2026-08-09");
   await form.getByLabel("填报人联系方式").fill("13800000001");
   await form.getByLabel("填报对象联系方式").fill("13900000001");
   await form.getByLabel("填报对象纬度").fill("47.3543");
@@ -111,6 +113,12 @@ test("persists production data, refreshes a colleague, and enforces region acces
   };
   expect(detail.data.submissionMetadata["PROD_REPORTER_NAME"]).toBe(
     "验收填报员甲",
+  );
+  expect(detail.data.submissionMetadata["PROD_SURPLUS_SUBJECT_CODE"]).toBe(
+    "e2e-farmer-yinqin-1",
+  );
+  expect(detail.data.submissionMetadata["PROD_SURPLUS_CUTOFF_DATE"]).toBe(
+    "2026-08-09",
   );
   expect(detail.data.evidencePhotos).toHaveLength(1);
   const photoId = detail.data.evidencePhotos[0]?.id ?? "";

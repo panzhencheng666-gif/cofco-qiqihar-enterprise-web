@@ -34,9 +34,6 @@ export function RealtimeReportCenterPanel({
   const [definitionCode, setDefinitionCode] = useState("");
   const [productCode, setProductCode] = useState("");
   const [cultivarCode, setCultivarCode] = useState("");
-  const [cultivars, setCultivars] = useState<
-    readonly { code: string; name: string }[]
-  >([]);
   const [regionCode, setRegionCode] = useState("");
   const [periodCode, setPeriodCode] = useState("");
   const [formatCode, setFormatCode] = useState("CSV");
@@ -81,26 +78,6 @@ export function RealtimeReportCenterPanel({
       cancelled = true;
     };
   }, [repository]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!productCode) {
-      return () => {
-        cancelled = true;
-      };
-    }
-    repository
-      .listCultivars(productCode)
-      .then((nextCultivars) => {
-        if (!cancelled) setCultivars(nextCultivars);
-      })
-      .catch(() => {
-        if (!cancelled) setCultivars([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [productCode, repository]);
 
   const selectedRegion = useMemo(
     () => master?.regions.find((region) => region.code === regionCode),
@@ -257,7 +234,6 @@ export function RealtimeReportCenterPanel({
                   changeScope(() => {
                     setProductCode(event.target.value);
                     setCultivarCode("");
-                    setCultivars([]);
                   })
                 }
               >
@@ -269,25 +245,18 @@ export function RealtimeReportCenterPanel({
               </select>
             </label>
           )}
-          {cultivars.length > 0 && (
-            <label>
-              <span>具体品种</span>
-              <select
-                aria-label="具体品种"
-                value={cultivarCode}
-                onChange={(event) =>
-                  changeScope(() => setCultivarCode(event.target.value))
-                }
-              >
-                <option value="">全部品种</option>
-                {cultivars.map((cultivar) => (
-                  <option key={cultivar.code} value={cultivar.code}>
-                    {cultivar.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <label>
+            <span>具体品种</span>
+            <input
+              aria-label="具体品种"
+              placeholder="全部具体品种"
+              type="text"
+              value={cultivarCode}
+              onChange={(event) =>
+                changeScope(() => setCultivarCode(event.target.value))
+              }
+            />
+          </label>
           <RealtimeRegionCascadePicker
             ariaLabel="统计地区"
             onChange={(nextRegionCode) =>

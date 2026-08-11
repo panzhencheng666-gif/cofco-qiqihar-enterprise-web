@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -627,6 +628,60 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(screen.getByLabelText("对象销售价格")).toBeVisible();
     expect(screen.queryByLabelText("本次成交价格方向")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("实际成交价")).not.toBeInTheDocument();
+  });
+
+  it("renders region hierarchy market fields as authoritative four-level selectors", async () => {
+    const { api } = repository();
+    vi.spyOn(api, "listObjectTypes").mockResolvedValue([
+      { code: "TRADER", name: "贸易商", domain: "MARKET" },
+    ]);
+    vi.spyOn(api, "loadMarketDefinition").mockResolvedValue({
+      productCode: "CORN",
+      objectTypeCode: "TRADER",
+      coreFields: [
+        {
+          code: "MKT_STORAGE_REGION_CODE",
+          label: "库存存放地区",
+          controlType: "REGION_HIERARCHY",
+          unit: null,
+          description: "库存实物存放地行政区划代码",
+          capability: null,
+          required: false,
+          precision: null,
+          scale: null,
+          sortOrder: 142,
+          options: [],
+        },
+      ],
+      groups: [],
+    });
+    vi.spyOn(api, "listMarket").mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 100,
+      totalElements: 0,
+      totalPages: 0,
+    });
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="张三"
+        domain="market"
+        lockedProductCode="CORN"
+        repository={api}
+      />,
+    );
+
+    const storageRegion = await screen.findByRole("group", {
+      name: "库存存放地区",
+    });
+    expect(
+      within(storageRegion).getByRole("combobox", { name: "地级市" }),
+    ).toBeVisible();
+    expect(
+      within(storageRegion).getByRole("combobox", { name: "行政村" }),
+    ).toBeDisabled();
+    expect(screen.queryByRole("textbox", { name: "库存存放地区" })).toBeNull();
   });
 
   it("renders the required production provenance fields without the removed duplicate inputs", async () => {
