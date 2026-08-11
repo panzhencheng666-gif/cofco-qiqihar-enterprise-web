@@ -25,6 +25,8 @@
     "stage1:inventory:check": "node scripts/generate-stage-one-ui-inventory.mjs --check",
     "stage1:run": "node scripts/run-stage-one-gate.mjs",
     "stage3:acceptance": "node scripts/run-stage-three-acceptance.mjs",
+    "stage3:console-proof": "node scripts/verify-chromium-http-console-semantics.mjs",
+    "stage3:idp-supplement": "node scripts/run-stage-three-idp-supplement.mjs",
     "verify": "npm run format:check && npm run lint && npm run architecture && npm run stage1:inventory:check && npm run test && npm run build && npm run budget && npm run test:e2e:preview"
   },
   "dependencies": {
