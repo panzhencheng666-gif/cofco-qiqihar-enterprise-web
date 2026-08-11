@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 import type { APIRequestContext } from "@playwright/test";
 import {
   expect,
+  queryE2eDatabase,
   stageThreeBrowserEndpoints,
   test,
   trackBrowserErrors,
@@ -182,9 +183,17 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
     PROD_SAMPLE_LONGITUDE: "123.9182",
     evidencePhotoId,
   });
+  const importResponsePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().includes("/api/v1/imports/production?"),
+  );
   await page
     .getByLabel("批量导入产情记录")
     .setInputFiles(invalidWorkbook.path);
+  const importResponse = await importResponsePromise;
+  expect(importResponse.status()).toBe(201);
+  const importJob = (await importResponse.json()) as { data: { id: string } };
   await expect(
     page.getByText(/导入完成：成功 0 条，失败 1 条/u),
   ).toBeVisible({ timeout: 15_000 });
@@ -194,6 +203,16 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
   expect(errorDownload.suggestedFilename()).toMatch(/\.csv$/u);
   invalidWorkbook.cleanup();
   matrix.push({ scenario: "INVALID_XLSX_ROW_AND_ERROR_FILE", status: "PASS" });
+
+  queryE2eDatabase(
+    `DELETE FROM platform.import_row_result WHERE import_job_id='${importJob.data.id}'; DELETE FROM platform.import_job WHERE import_job_id='${importJob.data.id}'`,
+  );
+  expect(
+    queryE2eDatabase(
+      `SELECT count(*) FROM platform.import_job WHERE import_job_id='${importJob.data.id}'`,
+    ),
+  ).toBe("0");
+  matrix.push({ scenario: "FAILURE_FIXTURE_CLEANUP", status: "PASS" });
 
   const matrixPath = testInfo.outputPath("FAILURE-MATRIX.json");
   await writeFile(
