@@ -323,9 +323,9 @@ test("keeps reports fail-closed when the report API is not implemented", async (
 
   await expect(page.getByRole("heading", { name: "业务报告" })).toBeVisible();
   await expect(page.getByText("第31周粮食商情周报")).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "生成报告预览" }),
-  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "生成报告预览" })).toHaveCount(
+    0,
+  );
   await expect(page.getByRole("button", { name: /导出当前报告/ })).toHaveCount(
     0,
   );
