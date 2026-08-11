@@ -29,6 +29,7 @@ function statusLabel(status: string): string {
         PENDING_REVIEW: "待审核",
         APPROVED: "审核通过",
         RETURNED: "退回补充",
+        VOIDED: "已作废",
       } as Record<string, string>
     )[status] ?? status
   );
@@ -227,7 +228,9 @@ export function RealtimeLogisticsOperationsPanel({
     }
   }
 
-  async function transition(action: "submit" | "approve" | "return") {
+  async function transition(
+    action: "submit" | "approve" | "return" | "void",
+  ) {
     if (!selected) return;
     if (
       (action === "approve" && !permissions.includes("BUSINESS_APPROVE")) ||
@@ -250,7 +253,7 @@ export function RealtimeLogisticsOperationsPanel({
       setValues(record.values);
       await reload();
       setMessage(
-        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : "退回"}成功`,
+        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : action === "return" ? "退回" : "作废"}成功`,
       );
       onRecordsChanged?.();
       if (mode === "review" && action !== "submit") onSaved?.();
@@ -569,6 +572,15 @@ export function RealtimeLogisticsOperationsPanel({
                 onClick={() => void transition("submit")}
               >
                 提交审核
+              </button>
+            )}
+            {mode === "entry" && selected && actions.has("VOID") && (
+              <button
+                disabled={busy}
+                type="button"
+                onClick={() => void transition("void")}
+              >
+                作废记录
               </button>
             )}
             {selected && canApprove && (

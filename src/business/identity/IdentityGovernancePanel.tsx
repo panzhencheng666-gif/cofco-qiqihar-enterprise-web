@@ -85,6 +85,7 @@ function auditActionLabel(value: string): string {
   if (value.endsWith("_SUBMITTED")) return "提交";
   if (value.endsWith("_APPROVED")) return "审核通过";
   if (value.endsWith("_RETURNED")) return "退回";
+  if (value.endsWith("_VOIDED")) return "作废";
   if (value.endsWith("_COMPLETED")) return "完成";
   if (value.includes("REVOK")) return "撤销权限";
   return "业务操作";

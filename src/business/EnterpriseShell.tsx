@@ -121,6 +121,7 @@ function notificationActionLabel(actionCode: string): string {
   if (actionCode.endsWith("_SUBMITTED")) return "已提交审核";
   if (actionCode.endsWith("_APPROVED")) return "已审核通过";
   if (actionCode.endsWith("_RETURNED")) return "已退回补充";
+  if (actionCode.endsWith("_VOIDED")) return "已作废";
   return "发生变更";
 }
 

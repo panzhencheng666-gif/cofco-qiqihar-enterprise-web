@@ -231,6 +231,72 @@ function fillRequiredProductionFields() {
 }
 
 describe("RealtimeBusinessOperationsPanel", () => {
+  it("voids an editable production draft and leaves the terminal record read-only", async () => {
+    const { api, getProduction, transitionProduction } = repository();
+    const draft = {
+      id: "production-void-1",
+      productCode: "CORN",
+      objectTypeCode: "FARMER",
+      regionCode: "230221101001",
+      cultivarCode: "龙单86",
+      surveyDate: "2026-08-08",
+      cultivatedAreaMu: "100",
+      yieldPerMuKilograms: "650",
+      quality: {},
+      costs: {},
+      insurance: {},
+      subsidies: {},
+      submissionMetadata: { PROD_SAMPLE_NAME: "3C-VOID-PRODUCTION" },
+      reportedAt: "2026-08-08T10:00:00+08:00",
+      estimatedOutputKilograms: "65000",
+      status: "DRAFT",
+      returnReason: null,
+      allowedActions: ["SAVE", "SUBMIT", "VOID"],
+      evidencePhotos: [],
+      version: 0,
+    } as const;
+    getProduction.mockResolvedValue(draft);
+    transitionProduction.mockResolvedValue({
+      ...draft,
+      status: "VOIDED",
+      allowedActions: ["VIEW"],
+      version: 1,
+    });
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="产情填报员"
+        domain="production"
+        editorOnly
+        initialRecordId={draft.id}
+        lockedProductCode="CORN"
+        mode="entry"
+        repository={api}
+      />,
+    );
+
+    await screen.findByRole("button", { name: "作废记录" }).then((button) =>
+      fireEvent.click(button),
+    );
+    expect(transitionProduction).toHaveBeenCalledWith(
+      draft.id,
+      "void",
+      0,
+      undefined,
+    );
+    await screen.findByText(/作废成功/);
+    expect(screen.getByText(/已作废/)).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "保存业务记录" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "提交审核" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "作废记录" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("reviews the existing source record read-only and limits decisions to assigned permissions", async () => {
     const { api, createProduction, getProduction, transitionProduction } =
       repository();

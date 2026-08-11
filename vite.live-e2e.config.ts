@@ -17,11 +17,13 @@ function requireNumericLoopbackTarget(target: string): URL {
 }
 
 export function createLiveE2eProxy(
-  actor: string,
+  actor: string | undefined,
   target: string,
+  authMode: "fixed" | "anonymous" = "fixed",
 ): ProxyOptions {
-  const fixedActor = actor.trim();
-  if (!fixedActor) throw new Error("LIVE_E2E_ACTOR is required for live E2E");
+  const fixedActor = actor?.trim() ?? "";
+  if (authMode === "fixed" && !fixedActor)
+    throw new Error("LIVE_E2E_ACTOR is required for live E2E");
   const loopbackTarget = requireNumericLoopbackTarget(target).origin;
 
   return {
@@ -30,7 +32,8 @@ export function createLiveE2eProxy(
     configure(proxy) {
       proxy.on("proxyReq", (proxyRequest) => {
         proxyRequest.removeHeader("x-actor");
-        proxyRequest.setHeader("X-Actor", fixedActor);
+        if (authMode === "fixed")
+          proxyRequest.setHeader("X-Actor", fixedActor);
       });
     },
   };
@@ -39,7 +42,13 @@ export function createLiveE2eProxy(
 export function createLiveE2eConfig(
   environment: LiveE2eEnvironment,
 ): UserConfig {
-  const actor = required(environment, "LIVE_E2E_ACTOR");
+  const authMode = environment["LIVE_E2E_AUTH_MODE"]?.trim() || "fixed";
+  if (authMode !== "fixed" && authMode !== "anonymous")
+    throw new Error("LIVE_E2E_AUTH_MODE must be fixed or anonymous");
+  const actor =
+    authMode === "fixed"
+      ? required(environment, "LIVE_E2E_ACTOR")
+      : undefined;
   const target = required(environment, "LIVE_E2E_API_TARGET");
 
   return {
@@ -47,7 +56,7 @@ export function createLiveE2eConfig(
       host: "127.0.0.1",
       strictPort: true,
       proxy: {
-        "/api": createLiveE2eProxy(actor, target),
+        "/api": createLiveE2eProxy(actor, target, authMode),
       },
     },
   };

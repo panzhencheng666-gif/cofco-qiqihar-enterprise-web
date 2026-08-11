@@ -133,6 +133,64 @@ function repository(): RealtimeBusinessRepository {
 }
 
 describe("RealtimeLogisticsOperationsPanel", () => {
+  it("voids an editable logistics draft and leaves the terminal record read-only", async () => {
+    const user = userEvent.setup();
+    const draft = {
+      id: "LOG-3C-VOID-001",
+      productCode: "CORN",
+      values: { LOG_PERIOD: "2026-W32", LOG_REPORTER: "物流填报员" },
+      displayValues: {
+        LOG_PERIOD: "2026年第32周",
+        LOG_REPORTER: "物流填报员",
+      },
+      status: "DRAFT",
+      returnReason: null,
+      allowedActions: ["SAVE", "SUBMIT", "VOID"],
+      version: 0,
+    } as const;
+    const transitionLogistics = vi.fn().mockResolvedValue({
+      ...draft,
+      status: "VOIDED",
+      allowedActions: ["VIEW"],
+      version: 1,
+    });
+    const service = {
+      ...repository(),
+      getLogistics: vi.fn().mockResolvedValue(draft),
+      transitionLogistics,
+    };
+
+    render(
+      <RealtimeLogisticsOperationsPanel
+        editorOnly
+        initialRecordId={draft.id}
+        mode="entry"
+        repository={service}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "作废记录" }),
+    );
+    expect(transitionLogistics).toHaveBeenCalledWith(
+      draft.id,
+      "void",
+      0,
+      undefined,
+    );
+    await screen.findByText(/作废成功/);
+    expect(screen.getByLabelText("物流状态")).toHaveTextContent("已作废");
+    expect(
+      screen.queryByRole("button", { name: "保存物流记录" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "提交审核" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "作废记录" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("reviews the original logistics record without opening an editable entry form", async () => {
     const user = userEvent.setup();
     const record = {

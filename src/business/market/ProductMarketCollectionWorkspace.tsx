@@ -75,6 +75,7 @@ const marketStatusCodeByLabel: Readonly<Record<string, string>> = {
   待审核: "PENDING_REVIEW",
   已核定: "APPROVED",
   需补充: "RETURNED",
+  已作废: "VOIDED",
 };
 
 const aggregateRegionByCity = {
@@ -103,7 +104,7 @@ interface MarketCollectionRow {
   inventory: string;
   transactionVolume: string;
   salesVolume: string;
-  state: "待审核" | "已核定" | "需补充" | "填写中";
+  state: "待审核" | "已核定" | "需补充" | "填写中" | "已作废";
   values: Readonly<Record<string, string>>;
 }
 
@@ -319,6 +320,7 @@ function persistedMarketState(
   )
     return "需补充";
   if (value === "草稿" || value === "DRAFT") return "填写中";
+  if (value === "已作废" || value === "VOIDED") return "已作废";
   return "待审核";
 }
 
@@ -1066,6 +1068,7 @@ export function ProductMarketCollectionWorkspace({
             <option value="待审核">待审核</option>
             <option value="已核定">已核定</option>
             <option value="需补充">需补充</option>
+            <option value="已作废">已作废</option>
           </select>
         </label>
         <div className="enterprise-ledger-query__actions">

@@ -98,6 +98,7 @@ const logisticsStatusLabels: Readonly<Record<string, string>> = {
   SUBMITTED: "待审核",
   APPROVED: "已核定",
   RETURNED: "退回待补充",
+  VOIDED: "已作废",
 };
 
 function fixtureLogisticsStatus(item: BusinessWorkItem): string {
@@ -702,6 +703,7 @@ export function LogisticsMonitoringWorkspace({
             <option value="PENDING_REVIEW">待审核</option>
             <option value="APPROVED">已核定</option>
             <option value="RETURNED">退回待补充</option>
+            <option value="VOIDED">已作废</option>
           </select>
         </label>
         <div className="enterprise-ledger-query__actions">

@@ -802,7 +802,7 @@ export interface RealtimeBusinessRepository {
   ): Promise<ProductionRecordRow>;
   transitionProduction(
     id: string,
-    action: "submit" | "approve" | "return",
+    action: "submit" | "approve" | "return" | "void",
     version: number,
     reason?: string,
   ): Promise<ProductionRecordRow>;
@@ -817,7 +817,7 @@ export interface RealtimeBusinessRepository {
   ): Promise<MarketRecordRow>;
   transitionMarket(
     id: string,
-    action: "submit" | "approve" | "return",
+    action: "submit" | "approve" | "return" | "void",
     version: number,
     reason?: string,
   ): Promise<MarketRecordRow>;
@@ -916,7 +916,7 @@ export interface RealtimeBusinessRepository {
   ): Promise<LogisticsRecordRow>;
   transitionLogistics(
     id: string,
-    action: "submit" | "approve" | "return",
+    action: "submit" | "approve" | "return" | "void",
     version: number,
     reason?: string,
   ): Promise<LogisticsRecordRow>;

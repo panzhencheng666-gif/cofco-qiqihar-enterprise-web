@@ -30,6 +30,15 @@ export const liveBrowserAccounts = {
   publisher: { url: "http://127.0.0.1:63188", name: "验收发布员" },
 } as const;
 
+export const stageThreeBrowserEndpoints = {
+  outsideOperator: {
+    url: "http://127.0.0.1:63190",
+    name: "验收异地填报员",
+  },
+  anonymous: { url: "http://127.0.0.1:63191" },
+  unavailable: { url: "http://127.0.0.1:63192" },
+} as const;
+
 export function trackBrowserErrors(page: Page): {
   errors: string[];
   assertClean(): void;

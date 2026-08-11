@@ -67,6 +67,7 @@ const productionStatusCodeByLabel: Readonly<Record<string, string>> = {
   审核退回: "RETURNED",
   待审核: "PENDING_REVIEW",
   已核定: "APPROVED",
+  已作废: "VOIDED",
 };
 
 const aggregateRegionByCity = {
@@ -263,6 +264,7 @@ function persistedProductionStatus(value: string | undefined): string {
   if (value === "已审核" || value === "已核定" || value === "APPROVED")
     return "已核定";
   if (value === "已退回" || value === "RETURNED") return "审核退回";
+  if (value === "已作废" || value === "VOIDED") return "已作废";
   if (value === "待审核" || value === "SUBMITTED") return "待审核";
   return "填写中";
 }
@@ -934,7 +936,7 @@ export function ProductProductionCollectionWorkspace({
             }}
           >
             <option value="">全部状态</option>
-            {["填写中", "退回待补充", "审核退回", "待审核", "已核定"].map(
+            {["填写中", "退回待补充", "审核退回", "待审核", "已核定", "已作废"].map(
               (label) => (
                 <option key={label} value={label}>
                   {label}
