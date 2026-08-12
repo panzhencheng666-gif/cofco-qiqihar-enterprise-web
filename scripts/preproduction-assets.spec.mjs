@@ -28,8 +28,11 @@ test("ships every stage-five local asset through one bounded operations package"
     "ops/alicloud-preproduction/terraform/outputs.tf",
     "ops/alicloud-preproduction/terraform/preproduction.tfvars.example",
     "ops/alicloud-preproduction/scripts/common.sh",
+    "ops/alicloud-preproduction/scripts/transaction.sh",
     "ops/alicloud-preproduction/scripts/preflight.sh",
     "ops/alicloud-preproduction/scripts/infra.sh",
+    "ops/alicloud-preproduction/scripts/verify-terraform-backend.sh",
+    "ops/alicloud-preproduction/scripts/render-gateway.sh",
     "ops/alicloud-preproduction/scripts/rds-whitelist.sh",
     "ops/alicloud-preproduction/scripts/verify-cloud-boundaries.sh",
     "ops/alicloud-preproduction/scripts/materialize-secrets.sh",
@@ -83,6 +86,23 @@ test("strips every legacy identity header at the preproduction gateway", async (
   assert.match(nginx, /server_tokens off;/u);
 });
 
+test("fails unknown TLS hosts and forwards only the single approved domain", async () => {
+  const nginx = await read("ops/alicloud-preproduction/gateway/nginx.conf");
+  const render = await read(
+    "ops/alicloud-preproduction/scripts/render-gateway.sh",
+  );
+  const verify = await read("ops/alicloud-preproduction/scripts/verify.sh");
+
+  assert.match(nginx, /__COFCO_PREPROD_TLS_DOMAIN__/u);
+  assert.match(nginx, /return 421/u);
+  assert.doesNotMatch(nginx, /server_name\s+_;/u);
+  assert.doesNotMatch(nginx, /proxy_set_header Host \$host/u);
+  assert.match(render, /COFCO_PREPROD_TLS_DOMAIN/u);
+  assert.match(verify, /COFCO_PREPROD_OIDC_AUTHORIZATION_ENDPOINT/u);
+  assert.match(verify, /expected 302/u);
+  assert.match(verify, /OIDC authorization endpoint/u);
+});
+
 test("uses the official provider, gates changes, and refuses globally open ingress", async () => {
   const terraform = [
     await read("ops/alicloud-preproduction/terraform/versions.tf"),
@@ -98,12 +118,52 @@ test("uses the official provider, gates changes, and refuses globally open ingre
   assert.doesNotMatch(terraform, /cidr_ip\s*=\s*"0\.0\.0\.0\/0"/u);
 });
 
+test("binds the declared vSwitch to live VPC zone and CIDR properties", async () => {
+  const terraform = await read("ops/alicloud-preproduction/terraform/main.tf");
+  const boundaries = await read(
+    "ops/alicloud-preproduction/scripts/verify-cloud-boundaries.sh",
+  );
+
+  assert.match(terraform, /data "alicloud_vswitches" "target"/u);
+  assert.match(terraform, /cidr_block\s*=\s*var\.vswitch_cidr/u);
+  assert.match(terraform, /zone_id\s*=\s*var\.zone_id/u);
+  assert.match(terraform, /alicloud_vswitches\.target\[0\]\.vswitches/u);
+  assert.doesNotMatch(terraform, /alicloud_vswitches\.target\[0\]\.switches/u);
+  assert.match(boundaries, /DescribeVSwitchAttributes/u);
+  assert.match(boundaries, /live_vswitch_cidr/u);
+  assert.match(boundaries, /declared vSwitch.*live Alibaba Cloud state/iu);
+});
+
 test("binds Terraform apply to the exact reviewed saved-plan digest", async () => {
   const infra = await read("ops/alicloud-preproduction/scripts/infra.sh");
 
   assert.match(infra, /COFCO_PREPROD_APPROVED_PLAN_SHA256/u);
   assert.match(infra, /sha256_file "\$plan_path"/u);
   assert.match(infra, /approved plan SHA-256 does not match/u);
+});
+
+test("requires encrypted versioned remote OSS state with TableStore locking", async () => {
+  const versions = await read(
+    "ops/alicloud-preproduction/terraform/versions.tf",
+  );
+  const infra = await read("ops/alicloud-preproduction/scripts/infra.sh");
+  const backend = await read(
+    "ops/alicloud-preproduction/scripts/verify-terraform-backend.sh",
+  );
+
+  assert.match(versions, /backend "oss"/u);
+  assert.doesNotMatch(infra, /-backend=false/u);
+  assert.match(infra, /-backend-config=/u);
+  assert.match(infra, /-reconfigure/u);
+  assert.match(infra, /-lock=true/u);
+  assert.match(infra, /-lock-timeout=0s/u);
+  assert.match(infra, /terraform[^\n]*state pull/u);
+  assert.match(infra, /backend fingerprint/u);
+  assert.match(backend, /GetBucketVersioning/u);
+  assert.match(backend, /DescribeTable/u);
+  assert.match(backend, /LockID/u);
+  assert.match(backend, /AES256|encrypt/u);
+  assert.match(backend, /minimum permissions/u);
 });
 
 test("provides monitoring, backup verification, and image rollback without calling production", async () => {
@@ -192,20 +252,95 @@ test("fails closed unless the SSH alias expands to the approved hardened connect
   assert.match(deploy, /IdentitiesOnly=yes/u);
   assert.match(deploy, /ssh-keygen -F/u);
   assert.match(deploy, /identity file must exist with mode 0600 or 0400/u);
+  assert.match(deploy, /DescribeInstances/u);
+  assert.match(deploy, /COFCO_PREPROD_SSH_PORT/u);
+  assert.match(deploy, /proxyjump/u);
+  assert.match(deploy, /proxycommand/u);
+  assert.match(deploy, /resolved SSH target is not the cloud-confirmed ECS/u);
 });
 
-test("restores the previous whitelist and secrets before restarting a failed candidate", async () => {
+test("arms transaction recovery before every deploy or rollback side effect", async () => {
   const remoteApply = await read(
     "ops/alicloud-preproduction/scripts/remote-apply.sh",
   );
   const rollback = await read("ops/alicloud-preproduction/scripts/rollback.sh");
 
   for (const script of [remoteApply, rollback]) {
-    assert.match(script, /rds-whitelist\.sh.*previous/u);
-    assert.match(script, /materialize-secrets\.sh.*previous/u);
+    assert.match(script, /stage5_transaction_begin/u);
+    assert.match(script, /stage5_transaction_step/u);
+    assert.match(script, /stage5_transaction_commit/u);
   }
   assert.ok(
-    remoteApply.indexOf('rds-whitelist.sh" apply "$previous_config') <
+    remoteApply.indexOf("stage5_transaction_begin") <
+      remoteApply.indexOf("stage5_transaction_step prepare-release"),
+  );
+  assert.ok(
+    rollback.indexOf("stage5_transaction_begin") <
+      rollback.indexOf("stage5_transaction_step rds-whitelist"),
+  );
+});
+
+test("refuses to overwrite an existing immutable release before copying config", async () => {
+  const remoteApply = await read(
+    "ops/alicloud-preproduction/scripts/remote-apply.sh",
+  );
+
+  assert.match(remoteApply, /candidate release ID already exists/u);
+  assert.ok(
+    remoteApply.indexOf('test ! -e "$release_dir"') <
+      remoteApply.indexOf('install -m 0600 "$config_path"'),
+  );
+  assert.match(remoteApply, /stage5_transaction_step capture-whitelist/u);
+  assert.match(remoteApply, /environment_mutation_started=false/u);
+  assert.match(
+    remoteApply,
+    /if test "\$environment_mutation_started" = "true"; then/u,
+  );
+  assert.match(remoteApply, /case "\$release_dir" in/u);
+  assert.match(remoteApply, /rm -r -- "\$release_dir"/u);
+});
+
+test("drops all Linux capabilities through the shared Compose security anchor", async () => {
+  const compose = await read("ops/alicloud-preproduction/compose.yaml");
+  const anchor = compose.slice(0, compose.indexOf("\nservices:"));
+
+  assert.match(anchor, /cap_drop:\s*\n\s*- ALL/u);
+  assert.doesNotMatch(compose, /cap_add:/u);
+});
+
+test("ships validators in the preserved remote Web layout", async () => {
+  const deploy = await read("ops/alicloud-preproduction/scripts/deploy.sh");
+  const common = await read("ops/alicloud-preproduction/scripts/common.sh");
+
+  assert.match(deploy, /tar -C "\$WEB_ROOT"/u);
+  assert.match(deploy, /scripts\/preproduction-config\.mjs/u);
+  assert.match(deploy, /sha256_file/u);
+  assert.match(deploy, /config\/preproduction\.env'/u);
+  assert.match(deploy, /terraform\/\.terraform'/u);
+  assert.match(deploy, /terraform\/\*\.tfstate\.\*'/u);
+  assert.match(deploy, /terraform\/\*\.tfplan'/u);
+  assert.match(common, /CONFIG_VALIDATOR/u);
+});
+
+test("restores the exact original whitelist, secrets, and current release after failure", async () => {
+  const remoteApply = await read(
+    "ops/alicloud-preproduction/scripts/remote-apply.sh",
+  );
+  const rollback = await read("ops/alicloud-preproduction/scripts/rollback.sh");
+
+  assert.match(
+    remoteApply,
+    /rds-whitelist\.sh" restore[^\n]*whitelist_snapshot/u,
+  );
+  assert.match(remoteApply, /materialize-secrets\.sh" "\$previous_config/u);
+  assert.match(rollback, /rds-whitelist\.sh" apply "\$current_config/u);
+  assert.match(rollback, /materialize-secrets\.sh" "\$current_config/u);
+  assert.ok(
+    remoteApply.indexOf('rds-whitelist.sh" restore') <
+      remoteApply.indexOf('materialize-secrets.sh" "$previous_config'),
+  );
+  assert.ok(
+    remoteApply.indexOf('materialize-secrets.sh" "$previous_config') <
       remoteApply.indexOf('docker compose --env-file "$previous_config'),
   );
 });
@@ -223,8 +358,11 @@ test("keeps destructive and secret-leaking shell patterns out of the operations 
   const scripts = await Promise.all(
     [
       "common.sh",
+      "transaction.sh",
       "preflight.sh",
       "infra.sh",
+      "verify-terraform-backend.sh",
+      "render-gateway.sh",
       "rds-whitelist.sh",
       "verify-cloud-boundaries.sh",
       "materialize-secrets.sh",

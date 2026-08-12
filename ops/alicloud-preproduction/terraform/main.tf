@@ -23,6 +23,14 @@ data "alicloud_security_groups" "target" {
   vpc_id = var.vpc_id
 }
 
+data "alicloud_vswitches" "target" {
+  count      = var.enable_apply ? 1 : 0
+  ids        = [var.vswitch_id]
+  vpc_id     = var.vpc_id
+  zone_id    = var.zone_id
+  cidr_block = var.vswitch_cidr
+}
+
 resource "terraform_data" "isolation_gate" {
   count = var.enable_apply ? 1 : 0
   input = {
@@ -56,6 +64,17 @@ resource "terraform_data" "isolation_gate" {
     precondition {
       condition     = try(length(data.alicloud_security_groups.target[0].groups) == 1, false)
       error_message = "The approved security group is not present in the approved VPC."
+    }
+    precondition {
+      condition = try(
+        length(data.alicloud_vswitches.target[0].vswitches) == 1
+        && data.alicloud_vswitches.target[0].vswitches[0].id == var.vswitch_id
+        && data.alicloud_vswitches.target[0].vswitches[0].vpc_id == var.vpc_id
+        && data.alicloud_vswitches.target[0].vswitches[0].zone_id == var.zone_id
+        && data.alicloud_vswitches.target[0].vswitches[0].cidr_block == var.vswitch_cidr,
+        false
+      )
+      error_message = "The declared vSwitch ID, VPC, zone, or CIDR does not match live Alibaba Cloud state."
     }
   }
 }

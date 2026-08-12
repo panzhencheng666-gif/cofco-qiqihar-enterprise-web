@@ -7,10 +7,11 @@ source "$SCRIPT_DIR/common.sh"
 mode="${1:-dry-run}"
 config_path="${2:-$PACKAGE_ROOT/config/preproduction.env}"
 runtime_dir="$PACKAGE_ROOT/.runtime/rds-whitelist"
+snapshot_path="${3:-$runtime_dir/prior-whitelist.json}"
 
 case "$mode" in
-  dry-run|apply) ;;
-  *) fail "usage: rds-whitelist.sh [dry-run|apply] [config-path]" ;;
+  dry-run|capture|apply|restore) ;;
+  *) fail "usage: rds-whitelist.sh [dry-run|capture|apply|restore] [config-path] [snapshot-path]" ;;
 esac
 
 require_command node
@@ -22,7 +23,6 @@ if test "$mode" = "dry-run"; then
   exit 0
 fi
 
-require_preproduction_change_approval
 require_command aliyun
 require_command jq
 install -d -m 0700 "$runtime_dir"
@@ -33,6 +33,33 @@ whitelist_name="$(read_config "$config_path" COFCO_PREPROD_RDS_WHITELIST_NAME)"
 whitelist_cidrs="$(read_config "$config_path" COFCO_PREPROD_RDS_WHITELIST_CIDRS)"
 response_file="$runtime_dir/.whitelist.$$"
 trap 'rm -f "$response_file"' EXIT
+
+if test "$mode" = "capture"; then
+  aliyun rds DescribeDBInstanceIPArrayList \
+    --RegionId "$region" \
+    --DBInstanceId "$rds_instance_id" >"$response_file"
+  install -d -m 0700 "$(dirname "$snapshot_path")"
+  jq -e --arg name "$whitelist_name" '
+    [.Items.DBInstanceIPArray[]? | select(.DBInstanceIPArrayName == $name)]
+    | if length == 0 then
+        {exists:false,securityIpList:"127.0.0.1"}
+      elif length == 1 then
+        {exists:true,securityIpList:.[0].SecurityIPList}
+      else
+        error("duplicate named whitelist")
+      end
+  ' "$response_file" >"$snapshot_path" || fail "RDS whitelist snapshot could not be captured uniquely"
+  chmod 0600 "$snapshot_path"
+  printf 'RDS_WHITELIST_CAPTURED name=%s snapshot=%s\n' "$whitelist_name" "$snapshot_path"
+  exit 0
+fi
+
+require_preproduction_change_approval
+if test "$mode" = "restore"; then
+  require_config_mode "$snapshot_path"
+  whitelist_cidrs="$(jq -er '.securityIpList | select(type == "string" and length > 0)' "$snapshot_path")" \
+    || fail "RDS whitelist snapshot is invalid"
+fi
 
 aliyun rds ModifySecurityIps \
   --RegionId "$region" \
@@ -59,4 +86,4 @@ jq -e --arg name "$whitelist_name" --argjson approved "$approved_json" '
   | ($matches | length) == 1 and $matches[0] == $approved
 ' "$response_file" >/dev/null || fail "RDS whitelist read-back did not match the approved CIDRs"
 
-printf 'RDS_WHITELIST_VERIFIED name=%s cidr_count=%s\n' "$whitelist_name" "$(jq 'length' <<<"$approved_json")"
+printf 'RDS_WHITELIST_VERIFIED mode=%s name=%s cidr_count=%s\n' "$mode" "$whitelist_name" "$(jq 'length' <<<"$approved_json")"

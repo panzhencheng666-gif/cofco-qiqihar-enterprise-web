@@ -24,13 +24,29 @@ require_command ssh-keygen
 ssh_alias="$(read_config "$config_path" COFCO_PREPROD_SSH_HOST_ALIAS)"
 expected_host="$(read_config "$config_path" COFCO_PREPROD_SSH_EXPECTED_HOST)"
 expected_user="$(read_config "$config_path" COFCO_PREPROD_SSH_USER)"
+expected_port="$(read_config "$config_path" COFCO_PREPROD_SSH_PORT)"
+expected_host_key="$(read_config "$config_path" COFCO_PREPROD_SSH_HOST_KEY_SHA256)"
+region="$(read_config "$config_path" COFCO_PREPROD_REGION)"
+ecs_instance_id="$(read_config "$config_path" COFCO_PREPROD_ECS_INSTANCE_ID)"
 ssh_config="$(ssh -G "$ssh_alias")"
 actual_host="$(awk '$1 == "hostname" {print $2; exit}' <<<"$ssh_config")"
 actual_user="$(awk '$1 == "user" {print $2; exit}' <<<"$ssh_config")"
+actual_port="$(awk '$1 == "port" {print $2; exit}' <<<"$ssh_config")"
+actual_proxyjump="$(awk '$1 == "proxyjump" {print $2; exit}' <<<"$ssh_config")"
+actual_proxycommand="$(awk '$1 == "proxycommand" {print $2; exit}' <<<"$ssh_config")"
 identity_file="$(awk '$1 == "identityfile" {print $2; exit}' <<<"$ssh_config")"
 user_known_hosts="$(awk '$1 == "userknownhostsfile" {print $2; exit}' <<<"$ssh_config")"
 test "$actual_host" = "$expected_host" || fail "SSH alias does not expand to the approved HostName"
 test "$actual_user" = "$expected_user" || fail "SSH alias does not expand to the approved non-root user"
+test "$actual_port" = "$expected_port" && test "$actual_port" = "22" || fail "SSH alias does not expand to the approved direct port 22"
+case "${actual_proxyjump:-none}" in
+  ""|none) ;;
+  *) fail "direct SSH target has an unapproved proxyjump" ;;
+esac
+case "${actual_proxycommand:-none}" in
+  ""|none) ;;
+  *) fail "direct SSH target has an unapproved proxycommand" ;;
+esac
 test -n "$identity_file" && test -f "$identity_file" || fail "SSH identity file must exist with mode 0600 or 0400"
 identity_mode="$(config_mode "$identity_file")"
 case "$identity_mode" in
@@ -40,11 +56,75 @@ esac
 known_hosts_file="${user_known_hosts%% *}"
 test -f "$known_hosts_file" || fail "SSH known_hosts file is missing"
 ssh-keygen -F "$actual_host" -f "$known_hosts_file" >/dev/null || fail "approved SSH host key is not present in known_hosts"
+ssh-keygen -F "$actual_host" -f "$known_hosts_file" \
+  | awk '!/^#/' \
+  | ssh-keygen -lf - -E sha256 \
+  | awk '{print $2}' \
+  | grep -Fxq "$expected_host_key" || fail "known_hosts does not contain the approved SSH host-key fingerprint"
 
-ssh_options=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes)
+ecs_info="$(mktemp "${TMPDIR:-/tmp}/cofco-preproduction-ecs.XXXXXX")"
+trap 'rm -f "$ecs_info"' EXIT
+instance_ids="$(jq -cn --arg id "$ecs_instance_id" '[$id]')"
+aliyun ecs DescribeInstances \
+  --RegionId "$region" \
+  --InstanceIds "$instance_ids" >"$ecs_info"
+cloud_addresses="$(jq -c --arg instance "$ecs_instance_id" '
+  [.Instances.Instance[]?
+    | select(.InstanceId == $instance)
+    | (.VpcAttributes.PrivateIpAddress.IpAddress[]?,
+       .PublicIpAddress.IpAddress[]?,
+       .EipAddress.IpAddress?)]
+  | map(select(type == "string" and length > 0))
+  | unique
+' "$ecs_info")"
+resolved_addresses="$(node "$RUNTIME_VALIDATOR" resolve-host "$actual_host")"
+node "$RUNTIME_VALIDATOR" addresses-approved "$resolved_addresses" "$cloud_addresses" \
+  || fail "resolved SSH target is not the cloud-confirmed ECS"
+
+ssh_options=(
+  -o BatchMode=yes
+  -o StrictHostKeyChecking=yes
+  -o CheckHostIP=yes
+  -o IdentitiesOnly=yes
+  -o ProxyCommand=none
+  -o ProxyJump=none
+  -o "Port=$expected_port"
+  -o "IdentityFile=$identity_file"
+  -o "UserKnownHostsFile=$known_hosts_file"
+)
 
 remote_bundle='.local/share/cofco-preproduction/bundle'
-ssh "${ssh_options[@]}" "$ssh_alias" "install -d -m 0700 '$remote_bundle/config'"
-tar -C "$PACKAGE_ROOT" --exclude='.runtime' -cf - . | ssh "${ssh_options[@]}" "$ssh_alias" "cd '$remote_bundle' && tar -xf -"
-scp -q "${ssh_options[@]}" "$config_path" "$ssh_alias:$remote_bundle/config/preproduction.env"
-ssh "${ssh_options[@]}" "$ssh_alias" "chmod 0600 '$remote_bundle/config/preproduction.env' && cd '$remote_bundle' && COFCO_PREPROD_APPLY=APPLY_PREPRODUCTION ./scripts/remote-apply.sh ./config/preproduction.env"
+remote_package="$remote_bundle/ops/alicloud-preproduction"
+config_validator_sha="$(sha256_file "$CONFIG_VALIDATOR")"
+runtime_validator_sha="$(sha256_file "$RUNTIME_VALIDATOR")"
+ssh "${ssh_options[@]}" "$ssh_alias" "install -d -m 0700 '$remote_bundle'"
+tar -C "$WEB_ROOT" \
+  --exclude='ops/alicloud-preproduction/.runtime' \
+  --exclude='ops/alicloud-preproduction/config/preproduction.env' \
+  --exclude='ops/alicloud-preproduction/terraform/.terraform' \
+  --exclude='ops/alicloud-preproduction/terraform/*.tfstate' \
+  --exclude='ops/alicloud-preproduction/terraform/*.tfstate.*' \
+  --exclude='ops/alicloud-preproduction/terraform/*.tfplan' \
+  -cf - \
+  ops/alicloud-preproduction \
+  scripts/preproduction-config.mjs \
+  scripts/preproduction-runtime.mjs \
+  | ssh "${ssh_options[@]}" "$ssh_alias" "cd '$remote_bundle' && tar -xf -"
+scp -q "${ssh_options[@]}" "$config_path" "$ssh_alias:$remote_package/config/preproduction.env"
+ssh "${ssh_options[@]}" "$ssh_alias" bash -s -- \
+  "$remote_package" "$config_validator_sha" "$runtime_validator_sha" <<'REMOTE_VERIFY'
+set -euo pipefail
+remote_package="$1"
+expected_config_sha="$2"
+expected_runtime_sha="$3"
+cd "$remote_package"
+source ./scripts/common.sh
+test "$(sha256_file "$CONFIG_VALIDATOR")" = "$expected_config_sha"
+test "$(sha256_file "$RUNTIME_VALIDATOR")" = "$expected_runtime_sha"
+chmod 0600 ./config/preproduction.env
+REMOTE_VERIFY
+ssh "${ssh_options[@]}" "$ssh_alias" bash -s -- "$remote_package" <<'REMOTE_APPLY'
+set -euo pipefail
+cd "$1"
+COFCO_PREPROD_APPLY=APPLY_PREPRODUCTION ./scripts/remote-apply.sh ./config/preproduction.env
+REMOTE_APPLY

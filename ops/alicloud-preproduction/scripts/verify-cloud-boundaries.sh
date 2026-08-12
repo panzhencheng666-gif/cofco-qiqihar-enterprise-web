@@ -14,8 +14,10 @@ done
 install -d -m 0700 "$evidence_dir"
 
 region="$(read_config "$config_path" COFCO_PREPROD_REGION)"
+zone_id="$(read_config "$config_path" COFCO_PREPROD_ZONE_ID)"
 vpc_id="$(read_config "$config_path" COFCO_PREPROD_VPC_ID)"
 vswitch_id="$(read_config "$config_path" COFCO_PREPROD_VSWITCH_ID)"
+declared_vswitch_cidr="$(read_config "$config_path" COFCO_PREPROD_VSWITCH_CIDR)"
 ecs_instance_id="$(read_config "$config_path" COFCO_PREPROD_ECS_INSTANCE_ID)"
 ecs_private_ip="$(read_config "$config_path" COFCO_PREPROD_ECS_PRIVATE_IP)"
 https_endpoint_ip="$(read_config "$config_path" COFCO_PREPROD_HTTPS_ENDPOINT_IP)"
@@ -28,11 +30,31 @@ https_source_cidrs="$(read_config "$config_path" COFCO_PREPROD_HTTPS_SOURCE_CIDR
 ssh_source_cidr="$(read_config "$config_path" COFCO_PREPROD_SSH_SOURCE_CIDR)"
 
 ecs_info="$evidence_dir/.ecs.$$"
+vswitch_info="$evidence_dir/.vswitch.$$"
 rds_info="$evidence_dir/.rds.$$"
 rds_net_info="$evidence_dir/.rds-net.$$"
 security_info="$evidence_dir/.security-group.$$"
 whitelist_info="$evidence_dir/.rds-whitelist.$$"
-trap 'rm -f "$ecs_info" "$rds_info" "$rds_net_info" "$security_info" "$whitelist_info"' EXIT
+trap 'rm -f "$ecs_info" "$vswitch_info" "$rds_info" "$rds_net_info" "$security_info" "$whitelist_info"' EXIT
+
+aliyun vpc DescribeVSwitchAttributes \
+  --RegionId "$region" \
+  --VSwitchId "$vswitch_id" >"$vswitch_info"
+live_vswitch_cidr="$(jq -er \
+  --arg id "$vswitch_id" \
+  --arg vpc "$vpc_id" \
+  --arg zone "$zone_id" \
+  --arg cidr "$declared_vswitch_cidr" '
+    select(
+      .VSwitchId == $id
+      and .VpcId == $vpc
+      and .ZoneId == $zone
+      and .CidrBlock == $cidr
+    ) | .CidrBlock
+  ' "$vswitch_info")" || fail "declared vSwitch ID, VPC, zone, or CIDR does not match live Alibaba Cloud state"
+test "$live_vswitch_cidr" = "$declared_vswitch_cidr" || fail "declared vSwitch CIDR does not match live Alibaba Cloud state"
+node "$RUNTIME_VALIDATOR" cidrs-within "$live_vswitch_cidr" "$whitelist_cidrs" \
+  || fail "RDS whitelist contains a CIDR outside the live vSwitch boundary"
 
 instance_ids="$(jq -cn --arg id "$ecs_instance_id" '[$id]')"
 aliyun ecs DescribeInstances \
@@ -127,10 +149,14 @@ jq -e --arg name "$whitelist_name" --argjson approved "$approved_json" '
 evidence_file="$evidence_dir/cloud-boundaries-$(date -u +%Y%m%dT%H%M%SZ).json"
 jq -n \
   --arg environment preproduction \
+  --arg zone "$zone_id" \
+  --arg vpc "$vpc_id" \
+  --arg vswitch "$vswitch_id" \
+  --arg live_vswitch_cidr "$live_vswitch_cidr" \
   --arg ecs "$ecs_instance_id" \
   --arg rds "$rds_instance_id" \
   --arg security_group "$security_group_id" \
   --arg verified_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{environment:$environment,ecsInstanceId:$ecs,rdsInstanceId:$rds,securityGroupId:$security_group,isolationBoundary:"PASS",verifiedAt:$verified_at}' >"$evidence_file"
+  '{environment:$environment,zoneId:$zone,vpcId:$vpc,vSwitchId:$vswitch,liveVSwitchCidr:$live_vswitch_cidr,ecsInstanceId:$ecs,rdsInstanceId:$rds,securityGroupId:$security_group,isolationBoundary:"PASS",verifiedAt:$verified_at}' >"$evidence_file"
 chmod 0600 "$evidence_file"
 printf 'CLOUD_BOUNDARIES_VERIFIED evidence=%s\n' "$evidence_file"

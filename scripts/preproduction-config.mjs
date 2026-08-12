@@ -37,6 +37,9 @@ export const requiredPreproductionKeys = [
   "COFCO_PREPROD_SSH_HOST_ALIAS",
   "COFCO_PREPROD_SSH_EXPECTED_HOST",
   "COFCO_PREPROD_SSH_USER",
+  "COFCO_PREPROD_SSH_MODE",
+  "COFCO_PREPROD_SSH_PORT",
+  "COFCO_PREPROD_SSH_HOST_KEY_SHA256",
   "COFCO_PREPROD_SSH_SOURCE_CIDR",
   "COFCO_PREPROD_HTTPS_SOURCE_CIDRS",
   "COFCO_PREPROD_RDS_INSTANCE_ID",
@@ -53,6 +56,7 @@ export const requiredPreproductionKeys = [
   "COFCO_PREPROD_KMS_ENDPOINT",
   "COFCO_PREPROD_TLS_DOMAIN",
   "COFCO_PREPROD_OIDC_ISSUER_URI",
+  "COFCO_PREPROD_OIDC_AUTHORIZATION_ENDPOINT",
   "COFCO_PREPROD_OIDC_CLIENT_ID",
   "COFCO_PREPROD_OIDC_REDIRECT_URI",
   "COFCO_PREPROD_OIDC_POST_LOGOUT_REDIRECT_URI",
@@ -65,6 +69,15 @@ export const requiredPreproductionKeys = [
   "COFCO_PREPROD_RTO_MINUTES",
   "COFCO_PREPROD_MONITORING_RETENTION",
   "COFCO_PREPROD_ROLLBACK_RELEASE_ID",
+  "COFCO_PREPROD_TF_STATE_BUCKET",
+  "COFCO_PREPROD_TF_STATE_PREFIX",
+  "COFCO_PREPROD_TF_STATE_KEY",
+  "COFCO_PREPROD_TF_STATE_OSS_ENDPOINT",
+  "COFCO_PREPROD_TF_STATE_TABLESTORE_ENDPOINT",
+  "COFCO_PREPROD_TF_STATE_TABLESTORE_INSTANCE",
+  "COFCO_PREPROD_TF_STATE_TABLESTORE_TABLE",
+  "COFCO_PREPROD_TF_STATE_VERSIONING_APPROVED",
+  "COFCO_PREPROD_TF_STATE_MINIMUM_PERMISSIONS_APPROVED",
 ];
 
 const plaintextSecretKeyPattern =
@@ -319,6 +332,35 @@ export function assessPreproductionConfig(config) {
   ) {
     errors.push("COFCO_PREPROD_SSH_USER must be a bounded non-root account");
   }
+  const sshMode = value("COFCO_PREPROD_SSH_MODE");
+  if (sshMode && sshMode !== "direct") {
+    errors.push(
+      "COFCO_PREPROD_SSH_MODE must be direct; proxy and jump topologies require a separately approved package revision",
+    );
+  }
+  if (
+    value("COFCO_PREPROD_SSH_PORT") &&
+    value("COFCO_PREPROD_SSH_PORT") !== "22"
+  ) {
+    errors.push("COFCO_PREPROD_SSH_PORT must be the approved direct port 22");
+  }
+  if (
+    value("COFCO_PREPROD_SSH_HOST_KEY_SHA256") &&
+    !/^SHA256:[A-Za-z0-9+/]{43}$/u.test(
+      value("COFCO_PREPROD_SSH_HOST_KEY_SHA256"),
+    )
+  ) {
+    errors.push(
+      "COFCO_PREPROD_SSH_HOST_KEY_SHA256 must be an approved SHA256 host-key fingerprint",
+    );
+  }
+  if (
+    sshMode === "direct" &&
+    (value("COFCO_PREPROD_SSH_PROXY_JUMP_ALIAS") ||
+      value("COFCO_PREPROD_SSH_PROXY_COMMAND"))
+  ) {
+    errors.push("Direct SSH mode forbids proxy and jump configuration");
+  }
   if (value("COFCO_PREPROD_SSH_SOURCE_CIDR")) {
     validateCidrList(
       value("COFCO_PREPROD_SSH_SOURCE_CIDR"),
@@ -428,8 +470,37 @@ export function assessPreproductionConfig(config) {
   ) {
     errors.push("COFCO_PREPROD_TLS_DOMAIN is invalid");
   }
-  if (value("COFCO_PREPROD_OIDC_ISSUER_URI")) {
-    validateUrl(value("COFCO_PREPROD_OIDC_ISSUER_URI"), "OIDC issuer", errors);
+  const issuer = value("COFCO_PREPROD_OIDC_ISSUER_URI")
+    ? validateUrl(value("COFCO_PREPROD_OIDC_ISSUER_URI"), "OIDC issuer", errors)
+    : undefined;
+  const authorizationEndpoint = value(
+    "COFCO_PREPROD_OIDC_AUTHORIZATION_ENDPOINT",
+  )
+    ? validateUrl(
+        value("COFCO_PREPROD_OIDC_AUTHORIZATION_ENDPOINT"),
+        "OIDC authorization endpoint",
+        errors,
+      )
+    : undefined;
+  if (
+    issuer &&
+    authorizationEndpoint &&
+    authorizationEndpoint.origin !== issuer.origin
+  ) {
+    errors.push(
+      "OIDC authorization endpoint must use the approved issuer origin",
+    );
+  }
+  if (
+    authorizationEndpoint &&
+    (authorizationEndpoint.username ||
+      authorizationEndpoint.password ||
+      authorizationEndpoint.search ||
+      authorizationEndpoint.hash)
+  ) {
+    errors.push(
+      "OIDC authorization endpoint must not contain credentials, query, or fragment",
+    );
   }
   const redirect = value("COFCO_PREPROD_OIDC_REDIRECT_URI")
     ? validateUrl(
@@ -524,6 +595,74 @@ export function assessPreproductionConfig(config) {
     errors.push(
       "COFCO_PREPROD_MONITORING_RETENTION must be expressed as whole days",
     );
+  }
+
+  const stateBucket = value("COFCO_PREPROD_TF_STATE_BUCKET");
+  if (
+    stateBucket &&
+    (!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/u.test(stateBucket) ||
+      !stateBucket.includes("preprod"))
+  ) {
+    errors.push(
+      "COFCO_PREPROD_TF_STATE_BUCKET must be a bounded preproduction OSS bucket name",
+    );
+  }
+  for (const key of [
+    "COFCO_PREPROD_TF_STATE_PREFIX",
+    "COFCO_PREPROD_TF_STATE_KEY",
+  ]) {
+    if (
+      value(key) &&
+      (!/^[A-Za-z0-9._/-]{3,180}$/u.test(value(key)) ||
+        value(key).startsWith("/") ||
+        value(key).includes(".."))
+    ) {
+      errors.push(`${key} must be a bounded relative state object path`);
+    }
+  }
+  const ossEndpoint = value("COFCO_PREPROD_TF_STATE_OSS_ENDPOINT");
+  if (
+    ossEndpoint &&
+    region &&
+    ossEndpoint !== `oss-${region}-internal.aliyuncs.com`
+  ) {
+    errors.push(
+      "COFCO_PREPROD_TF_STATE_OSS_ENDPOINT must be the approved regional internal OSS endpoint",
+    );
+  }
+  const tableStoreEndpoint = value(
+    "COFCO_PREPROD_TF_STATE_TABLESTORE_ENDPOINT",
+  );
+  if (
+    tableStoreEndpoint &&
+    (!/^https:\/\/[A-Za-z0-9-]+\.[a-z]{2}-[a-z0-9-]+\.vpc\.tablestore\.aliyuncs\.com$/u.test(
+      tableStoreEndpoint,
+    ) ||
+      (region && !tableStoreEndpoint.includes(`.${region}.`)))
+  ) {
+    errors.push(
+      "COFCO_PREPROD_TF_STATE_TABLESTORE_ENDPOINT must be the approved regional VPC endpoint",
+    );
+  }
+  for (const key of [
+    "COFCO_PREPROD_TF_STATE_TABLESTORE_INSTANCE",
+    "COFCO_PREPROD_TF_STATE_TABLESTORE_TABLE",
+  ]) {
+    if (value(key) && !/^[A-Za-z][A-Za-z0-9_-]{2,62}$/u.test(value(key))) {
+      errors.push(`${key} is invalid`);
+    }
+  }
+  if (
+    value("COFCO_PREPROD_TF_STATE_VERSIONING_APPROVED") &&
+    value("COFCO_PREPROD_TF_STATE_VERSIONING_APPROVED") !== "true"
+  ) {
+    errors.push("Terraform state OSS versioning must be approved");
+  }
+  if (
+    value("COFCO_PREPROD_TF_STATE_MINIMUM_PERMISSIONS_APPROVED") &&
+    value("COFCO_PREPROD_TF_STATE_MINIMUM_PERMISSIONS_APPROVED") !== "true"
+  ) {
+    errors.push("Terraform state minimum permissions must be approved");
   }
 
   return {

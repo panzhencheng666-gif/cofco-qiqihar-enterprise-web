@@ -16,6 +16,7 @@ install -d -m 0700 "$evidence_dir"
 
 domain="$(read_config "$config_path" COFCO_PREPROD_TLS_DOMAIN)"
 https_endpoint_ip="$(read_config "$config_path" COFCO_PREPROD_HTTPS_ENDPOINT_IP)"
+oidc_authorization_endpoint="$(read_config "$config_path" COFCO_PREPROD_OIDC_AUTHORIZATION_ENDPOINT)"
 runtime_secrets_dir="${COFCO_PREPROD_RUNTIME_SECRETS_DIR:?runtime secrets directory required}"
 export COFCO_PREPROD_RUNTIME_SECRETS_DIR="$runtime_secrets_dir"
 
@@ -57,12 +58,26 @@ wait_for_http_code 200 /healthz "gateway health check failed"
 wait_for_http_code 404 /prototype.html "removed prototype entry is reachable"
 wait_for_http_code 401 /api/v1/session/me "anonymous session endpoint did not fail closed"
 
+spoofed_host_status="$(curl "${curl_endpoint[@]}" --silent --output /dev/null --write-out '%{http_code}' \
+  --header 'Host: unapproved.invalid' "https://$domain/healthz" || true)"
+test "$spoofed_host_status" = "421" || fail "SNI-correct request with an unapproved Host did not fail closed (expected 421)"
+
 login_deadline=$((SECONDS + 120))
-until curl "${curl_endpoint[@]}" --silent --show-error --output /dev/null --dump-header "$headers_file" "https://$domain/api/v1/session/login" && grep -Eiq '^location: https://' "$headers_file"; do
-  test "$SECONDS" -lt "$login_deadline" || fail "OIDC login did not return an HTTPS redirect"
+login_status=""
+login_location=""
+while test "$SECONDS" -lt "$login_deadline"; do
+  login_status="$(curl "${curl_endpoint[@]}" --silent --show-error --output /dev/null \
+    --dump-header "$headers_file" --write-out '%{http_code}' "https://$domain/api/v1/session/login" || true)"
+  login_location="$(awk 'tolower($1) == "location:" {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers_file")"
+  if test "$login_status" = "302" \
+    && node "$RUNTIME_VALIDATOR" oidc-redirect "$login_location" "$oidc_authorization_endpoint"; then
+    break
+  fi
   sleep 3
 done
-grep -Eiq '^location: https://' "$headers_file" || fail "OIDC login did not return an HTTPS redirect"
+test "$login_status" = "302" || fail "OIDC login did not return the expected 302 status"
+node "$RUNTIME_VALIDATOR" oidc-redirect "$login_location" "$oidc_authorization_endpoint" \
+  || fail "OIDC login Location did not match the approved OIDC authorization endpoint"
 if grep -Eiq '(127\.0\.0\.1:8090|backend:8090)' "$headers_file"; then
   fail "OIDC redirect leaked an internal backend address"
 fi

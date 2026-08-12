@@ -149,6 +149,8 @@ export default defineConfig({
       "scripts/run-stage-three-idp-supplement.spec.mjs",
       "scripts/preproduction-assets.spec.mjs",
       "scripts/preproduction-config.spec.mjs",
+      "scripts/preproduction-runtime.spec.mjs",
+      "scripts/preproduction-transaction.spec.mjs",
     ],
     restoreMocks: true,
     clearMocks: true,

@@ -6,6 +6,7 @@ output "validated_bindings" {
     zone_id           = var.zone_id
     vpc_id            = var.vpc_id
     vswitch_id        = var.vswitch_id
+    vswitch_cidr      = var.vswitch_cidr
     security_group_id = var.security_group_id
     ecs_instance_id   = var.ecs_instance_id
     rds_instance_id   = var.rds_instance_id

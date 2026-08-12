@@ -29,6 +29,10 @@ variable "vswitch_id" {
   type = string
 }
 
+variable "vswitch_cidr" {
+  type = string
+}
+
 variable "security_group_id" {
   type = string
 }

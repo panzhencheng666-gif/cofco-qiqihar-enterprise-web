@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PACKAGE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 WEB_ROOT="$(cd "$PACKAGE_ROOT/../.." && pwd -P)"
 CONFIG_VALIDATOR="$WEB_ROOT/scripts/preproduction-config.mjs"
+RUNTIME_VALIDATOR="$WEB_ROOT/scripts/preproduction-runtime.mjs"
 
 fail() {
   printf 'ERROR: %s\n' "$1" >&2
@@ -62,6 +63,8 @@ require_shell_invariants() {
   local config_path="$1"
   require_config_mode "$config_path"
   require_command node
+  test -f "$CONFIG_VALIDATOR" || fail "controlled preproduction config validator is missing from the Web bundle"
+  test -f "$RUNTIME_VALIDATOR" || fail "controlled preproduction runtime validator is missing from the Web bundle"
   node "$CONFIG_VALIDATOR" --config "$config_path" >/dev/null
   test "$(read_config "$config_path" COFCO_DEPLOYMENT_ENV)" = "preproduction" || fail "deployment environment must be preproduction"
   test "$(read_config "$config_path" COFCO_PREPROD_FIRST_DEPLOYMENT)" = "true" || fail "first cloud deployment must remain preproduction"

@@ -24,8 +24,11 @@ function completeConfig() {
     COFCO_PREPROD_ECS_INSTANCE_ID: "i-preproduction001",
     COFCO_PREPROD_ECS_PRIVATE_IP: "10.40.10.10",
     COFCO_PREPROD_SSH_HOST_ALIAS: "cofco-preproduction",
-    COFCO_PREPROD_SSH_EXPECTED_HOST: "bastion.preprod.example.internal",
+    COFCO_PREPROD_SSH_EXPECTED_HOST: "ecs.preprod.example.internal",
     COFCO_PREPROD_SSH_USER: "cofco-deployer",
+    COFCO_PREPROD_SSH_MODE: "direct",
+    COFCO_PREPROD_SSH_PORT: "22",
+    COFCO_PREPROD_SSH_HOST_KEY_SHA256: `SHA256:${"A".repeat(43)}`,
     COFCO_PREPROD_SSH_SOURCE_CIDR: "203.0.113.10/32",
     COFCO_PREPROD_HTTPS_SOURCE_CIDRS: "203.0.113.0/24",
     COFCO_PREPROD_RDS_INSTANCE_ID: "rm-preproduction001",
@@ -54,6 +57,8 @@ function completeConfig() {
     COFCO_PREPROD_TLS_DOMAIN: "preprod.example.internal",
     COFCO_PREPROD_HTTPS_ENDPOINT_IP: "198.51.100.20",
     COFCO_PREPROD_OIDC_ISSUER_URI: "https://idp.example.test/issuer",
+    COFCO_PREPROD_OIDC_AUTHORIZATION_ENDPOINT:
+      "https://idp.example.test/oauth2/authorize",
     COFCO_PREPROD_OIDC_CLIENT_ID: "cofco-preproduction",
     COFCO_PREPROD_OIDC_REDIRECT_URI:
       "https://preprod.example.internal/login/oauth2/code/enterprise",
@@ -74,6 +79,16 @@ function completeConfig() {
     COFCO_PREPROD_RTO_MINUTES: "120",
     COFCO_PREPROD_MONITORING_RETENTION: "15d",
     COFCO_PREPROD_ROLLBACK_RELEASE_ID: "stage5-20260811-001",
+    COFCO_PREPROD_TF_STATE_BUCKET: "cofco-preproduction-terraform-state",
+    COFCO_PREPROD_TF_STATE_PREFIX: "cofco-qiqihar/preproduction",
+    COFCO_PREPROD_TF_STATE_KEY: "network.tfstate",
+    COFCO_PREPROD_TF_STATE_OSS_ENDPOINT: "oss-cn-beijing-internal.aliyuncs.com",
+    COFCO_PREPROD_TF_STATE_TABLESTORE_ENDPOINT:
+      "https://cofco-preprod.cn-beijing.vpc.tablestore.aliyuncs.com",
+    COFCO_PREPROD_TF_STATE_TABLESTORE_INSTANCE: "cofco-preprod",
+    COFCO_PREPROD_TF_STATE_TABLESTORE_TABLE: "terraform_state_locks",
+    COFCO_PREPROD_TF_STATE_VERSIONING_APPROVED: "true",
+    COFCO_PREPROD_TF_STATE_MINIMUM_PERMISSIONS_APPROVED: "true",
   };
 }
 
@@ -155,6 +170,19 @@ test("requires a non-root SSH user and a distinct approved HostName", () => {
   assert.match(result.errors.join("\n"), /SSH_USER/i);
 });
 
+test("rejects an unapproved SSH port, mode, or proxy topology", () => {
+  const config = completeConfig();
+  config.COFCO_PREPROD_SSH_PORT = "2222";
+  config.COFCO_PREPROD_SSH_MODE = "direct";
+  config.COFCO_PREPROD_SSH_PROXY_JUMP_ALIAS = "unapproved-jump";
+
+  const result = assessPreproductionConfig(config);
+
+  assert.equal(result.status, "INVALID");
+  assert.match(result.errors.join("\n"), /SSH_PORT.*22/i);
+  assert.match(result.errors.join("\n"), /direct.*proxy/i);
+});
+
 test("rejects empty CIDR lists and non-exact enterprise callback paths", () => {
   const config = completeConfig();
   config.COFCO_PREPROD_SSH_SOURCE_CIDR = ",";
@@ -204,6 +232,31 @@ test("rejects an invalid HTTPS endpoint binding", () => {
 
   assert.equal(result.status, "INVALID");
   assert.match(result.errors.join("\n"), /HTTPS_ENDPOINT_IP/i);
+});
+
+test("requires an approved OIDC authorization endpoint on the issuer origin", () => {
+  const config = completeConfig();
+  config.COFCO_PREPROD_OIDC_AUTHORIZATION_ENDPOINT =
+    "https://wrong-idp.example.test/oauth2/authorize";
+
+  const result = assessPreproductionConfig(config);
+
+  assert.equal(result.status, "INVALID");
+  assert.match(result.errors.join("\n"), /authorization endpoint.*issuer/i);
+});
+
+test("requires an approved encrypted versioned locking Terraform backend", () => {
+  const config = completeConfig();
+  config.COFCO_PREPROD_TF_STATE_BUCKET = "";
+  config.COFCO_PREPROD_TF_STATE_VERSIONING_APPROVED = "false";
+  config.COFCO_PREPROD_TF_STATE_MINIMUM_PERMISSIONS_APPROVED = "false";
+
+  const result = assessPreproductionConfig(config);
+
+  assert.equal(result.status, "INVALID");
+  assert.ok(result.missing.includes("COFCO_PREPROD_TF_STATE_BUCKET"));
+  assert.match(result.errors.join("\n"), /versioning/i);
+  assert.match(result.errors.join("\n"), /minimum permissions/i);
 });
 
 test("refuses an image rollback when database migration compatibility is not expand-only", () => {

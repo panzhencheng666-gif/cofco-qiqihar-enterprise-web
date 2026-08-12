@@ -198,3 +198,16 @@ describe("enterprise overview same-origin gateway", () => {
     ).toBe("/overview-monitoring/overview/command-terrain-v2.webp");
   });
 });
+
+describe("native Node gate isolation", () => {
+  it("keeps every Stage 5 node:test suite out of Vitest collection", () => {
+    expect(enterpriseConfig.test?.exclude).toEqual(
+      expect.arrayContaining([
+        "scripts/preproduction-assets.spec.mjs",
+        "scripts/preproduction-config.spec.mjs",
+        "scripts/preproduction-runtime.spec.mjs",
+        "scripts/preproduction-transaction.spec.mjs",
+      ]),
+    );
+  });
+});
