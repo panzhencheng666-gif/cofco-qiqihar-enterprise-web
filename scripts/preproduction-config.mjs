@@ -59,6 +59,11 @@ export const requiredPreproductionKeys = [
   "COFCO_PREPROD_RDS_NETWORK_TYPE",
   "COFCO_PREPROD_RDS_PUBLIC_ENDPOINT_ENABLED",
   "COFCO_PREPROD_RDS_SSLMODE",
+  "COFCO_PREPROD_OSS_ENDPOINT",
+  "COFCO_PREPROD_OSS_BUCKET",
+  "COFCO_PREPROD_OSS_PREFIX",
+  "COFCO_PREPROD_OSS_KMS_KEY_REF",
+  "COFCO_PREPROD_ECS_RAM_ROLE",
   ...secretReferenceKeys,
   "COFCO_PREPROD_KMS_ENDPOINT",
   "COFCO_PREPROD_TLS_DOMAIN",
@@ -417,6 +422,53 @@ export function assessPreproductionConfig(config) {
     errors.push(
       "COFCO_PREPROD_KMS_ENDPOINT must be the regional VPC or approved dedicated KMS endpoint",
     );
+  }
+
+  const privateOssEndpoint = value("COFCO_PREPROD_OSS_ENDPOINT");
+  if (privateOssEndpoint) {
+    const parsed = validateUrl(
+      privateOssEndpoint,
+      "private OSS endpoint",
+      errors,
+    );
+    if (
+      parsed &&
+      !/^oss-[a-z0-9-]+(?:-internal)?\.aliyuncs\.com$/u.test(parsed.hostname)
+    ) {
+      errors.push(
+        "COFCO_PREPROD_OSS_ENDPOINT must be an approved regional Alibaba OSS endpoint",
+      );
+    }
+  }
+  if (
+    value("COFCO_PREPROD_OSS_BUCKET") &&
+    !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/u.test(
+      value("COFCO_PREPROD_OSS_BUCKET"),
+    )
+  ) {
+    errors.push("COFCO_PREPROD_OSS_BUCKET is invalid");
+  }
+  if (
+    value("COFCO_PREPROD_OSS_PREFIX") &&
+    !/^[a-z0-9][a-z0-9/_-]{0,119}$/u.test(value("COFCO_PREPROD_OSS_PREFIX"))
+  ) {
+    errors.push("COFCO_PREPROD_OSS_PREFIX is invalid");
+  }
+  if (
+    value("COFCO_PREPROD_OSS_KMS_KEY_REF") &&
+    !/^acs:kms:[a-z]{2}-[a-z0-9-]+:[0-9]{12,}:key\/[A-Za-z0-9._/-]+$/u.test(
+      value("COFCO_PREPROD_OSS_KMS_KEY_REF"),
+    )
+  ) {
+    errors.push("COFCO_PREPROD_OSS_KMS_KEY_REF is invalid");
+  }
+  if (
+    value("COFCO_PREPROD_ECS_RAM_ROLE") &&
+    !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/u.test(
+      value("COFCO_PREPROD_ECS_RAM_ROLE"),
+    )
+  ) {
+    errors.push("COFCO_PREPROD_ECS_RAM_ROLE is invalid");
   }
 
   const tlsDomain = value("COFCO_PREPROD_TLS_DOMAIN");

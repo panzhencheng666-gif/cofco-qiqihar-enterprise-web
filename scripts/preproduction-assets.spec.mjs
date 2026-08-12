@@ -76,6 +76,31 @@ test("keeps only the TLS gateway published and injects backend secrets through c
   }
 });
 
+test("requires private OSS workload identity inputs without static access keys", async () => {
+  const environment = await read(
+    "ops/alicloud-preproduction/config/preproduction.env.example",
+  );
+  const compose = await read("ops/alicloud-preproduction/compose.yaml");
+
+  for (const name of [
+    "COFCO_PREPROD_OSS_ENDPOINT",
+    "COFCO_PREPROD_OSS_BUCKET",
+    "COFCO_PREPROD_OSS_PREFIX",
+    "COFCO_PREPROD_OSS_KMS_KEY_REF",
+    "COFCO_PREPROD_ECS_RAM_ROLE",
+  ]) {
+    assert.match(environment, new RegExp(`^${name}=`, "mu"));
+    assert.match(compose, new RegExp(name, "u"));
+  }
+  assert.match(compose, /QIQIHAR_EVIDENCE_CONTENT_MODE: oss/u);
+  assert.match(compose, /QIQIHAR_OSS_IMDSV2_REQUIRED: "true"/u);
+  assert.doesNotMatch(
+    `${environment}\n${compose}`,
+    /ACCESS_KEY_(?:ID|SECRET)/u,
+  );
+  assert.doesNotMatch(compose, /QIQIHAR_OSS_PUBLIC_URL/u);
+});
+
 function blocksForDirective(configuration, directive) {
   const blocks = [];
   let cursor = 0;

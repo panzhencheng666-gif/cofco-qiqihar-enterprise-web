@@ -90,6 +90,12 @@ function completeConfig(releaseId, rollbackReleaseId, whitelistCidr) {
     COFCO_PREPROD_RDS_SSLMODE: "verify-full",
     COFCO_PREPROD_RDS_CA_SECRET_REF: `acs:kms:cn-beijing:123456789012:secret/${releaseId}-rds-ca`,
     COFCO_PREPROD_DB_SECRET_REF: `acs:kms:cn-beijing:123456789012:secret/${releaseId}-db`,
+    COFCO_PREPROD_OSS_ENDPOINT: "https://oss-cn-beijing-internal.aliyuncs.com",
+    COFCO_PREPROD_OSS_BUCKET: "cofco-preproduction-evidence",
+    COFCO_PREPROD_OSS_PREFIX: "cofco-qiqihar/preproduction/evidence",
+    COFCO_PREPROD_OSS_KMS_KEY_REF:
+      "acs:kms:cn-beijing:123456789012:key/cofco-preprod-evidence",
+    COFCO_PREPROD_ECS_RAM_ROLE: "cofco-preproduction-evidence",
     COFCO_PREPROD_OIDC_CLIENT_SECRET_REF: `acs:kms:cn-beijing:123456789012:secret/${releaseId}-oidc`,
     COFCO_PREPROD_TLS_CERT_SECRET_REF: `acs:kms:cn-beijing:123456789012:secret/${releaseId}-tls-cert`,
     COFCO_PREPROD_TLS_KEY_SECRET_REF: `acs:kms:cn-beijing:123456789012:secret/${releaseId}-tls-key`,

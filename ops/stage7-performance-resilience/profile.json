@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "cofco-stage7-v1",
+  "authority": {
+    "registeredEmployees": 1000,
+    "peakConcurrentEmployees": 300,
+    "annualBusinessRows": 5000000,
+    "monthlyPhotoGrowthGb": 100,
+    "synchronousImportRows": 5000,
+    "asynchronousImportRows": 5001,
+    "concurrentImportJobs": 2
+  },
+  "slo": {
+    "coreApiP95Ms": 800,
+    "pageMainContentMs": 3000,
+    "unexpectedErrorRate": 0.001,
+    "writeConsistencyRate": 1,
+    "shortRecoverySeconds": 120,
+    "availabilityMonthly": 0.999,
+    "rpoMinutes": 15,
+    "rtoMinutes": 120
+  },
+  "resourceExpansion": {
+    "cpuPercent": 70,
+    "memoryPercent": 75,
+    "databaseConnectionPercent": 70,
+    "oldestBacklogSecondsAfterRecovery": 60
+  },
+  "profiles": [
+    { "code": "baseline", "concurrency": 60, "durationSeconds": 120 },
+    { "code": "peak", "concurrency": 300, "durationSeconds": 300 },
+    { "code": "burst", "concurrency": 450, "durationSeconds": 60 },
+    { "code": "stress", "concurrency": 525, "durationSeconds": 180 },
+    {
+      "code": "capacity",
+      "concurrencySteps": [300, 375, 450, 525],
+      "durationSecondsPerStep": 60
+    }
+  ],
+  "localProportional": {
+    "concurrencyScale": 0.02,
+    "durationScale": 0.02,
+    "minimumDurationSeconds": 2,
+    "maximumDurationSeconds": 6
+  },
+  "workloads": [
+    {
+      "code": "read",
+      "weight": 20,
+      "method": "GET",
+      "path": "/api/v1/overview/indicators"
+    },
+    {
+      "code": "write",
+      "weight": 15,
+      "method": "POST",
+      "path": "/api/v1/production-records"
+    },
+    {
+      "code": "review",
+      "weight": 10,
+      "method": "POST",
+      "path": "/api/v1/production-records/{id}/approve"
+    },
+    {
+      "code": "import",
+      "weight": 10,
+      "method": "POST",
+      "path": "/api/v1/imports/production"
+    },
+    {
+      "code": "photo",
+      "weight": 10,
+      "method": "POST",
+      "path": "/api/v1/evidence-photos"
+    },
+    {
+      "code": "map",
+      "weight": 10,
+      "method": "GET",
+      "path": "/api/v1/overview/map-scope"
+    },
+    {
+      "code": "analysis",
+      "weight": 10,
+      "method": "GET",
+      "path": "/api/v1/overview/dashboard"
+    },
+    {
+      "code": "supply",
+      "weight": 10,
+      "method": "GET",
+      "path": "/api/v1/supply-accounts"
+    },
+    {
+      "code": "report",
+      "weight": 5,
+      "method": "GET",
+      "path": "/api/v1/reports/parameter-options"
+    }
+  ],
+  "correctnessScenarios": [
+    "sync-import-5000",
+    "async-import-5001-concurrent",
+    "duplicate-click-idempotency",
+    "client-retry-idempotency",
+    "concurrent-edit",
+    "optimistic-lock",
+    "session-expiry-draft-recovery",
+    "no-silent-overwrite",
+    "no-duplicate-business-effect"
+  ],
+  "performanceScenarios": ["page-main-content"],
+  "databaseScenarios": [
+    "slow-query",
+    "connection-pool-pressure",
+    "lock-wait",
+    "deadlock-victim-recovery",
+    "long-transaction",
+    "queue-backlog-recovery"
+  ],
+  "faultScenarios": [
+    "application-restart",
+    "database-interruption",
+    "event-publisher-reconnect-cursor",
+    "private-content-store-interruption"
+  ],
+  "excludedGates": [
+    "final-24-hour-stability",
+    "stage-8-security-privacy-compliance"
+  ]
+}
