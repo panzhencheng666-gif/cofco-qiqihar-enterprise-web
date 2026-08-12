@@ -338,7 +338,7 @@ test("builds and revalidates an artifact from the exact clean Backend commit", a
     if (command === "unzip") {
       return {
         stdout:
-          "Manifest-Version: 1.0\nMain-Class: org.springframework.boot.loader.launch.JarLauncher\n\n",
+          "Manifest-Version: 1.0\nJava-Version: 21\nBuild-Jdk-Spec: 21\nMain-Class: org.springframework.boot.loader.launch.JarLauncher\n\n",
         stderr: "",
       };
     }
@@ -371,6 +371,20 @@ test("builds and revalidates an artifact from the exact clean Backend commit", a
       execute,
     });
 
+    const forgedProvenance = structuredClone(provenance);
+    forgedProvenance.jar.manifestSha256 = "f".repeat(64);
+    forgedProvenance.jar.manifest["Java-Version"] = "17";
+    await assert.rejects(
+      () =>
+        runtime.assertBackendArtifactMatches({
+          provenance: forgedProvenance,
+          backendDirectory: directory,
+          jarPath,
+          execute,
+        }),
+      /manifest|JDK 21/iu,
+    );
+
     javaVersion = 'openjdk version "22.0.2"\n';
     await assert.rejects(
       () =>
@@ -398,6 +412,140 @@ test("builds and revalidates an artifact from the exact clean Backend commit", a
     );
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects a Backend target symlink created by the build", async () => {
+  const runtime = await import("./stage-seven-local-runtime.mjs");
+  const root = await mkdtemp(
+    join(tmpdir(), "stage7-backend-post-build-symlink-"),
+  );
+  const backendDirectory = join(root, "backend");
+  const outsideDirectory = join(root, "outside");
+  const jarPath = join(backendDirectory, "target/backend.jar");
+  const sourceCommit = "a".repeat(40);
+  try {
+    await Promise.all([mkdir(backendDirectory), mkdir(outsideDirectory)]);
+    const execute = async (command, args) => {
+      if (command === "git" && args[0] === "rev-parse") {
+        return { stdout: `${sourceCommit}\n`, stderr: "" };
+      }
+      if (command === "git" && args[0] === "status") {
+        return { stdout: "", stderr: "" };
+      }
+      if (command === "mvn" && args[0] === "clean") {
+        await symlink(outsideDirectory, join(backendDirectory, "target"));
+        await writeFile(join(outsideDirectory, "backend.jar"), "outside jar\n");
+        return { stdout: "BUILD SUCCESS\n", stderr: "" };
+      }
+      if (command === "mvn") {
+        return {
+          stdout: "Apache Maven 3.9.11\nJava version: 21.0.12\n",
+          stderr: "",
+        };
+      }
+      if (command.endsWith("/java")) {
+        return { stdout: "", stderr: 'openjdk version "21.0.12"\n' };
+      }
+      if (command === "unzip") {
+        return {
+          stdout:
+            "Manifest-Version: 1.0\nJava-Version: 21\nBuild-Jdk-Spec: 21\n\n",
+          stderr: "",
+        };
+      }
+      throw new Error(`unexpected command: ${command} ${args.join(" ")}`);
+    };
+    await assert.rejects(
+      () =>
+        runtime.prepareBackendArtifact({
+          backendDirectory,
+          jarPath,
+          expectedSourceCommit: sourceCommit,
+          buildCommand: ["mvn", "clean", "-DskipTests", "package"],
+          javaHome: "/approved/jdk-21",
+          execute,
+        }),
+      /artifact.*(?:directory|path)|(?:directory|path).*artifact/iu,
+    );
+    assert.equal(
+      await readFile(join(outsideDirectory, "backend.jar"), "utf8"),
+      "outside jar\n",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects a Backend artifact parent replaced after preparation", async () => {
+  const runtime = await import("./stage-seven-local-runtime.mjs");
+  const root = await mkdtemp(join(tmpdir(), "stage7-backend-parent-replaced-"));
+  const backendDirectory = join(root, "backend");
+  const outsideDirectory = join(root, "outside");
+  const jarPath = join(backendDirectory, "target/backend.jar");
+  const sourceCommit = "a".repeat(40);
+  const artifact = "same artifact bytes\n";
+  try {
+    await Promise.all([
+      mkdir(join(backendDirectory, "target"), { recursive: true }),
+      mkdir(outsideDirectory),
+    ]);
+    const execute = async (command, args) => {
+      if (command === "git" && args[0] === "rev-parse") {
+        return { stdout: `${sourceCommit}\n`, stderr: "" };
+      }
+      if (command === "git" && args[0] === "status") {
+        return { stdout: "", stderr: "" };
+      }
+      if (command === "mvn" && args[0] === "clean") {
+        await writeFile(jarPath, artifact);
+        return { stdout: "BUILD SUCCESS\n", stderr: "" };
+      }
+      if (command === "mvn") {
+        return {
+          stdout: "Apache Maven 3.9.11\nJava version: 21.0.12\n",
+          stderr: "",
+        };
+      }
+      if (command.endsWith("/java")) {
+        return { stdout: "", stderr: 'openjdk version "21.0.12"\n' };
+      }
+      if (command === "unzip") {
+        return {
+          stdout:
+            "Manifest-Version: 1.0\nJava-Version: 21\nBuild-Jdk-Spec: 21\n\n",
+          stderr: "",
+        };
+      }
+      throw new Error(`unexpected command: ${command} ${args.join(" ")}`);
+    };
+    const provenance = await runtime.prepareBackendArtifact({
+      backendDirectory,
+      jarPath,
+      expectedSourceCommit: sourceCommit,
+      buildCommand: ["mvn", "clean", "-DskipTests", "package"],
+      javaHome: "/approved/jdk-21",
+      execute,
+    });
+    await rm(join(backendDirectory, "target"), { recursive: true });
+    await writeFile(join(outsideDirectory, "backend.jar"), artifact);
+    await symlink(outsideDirectory, join(backendDirectory, "target"));
+    await assert.rejects(
+      () =>
+        runtime.assertBackendArtifactMatches({
+          provenance,
+          backendDirectory,
+          jarPath,
+          execute,
+        }),
+      /artifact.*(?:parent|path)|(?:parent|path).*artifact/iu,
+    );
+    assert.equal(
+      await readFile(join(outsideDirectory, "backend.jar"), "utf8"),
+      artifact,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

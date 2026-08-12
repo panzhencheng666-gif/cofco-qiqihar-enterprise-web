@@ -45,6 +45,55 @@ const requiredScenarios = [
   "private-content-store-interruption",
 ];
 
+const canonicalLocalScenarioOrder = Object.freeze([
+  "baseline",
+  "peak",
+  "burst",
+  "stress",
+  "capacity-300",
+  "capacity-375",
+  "capacity-450",
+  "capacity-525",
+  "page-main-content",
+  "sync-import-5000",
+  "async-import-5001-concurrent",
+  "duplicate-click-idempotency",
+  "client-retry-idempotency",
+  "concurrent-edit",
+  "optimistic-lock",
+  "no-silent-overwrite",
+  "no-duplicate-business-effect",
+  "session-expiry-draft-recovery",
+  "slow-query",
+  "connection-pool-pressure",
+  "lock-wait",
+  "deadlock-victim-recovery",
+  "long-transaction",
+  "queue-backlog-recovery",
+  "application-restart",
+  "database-interruption",
+  "event-publisher-reconnect-cursor",
+  "private-content-store-interruption",
+]);
+
+const canonicalLocalScaledProfiles = Object.freeze([
+  { code: "baseline", concurrency: 2, durationSeconds: 3 },
+  { code: "peak", concurrency: 6, durationSeconds: 6 },
+  { code: "burst", concurrency: 9, durationSeconds: 2 },
+  { code: "stress", concurrency: 11, durationSeconds: 4 },
+  { code: "capacity-300", concurrency: 6, durationSeconds: 2 },
+  { code: "capacity-375", concurrency: 8, durationSeconds: 2 },
+  { code: "capacity-450", concurrency: 9, durationSeconds: 2 },
+  { code: "capacity-525", concurrency: 11, durationSeconds: 2 },
+]);
+
+const canonicalProfileScenarioGroups = Object.freeze({
+  performanceScenarios: ["page-main-content"],
+  correctnessScenarios: canonicalLocalScenarioOrder.slice(9, 18),
+  databaseScenarios: canonicalLocalScenarioOrder.slice(18, 24),
+  faultScenarios: canonicalLocalScenarioOrder.slice(24),
+});
+
 const independentCorrectnessScenarios = [
   "duplicate-click-idempotency",
   "client-retry-idempotency",
@@ -210,11 +259,12 @@ export function validateProfile(input) {
   ) {
     throw new Error("Stage 7 workload definitions are invalid");
   }
-  const serialized = JSON.stringify(input);
-  if (requiredScenarios.some((code) => !serialized.includes(`"${code}"`))) {
-    throw new Error(
-      "Stage 7 correctness or fault scenario coverage is incomplete",
-    );
+  for (const [key, expected] of Object.entries(
+    canonicalProfileScenarioGroups,
+  )) {
+    if (JSON.stringify(input[key]) !== JSON.stringify(expected)) {
+      throw new Error(`Stage 7 ${key} must use the canonical scenario order`);
+    }
   }
   if (
     JSON.stringify(input.excludedGates) !==
@@ -576,7 +626,9 @@ function assertLocalBackendArtifactProvenance(run) {
     !provenance.jar?.manifest ||
     typeof provenance.jar.manifest !== "object" ||
     Array.isArray(provenance.jar.manifest) ||
-    Object.keys(provenance.jar.manifest).length === 0
+    Object.keys(provenance.jar.manifest).length === 0 ||
+    !/^21(?:\.|$)/u.test(provenance.jar.manifest["Java-Version"] ?? "") ||
+    !/^21(?:\.|$)/u.test(provenance.jar.manifest["Build-Jdk-Spec"] ?? "")
   ) {
     throw new Error(
       "Stage 7 local evidence requires exact Backend artifact build provenance",
@@ -630,6 +682,303 @@ function assertOperationalReport(run) {
   }
 }
 
+function round3(value) {
+  return Number(value.toFixed(3));
+}
+
+function sameNumber(actual, expected) {
+  return Number.isFinite(actual) && actual === expected;
+}
+
+function assertLocalDerivedFacts(run) {
+  const actualOrder = run.scenarios.map(({ code }) => code);
+  if (
+    JSON.stringify(actualOrder) !== JSON.stringify(canonicalLocalScenarioOrder)
+  ) {
+    throw new Error(
+      "Stage 7 local scenarios must use the canonical 28-scenario order",
+    );
+  }
+  const resources = run.resourceTrend;
+  if (
+    JSON.stringify(run.scaledProfiles) !==
+      JSON.stringify(canonicalLocalScaledProfiles) ||
+    !Array.isArray(resources?.rawSamples) ||
+    resources.rawSamples.length === 0 ||
+    resources.rawSamples.some((sample) =>
+      [
+        sample?.cpuPercent,
+        sample?.memoryPercent,
+        sample?.databaseConnections,
+        sample?.elapsedSeconds,
+      ].some((value) => !Number.isFinite(value) || value < 0),
+    ) ||
+    !Number.isFinite(resources.maximumDatabaseConnectionsConfigured) ||
+    resources.maximumDatabaseConnectionsConfigured <= 0
+  ) {
+    throw new Error("Stage 7 resource raw samples are incomplete");
+  }
+  const derivedResources = {
+    samples: resources.rawSamples.length,
+    maximumCpuPercent: Math.max(
+      ...resources.rawSamples.map(({ cpuPercent }) => cpuPercent),
+    ),
+    maximumMemoryPercent: Math.max(
+      ...resources.rawSamples.map(({ memoryPercent }) => memoryPercent),
+    ),
+    maximumDatabaseConnections: Math.max(
+      ...resources.rawSamples.map(
+        ({ databaseConnections }) => databaseConnections,
+      ),
+    ),
+    endingMinusStartingMemoryPercent:
+      resources.rawSamples.at(-1).memoryPercent -
+      resources.rawSamples[0].memoryPercent,
+  };
+  derivedResources.maximumDatabaseConnectionPercent = round3(
+    (derivedResources.maximumDatabaseConnections /
+      resources.maximumDatabaseConnectionsConfigured) *
+      100,
+  );
+  if (
+    Object.entries(derivedResources).some(
+      ([key, expected]) => !sameNumber(resources[key], expected),
+    )
+  ) {
+    throw new Error(
+      "Stage 7 resource summary differs from raw resource samples",
+    );
+  }
+
+  for (const [index, scenario] of run.scenarios.slice(0, 8).entries()) {
+    const expectedProfile = canonicalLocalScaledProfiles[index];
+    const workloadCounts = Object.values(scenario.byWorkload ?? {});
+    if (
+      !Array.isArray(scenario.latencySamplesMs) ||
+      scenario.latencySamplesMs.length !== scenario.attempts ||
+      !Number.isInteger(scenario.attempts) ||
+      scenario.attempts < 1 ||
+      !scenario.byWorkload ||
+      typeof scenario.byWorkload !== "object" ||
+      scenario.concurrency !== expectedProfile.concurrency ||
+      scenario.durationSeconds !== expectedProfile.durationSeconds ||
+      workloadCounts.length === 0 ||
+      workloadCounts.some(
+        ({ attempts, unexpectedErrors }) =>
+          !Number.isInteger(attempts) ||
+          attempts < 0 ||
+          !Number.isInteger(unexpectedErrors) ||
+          unexpectedErrors < 0 ||
+          unexpectedErrors > attempts,
+      )
+    ) {
+      throw new Error(
+        `${scenario.code} raw latency samples or request counts are incomplete`,
+      );
+    }
+    const attempts = workloadCounts.reduce(
+      (total, item) => total + item.attempts,
+      0,
+    );
+    const unexpectedErrors = workloadCounts.reduce(
+      (total, item) => total + item.unexpectedErrors,
+      0,
+    );
+    const successfulWrites = ["write", "review", "import", "photo"].reduce(
+      (total, code) => {
+        const item = scenario.byWorkload[code];
+        return total + (item ? item.attempts - item.unexpectedErrors : 0);
+      },
+      0,
+    );
+    const validChecks =
+      Array.isArray(scenario.consistencyChecks) &&
+      scenario.consistencyChecks.length > 0 &&
+      scenario.consistencyChecks.every(
+        ({ expected, actual, passed }) =>
+          Number.isInteger(expected) &&
+          expected >= 0 &&
+          Number.isInteger(actual) &&
+          actual >= 0 &&
+          passed === (expected === actual),
+      );
+    if (!validChecks) {
+      throw new Error(
+        `${scenario.code} consistency checks differ from raw counts`,
+      );
+    }
+    const checksPass = scenario.consistencyChecks.every(({ passed }) => passed);
+    const consistentWrites = checksPass ? successfulWrites : 0;
+    const consistencyRate =
+      successfulWrites === 0 ? 1 : consistentWrites / successfulWrites;
+    const p95Ms = round3(percentile(scenario.latencySamplesMs, 0.95));
+    const p50Ms = round3(percentile(scenario.latencySamplesMs, 0.5));
+    const p99Ms = round3(percentile(scenario.latencySamplesMs, 0.99));
+    const throughputPerSecond = round3(attempts / scenario.durationSeconds);
+    const errorRate = unexpectedErrors / attempts;
+    const failedGates = [];
+    if (p95Ms > run.slo.coreApiP95Ms) failedGates.push("p95");
+    if (errorRate > run.slo.unexpectedErrorRate) failedGates.push("error-rate");
+    if (consistencyRate < run.slo.writeConsistencyRate)
+      failedGates.push("consistency");
+    if (resources.maximumCpuPercent > run.resourceExpansion.cpuPercent)
+      failedGates.push("cpu");
+    if (resources.maximumMemoryPercent > run.resourceExpansion.memoryPercent)
+      failedGates.push("memory");
+    if (
+      resources.maximumDatabaseConnectionPercent >
+      run.resourceExpansion.databaseConnectionPercent
+    )
+      failedGates.push("database-connections");
+    if (
+      attempts !== scenario.attempts ||
+      unexpectedErrors !== scenario.unexpectedErrors ||
+      successfulWrites !== scenario.successfulWrites ||
+      consistentWrites !== scenario.consistentWrites ||
+      !sameNumber(scenario.p95Ms, p95Ms) ||
+      !sameNumber(scenario.p50Ms, p50Ms) ||
+      !sameNumber(scenario.p99Ms, p99Ms) ||
+      !sameNumber(scenario.throughputPerSecond, throughputPerSecond) ||
+      !sameNumber(scenario.errorRate, errorRate) ||
+      !sameNumber(scenario.consistencyRate, consistencyRate) ||
+      JSON.stringify(scenario.failedGates) !== JSON.stringify(failedGates) ||
+      scenario.status !== (failedGates.length === 0 ? "PASS" : "FAIL")
+    ) {
+      throw new Error(
+        `${scenario.code} derived decision fields differ from raw samples or request counts`,
+      );
+    }
+  }
+  const page = run.scenarios[8];
+  const pageP95 = round3(percentile(page.samplesMs, 0.95));
+  if (
+    page.p95Ms !== pageP95 ||
+    page.thresholdMs !== run.slo.pageMainContentMs ||
+    page.status !== (pageP95 <= page.thresholdMs ? "PASS" : "FAIL")
+  ) {
+    throw new Error(
+      "page-main-content derived fields differ from raw latency samples",
+    );
+  }
+
+  for (const scenario of run.scenarios.slice(9, 11)) {
+    const pass =
+      scenario.syncRows === authority.synchronousImportRows &&
+      scenario.asyncRowsPerJob === authority.asynchronousImportRows &&
+      scenario.concurrentAsyncJobs === authority.concurrentImportJobs &&
+      Number.isFinite(scenario.syncSeconds) &&
+      scenario.syncSeconds >= 0 &&
+      Number.isFinite(scenario.asyncSeconds) &&
+      scenario.asyncSeconds >= 0 &&
+      scenario.pendingAfterRecovery === 0 &&
+      scenario.oldestBacklogSecondsAfterRecovery <=
+        run.resourceExpansion.oldestBacklogSecondsAfterRecovery;
+    if (scenario.status !== (pass ? "PASS" : "FAIL")) {
+      throw new Error(
+        `${scenario.code} decision differs from raw import counts`,
+      );
+    }
+  }
+
+  const correctnessPass = (scenario) => {
+    if (scenario.code === "session-expiry-draft-recovery") {
+      return scenario.expiredStatus === 401 && scenario.recoveredRecords === 1;
+    }
+    const common =
+      uuidPattern.test(scenario.recordId ?? "") &&
+      JSON.stringify(scenario.observedStatuses) ===
+        JSON.stringify([200, 409]) &&
+      scenario.conflictCode === "PRODUCTION_RECORD_VERSION_CONFLICT" &&
+      scenario.auditEffects === 1 &&
+      scenario.eventEffects === 1;
+    if (!common) return false;
+    if (scenario.code === "duplicate-click-idempotency") {
+      return scenario.execution === "CONCURRENT_DUPLICATE_CLICK";
+    }
+    if (scenario.code === "client-retry-idempotency") {
+      return scenario.execution === "SEQUENTIAL_CLIENT_RETRY";
+    }
+    if (scenario.code === "concurrent-edit") {
+      return (
+        scenario.execution === "CONCURRENT_DISTINCT_CONTENT" &&
+        new Set(scenario.actors ?? []).size === 2 &&
+        new Set(scenario.proposedContents ?? []).size === 2 &&
+        scenario.proposedContents.includes(scenario.persistedContent)
+      );
+    }
+    if (scenario.code === "optimistic-lock") {
+      return (
+        scenario.execution === "SEQUENTIAL_STALE_VERSION" &&
+        scenario.expectedVersion === 0 &&
+        scenario.persistedVersion === 1
+      );
+    }
+    if (scenario.code === "no-silent-overwrite") {
+      return (
+        scenario.execution === "CONCURRENT_DISTINCT_CONTENT_OWNERSHIP" &&
+        scenario.persistedContent === scenario.winningContent &&
+        scenario.persistedContent !== scenario.losingContent
+      );
+    }
+    return scenario.execution === "CONCURRENT_SINGLE_EFFECT";
+  };
+  for (const scenario of run.scenarios.slice(11, 18)) {
+    if (scenario.status !== (correctnessPass(scenario) ? "PASS" : "FAIL")) {
+      throw new Error(
+        `${scenario.code} decision differs from raw correctness checks`,
+      );
+    }
+  }
+
+  const databaseDecisions = [
+    Number.isFinite(run.scenarios[18].durationSeconds) &&
+      run.scenarios[18].durationSeconds >= 0,
+    Number.isFinite(run.scenarios[19].observedConnections) &&
+      run.scenarios[19].observedConnections >= 0 &&
+      run.scenarios[19].observedConnections <=
+        resources.maximumDatabaseConnectionsConfigured,
+    Number.isFinite(run.scenarios[20].durationSeconds) &&
+      run.scenarios[20].durationSeconds >= 0,
+    run.scenarios[21].victims === 1,
+    Number.isFinite(run.scenarios[22].durationSeconds) &&
+      run.scenarios[22].durationSeconds >= 0,
+    run.scenarios[23].pendingAfterRecovery === 0 &&
+      run.scenarios[23].oldestBacklogSecondsAfterRecovery <=
+        run.resourceExpansion.oldestBacklogSecondsAfterRecovery,
+  ];
+  for (const [index, pass] of databaseDecisions.entries()) {
+    const scenario = run.scenarios[index + 18];
+    if (scenario.status !== (pass ? "PASS" : "FAIL")) {
+      throw new Error(
+        `${scenario.code} decision differs from raw database observations`,
+      );
+    }
+  }
+
+  for (const scenario of run.scenarios.slice(24)) {
+    const pass =
+      Number.isFinite(scenario.recoverySeconds) &&
+      scenario.recoverySeconds <= run.slo.shortRecoverySeconds &&
+      (scenario.code !== "event-publisher-reconnect-cursor" ||
+        scenario.cursorObserved === true) &&
+      (scenario.code !== "private-content-store-interruption" ||
+        scenario.failureStatus === 503);
+    if (scenario.status !== (pass ? "PASS" : "FAIL")) {
+      throw new Error(
+        `${scenario.code} decision differs from raw recovery observations`,
+      );
+    }
+  }
+  const expectedRunStatus = run.scenarios.every(
+    ({ status }) => status === "PASS",
+  )
+    ? "PASS"
+    : "FAIL";
+  if (run.status !== expectedRunStatus) {
+    throw new Error("Stage 7 run status differs from scenario decisions");
+  }
+}
+
 export function renderEvidence(rawRun) {
   const run = immutable(sanitized(rawRun));
   if (
@@ -651,7 +1000,9 @@ export function renderEvidence(rawRun) {
       "Stage 7 productionEquivalent flag contradicts evidence provenance",
     );
   }
-  if (local) assertLocalBackendArtifactProvenance(run);
+  if (local) {
+    assertLocalBackendArtifactProvenance(run);
+  }
   assertOperationalReport(run);
   if (
     !local &&
@@ -704,6 +1055,7 @@ export function renderEvidence(rawRun) {
       `Stage 7 dynamic scenario evidence is incomplete: ${missingScenarios.join(",")}`,
     );
   }
+  if (local) assertLocalDerivedFacts(run);
   const correctnessResults = independentCorrectnessScenarios.map((code) =>
     run.scenarios.find((scenario) => scenario.code === code),
   );

@@ -12,7 +12,8 @@ import {
   validateProfile,
 } from "./stage-seven-core.mjs";
 import {
-  verifyEvidenceDirectory,
+  assertEvidenceBundleConsistent,
+  readEvidenceBundle,
   writeEvidenceAtomically,
 } from "./stage-seven-evidence.mjs";
 import { assertBackendArtifactMatches } from "./stage-seven-local-runtime.mjs";
@@ -141,7 +142,29 @@ async function main() {
   if (command === "verify-evidence") {
     const evidencePath = option("--evidence");
     if (!evidencePath) throw new Error("verify-evidence requires --evidence");
-    const run = await verifyEvidenceDirectory(evidencePath);
+    const evidence = await readEvidenceBundle(evidencePath);
+    let untrustedRun;
+    try {
+      untrustedRun = JSON.parse(evidence["run.json"]);
+    } catch {
+      throw new Error("Stage 7 run.json is invalid");
+    }
+    if (untrustedRun.provenance === "LOCAL_PROPORTIONAL_ONLY") {
+      await assertBackendArtifactMatches({
+        provenance: untrustedRun.backendArtifact,
+        backendDirectory: repositoryDirectories.backend,
+        jarPath: resolve(
+          repositoryDirectories.backend,
+          profile.backendArtifact.jarRelativePath,
+        ),
+        execute: (commandName, args, options) =>
+          execFileAsync(commandName, args, {
+            cwd: options?.cwd,
+            encoding: "utf8",
+          }),
+      });
+    }
+    const run = assertEvidenceBundleConsistent(evidence);
     const binding = await admissionBinding(profilePath, profile);
     if (
       JSON.stringify(run.candidates) !== JSON.stringify(binding.candidates) ||

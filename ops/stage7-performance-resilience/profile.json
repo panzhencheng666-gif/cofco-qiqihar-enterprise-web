@@ -111,9 +111,9 @@
     "client-retry-idempotency",
     "concurrent-edit",
     "optimistic-lock",
-    "session-expiry-draft-recovery",
     "no-silent-overwrite",
-    "no-duplicate-business-effect"
+    "no-duplicate-business-effect",
+    "session-expiry-draft-recovery"
   ],
   "performanceScenarios": ["page-main-content"],
   "databaseScenarios": [

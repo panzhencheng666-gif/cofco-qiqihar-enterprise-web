@@ -111,7 +111,7 @@ export function verifyPhaseExecutionReceipt({
     request.artifactSetSha256 !== artifactSetSha256 ||
     !sameJson(request.approvalEvidence, approvalEvidence) ||
     !sameJson(request.target, target) ||
-    payload?.schemaVersion !== "cofco-stage7-phase-receipt-v1" ||
+    payload?.schemaVersion !== "cofco-stage7-phase-receipt-v2" ||
     payload.phaseCode !== code ||
     !uuidPattern.test(payload.receiptId ?? "") ||
     payload.requestNonce !== request.nonce ||

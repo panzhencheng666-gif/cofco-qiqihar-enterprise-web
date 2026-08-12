@@ -41,40 +41,106 @@ async function backendGitState(backendDirectory, execute) {
 }
 
 async function exactJar(jarPath, backendDirectory) {
-  const metadata = await lstat(jarPath);
-  const relativePath = relative(backendDirectory, jarPath);
-  if (
-    !metadata.isFile() ||
-    metadata.isSymbolicLink() ||
-    relativePath.startsWith("..") ||
-    isAbsolute(relativePath)
-  ) {
-    throw new Error("Backend artifact path is not a regular repository file");
-  }
+  const { metadata, relativePath } = await assertConfinedArtifactPath(
+    backendDirectory,
+    jarPath,
+  );
   const bytes = await readFile(jarPath);
   if (bytes.length === 0) throw new Error("Backend artifact is empty");
+  const after = await assertConfinedArtifactPath(backendDirectory, jarPath);
+  if (
+    metadata.dev !== after.metadata.dev ||
+    metadata.ino !== after.metadata.ino ||
+    metadata.size !== after.metadata.size
+  ) {
+    throw new Error("Backend artifact changed while it was being inspected");
+  }
   return { bytes, metadata, relativePath };
 }
 
-async function assertArtifactDirectory(backendDirectory, jarPath) {
-  const artifactDirectory = dirname(jarPath);
-  let metadata;
-  try {
-    metadata = await lstat(artifactDirectory);
-  } catch (error) {
-    if (error?.code === "ENOENT") return;
-    throw error;
+async function assertConfinedArtifactPath(backendDirectory, jarPath) {
+  const repositoryPath = resolve(backendDirectory);
+  const artifactPath = resolve(jarPath);
+  const relativePath = relative(repositoryPath, artifactPath);
+  if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
+    throw new Error("Backend artifact path escapes the repository");
   }
-  if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
-    throw new Error("Backend artifact directory must not be a symlink");
+  const repositoryMetadata = await lstat(repositoryPath);
+  if (
+    !repositoryMetadata.isDirectory() ||
+    repositoryMetadata.isSymbolicLink()
+  ) {
+    throw new Error("Backend repository root must be a real directory");
   }
-  const [repositoryRoot, outputRoot] = await Promise.all([
-    realpath(backendDirectory),
-    realpath(artifactDirectory),
+  let current = repositoryPath;
+  const segments = relativePath.split(/[\\/]/u);
+  for (const [index, segment] of segments.entries()) {
+    current = resolve(current, segment);
+    const metadata = await lstat(current);
+    const final = index === segments.length - 1;
+    if (
+      metadata.isSymbolicLink() ||
+      (final ? !metadata.isFile() : !metadata.isDirectory())
+    ) {
+      throw new Error(
+        "Backend artifact path and every parent must be real repository entries",
+      );
+    }
+  }
+  const [repositoryRoot, artifactRealPath] = await Promise.all([
+    realpath(repositoryPath),
+    realpath(artifactPath),
   ]);
-  const outputRelativePath = relative(repositoryRoot, outputRoot);
-  if (outputRelativePath.startsWith("..") || isAbsolute(outputRelativePath)) {
+  const realRelativePath = relative(repositoryRoot, artifactRealPath);
+  if (realRelativePath.startsWith("..") || isAbsolute(realRelativePath)) {
+    throw new Error("Backend artifact real path escapes the repository");
+  }
+  return { metadata: await lstat(artifactPath), relativePath };
+}
+
+async function assertArtifactDirectory(backendDirectory, jarPath) {
+  const repositoryPath = resolve(backendDirectory);
+  const artifactDirectory = dirname(resolve(jarPath));
+  const relativePath = relative(repositoryPath, artifactDirectory);
+  if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
     throw new Error("Backend artifact directory escapes the repository");
+  }
+  const repositoryMetadata = await lstat(repositoryPath);
+  if (
+    !repositoryMetadata.isDirectory() ||
+    repositoryMetadata.isSymbolicLink()
+  ) {
+    throw new Error("Backend repository root must be a real directory");
+  }
+  let current = repositoryPath;
+  for (const segment of relativePath.split(/[\\/]/u)) {
+    current = resolve(current, segment);
+    try {
+      const metadata = await lstat(current);
+      if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+        throw new Error("Backend artifact directory must not be a symlink");
+      }
+      const [rootReal, currentReal] = await Promise.all([
+        realpath(repositoryPath),
+        realpath(current),
+      ]);
+      const currentRelative = relative(rootReal, currentReal);
+      if (currentRelative.startsWith("..") || isAbsolute(currentRelative)) {
+        throw new Error("Backend artifact directory escapes the repository");
+      }
+    } catch (error) {
+      if (error?.code === "ENOENT") return;
+      throw error;
+    }
+  }
+}
+
+function assertJdk21Manifest(manifest) {
+  if (
+    !/^21(?:\.|$)/u.test(manifest["Java-Version"] ?? "") ||
+    !/^21(?:\.|$)/u.test(manifest["Build-Jdk-Spec"] ?? "")
+  ) {
+    throw new Error("Backend JAR manifest must record JDK 21");
   }
 }
 
@@ -130,6 +196,16 @@ export async function prepareBackendArtifact({
     execute(buildCommand[0], ["--version"], { cwd: backendDirectory }),
   ]);
   const manifestSource = manifestResult.stdout;
+  const confirmedArtifact = await exactJar(jarPath, backendDirectory);
+  if (
+    sha256(confirmedArtifact.bytes) !== sha256(artifact.bytes) ||
+    confirmedArtifact.relativePath !== artifact.relativePath
+  ) {
+    throw new Error(
+      "Backend artifact changed while its manifest was extracted",
+    );
+  }
+  const manifest = parseManifest(manifestSource);
   const javaVersion = firstLine(`${javaResult.stdout}\n${javaResult.stderr}`);
   const mavenVersion = firstLine(
     `${mavenResult.stdout}\n${mavenResult.stderr}`,
@@ -142,6 +218,7 @@ export async function prepareBackendArtifact({
   ) {
     throw new Error("Backend build environment or JAR manifest is incomplete");
   }
+  assertJdk21Manifest(manifest);
   return {
     schemaVersion: "cofco-stage7-backend-artifact-v1",
     sourceCommit: expectedSourceCommit,
@@ -159,10 +236,10 @@ export async function prepareBackendArtifact({
     },
     jar: {
       relativePath: artifact.relativePath,
-      sha256: sha256(artifact.bytes),
-      sizeBytes: artifact.bytes.length,
+      sha256: sha256(confirmedArtifact.bytes),
+      sizeBytes: confirmedArtifact.bytes.length,
       manifestSha256: sha256(manifestSource),
-      manifest: parseManifest(manifestSource),
+      manifest,
     },
   };
 }
@@ -186,12 +263,26 @@ export async function assertBackendArtifactMatches({
     );
   }
   const artifact = await exactJar(jarPath, backendDirectory);
+  const manifestResult = await execute(
+    "unzip",
+    ["-p", jarPath, "META-INF/MANIFEST.MF"],
+    { cwd: backendDirectory },
+  );
+  const manifestSource = manifestResult.stdout;
+  const manifest = parseManifest(manifestSource);
+  assertJdk21Manifest(manifest);
+  const confirmedArtifact = await exactJar(jarPath, backendDirectory);
   if (
-    artifact.relativePath !== provenance.jar.relativePath ||
-    artifact.bytes.length !== provenance.jar.sizeBytes ||
-    sha256(artifact.bytes) !== provenance.jar.sha256
+    confirmedArtifact.relativePath !== provenance.jar.relativePath ||
+    confirmedArtifact.bytes.length !== provenance.jar.sizeBytes ||
+    sha256(confirmedArtifact.bytes) !== provenance.jar.sha256 ||
+    sha256(confirmedArtifact.bytes) !== sha256(artifact.bytes) ||
+    sha256(manifestSource) !== provenance.jar.manifestSha256 ||
+    JSON.stringify(manifest) !== JSON.stringify(provenance.jar.manifest)
   ) {
-    throw new Error("Backend artifact digest does not match build provenance");
+    throw new Error(
+      "Backend artifact digest or manifest does not match build provenance",
+    );
   }
   return true;
 }

@@ -69,7 +69,11 @@ function backendArtifactProvenance() {
       sha256: "b".repeat(64),
       sizeBytes: 1,
       manifestSha256: "c".repeat(64),
-      manifest: { "Manifest-Version": "1.0" },
+      manifest: {
+        "Manifest-Version": "1.0",
+        "Java-Version": "21",
+        "Build-Jdk-Spec": "21",
+      },
     },
   };
 }
@@ -192,7 +196,25 @@ function correctnessDetails(code, index) {
 }
 
 function requiredScenarioResults() {
+  const localProfiles = [
+    { code: "baseline", concurrency: 2, durationSeconds: 3 },
+    { code: "peak", concurrency: 6, durationSeconds: 6 },
+    { code: "burst", concurrency: 9, durationSeconds: 2 },
+    { code: "stress", concurrency: 11, durationSeconds: 4 },
+    { code: "capacity-300", concurrency: 6, durationSeconds: 2 },
+    { code: "capacity-375", concurrency: 8, durationSeconds: 2 },
+    { code: "capacity-450", concurrency: 9, durationSeconds: 2 },
+    { code: "capacity-525", concurrency: 11, durationSeconds: 2 },
+  ];
   return [
+    "baseline",
+    "peak",
+    "burst",
+    "stress",
+    "capacity-300",
+    "capacity-375",
+    "capacity-450",
+    "capacity-525",
     ...profile.performanceScenarios,
     ...profile.correctnessScenarios,
     ...profile.databaseScenarios,
@@ -201,6 +223,66 @@ function requiredScenarioResults() {
     code,
     status: "PASS",
     p95Ms: 200,
+    ...(["baseline", "peak", "burst", "stress"].includes(code) ||
+    code.startsWith("capacity-")
+      ? {
+          concurrency: localProfiles.find((item) => item.code === code)
+            .concurrency,
+          durationSeconds: localProfiles.find((item) => item.code === code)
+            .durationSeconds,
+          attempts: 4,
+          unexpectedErrors: 0,
+          errorRate: 0,
+          latencySamplesMs: [100, 200, 200, 200],
+          p50Ms: 200,
+          p99Ms: 200,
+          throughputPerSecond: Number(
+            (
+              4 /
+              localProfiles.find((item) => item.code === code).durationSeconds
+            ).toFixed(3),
+          ),
+          successfulWrites: 1,
+          consistentWrites: 1,
+          consistencyRate: 1,
+          consistencyChecks: [
+            { code: "record", expected: 1, actual: 1, passed: true },
+          ],
+          failedGates: [],
+          byWorkload: {
+            read: { attempts: 3, unexpectedErrors: 0 },
+            write: { attempts: 1, unexpectedErrors: 0 },
+          },
+        }
+      : {}),
+    ...(code === "page-main-content"
+      ? {
+          samplesMs: [100, 200],
+          thresholdMs: 3000,
+          concurrentProfile: "peak",
+        }
+      : {}),
+    ...(["sync-import-5000", "async-import-5001-concurrent"].includes(code)
+      ? {
+          syncRows: 5000,
+          asyncRowsPerJob: 5001,
+          concurrentAsyncJobs: 2,
+          syncSeconds: 1,
+          asyncSeconds: 2,
+          pendingAfterRecovery: 0,
+          oldestBacklogSecondsAfterRecovery: 0,
+        }
+      : {}),
+    ...(code === "session-expiry-draft-recovery"
+      ? { expiredStatus: 401, recoveredRecords: 1 }
+      : {}),
+    ...(code === "slow-query" ||
+    code === "lock-wait" ||
+    code === "long-transaction"
+      ? { durationSeconds: 1 }
+      : {}),
+    ...(code === "connection-pool-pressure" ? { observedConnections: 20 } : {}),
+    ...(code === "deadlock-victim-recovery" ? { victims: 1 } : {}),
     ...(code === "queue-backlog-recovery"
       ? {
           pendingAfterRecovery: 0,
@@ -208,7 +290,15 @@ function requiredScenarioResults() {
         }
       : {}),
     ...(profile.faultScenarios.includes(code)
-      ? { recoverySeconds: code === "application-restart" ? 2.297 : 1 }
+      ? {
+          recoverySeconds: code === "application-restart" ? 2.297 : 1,
+          ...(code === "event-publisher-reconnect-cursor"
+            ? { cursorObserved: true }
+            : {}),
+          ...(code === "private-content-store-interruption"
+            ? { failureStatus: 503 }
+            : {}),
+        }
       : {}),
     ...correctnessDetails(code, index),
   }));
@@ -216,6 +306,17 @@ function requiredScenarioResults() {
 
 function reportedRunFields() {
   return {
+    status: "PASS",
+    scaledProfiles: [
+      { code: "baseline", concurrency: 2, durationSeconds: 3 },
+      { code: "peak", concurrency: 6, durationSeconds: 6 },
+      { code: "burst", concurrency: 9, durationSeconds: 2 },
+      { code: "stress", concurrency: 11, durationSeconds: 4 },
+      { code: "capacity-300", concurrency: 6, durationSeconds: 2 },
+      { code: "capacity-375", concurrency: 8, durationSeconds: 2 },
+      { code: "capacity-450", concurrency: 9, durationSeconds: 2 },
+      { code: "capacity-525", concurrency: 11, durationSeconds: 2 },
+    ],
     authority: profile.authority,
     slo: profile.slo,
     resourceExpansion: profile.resourceExpansion,
@@ -227,11 +328,27 @@ function reportedRunFields() {
       oldestBacklogSecondsAfterRecovery: 0,
     },
     resourceTrend: {
-      samples: 37,
+      samples: 2,
       maximumCpuPercent: 30.36,
       maximumMemoryPercent: 0.8494,
       maximumDatabaseConnections: 20,
       maximumDatabaseConnectionPercent: 20,
+      maximumDatabaseConnectionsConfigured: 100,
+      rawSamples: [
+        {
+          cpuPercent: 20,
+          memoryPercent: 0.5,
+          databaseConnections: 10,
+          elapsedSeconds: 0,
+        },
+        {
+          cpuPercent: 30.36,
+          memoryPercent: 0.8494,
+          databaseConnections: 20,
+          elapsedSeconds: 1,
+        },
+      ],
+      endingMinusStartingMemoryPercent: 0.34940000000000004,
     },
     maximumRecoverySeconds: 2.297,
   };
@@ -313,6 +430,53 @@ test("locks the authoritative scale, SLO, resource and scenario coverage", () =>
     "final-24-hour-stability",
     "stage-8-security-privacy-compliance",
   ]);
+});
+
+test("rejects reordered or coherently forged local derived evidence", () => {
+  const valid = {
+    runId: "stage7-derived-facts-test",
+    provenance: "LOCAL_PROPORTIONAL_ONLY",
+    productionEquivalent: false,
+    candidates,
+    backendArtifact: backendArtifactProvenance(),
+    profileSha256,
+    ...reportedRunFields(),
+    scenarios: requiredScenarioResults(),
+    exclusions: profile.excludedGates,
+    externalBlocker: "EXT-005",
+  };
+  assert.doesNotThrow(() => renderEvidence(valid));
+
+  const reordered = structuredClone(valid);
+  [reordered.scenarios[0], reordered.scenarios[1]] = [
+    reordered.scenarios[1],
+    reordered.scenarios[0],
+  ];
+  assert.throws(
+    () => renderEvidence(reordered),
+    /canonical.*order|order.*canonical/iu,
+  );
+
+  for (const [field, value] of [
+    ["p95Ms", 1],
+    ["throughputPerSecond", 999],
+    ["unexpectedErrors", 1],
+    ["consistencyRate", 0],
+  ]) {
+    const forged = structuredClone(valid);
+    forged.scenarios[0][field] = value;
+    assert.throws(
+      () => renderEvidence(forged),
+      /derived|raw.*sample|request count/iu,
+    );
+  }
+
+  const forgedResources = structuredClone(valid);
+  forgedResources.resourceTrend.maximumCpuPercent = 1;
+  assert.throws(
+    () => renderEvidence(forgedResources),
+    /resource.*raw|raw.*resource/iu,
+  );
 });
 
 test("rejects profiles that dilute authoritative thresholds or omit a workload", () => {
@@ -739,6 +903,100 @@ test("publishes the five-file evidence bundle atomically", async () => {
       await readFile(join(outputPath, "MATRIX.md"), "utf8"),
       "preserved\n",
     );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("reserves an evidence target without replacement and removes interrupted partial output", async () => {
+  const { publishEvidenceBundleAtomically } =
+    await import("./stage-seven-evidence.mjs");
+  assert.equal(typeof publishEvidenceBundleAtomically, "function");
+  const directory = await mkdtemp(join(tmpdir(), "stage7-evidence-reserve-"));
+  const outputPath = join(directory, "evidence");
+  const evidence = renderEvidence({
+    runId: "stage7-reserve-test",
+    provenance: "LOCAL_PROPORTIONAL_ONLY",
+    productionEquivalent: false,
+    candidates,
+    backendArtifact: backendArtifactProvenance(),
+    profileSha256,
+    ...reportedRunFields(),
+    scenarios: requiredScenarioResults(),
+    exclusions: profile.excludedGates,
+    externalBlocker: "EXT-005",
+  });
+  try {
+    await mkdir(outputPath);
+    await assert.rejects(
+      () => publishEvidenceBundleAtomically(outputPath, evidence),
+      /already exists/u,
+    );
+    assert.deepEqual(await readdir(outputPath), []);
+    await rm(outputPath, { recursive: true });
+
+    let releaseStaging;
+    let announceStaging;
+    const stagingReached = new Promise((resolvePromise) => {
+      announceStaging = resolvePromise;
+    });
+    const release = new Promise((resolvePromise) => {
+      releaseStaging = resolvePromise;
+    });
+    let stagedWrites = 0;
+    const publication = publishEvidenceBundleAtomically(outputPath, evidence, {
+      async writeEntry(path, content, options) {
+        stagedWrites += 1;
+        if (stagedWrites === 3) {
+          announceStaging();
+          await release;
+        }
+        await writeFile(path, content, options);
+      },
+    });
+    await stagingReached;
+    await assert.rejects(() => readdir(outputPath), { code: "ENOENT" });
+    await assert.rejects(
+      () => verifyEvidenceDirectory(outputPath),
+      /publication is still in progress/u,
+    );
+    releaseStaging();
+    await publication;
+    await rm(outputPath, { recursive: true });
+
+    let writes = 0;
+    await assert.rejects(
+      () =>
+        publishEvidenceBundleAtomically(outputPath, evidence, {
+          async writeEntry(path, content, options) {
+            writes += 1;
+            if (writes === 3) throw new Error("simulated interruption");
+            await writeFile(path, content, options);
+          },
+        }),
+      /simulated interruption/u,
+    );
+    await assert.rejects(() => readdir(outputPath), { code: "ENOENT" });
+
+    const results = await Promise.allSettled([
+      publishEvidenceBundleAtomically(outputPath, evidence),
+      publishEvidenceBundleAtomically(outputPath, evidence),
+    ]);
+    assert.equal(
+      results.filter(({ status }) => status === "fulfilled").length,
+      1,
+    );
+    assert.equal(
+      results.filter(({ status }) => status === "rejected").length,
+      1,
+    );
+    assert.deepEqual((await readdir(outputPath)).sort(), [
+      "HANDOFF.md",
+      "MATRIX.md",
+      "SUMMARY.md",
+      "VERIFICATION.md",
+      "run.json",
+    ]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

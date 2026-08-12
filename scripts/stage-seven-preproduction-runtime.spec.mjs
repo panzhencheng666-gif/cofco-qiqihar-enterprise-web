@@ -118,7 +118,12 @@ function candidateManifest() {
   };
 }
 
-function signedPhaseResult(phase, context, calls) {
+function signedPhaseResult(
+  phase,
+  context,
+  calls,
+  schemaVersion = "cofco-stage7-phase-receipt-v2",
+) {
   assert.ok(
     context.receiptRequest,
     "trusted receipt challenge is missing from the phase request",
@@ -141,7 +146,7 @@ function signedPhaseResult(phase, context, calls) {
       : {}),
   };
   const payload = {
-    schemaVersion: "cofco-stage7-phase-receipt-v1",
+    schemaVersion,
     receiptId: randomUUID(),
     phaseCode: phase.code,
     requestNonce: context.receiptRequest.nonce,
@@ -291,6 +296,13 @@ test("executes the admitted replay phases against bound driver operations", asyn
   assert.equal(run.productionEquivalent, true);
   assert.deepEqual(run.candidates, candidates);
   assert.equal(run.profileSha256, profileSha256);
+  assert.ok(
+    run.replay.phaseReceipts.every(
+      ({ executionReceipt }) =>
+        executionReceipt.payload.schemaVersion ===
+        "cofco-stage7-phase-receipt-v2",
+    ),
+  );
   assert.equal(
     JSON.parse(renderEvidence(run)["run.json"]).overallStatus,
     "PASS",
@@ -337,6 +349,33 @@ test("rejects arbitrary receipt digests even when they are reused by every phase
         },
       }),
     /trusted|verifiable|signed|receipt/iu,
+  );
+});
+
+test("rejects a correctly signed legacy v1 phase receipt", async () => {
+  const admitted = admission();
+  await assert.rejects(
+    () =>
+      executePreproductionReplay({
+        admission: admitted,
+        rawProfile: profile,
+        driver: {
+          async readCandidateManifest() {
+            return candidateManifest();
+          },
+          async executePhase(phase, context) {
+            return signedPhaseResult(
+              phase,
+              context,
+              [],
+              "cofco-stage7-phase-receipt-v1",
+            );
+          },
+        },
+        runId: "stage7-legacy-v1-receipt",
+        now: () => "2026-08-13T00:00:00.000Z",
+      }),
+    /trusted and verifiable execution receipt/u,
   );
 });
 

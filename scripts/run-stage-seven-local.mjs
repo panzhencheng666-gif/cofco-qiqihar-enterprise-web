@@ -1451,6 +1451,10 @@ async function main() {
       durationSeconds: item.durationSeconds,
       attempts: item.attempts,
       unexpectedErrors: item.unexpectedErrors,
+      errorRate: evaluated.errorRate,
+      latencySamplesMs: item.latenciesMs.map((sample) =>
+        Number(sample.toFixed(3)),
+      ),
       p95Ms: Number(evaluated.p95Ms.toFixed(3)),
       p50Ms: Number(percentile(item.latenciesMs, 0.5).toFixed(3)),
       p99Ms: Number(percentile(item.latenciesMs, 0.99).toFixed(3)),
@@ -1458,6 +1462,8 @@ async function main() {
         (item.attempts / item.durationSeconds).toFixed(3),
       ),
       consistencyRate: evaluated.consistencyRate,
+      successfulWrites: item.consistency.successfulWrites,
+      consistentWrites: item.consistency.consistentWrites,
       consistencyChecks: item.consistency.checks,
       failedGates: evaluated.failedGates,
       byWorkload: item.byWorkload,
@@ -1582,6 +1588,7 @@ async function main() {
     resourceTrend: {
       ...resourceTrend,
       maximumDatabaseConnectionPercent: Number(connectionPercent.toFixed(3)),
+      maximumDatabaseConnectionsConfigured: maximumDatabaseConnections,
       rawSamples: resourceSamples,
     },
     maximumRecoverySeconds: Math.max(...allRecoveries),
@@ -1593,8 +1600,17 @@ async function main() {
         "DEF-125": "REGRESSION_PENDING",
         "DEF-126": "REGRESSION_PENDING",
         "DEF-127": "REGRESSION_PENDING",
+        "DEF-128": "REGRESSION_PENDING",
+        "DEF-129": "REGRESSION_PENDING",
+        "DEF-130": "REGRESSION_PENDING",
       },
     },
+  });
+  await assertBackendArtifactMatches({
+    provenance: backendArtifactProvenance,
+    backendDirectory,
+    jarPath,
+    execute: command,
   });
   await writeEvidenceAtomically(outputDirectory, rawRun);
   progress(`evidence written: ${resolve(outputDirectory)}`);
