@@ -1,11 +1,200 @@
-import { lstat, realpath, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { basename, dirname, isAbsolute } from "node:path";
+import { createHash } from "node:crypto";
+import { lstat, readFile, realpath, rm } from "node:fs/promises";
+import { arch, platform, tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 
 const databasePattern = /^qiqihar_stage7_[0-9a-f]{12}$/u;
 const runtimeDirectoryPattern = /^cofco-stage7-[A-Za-z0-9_-]{6,}$/u;
 const sensitiveKey =
   /(password|secret|token|cookie|credential|access.?key|session.?state)/iu;
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function firstLine(value) {
+  return value
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .find((line) => line !== "");
+}
+
+function parseManifest(source) {
+  const unfolded = source.replace(/\r?\n /gu, "");
+  return Object.fromEntries(
+    unfolded
+      .split(/\r?\n/u)
+      .filter((line) => line.includes(":"))
+      .map((line) => {
+        const separator = line.indexOf(":");
+        return [line.slice(0, separator), line.slice(separator + 1).trim()];
+      }),
+  );
+}
+
+async function backendGitState(backendDirectory, execute) {
+  const [{ stdout: commit }, { stdout: status }] = await Promise.all([
+    execute("git", ["rev-parse", "HEAD"], { cwd: backendDirectory }),
+    execute("git", ["status", "--porcelain"], { cwd: backendDirectory }),
+  ]);
+  return { commit: commit.trim(), clean: status.trim() === "" };
+}
+
+async function exactJar(jarPath, backendDirectory) {
+  const metadata = await lstat(jarPath);
+  const relativePath = relative(backendDirectory, jarPath);
+  if (
+    !metadata.isFile() ||
+    metadata.isSymbolicLink() ||
+    relativePath.startsWith("..") ||
+    isAbsolute(relativePath)
+  ) {
+    throw new Error("Backend artifact path is not a regular repository file");
+  }
+  const bytes = await readFile(jarPath);
+  if (bytes.length === 0) throw new Error("Backend artifact is empty");
+  return { bytes, metadata, relativePath };
+}
+
+async function assertArtifactDirectory(backendDirectory, jarPath) {
+  const artifactDirectory = dirname(jarPath);
+  let metadata;
+  try {
+    metadata = await lstat(artifactDirectory);
+  } catch (error) {
+    if (error?.code === "ENOENT") return;
+    throw error;
+  }
+  if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+    throw new Error("Backend artifact directory must not be a symlink");
+  }
+  const [repositoryRoot, outputRoot] = await Promise.all([
+    realpath(backendDirectory),
+    realpath(artifactDirectory),
+  ]);
+  const outputRelativePath = relative(repositoryRoot, outputRoot);
+  if (outputRelativePath.startsWith("..") || isAbsolute(outputRelativePath)) {
+    throw new Error("Backend artifact directory escapes the repository");
+  }
+}
+
+export async function prepareBackendArtifact({
+  backendDirectory,
+  jarPath,
+  expectedSourceCommit,
+  buildCommand,
+  javaHome,
+  execute,
+}) {
+  const configuredJarRelativePath = relative(
+    resolve(backendDirectory),
+    resolve(jarPath),
+  );
+  if (
+    typeof execute !== "function" ||
+    !/^[a-f0-9]{40}$/u.test(expectedSourceCommit ?? "") ||
+    JSON.stringify(buildCommand) !==
+      JSON.stringify(["mvn", "clean", "-DskipTests", "package"]) ||
+    configuredJarRelativePath.startsWith("..") ||
+    isAbsolute(configuredJarRelativePath)
+  ) {
+    throw new Error("Invalid Backend artifact preparation contract");
+  }
+  await assertArtifactDirectory(backendDirectory, jarPath);
+  const before = await backendGitState(backendDirectory, execute);
+  if (before.commit !== expectedSourceCommit) {
+    throw new Error(
+      `Backend source commit ${before.commit} does not match expected ${expectedSourceCommit}`,
+    );
+  }
+  if (!before.clean) {
+    throw new Error("Backend source repository must be clean before build");
+  }
+  const build = await execute(buildCommand[0], buildCommand.slice(1), {
+    cwd: backendDirectory,
+  });
+  const after = await backendGitState(backendDirectory, execute);
+  if (after.commit !== expectedSourceCommit || !after.clean) {
+    throw new Error(
+      "Backend source commit or cleanliness changed during build",
+    );
+  }
+  const artifact = await exactJar(jarPath, backendDirectory);
+  const [manifestResult, javaResult, mavenResult] = await Promise.all([
+    execute("unzip", ["-p", jarPath, "META-INF/MANIFEST.MF"], {
+      cwd: backendDirectory,
+    }),
+    execute(`${javaHome}/bin/java`, ["-version"], {
+      cwd: backendDirectory,
+    }),
+    execute(buildCommand[0], ["--version"], { cwd: backendDirectory }),
+  ]);
+  const manifestSource = manifestResult.stdout;
+  const javaVersion = firstLine(`${javaResult.stdout}\n${javaResult.stderr}`);
+  const mavenVersion = firstLine(
+    `${mavenResult.stdout}\n${mavenResult.stderr}`,
+  );
+  if (
+    !javaVersion ||
+    !/\bversion\s+"?21(?:\.|\b)/iu.test(javaVersion) ||
+    !mavenVersion ||
+    !manifestSource.trim()
+  ) {
+    throw new Error("Backend build environment or JAR manifest is incomplete");
+  }
+  return {
+    schemaVersion: "cofco-stage7-backend-artifact-v1",
+    sourceCommit: expectedSourceCommit,
+    sourceClean: true,
+    build: {
+      command: structuredClone(buildCommand),
+      outputSha256: sha256(`${build.stdout ?? ""}${build.stderr ?? ""}`),
+      environment: {
+        javaHome,
+        javaVersion,
+        mavenVersion,
+        platform: platform(),
+        architecture: arch(),
+      },
+    },
+    jar: {
+      relativePath: artifact.relativePath,
+      sha256: sha256(artifact.bytes),
+      sizeBytes: artifact.bytes.length,
+      manifestSha256: sha256(manifestSource),
+      manifest: parseManifest(manifestSource),
+    },
+  };
+}
+
+export async function assertBackendArtifactMatches({
+  provenance,
+  backendDirectory,
+  jarPath,
+  execute,
+}) {
+  if (
+    provenance?.schemaVersion !== "cofco-stage7-backend-artifact-v1" ||
+    typeof execute !== "function"
+  ) {
+    throw new Error("Backend artifact provenance is invalid");
+  }
+  const source = await backendGitState(backendDirectory, execute);
+  if (source.commit !== provenance.sourceCommit || !source.clean) {
+    throw new Error(
+      "Backend source commit no longer matches artifact provenance",
+    );
+  }
+  const artifact = await exactJar(jarPath, backendDirectory);
+  if (
+    artifact.relativePath !== provenance.jar.relativePath ||
+    artifact.bytes.length !== provenance.jar.sizeBytes ||
+    sha256(artifact.bytes) !== provenance.jar.sha256
+  ) {
+    throw new Error("Backend artifact digest does not match build provenance");
+  }
+  return true;
+}
 
 export function normalizeHostCpuPercent(rawMultiCorePercent, logicalCpuCount) {
   if (

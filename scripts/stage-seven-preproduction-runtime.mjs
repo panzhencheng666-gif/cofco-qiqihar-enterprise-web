@@ -1,6 +1,12 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import { buildPreproductionReplayPlan } from "./stage-seven-core.mjs";
+import {
+  canonicalSha256,
+  createPhaseReceiptRequest,
+  receiptAuthorityFromManifest,
+  verifyPhaseExecutionReceipt,
+} from "./stage-seven-receipts.mjs";
 
 const sensitiveKey =
   /(password|secret|token|cookie|credential|access.?key|session.?state)/iu;
@@ -42,8 +48,7 @@ function assertBoundResult(result, phase, admission) {
     !result ||
     result.phase !== phase.code ||
     !sameJson(result.candidates, admission.candidate) ||
-    result.profileSha256 !== admission.profileSha256 ||
-    !/^[a-f0-9]{64}$/u.test(result.executionReceiptSha256 ?? "")
+    result.profileSha256 !== admission.profileSha256
   ) {
     throw new Error(`${phase.code} result is not bound to the admitted replay`);
   }
@@ -82,6 +87,15 @@ function assertCandidateManifest(manifest, admission) {
     throw new Error("candidate manifest does not match admitted replay");
   }
   assertSecretFree(manifest, "candidateManifest");
+  const { publicKey } = receiptAuthorityFromManifest(
+    manifest,
+    admission.receiptAuthorityPublicKeySha256,
+  );
+  return {
+    artifactSetSha256: canonicalSha256(admission.artifacts),
+    manifestSha256: canonicalSha256(manifest),
+    publicKey,
+  };
 }
 
 export async function executePreproductionReplay({
@@ -102,45 +116,64 @@ export async function executePreproductionReplay({
   const manifest = await driver.readCandidateManifest(
     plan.target.candidateManifestUrl,
   );
-  assertCandidateManifest(manifest, admission);
-  const phaseReceipts = [
-    {
-      code: "candidate-binding",
-      candidateBound: true,
-      profileBound: true,
-      manifestSha256: createHash("sha256")
-        .update(JSON.stringify(manifest))
-        .digest("hex"),
-    },
-  ];
+  const manifestBinding = assertCandidateManifest(manifest, admission);
+  const phaseReceipts = [];
+  const seenReceiptIds = new Set();
+  const seenRequestNonces = new Set();
   const scenarios = [];
   let resourceTrend;
   for (const phase of plan.phases.filter(
     ({ code }) => !["candidate-binding", "evidence"].includes(code),
   )) {
-    const result = assertBoundResult(
-      await driver.executePhase(phase, {
-        candidates: structuredClone(admission.candidate),
-        profileSha256: admission.profileSha256,
-        approvalEvidence: structuredClone(admission.approvalEvidence),
-        target: structuredClone(plan.target),
-        endpoint: phase.endpoint,
-      }),
+    const receiptRequest = createPhaseReceiptRequest({
+      runId,
       phase,
-      admission,
-    );
+      nonce: randomUUID(),
+      candidates: admission.candidate,
+      profileSha256: admission.profileSha256,
+      manifestSha256: manifestBinding.manifestSha256,
+      artifactSetSha256: manifestBinding.artifactSetSha256,
+      approvalEvidence: admission.approvalEvidence,
+      target: plan.target,
+    });
+    const untrustedResult = await driver.executePhase(phase, {
+      candidates: structuredClone(admission.candidate),
+      profileSha256: admission.profileSha256,
+      approvalEvidence: structuredClone(admission.approvalEvidence),
+      target: structuredClone(plan.target),
+      endpoint: phase.endpoint,
+      receiptRequest: structuredClone(receiptRequest),
+    });
+    const { executionReceipt, ...resultBody } = untrustedResult ?? {};
+    const result = assertBoundResult(resultBody, phase, admission);
+    const verifiedReceipt = verifyPhaseExecutionReceipt({
+      code: phase.code,
+      runId,
+      request: receiptRequest,
+      result,
+      executionReceipt,
+      candidates: admission.candidate,
+      profileSha256: admission.profileSha256,
+      manifestSha256: manifestBinding.manifestSha256,
+      artifactSetSha256: manifestBinding.artifactSetSha256,
+      approvalEvidence: admission.approvalEvidence,
+      target: plan.target,
+      publicKey: manifestBinding.publicKey,
+      seenReceiptIds,
+      seenRequestNonces,
+    });
     scenarios.push(...result.scenarios);
     if (phase.code === "resource-sampling") {
       resourceTrend = structuredClone(result.resourceTrend);
     }
-    phaseReceipts.push({
-      code: phase.code,
-      candidateBound: true,
-      profileBound: true,
-      scenarioCodes: result.scenarios.map(({ code }) => code),
-      executionReceiptSha256: result.executionReceiptSha256,
-    });
+    phaseReceipts.push(verifiedReceipt);
   }
+  const backlog = scenarios.find(
+    ({ code }) => code === "queue-backlog-recovery",
+  );
+  const recoveries = scenarios
+    .map(({ recoverySeconds }) => recoverySeconds)
+    .filter(Number.isFinite);
   const run = {
     runId,
     startedAt,
@@ -150,12 +183,30 @@ export async function executePreproductionReplay({
     candidates: structuredClone(admission.candidate),
     profileSha256: admission.profileSha256,
     admission: structuredClone(admission),
+    receiptAuthorityPublicKeySha256: admission.receiptAuthorityPublicKeySha256,
+    authority: structuredClone(rawProfile.authority),
+    slo: structuredClone(rawProfile.slo),
+    resourceExpansion: structuredClone(rawProfile.resourceExpansion),
+    importBoundary: {
+      syncRows: rawProfile.authority.synchronousImportRows,
+      asyncRowsPerJob: rawProfile.authority.asynchronousImportRows,
+      concurrentAsyncJobs: rawProfile.authority.concurrentImportJobs,
+      pendingAfterRecovery: backlog?.pendingAfterRecovery,
+      oldestBacklogSecondsAfterRecovery:
+        backlog?.oldestBacklogSecondsAfterRecovery,
+    },
     replay: {
       schemaVersion: plan.schemaVersion,
+      candidateManifest: structuredClone(manifest),
+      manifestSha256: manifestBinding.manifestSha256,
+      artifactSetSha256: manifestBinding.artifactSetSha256,
+      target: structuredClone(plan.target),
       phaseReceipts,
     },
     scenarios,
     resourceTrend,
+    maximumRecoverySeconds:
+      recoveries.length > 0 ? Math.max(...recoveries) : undefined,
     exclusions: structuredClone(plan.exclusions),
   };
   assertSecretFree(run);
@@ -199,6 +250,7 @@ export function createHttpsPreproductionDriver() {
           profileSha256: context.profileSha256,
           approvalEvidence: context.approvalEvidence,
           target: context.target,
+          receiptRequest: context.receiptRequest,
         }),
       });
     },

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 
@@ -9,9 +9,13 @@ import {
   StageSevenAdmissionError,
   admitRun,
   buildPreproductionReplayPlan,
-  renderEvidence,
   validateProfile,
 } from "./stage-seven-core.mjs";
+import {
+  verifyEvidenceDirectory,
+  writeEvidenceAtomically,
+} from "./stage-seven-evidence.mjs";
+import { assertBackendArtifactMatches } from "./stage-seven-local-runtime.mjs";
 import {
   createHttpsPreproductionDriver,
   executePreproductionReplay,
@@ -38,7 +42,7 @@ async function readJson(path) {
   return JSON.parse(await readFile(resolve(path), "utf8"));
 }
 
-async function admissionBinding(profilePath) {
+async function admissionBinding(profilePath, profile) {
   const profileSource = await readFile(profilePath, "utf8");
   const commits = await Promise.all(
     Object.entries(repositoryDirectories).map(
@@ -65,30 +69,25 @@ async function admissionBinding(profilePath) {
   return {
     candidates: Object.fromEntries(commits),
     profileSha256: createHash("sha256").update(profileSource).digest("hex"),
+    receiptAuthorityPublicKeySha256: profile.receiptAuthorityPublicKeySha256,
   };
 }
 
 async function writeEvidence(outputPath, rawRun) {
-  const evidence = renderEvidence(rawRun);
-  await mkdir(resolve(outputPath), { recursive: true, mode: 0o700 });
-  await Promise.all(
-    Object.entries(evidence).map(([name, content]) =>
-      writeFile(resolve(outputPath, name), content, {
-        mode: 0o600,
-        flag: "wx",
-      }),
-    ),
-  );
+  await writeEvidenceAtomically(outputPath, rawRun);
 }
 
 async function main() {
   const command = process.argv[2] ?? "validate";
-  const profilePath =
-    option("--profile") ??
-    resolve(
-      import.meta.dirname,
-      "../ops/stage7-performance-resilience/profile.json",
+  if (option("--profile")) {
+    throw new StageSevenAdmissionError(
+      "Stage 7 standard entries forbid profile overrides",
     );
+  }
+  const profilePath = resolve(
+    import.meta.dirname,
+    "../ops/stage7-performance-resilience/profile.json",
+  );
   const profile = validateProfile(await readJson(profilePath));
   if (command === "validate") {
     process.stdout.write(
@@ -111,7 +110,7 @@ async function main() {
     ) {
       admitRun(admittedRequest);
     }
-    const binding = await admissionBinding(profilePath);
+    const binding = await admissionBinding(profilePath, profile);
     const admission = admitRun(admittedRequest, binding);
     if (command === "replay-plan") {
       const replay = buildPreproductionReplayPlan(admission, profile);
@@ -139,13 +138,52 @@ async function main() {
     );
     return;
   }
-  if (command === "render") {
-    const resultPath = option("--result");
-    const outputPath = option("--output");
-    if (!resultPath || !outputPath)
-      throw new Error("render requires --result and --output");
-    await writeEvidence(outputPath, await readJson(resultPath));
-    process.stdout.write(`STAGE7_EVIDENCE_WRITTEN files=5\n`);
+  if (command === "verify-evidence") {
+    const evidencePath = option("--evidence");
+    if (!evidencePath) throw new Error("verify-evidence requires --evidence");
+    const run = await verifyEvidenceDirectory(evidencePath);
+    const binding = await admissionBinding(profilePath, profile);
+    if (
+      JSON.stringify(run.candidates) !== JSON.stringify(binding.candidates) ||
+      run.profileSha256 !== binding.profileSha256
+    ) {
+      throw new Error(
+        "Stage 7 evidence does not match the current trusted candidate and profile",
+      );
+    }
+    if (run.provenance === "PREPRODUCTION_EQUIVALENT") {
+      if (
+        run.receiptAuthorityPublicKeySha256 !==
+        binding.receiptAuthorityPublicKeySha256
+      ) {
+        throw new Error(
+          "Stage 7 evidence does not match the trusted receipt authority",
+        );
+      }
+    } else {
+      if (
+        run.backendArtifact?.sourceCommit !==
+        profile.backendArtifact.sourceCommit
+      ) {
+        throw new Error(
+          "Stage 7 evidence Backend source commit does not match the frozen profile",
+        );
+      }
+      await assertBackendArtifactMatches({
+        provenance: run.backendArtifact,
+        backendDirectory: repositoryDirectories.backend,
+        jarPath: resolve(
+          repositoryDirectories.backend,
+          profile.backendArtifact.jarRelativePath,
+        ),
+        execute: (commandName, args, options) =>
+          execFileAsync(commandName, args, {
+            cwd: options?.cwd,
+            encoding: "utf8",
+          }),
+      });
+    }
+    process.stdout.write("STAGE7_EVIDENCE_CONSISTENT files=5\n");
     return;
   }
   throw new Error("Unknown Stage 7 command");

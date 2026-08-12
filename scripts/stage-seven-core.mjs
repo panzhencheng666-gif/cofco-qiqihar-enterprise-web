@@ -1,3 +1,5 @@
+import { verifyReplayReceiptBundle } from "./stage-seven-receipts.mjs";
+
 const authority = Object.freeze({
   registeredEmployees: 1000,
   peakConcurrentEmployees: 300,
@@ -60,6 +62,7 @@ const cloudInputKeys = [
   "topologyEvidenceSha256",
   "capacityApprovalSha256",
   "faultControlApprovalSha256",
+  "receiptAuthorityPublicKeySha256",
   "environmentName",
   "cloudProvider",
   "regionId",
@@ -148,6 +151,21 @@ export function validateProfile(input) {
     if (input.authority?.[key] !== value) {
       throw new Error(`Stage 7 authoritative ${key} must equal ${value}`);
     }
+  }
+  if (
+    !commitPattern.test(input.backendArtifact?.sourceCommit ?? "") ||
+    JSON.stringify(input.backendArtifact?.buildCommand) !==
+      JSON.stringify(["mvn", "clean", "-DskipTests", "package"]) ||
+    input.backendArtifact?.jarRelativePath !==
+      "target/grain-trade-enterprise-backend-0.0.1-SNAPSHOT.jar"
+  ) {
+    throw new Error("Stage 7 Backend artifact build provenance is invalid");
+  }
+  if (
+    input.receiptAuthorityPublicKeySha256 !== null &&
+    !sha256Pattern.test(input.receiptAuthorityPublicKeySha256 ?? "")
+  ) {
+    throw new Error("Stage 7 trusted receipt authority pin is invalid");
   }
   if (
     input.slo?.coreApiP95Ms !== 800 ||
@@ -313,6 +331,7 @@ export function admitRun(request, expected = {}) {
     "topologyEvidenceSha256",
     "capacityApprovalSha256",
     "faultControlApprovalSha256",
+    "receiptAuthorityPublicKeySha256",
   ]) {
     requirePattern(inputs, key, sha256Pattern, `${key} digest`);
   }
@@ -321,17 +340,24 @@ export function admitRun(request, expected = {}) {
     !["backend", "frontend", "web"].every((repository) =>
       commitPattern.test(expected.candidates[repository]),
     ) ||
-    !sha256Pattern.test(expected.profileSha256 ?? "")
+    !sha256Pattern.test(expected.profileSha256 ?? "") ||
+    !sha256Pattern.test(expected.receiptAuthorityPublicKeySha256 ?? "")
   ) {
-    blockAdmission("candidate commit and profile digest binding is missing");
+    blockAdmission(
+      "candidate commit, profile digest, and trusted receipt authority binding is missing",
+    );
   }
   if (
     inputs.backendCommit !== expected.candidates.backend ||
     inputs.frontendCommit !== expected.candidates.frontend ||
     inputs.webCommit !== expected.candidates.web ||
-    inputs.profileSha256 !== expected.profileSha256
+    inputs.profileSha256 !== expected.profileSha256 ||
+    inputs.receiptAuthorityPublicKeySha256 !==
+      expected.receiptAuthorityPublicKeySha256
   ) {
-    blockAdmission("candidate commit binding or profile digest does not match");
+    blockAdmission(
+      "candidate commit, profile digest, or trusted receipt authority does not match",
+    );
   }
   if (
     inputs.environmentName !== "preproduction" ||
@@ -399,6 +425,7 @@ export function admitRun(request, expected = {}) {
       capacity: inputs.capacityApprovalSha256,
       faultControl: inputs.faultControlApprovalSha256,
     },
+    receiptAuthorityPublicKeySha256: inputs.receiptAuthorityPublicKeySha256,
     topology: {
       environmentName: inputs.environmentName,
       cloudProvider: inputs.cloudProvider,
@@ -429,18 +456,20 @@ export function buildPreproductionReplayPlan(admission, rawProfile) {
     !commitPattern.test(admission.candidate?.frontend ?? "") ||
     !commitPattern.test(admission.candidate?.web ?? "") ||
     !sha256Pattern.test(admission.profileSha256 ?? "") ||
+    !sha256Pattern.test(admission.receiptAuthorityPublicKeySha256 ?? "") ||
     !admission.topology ||
     !admission.artifacts
   ) {
     throw new Error("Invalid admitted Stage 7 preproduction replay");
   }
   return {
-    schemaVersion: "cofco-stage7-preproduction-replay-v1",
+    schemaVersion: "cofco-stage7-preproduction-replay-v2",
     mode: "preproduction",
     provenance: admission.provenance,
     productionEquivalent: true,
     candidate: structuredClone(admission.candidate),
     profileSha256: admission.profileSha256,
+    receiptAuthorityPublicKeySha256: admission.receiptAuthorityPublicKeySha256,
     target: {
       baseUrl: admission.baseUrl,
       candidateManifestUrl: new URL(
@@ -511,8 +540,98 @@ function sanitized(value) {
   return value;
 }
 
+function immutable(value) {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) {
+    return value;
+  }
+  Object.values(value).forEach(immutable);
+  return Object.freeze(value);
+}
+
+function assertLocalBackendArtifactProvenance(run) {
+  const provenance = run.backendArtifact;
+  if (
+    provenance?.schemaVersion !== "cofco-stage7-backend-artifact-v1" ||
+    provenance.sourceCommit !== run.candidates?.backend ||
+    provenance.sourceClean !== true ||
+    JSON.stringify(provenance.build?.command) !==
+      JSON.stringify(["mvn", "clean", "-DskipTests", "package"]) ||
+    !sha256Pattern.test(provenance.build?.outputSha256 ?? "") ||
+    typeof provenance.build?.environment?.javaHome !== "string" ||
+    provenance.build.environment.javaHome.trim() === "" ||
+    typeof provenance.build.environment.javaVersion !== "string" ||
+    !/\b21(?:\.|\b)/u.test(provenance.build.environment.javaVersion) ||
+    typeof provenance.build.environment.mavenVersion !== "string" ||
+    provenance.build.environment.mavenVersion.trim() === "" ||
+    typeof provenance.build.environment.platform !== "string" ||
+    provenance.build.environment.platform.trim() === "" ||
+    typeof provenance.build.environment.architecture !== "string" ||
+    provenance.build.environment.architecture.trim() === "" ||
+    provenance.jar?.relativePath !==
+      "target/grain-trade-enterprise-backend-0.0.1-SNAPSHOT.jar" ||
+    !sha256Pattern.test(provenance.jar?.sha256 ?? "") ||
+    !Number.isSafeInteger(provenance.jar?.sizeBytes) ||
+    provenance.jar.sizeBytes <= 0 ||
+    !sha256Pattern.test(provenance.jar?.manifestSha256 ?? "") ||
+    !provenance.jar?.manifest ||
+    typeof provenance.jar.manifest !== "object" ||
+    Array.isArray(provenance.jar.manifest) ||
+    Object.keys(provenance.jar.manifest).length === 0
+  ) {
+    throw new Error(
+      "Stage 7 local evidence requires exact Backend artifact build provenance",
+    );
+  }
+}
+
+function assertOperationalReport(run) {
+  const finiteNonNegative = (value) => Number.isFinite(value) && value >= 0;
+  const backlogScenario = run.scenarios.find(
+    ({ code }) => code === "queue-backlog-recovery",
+  );
+  const recoveries = run.scenarios
+    .map(({ recoverySeconds }) => recoverySeconds)
+    .filter(Number.isFinite);
+  const maximumRecoverySeconds =
+    recoveries.length > 0 ? Math.max(...recoveries) : undefined;
+  if (
+    JSON.stringify(run.authority) !== JSON.stringify(authority) ||
+    run.slo?.coreApiP95Ms !== 800 ||
+    run.slo?.pageMainContentMs !== 3000 ||
+    run.slo?.unexpectedErrorRate !== 0.001 ||
+    run.slo?.writeConsistencyRate !== 1 ||
+    run.slo?.shortRecoverySeconds !== 120 ||
+    run.resourceExpansion?.cpuPercent !== 70 ||
+    run.resourceExpansion?.memoryPercent !== 75 ||
+    run.resourceExpansion?.databaseConnectionPercent !== 70 ||
+    run.resourceExpansion?.oldestBacklogSecondsAfterRecovery !== 60 ||
+    run.importBoundary?.syncRows !== authority.synchronousImportRows ||
+    run.importBoundary?.asyncRowsPerJob !== authority.asynchronousImportRows ||
+    run.importBoundary?.concurrentAsyncJobs !==
+      authority.concurrentImportJobs ||
+    !finiteNonNegative(run.importBoundary?.pendingAfterRecovery) ||
+    !finiteNonNegative(run.importBoundary?.oldestBacklogSecondsAfterRecovery) ||
+    backlogScenario?.pendingAfterRecovery !==
+      run.importBoundary.pendingAfterRecovery ||
+    backlogScenario?.oldestBacklogSecondsAfterRecovery !==
+      run.importBoundary.oldestBacklogSecondsAfterRecovery ||
+    !Number.isSafeInteger(run.resourceTrend?.samples) ||
+    run.resourceTrend.samples <= 0 ||
+    !finiteNonNegative(run.resourceTrend?.maximumCpuPercent) ||
+    !finiteNonNegative(run.resourceTrend?.maximumMemoryPercent) ||
+    !finiteNonNegative(run.resourceTrend?.maximumDatabaseConnections) ||
+    !finiteNonNegative(run.resourceTrend?.maximumDatabaseConnectionPercent) ||
+    !finiteNonNegative(run.maximumRecoverySeconds) ||
+    run.maximumRecoverySeconds !== maximumRecoverySeconds
+  ) {
+    throw new Error(
+      "Stage 7 operational report is incomplete or differs from authoritative fields",
+    );
+  }
+}
+
 export function renderEvidence(rawRun) {
-  const run = sanitized(rawRun);
+  const run = immutable(sanitized(rawRun));
   if (
     !run.runId ||
     !["LOCAL_PROPORTIONAL_ONLY", "PREPRODUCTION_EQUIVALENT"].includes(
@@ -532,6 +651,8 @@ export function renderEvidence(rawRun) {
       "Stage 7 productionEquivalent flag contradicts evidence provenance",
     );
   }
+  if (local) assertLocalBackendArtifactProvenance(run);
+  assertOperationalReport(run);
   if (
     !local &&
     (run.admission?.provenance !== "PREPRODUCTION_EQUIVALENT" ||
@@ -544,34 +665,14 @@ export function renderEvidence(rawRun) {
   }
   if (
     !local &&
-    (run.replay?.schemaVersion !== "cofco-stage7-preproduction-replay-v1" ||
-      JSON.stringify(run.replay?.phaseReceipts?.map(({ code }) => code)) !==
-        JSON.stringify([
-          "candidate-binding",
-          "load",
-          "correctness",
-          "database",
-          "faults",
-          "resource-sampling",
-        ]) ||
-      run.replay?.phaseReceipts?.some(
-        ({ candidateBound, profileBound }) =>
-          candidateBound !== true || profileBound !== true,
-      ) ||
-      !sha256Pattern.test(
-        run.replay?.phaseReceipts?.[0]?.manifestSha256 ?? "",
-      ) ||
-      run.replay?.phaseReceipts
-        ?.slice(1)
-        .some(
-          ({ executionReceiptSha256 }) =>
-            !sha256Pattern.test(executionReceiptSha256 ?? ""),
-        ))
+    run.admission?.receiptAuthorityPublicKeySha256 !==
+      run.receiptAuthorityPublicKeySha256
   ) {
     throw new Error(
-      "Stage 7 preproduction evidence lacks bound replay receipts",
+      "Stage 7 preproduction evidence is not receipt-authority-bound",
     );
   }
+  if (!local) verifyReplayReceiptBundle(run);
   const scenarioCodeList = run.scenarios.map(({ code }) => code);
   if (new Set(scenarioCodeList).size !== scenarioCodeList.length) {
     throw new Error("Stage 7 evidence contains a duplicate scenario result");
@@ -673,22 +774,41 @@ export function renderEvidence(rawRun) {
   const boundary = local
     ? "This local proportional run does not establish production-equivalent performance. EXT-005 remains blocked."
     : "This run was admitted as production-equivalent preproduction evidence.";
+  const display = (value) =>
+    value === undefined || value === null ? "n/a" : String(value);
   const rows = run.scenarios
-    .map(
-      (scenario) =>
-        `| ${scenario.code} | ${scenario.status} | ${scenario.p95Ms ?? "n/a"} | ${(scenario.failedGates ?? []).join(",") || "none"} |`,
-    )
+    .map((scenario) => {
+      const errorRate =
+        scenario.errorRate ??
+        (Number.isFinite(scenario.unexpectedErrors) &&
+        Number.isFinite(scenario.attempts) &&
+        scenario.attempts > 0
+          ? scenario.unexpectedErrors / scenario.attempts
+          : undefined);
+      return `| ${scenario.code} | ${scenario.status} | ${display(scenario.p95Ms)} | ${display(errorRate)} | ${display(scenario.throughputPerSecond)} | ${display(scenario.consistencyRate)} | ${(scenario.failedGates ?? []).join(",") || "none"} |`;
+    })
     .join("\n");
   const exclusions = run.exclusions.map((item) => `- ${item}`).join("\n");
   const candidateLines = Object.entries(run.candidates ?? {})
     .map(([repository, commit]) => `- ${repository}: \`${commit}\``)
     .join("\n");
+  const backendArtifactSection = local
+    ? `## Backend artifact provenance\n\n- Source commit: \`${run.backendArtifact.sourceCommit}\` (clean: \`${run.backendArtifact.sourceClean}\`)\n- Build command: \`${run.backendArtifact.build.command.join(" ")}\`\n- Build environment: \`${run.backendArtifact.build.environment.javaVersion}\`; \`${run.backendArtifact.build.environment.mavenVersion}\`; \`${run.backendArtifact.build.environment.platform}/${run.backendArtifact.build.environment.architecture}\`\n- JAR: \`${run.backendArtifact.jar.relativePath}\`\n- JAR SHA-256: \`${run.backendArtifact.jar.sha256}\` (${run.backendArtifact.jar.sizeBytes} bytes)\n- JAR manifest SHA-256: \`${run.backendArtifact.jar.manifestSha256}\`\n\n`
+    : "";
+  const supervisorDispositionEntries = Object.entries(
+    run.supervisorDisposition?.defects ?? {},
+  );
+  const supervisorDispositionSection =
+    supervisorDispositionEntries.length === 0
+      ? ""
+      : `## Supervisor disposition\n\n${supervisorDispositionEntries.map(([defect, status]) => `- ${defect}: \`${status}\``).join("\n")}\n- Independent review required: \`${run.supervisorDisposition.independentReviewRequired === true}\`\n\n`;
+  const operationalReportSection = `## Operational report\n\n### SLO and scaling thresholds\n\n- Core API p95: \`${display(run.slo?.coreApiP95Ms)} ms\`\n- Page main content: \`${display(run.slo?.pageMainContentMs)} ms\`\n- Unexpected error rate: \`${display(run.slo?.unexpectedErrorRate)}\`\n- Write consistency rate: \`${display(run.slo?.writeConsistencyRate)}\`\n- Short recovery: \`${display(run.slo?.shortRecoverySeconds)} seconds\`\n- Expansion thresholds: CPU \`${display(run.resourceExpansion?.cpuPercent)}%\`, memory \`${display(run.resourceExpansion?.memoryPercent)}%\`, database connections \`${display(run.resourceExpansion?.databaseConnectionPercent)}%\`, oldest backlog \`${display(run.resourceExpansion?.oldestBacklogSecondsAfterRecovery)} seconds\`\n\n### Import and backlog boundary\n\n- Synchronous rows: \`${display(run.importBoundary?.syncRows)}\`\n- Asynchronous rows per job: \`${display(run.importBoundary?.asyncRowsPerJob)}\`\n- Concurrent asynchronous jobs: \`${display(run.importBoundary?.concurrentAsyncJobs)}\`\n- Pending after recovery: \`${display(run.importBoundary?.pendingAfterRecovery)}\`\n- Oldest backlog after recovery: \`${display(run.importBoundary?.oldestBacklogSecondsAfterRecovery)} seconds\`\n\n### Resource and recovery observations\n\n- Resource samples: \`${display(run.resourceTrend?.samples)}\`\n- Maximum CPU: \`${display(run.resourceTrend?.maximumCpuPercent)}%\`\n- Maximum memory: \`${display(run.resourceTrend?.maximumMemoryPercent)}%\`\n- Maximum database connections: \`${display(run.resourceTrend?.maximumDatabaseConnections)}\` (\`${display(run.resourceTrend?.maximumDatabaseConnectionPercent)}%\`)\n- Maximum recovery: \`${display(run.maximumRecoverySeconds)} seconds\`\n\n`;
   const safeRun = { ...run, overallStatus };
   return {
     "run.json": `${JSON.stringify(safeRun, null, 2)}\n`,
-    "SUMMARY.md": `# Stage 7A Summary\n\n- Run: \`${run.runId}\`\n- Provenance: \`${run.provenance}\`\n- Status: \`${overallStatus}\`\n\n${boundary}\n\n## Candidate\n\n${candidateLines}\n\n## Excluded gates\n\n${exclusions}\n`,
-    "MATRIX.md": `# Stage 7A Matrix\n\n${boundary}\n\n| Scenario | Status | P95 ms | Failed gates |\n| --- | --- | ---: | --- |\n${rows}\n\n## Excluded gates\n\n${exclusions}\n`,
-    "VERIFICATION.md": `# Stage 7A Verification\n\n${boundary}\n\nThe machine-readable source is \`run.json\`. Short SLO, resource, recovery, backlog, and consistency decisions use profile \`cofco-stage7-v1\`.\n\n## Excluded gates\n\n${exclusions}\n`,
-    "HANDOFF.md": `# Stage 7A Handoff\n\n- Status: \`${overallStatus}\`\n- Provenance: \`${run.provenance}\`\n\n${boundary}\n\nIndependent supervision must verify the candidate, standard gates, evidence, clean repositories, and upstream alignment. No 24-hour or Stage 8 claim is made.\n\n## Excluded gates\n\n${exclusions}\n`,
+    "SUMMARY.md": `# Stage 7A Summary\n\n- Run: \`${run.runId}\`\n- Provenance: \`${run.provenance}\`\n- Status: \`${overallStatus}\`\n\n${boundary}\n\n## Candidate\n\n${candidateLines}\n\n${operationalReportSection}${backendArtifactSection}${supervisorDispositionSection}## Excluded gates\n\n${exclusions}\n`,
+    "MATRIX.md": `# Stage 7A Matrix\n\n${boundary}\n\n| Scenario | Status | P95 ms | Error rate | Throughput / second | Consistency rate | Failed gates |\n| --- | --- | ---: | ---: | ---: | ---: | --- |\n${rows}\n\n${operationalReportSection}${backendArtifactSection}${supervisorDispositionSection}## Excluded gates\n\n${exclusions}\n`,
+    "VERIFICATION.md": `# Stage 7A Verification\n\n${boundary}\n\nThe machine-readable source is \`run.json\`. Short SLO, resource, recovery, backlog, and consistency decisions use profile \`cofco-stage7-v1\`. The standard evidence verifier regenerates every human document from that immutable machine source and rejects any byte-level drift.\n\n${operationalReportSection}${backendArtifactSection}${supervisorDispositionSection}## Excluded gates\n\n${exclusions}\n`,
+    "HANDOFF.md": `# Stage 7A Handoff\n\n- Status: \`${overallStatus}\`\n- Provenance: \`${run.provenance}\`\n\n${boundary}\n\nIndependent supervision must verify the candidate, standard gates, evidence, clean repositories, and upstream alignment. No 24-hour or Stage 8 claim is made.\n\n${operationalReportSection}${backendArtifactSection}${supervisorDispositionSection}## Excluded gates\n\n${exclusions}\n`,
   };
 }

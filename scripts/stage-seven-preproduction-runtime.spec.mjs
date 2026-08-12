@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash, generateKeyPairSync, randomUUID, sign } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -17,6 +18,14 @@ const candidates = {
   web: "3".repeat(40),
 };
 const profileSha256 = "a".repeat(64);
+const receiptAuthority = generateKeyPairSync("ed25519");
+const receiptPublicKeyDer = receiptAuthority.publicKey.export({
+  type: "spki",
+  format: "der",
+});
+const receiptPublicKeySha256 = createHash("sha256")
+  .update(receiptPublicKeyDer)
+  .digest("hex");
 const artifacts = Object.fromEntries(
   [
     "backend",
@@ -46,6 +55,7 @@ function admission() {
         topologyEvidenceSha256: "b".repeat(64),
         capacityApprovalSha256: "c".repeat(64),
         faultControlApprovalSha256: "d".repeat(64),
+        receiptAuthorityPublicKeySha256: receiptPublicKeySha256,
         environmentName: "preproduction",
         cloudProvider: "ALIBABA_CLOUD",
         regionId: "cn-hangzhou",
@@ -70,12 +80,104 @@ function admission() {
         ),
       },
     },
-    { candidates, profileSha256 },
+    {
+      candidates,
+      profileSha256,
+      receiptAuthorityPublicKeySha256: receiptPublicKeySha256,
+    },
   );
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function sha256(value) {
+  return createHash("sha256").update(canonicalJson(value)).digest("hex");
+}
+
+function candidateManifest() {
+  return {
+    candidates,
+    profileSha256,
+    artifacts,
+    receiptAuthority: {
+      algorithm: "ED25519",
+      keyId: "stage7-local-trusted-stub",
+      publicKeySpkiDerBase64: receiptPublicKeyDer.toString("base64"),
+    },
+  };
+}
+
+function signedPhaseResult(phase, context, calls) {
+  assert.ok(
+    context.receiptRequest,
+    "trusted receipt challenge is missing from the phase request",
+  );
+  const result = {
+    phase: phase.code,
+    candidates,
+    profileSha256,
+    scenarios: (phase.expectedScenarioCodes ?? []).map(scenarioResult),
+    ...(phase.code === "resource-sampling"
+      ? {
+          resourceTrend: {
+            samples: 3,
+            maximumCpuPercent: 20,
+            maximumMemoryPercent: 30,
+            maximumDatabaseConnections: 4,
+            maximumDatabaseConnectionPercent: 40,
+          },
+        }
+      : {}),
+  };
+  const payload = {
+    schemaVersion: "cofco-stage7-phase-receipt-v1",
+    receiptId: randomUUID(),
+    phaseCode: phase.code,
+    requestNonce: context.receiptRequest.nonce,
+    requestSha256: sha256(context.receiptRequest),
+    resultSha256: sha256(result),
+    candidates,
+    profileSha256,
+    manifestSha256: sha256(candidateManifest()),
+    artifactSetSha256: sha256(artifacts),
+  };
+  calls.push([phase.code, context.endpoint]);
+  return {
+    ...result,
+    executionReceipt: {
+      payload,
+      signatureBase64: sign(
+        null,
+        Buffer.from(canonicalJson(payload)),
+        receiptAuthority.privateKey,
+      ).toString("base64"),
+    },
+  };
 }
 
 function scenarioResult(code, index) {
   const result = { code, status: "PASS", p95Ms: 200 };
+  if (code === "queue-backlog-recovery") {
+    return {
+      ...result,
+      pendingAfterRecovery: 0,
+      oldestBacklogSecondsAfterRecovery: 0,
+    };
+  }
+  if (profile.faultScenarios.includes(code)) {
+    return { ...result, recoverySeconds: 1 };
+  }
   const recordId = `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
   const common = {
     recordId,
@@ -156,24 +258,10 @@ test("executes the admitted replay phases against bound driver operations", asyn
   const driver = {
     async readCandidateManifest(url) {
       calls.push(["candidate-binding", url]);
-      return {
-        candidates,
-        profileSha256,
-        artifacts,
-      };
+      return candidateManifest();
     },
     async executePhase(phase, context) {
-      calls.push([phase.code, context.endpoint]);
-      return {
-        phase: phase.code,
-        candidates,
-        profileSha256,
-        executionReceiptSha256: String(calls.length).repeat(64),
-        scenarios: (phase.expectedScenarioCodes ?? []).map(scenarioResult),
-        ...(phase.code === "resource-sampling"
-          ? { resourceTrend: { samples: 3, maximumCpuPercent: 20 } }
-          : {}),
-      };
+      return signedPhaseResult(phase, context, calls);
     },
   };
 
@@ -207,6 +295,121 @@ test("executes the admitted replay phases against bound driver operations", asyn
     JSON.parse(renderEvidence(run)["run.json"]).overallStatus,
     "PASS",
   );
+  const changedRunIdentity = structuredClone(run);
+  changedRunIdentity.runId = "stage7-preproduction-reused-as-another-run";
+  assert.throws(
+    () => renderEvidence(changedRunIdentity),
+    /trusted and verifiable execution receipt/u,
+  );
+  const changedApproval = structuredClone(run);
+  changedApproval.admission.approvalEvidence.capacity = "f".repeat(64);
+  assert.throws(
+    () => renderEvidence(changedApproval),
+    /trusted and verifiable execution receipt/u,
+  );
+});
+
+test("rejects arbitrary receipt digests even when they are reused by every phase", async () => {
+  const admitted = admission();
+  await assert.rejects(
+    () =>
+      executePreproductionReplay({
+        admission: admitted,
+        rawProfile: profile,
+        driver: {
+          async readCandidateManifest() {
+            return candidateManifest();
+          },
+          async executePhase(phase) {
+            return {
+              phase: phase.code,
+              candidates,
+              profileSha256,
+              executionReceiptSha256: "f".repeat(64),
+              scenarios: (phase.expectedScenarioCodes ?? []).map(
+                scenarioResult,
+              ),
+              ...(phase.code === "resource-sampling"
+                ? { resourceTrend: { samples: 1 } }
+                : {}),
+            };
+          },
+        },
+      }),
+    /trusted|verifiable|signed|receipt/iu,
+  );
+});
+
+test("rejects a phase result changed after the trusted receipt was signed", async () => {
+  const admitted = admission();
+  await assert.rejects(
+    () =>
+      executePreproductionReplay({
+        admission: admitted,
+        rawProfile: profile,
+        driver: {
+          async readCandidateManifest() {
+            return candidateManifest();
+          },
+          async executePhase(phase, context) {
+            const signed = signedPhaseResult(phase, context, []);
+            signed.scenarios = signed.scenarios.map((scenario, index) =>
+              index === 0 ? { ...scenario, p95Ms: 999 } : scenario,
+            );
+            return signed;
+          },
+        },
+      }),
+    /trusted and verifiable execution receipt/u,
+  );
+});
+
+test("rejects a signed receipt reused by a different replay phase", async () => {
+  const admitted = admission();
+  let reusedReceipt;
+  await assert.rejects(
+    () =>
+      executePreproductionReplay({
+        admission: admitted,
+        rawProfile: profile,
+        driver: {
+          async readCandidateManifest() {
+            return candidateManifest();
+          },
+          async executePhase(phase, context) {
+            const signed = signedPhaseResult(phase, context, []);
+            if (!reusedReceipt) reusedReceipt = signed.executionReceipt;
+            else signed.executionReceipt = reusedReceipt;
+            return signed;
+          },
+        },
+      }),
+    /trusted and verifiable execution receipt|unique across phases/u,
+  );
+});
+
+test("rejects a request challenge changed by the phase driver", async () => {
+  const admitted = admission();
+  await assert.rejects(
+    () =>
+      executePreproductionReplay({
+        admission: admitted,
+        rawProfile: profile,
+        driver: {
+          async readCandidateManifest() {
+            return candidateManifest();
+          },
+          async executePhase(phase, context) {
+            context.receiptRequest = {
+              ...context.receiptRequest,
+              candidates: { ...candidates, backend: "f".repeat(40) },
+            };
+            return signedPhaseResult(phase, context, []);
+          },
+        },
+      }),
+    /trusted and verifiable execution receipt/u,
+  );
 });
 
 test("rejects a phase response without an auditable execution receipt", async () => {
@@ -218,7 +421,7 @@ test("rejects a phase response without an auditable execution receipt", async ()
         rawProfile: profile,
         driver: {
           async readCandidateManifest() {
-            return { candidates, profileSha256, artifacts };
+            return candidateManifest();
           },
           async executePhase(phase) {
             return {
@@ -232,7 +435,7 @@ test("rejects a phase response without an auditable execution receipt", async ()
           },
         },
       }),
-    /not bound to the admitted replay/u,
+    /trusted and verifiable execution receipt/u,
   );
 });
 
@@ -250,7 +453,38 @@ test("fails closed before workload execution when the candidate manifest drifts"
               candidates: { ...candidates, web: "f".repeat(40) },
               profileSha256,
               artifacts,
+              receiptAuthority: candidateManifest().receiptAuthority,
             };
+          },
+          async executePhase() {
+            phases += 1;
+          },
+        },
+      }),
+    /candidate manifest does not match admitted replay/u,
+  );
+  assert.equal(phases, 0);
+});
+
+test("fails closed before workload execution when a manifest image digest drifts", async () => {
+  const admitted = admission();
+  let phases = 0;
+  await assert.rejects(
+    () =>
+      executePreproductionReplay({
+        admission: admitted,
+        rawProfile: profile,
+        driver: {
+          async readCandidateManifest() {
+            const manifest = candidateManifest();
+            manifest.artifacts = {
+              ...manifest.artifacts,
+              backend: manifest.artifacts.backend.replace(
+                /sha256:[a-f0-9]{64}$/u,
+                `sha256:${"f".repeat(64)}`,
+              ),
+            };
+            return manifest;
           },
           async executePhase() {
             phases += 1;

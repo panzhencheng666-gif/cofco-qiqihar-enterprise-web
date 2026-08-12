@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resolve } from "node:path";
@@ -16,6 +23,10 @@ import {
   renderEvidence,
   validateProfile,
 } from "./stage-seven-core.mjs";
+import {
+  verifyEvidenceDirectory,
+  writeEvidenceAtomically,
+} from "./stage-seven-evidence.mjs";
 
 const profilePath = resolve(
   import.meta.dirname,
@@ -30,6 +41,38 @@ const candidates = {
   frontend: "2".repeat(40),
   web: "3".repeat(40),
 };
+const receiptAuthorityPublicKeySha256 = "e".repeat(64);
+const preproductionBinding = {
+  candidates,
+  profileSha256,
+  receiptAuthorityPublicKeySha256,
+};
+
+function backendArtifactProvenance() {
+  return {
+    schemaVersion: "cofco-stage7-backend-artifact-v1",
+    sourceCommit: candidates.backend,
+    sourceClean: true,
+    build: {
+      command: ["mvn", "clean", "-DskipTests", "package"],
+      outputSha256: "a".repeat(64),
+      environment: {
+        javaHome: "/opt/homebrew/opt/openjdk@21",
+        javaVersion: "openjdk version 21.0.12",
+        mavenVersion: "Apache Maven 3.9.11",
+        platform: "darwin",
+        architecture: "arm64",
+      },
+    },
+    jar: {
+      relativePath: "target/grain-trade-enterprise-backend-0.0.1-SNAPSHOT.jar",
+      sha256: "b".repeat(64),
+      sizeBytes: 1,
+      manifestSha256: "c".repeat(64),
+      manifest: { "Manifest-Version": "1.0" },
+    },
+  };
+}
 
 function validPreproductionRequest() {
   const regionId = "cn-hangzhou";
@@ -47,6 +90,7 @@ function validPreproductionRequest() {
       topologyEvidenceSha256: "a".repeat(64),
       capacityApprovalSha256: "b".repeat(64),
       faultControlApprovalSha256: "c".repeat(64),
+      receiptAuthorityPublicKeySha256,
       environmentName: "preproduction",
       cloudProvider: "ALIBABA_CLOUD",
       regionId,
@@ -157,12 +201,50 @@ function requiredScenarioResults() {
     code,
     status: "PASS",
     p95Ms: 200,
+    ...(code === "queue-backlog-recovery"
+      ? {
+          pendingAfterRecovery: 0,
+          oldestBacklogSecondsAfterRecovery: 0,
+        }
+      : {}),
+    ...(profile.faultScenarios.includes(code)
+      ? { recoverySeconds: code === "application-restart" ? 2.297 : 1 }
+      : {}),
     ...correctnessDetails(code, index),
   }));
 }
 
+function reportedRunFields() {
+  return {
+    authority: profile.authority,
+    slo: profile.slo,
+    resourceExpansion: profile.resourceExpansion,
+    importBoundary: {
+      syncRows: 5000,
+      asyncRowsPerJob: 5001,
+      concurrentAsyncJobs: 2,
+      pendingAfterRecovery: 0,
+      oldestBacklogSecondsAfterRecovery: 0,
+    },
+    resourceTrend: {
+      samples: 37,
+      maximumCpuPercent: 30.36,
+      maximumMemoryPercent: 0.8494,
+      maximumDatabaseConnections: 20,
+      maximumDatabaseConnectionPercent: 20,
+    },
+    maximumRecoverySeconds: 2.297,
+  };
+}
+
 test("locks the authoritative scale, SLO, resource and scenario coverage", () => {
   const validated = validateProfile(profile);
+
+  assert.deepEqual(validated.backendArtifact, {
+    sourceCommit: "03904068ca1a43633d494b5c1848c38ade73e8b3",
+    buildCommand: ["mvn", "clean", "-DskipTests", "package"],
+    jarRelativePath: "target/grain-trade-enterprise-backend-0.0.1-SNAPSHOT.jar",
+  });
 
   assert.deepEqual(validated.authority, {
     registeredEmployees: 1000,
@@ -338,7 +420,7 @@ test("rejects fake cloud values and binds admission to exact candidates and prof
           productionEquivalent: true,
           inputs: fakeInputs,
         },
-        { candidates, profileSha256 },
+        preproductionBinding,
       ),
     (error) =>
       error instanceof StageSevenAdmissionError &&
@@ -349,21 +431,25 @@ test("rejects fake cloud values and binds admission to exact candidates and prof
   const mismatched = validPreproductionRequest();
   mismatched.inputs.webCommit = "e".repeat(40);
   assert.throws(
-    () => admitRun(mismatched, { candidates, profileSha256 }),
-    /BLOCKED_EXTERNAL\(EXT-005\).*candidate commit binding/iu,
+    () => admitRun(mismatched, preproductionBinding),
+    /BLOCKED_EXTERNAL\(EXT-005\).*candidate commit/iu,
   );
 
   const foreignRegistry = validPreproductionRequest();
   foreignRegistry.inputs.backendImage = `registry.cn-shanghai.aliyuncs.com/cofco/backend@sha256:${"4".repeat(64)}`;
   assert.throws(
-    () => admitRun(foreignRegistry, { candidates, profileSha256 }),
+    () => admitRun(foreignRegistry, preproductionBinding),
     /backendImage.*approved regional ACR/iu,
   );
 
-  const admission = admitRun(validPreproductionRequest(), {
-    candidates,
-    profileSha256,
-  });
+  const selfPinned = validPreproductionRequest();
+  selfPinned.inputs.receiptAuthorityPublicKeySha256 = "f".repeat(64);
+  assert.throws(
+    () => admitRun(selfPinned, preproductionBinding),
+    /receipt authority.*(?:trusted|match)|(?:trusted|match).*receipt authority/iu,
+  );
+
+  const admission = admitRun(validPreproductionRequest(), preproductionBinding);
   assert.equal(admission.provenance, "PREPRODUCTION_EQUIVALENT");
   assert.deepEqual(admission.candidate, candidates);
   assert.equal(admission.profileSha256, profileSha256);
@@ -439,60 +525,27 @@ test("the standard preproduction entries report only EXT-005", () => {
   }
 });
 
-test("the standard replay entry validates a bound orchestration plan without network access", async () => {
+test("the standard replay entry rejects a caller-supplied trust profile without network access", async () => {
   const directory = await mkdtemp(join(tmpdir(), "stage7-replay-test-"));
   const configPath = join(directory, "admission.json");
+  const pinnedProfilePath = join(directory, "profile.json");
   try {
     const request = validPreproductionRequest();
-    const repositoryDirectories = Object.fromEntries(
-      ["backend", "frontend", "web"].map((repository) => [
-        repository,
-        join(directory, repository),
-      ]),
-    );
-    const actualCandidates = Object.fromEntries(
-      Object.entries(repositoryDirectories).map(([repository, cwd]) => {
-        const initialized = spawnSync(
-          "git",
-          ["init", "--initial-branch=stage-seven-test", cwd],
-          { encoding: "utf8" },
-        );
-        assert.equal(initialized.status, 0, initialized.stderr);
-        const committed = spawnSync(
-          "git",
-          [
-            "-c",
-            "user.name=Stage Seven Test",
-            "-c",
-            "user.email=stage-seven@example.cn",
-            "commit",
-            "--allow-empty",
-            "-m",
-            "stage seven fixture",
-          ],
-          { cwd, encoding: "utf8" },
-        );
-        assert.equal(committed.status, 0, committed.stderr);
-        const head = spawnSync("git", ["rev-parse", "HEAD"], {
-          cwd,
-          encoding: "utf8",
-        });
-        assert.equal(head.status, 0, head.stderr);
-        return [repository, head.stdout.trim()];
-      }),
-    );
-    request.inputs.backendCommit = actualCandidates.backend;
-    request.inputs.frontendCommit = actualCandidates.frontend;
-    request.inputs.webCommit = actualCandidates.web;
+    const pinnedProfileSource = `${JSON.stringify(
+      {
+        ...profile,
+        receiptAuthorityPublicKeySha256,
+      },
+      null,
+      2,
+    )}\n`;
+    request.inputs.profileSha256 = createHash("sha256")
+      .update(pinnedProfileSource)
+      .digest("hex");
+    await writeFile(pinnedProfilePath, pinnedProfileSource, { mode: 0o600 });
     await writeFile(configPath, `${JSON.stringify(request, null, 2)}\n`, {
       mode: 0o600,
     });
-    const environment = {
-      ...process.env,
-      STAGE7_BACKEND_DIR: repositoryDirectories.backend,
-      STAGE7_FRONTEND_DIR: repositoryDirectories.frontend,
-      STAGE7_WEB_DIR: repositoryDirectories.web,
-    };
     const result = spawnSync(
       process.execPath,
       [
@@ -500,43 +553,16 @@ test("the standard replay entry validates a bound orchestration plan without net
         "replay-plan",
         "--config",
         configPath,
+        "--profile",
+        pinnedProfilePath,
       ],
-      { encoding: "utf8", env: environment },
+      { encoding: "utf8" },
     );
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stderr, "");
-    const replay = JSON.parse(result.stdout);
-    assert.deepEqual(replay.candidate, actualCandidates);
-    assert.equal(replay.productionEquivalent, true);
-    assert.deepEqual(
-      replay.phases.map(({ code }) => code),
-      [
-        "candidate-binding",
-        "load",
-        "correctness",
-        "database",
-        "faults",
-        "resource-sampling",
-        "evidence",
-      ],
-    );
-
-    await writeFile(join(repositoryDirectories.web, "untracked.txt"), "dirty");
-    const dirty = spawnSync(
-      process.execPath,
-      [
-        resolve(import.meta.dirname, "run-stage-seven.mjs"),
-        "replay-plan",
-        "--config",
-        configPath,
-      ],
-      { encoding: "utf8", env: environment },
-    );
-    assert.equal(dirty.status, 2);
-    assert.equal(dirty.stdout, "");
+    assert.equal(result.status, 2);
+    assert.equal(result.stdout, "");
     assert.equal(
-      dirty.stderr,
-      "BLOCKED_EXTERNAL(EXT-005): web candidate repository is not clean\n",
+      result.stderr,
+      "BLOCKED_EXTERNAL(EXT-005): Stage 7 standard entries forbid profile overrides\n",
     );
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -544,10 +570,7 @@ test("the standard replay entry validates a bound orchestration plan without net
 });
 
 test("admits exact cloud inputs and renders secret-free four-document evidence", () => {
-  const admission = admitRun(validPreproductionRequest(), {
-    candidates,
-    profileSha256,
-  });
+  const admission = admitRun(validPreproductionRequest(), preproductionBinding);
   assert.equal(admission.provenance, "PREPRODUCTION_EQUIVALENT");
 
   const evidence = renderEvidence({
@@ -556,7 +579,17 @@ test("admits exact cloud inputs and renders secret-free four-document evidence",
     productionEquivalent: false,
     status: "PASS",
     candidates,
+    backendArtifact: backendArtifactProvenance(),
     profileSha256,
+    ...reportedRunFields(),
+    supervisorDisposition: {
+      independentReviewRequired: true,
+      defects: {
+        "DEF-125": "REGRESSION_PENDING",
+        "DEF-126": "REGRESSION_PENDING",
+        "DEF-127": "REGRESSION_PENDING",
+      },
+    },
     scenarios: requiredScenarioResults(),
     exclusions: profile.excludedGates,
     externalBlocker: "EXT-005",
@@ -577,6 +610,63 @@ test("admits exact cloud inputs and renders secret-free four-document evidence",
   );
   assert.doesNotMatch(serialized, /must-not-appear|password/iu);
   assert.match(serialized, /final-24-hour-stability/u);
+  for (const document of [
+    evidence["SUMMARY.md"],
+    evidence["MATRIX.md"],
+    evidence["VERIFICATION.md"],
+    evidence["HANDOFF.md"],
+  ]) {
+    assert.match(document, new RegExp(candidates.backend, "u"));
+    assert.match(document, /mvn clean -DskipTests package/u);
+    assert.match(document, new RegExp("b".repeat(64), "u"));
+    assert.match(document, /DEF-125: `REGRESSION_PENDING`/u);
+    assert.match(document, /5000/u);
+    assert.match(document, /5001/u);
+    assert.match(document, /30\.36/u);
+    assert.match(document, /2\.297/u);
+    assert.match(document, /70/u);
+  }
+  assert.match(
+    evidence["MATRIX.md"],
+    /Error rate.*Throughput.*Consistency rate/iu,
+  );
+
+  const incompleteReport = reportedRunFields();
+  delete incompleteReport.importBoundary;
+  assert.throws(
+    () =>
+      renderEvidence({
+        runId: "stage7-missing-operational-field",
+        provenance: "LOCAL_PROPORTIONAL_ONLY",
+        productionEquivalent: false,
+        candidates,
+        backendArtifact: backendArtifactProvenance(),
+        profileSha256,
+        ...incompleteReport,
+        scenarios: requiredScenarioResults(),
+        exclusions: profile.excludedGates,
+        externalBlocker: "EXT-005",
+      }),
+    /operational report.*(?:incomplete|authoritative)/iu,
+  );
+
+  assert.throws(
+    () =>
+      renderEvidence({
+        runId: "stage7-drifted-derived-operational-field",
+        provenance: "LOCAL_PROPORTIONAL_ONLY",
+        productionEquivalent: false,
+        candidates,
+        backendArtifact: backendArtifactProvenance(),
+        profileSha256,
+        ...reportedRunFields(),
+        maximumRecoverySeconds: 1,
+        scenarios: requiredScenarioResults(),
+        exclusions: profile.excludedGates,
+        externalBlocker: "EXT-005",
+      }),
+    /operational report.*(?:incomplete|authoritative)/iu,
+  );
 
   assert.throws(
     () =>
@@ -584,12 +674,128 @@ test("admits exact cloud inputs and renders secret-free four-document evidence",
         runId: "stage7-incomplete",
         provenance: "LOCAL_PROPORTIONAL_ONLY",
         productionEquivalent: false,
-        scenarios: [{ code: "baseline", status: "PASS" }],
+        candidates,
+        backendArtifact: backendArtifactProvenance(),
+        ...reportedRunFields(),
+        scenarios: requiredScenarioResults().filter(
+          ({ code }) =>
+            code === "baseline" ||
+            code === "queue-backlog-recovery" ||
+            profile.faultScenarios.includes(code),
+        ),
         exclusions: profile.excludedGates,
         externalBlocker: "EXT-005",
       }),
     /dynamic scenario evidence is incomplete/u,
   );
+});
+
+test("rejects local evidence without Backend build provenance", () => {
+  assert.throws(
+    () =>
+      renderEvidence({
+        runId: "stage7-missing-backend-artifact",
+        provenance: "LOCAL_PROPORTIONAL_ONLY",
+        productionEquivalent: false,
+        candidates,
+        ...reportedRunFields(),
+        scenarios: requiredScenarioResults(),
+        exclusions: profile.excludedGates,
+        externalBlocker: "EXT-005",
+      }),
+    /Backend artifact.*provenance|provenance.*Backend artifact/iu,
+  );
+});
+
+test("publishes the five-file evidence bundle atomically", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "stage7-evidence-atomic-"));
+  const resultPath = join(directory, "result.json");
+  const outputPath = join(directory, "evidence");
+  try {
+    await writeFile(
+      resultPath,
+      `${JSON.stringify({
+        runId: "stage7-atomic-test",
+        provenance: "LOCAL_PROPORTIONAL_ONLY",
+        productionEquivalent: false,
+        candidates,
+        backendArtifact: backendArtifactProvenance(),
+        profileSha256,
+        ...reportedRunFields(),
+        scenarios: requiredScenarioResults(),
+        exclusions: profile.excludedGates,
+        externalBlocker: "EXT-005",
+      })}\n`,
+    );
+    await mkdir(outputPath);
+    await writeFile(join(outputPath, "MATRIX.md"), "preserved\n");
+    const rawRun = JSON.parse(await readFile(resultPath, "utf8"));
+    await assert.rejects(
+      () => writeEvidenceAtomically(outputPath, rawRun),
+      /already exists/u,
+    );
+    assert.deepEqual(await readdir(outputPath), ["MATRIX.md"]);
+    assert.equal(
+      await readFile(join(outputPath, "MATRIX.md"), "utf8"),
+      "preserved\n",
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("standard CLI exposes no caller-supplied evidence render command", () => {
+  const result = spawnSync(
+    process.execPath,
+    [resolve(import.meta.dirname, "run-stage-seven.mjs"), "render"],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr, "STAGE7_ERROR Unknown Stage 7 command\n");
+});
+
+test("rejects any human evidence field that drifts from run.json", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "stage7-evidence-drift-"));
+  try {
+    const evidence = renderEvidence({
+      runId: "stage7-drift-test",
+      provenance: "LOCAL_PROPORTIONAL_ONLY",
+      productionEquivalent: false,
+      candidates,
+      backendArtifact: backendArtifactProvenance(),
+      profileSha256,
+      ...reportedRunFields(),
+      scenarios: requiredScenarioResults(),
+      exclusions: profile.excludedGates,
+      externalBlocker: "EXT-005",
+    });
+    await Promise.all(
+      Object.entries(evidence).map(([name, content]) =>
+        writeFile(join(directory, name), content),
+      ),
+    );
+    await writeFile(
+      join(directory, "MATRIX.md"),
+      evidence["MATRIX.md"].replace(
+        "| page-main-content | PASS | 200 |",
+        "| page-main-content | PASS | 201 |",
+      ),
+    );
+    await assert.rejects(
+      () => verifyEvidenceDirectory(directory),
+      /evidence.*(?:drift|inconsistent)/iu,
+    );
+
+    await writeFile(join(directory, "MATRIX.md"), evidence["MATRIX.md"]);
+    await writeFile(join(directory, "EXTRA.md"), "not part of the bundle\n");
+    await assert.rejects(
+      () => verifyEvidenceDirectory(directory),
+      /exactly five files/iu,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("rejects contradictory or semantically reused production evidence", () => {
@@ -600,11 +806,9 @@ test("rejects contradictory or semantically reused production evidence", () => {
         provenance: "PREPRODUCTION_EQUIVALENT",
         productionEquivalent: false,
         candidates,
+        backendArtifact: backendArtifactProvenance(),
         profileSha256,
-        admission: admitRun(validPreproductionRequest(), {
-          candidates,
-          profileSha256,
-        }),
+        admission: admitRun(validPreproductionRequest(), preproductionBinding),
         scenarios: requiredScenarioResults(),
         exclusions: profile.excludedGates,
       }),
@@ -619,14 +823,13 @@ test("rejects contradictory or semantically reused production evidence", () => {
         productionEquivalent: true,
         candidates,
         profileSha256,
-        admission: admitRun(validPreproductionRequest(), {
-          candidates,
-          profileSha256,
-        }),
+        ...reportedRunFields(),
+        admission: admitRun(validPreproductionRequest(), preproductionBinding),
+        receiptAuthorityPublicKeySha256,
         scenarios: requiredScenarioResults(),
         exclusions: profile.excludedGates,
       }),
-    /bound replay receipts/u,
+    /verified replay bundle/u,
   );
 
   assert.throws(
@@ -637,10 +840,9 @@ test("rejects contradictory or semantically reused production evidence", () => {
         productionEquivalent: true,
         candidates,
         profileSha256,
-        admission: admitRun(validPreproductionRequest(), {
-          candidates,
-          profileSha256,
-        }),
+        ...reportedRunFields(),
+        admission: admitRun(validPreproductionRequest(), preproductionBinding),
+        receiptAuthorityPublicKeySha256,
         replay: {
           schemaVersion: "cofco-stage7-preproduction-replay-v1",
           phaseReceipts: [
@@ -659,7 +861,7 @@ test("rejects contradictory or semantically reused production evidence", () => {
         scenarios: requiredScenarioResults(),
         exclusions: profile.excludedGates,
       }),
-    /bound replay receipts/u,
+    /verified replay bundle/u,
   );
 
   const duplicateCodes = requiredScenarioResults();
@@ -671,7 +873,9 @@ test("rejects contradictory or semantically reused production evidence", () => {
         provenance: "LOCAL_PROPORTIONAL_ONLY",
         productionEquivalent: false,
         candidates,
+        backendArtifact: backendArtifactProvenance(),
         profileSha256,
+        ...reportedRunFields(),
         scenarios: duplicateCodes,
         exclusions: profile.excludedGates,
         externalBlocker: "EXT-005",
@@ -702,7 +906,9 @@ test("rejects contradictory or semantically reused production evidence", () => {
         provenance: "LOCAL_PROPORTIONAL_ONLY",
         productionEquivalent: false,
         candidates,
+        backendArtifact: backendArtifactProvenance(),
         profileSha256,
+        ...reportedRunFields(),
         scenarios: reusedCorrectness,
         exclusions: profile.excludedGates,
         externalBlocker: "EXT-005",

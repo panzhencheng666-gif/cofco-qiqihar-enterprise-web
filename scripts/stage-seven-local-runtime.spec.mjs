@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -191,6 +200,25 @@ test("orchestrates every correctness meaning with an independent dynamic record"
   }
 });
 
+test("prepares and binds the Backend artifact before database or scenario execution", async () => {
+  const source = await readFile(
+    resolve(import.meta.dirname, "run-stage-seven-local.mjs"),
+    "utf8",
+  );
+  const preparation = source.indexOf("prepareBackendArtifact({");
+  const databaseCreation = source.indexOf('command("createdb"');
+  const backendStart = source.indexOf("await startBackend()", preparation);
+  assert.ok(preparation >= 0, "runner must prepare the Backend artifact");
+  assert.ok(preparation < databaseCreation);
+  assert.ok(preparation < backendStart);
+  assert.match(source, /assertBackendArtifactMatches\(\{/u);
+  assert.match(source, /backendArtifact:\s*backendArtifactProvenance/u);
+  assert.match(
+    source,
+    /Object\.values\(candidateClean\)\.some\(\(clean\) => clean !== true\)/u,
+  );
+});
+
 test("normalizes multi-core ps CPU against the available logical CPU quota", () => {
   assert.equal(normalizeHostCpuPercent(475.2, 12), 39.6);
   assert.throws(
@@ -273,4 +301,172 @@ test("rejects secret-shaped keys at every nesting level", () => {
     () => assertSecretFree({ admission: { accessToken: "must-not-appear" } }),
     /sensitive key/u,
   );
+});
+
+test("builds and revalidates an artifact from the exact clean Backend commit", async () => {
+  const runtime = await import("./stage-seven-local-runtime.mjs");
+  assert.equal(typeof runtime.prepareBackendArtifact, "function");
+  assert.equal(typeof runtime.assertBackendArtifactMatches, "function");
+
+  const directory = await mkdtemp(join(tmpdir(), "stage7-backend-artifact-"));
+  const jarPath = join(directory, "target/backend.jar");
+  const sourceCommit = "a".repeat(40);
+  const buildCommand = ["mvn", "clean", "-DskipTests", "package"];
+  let buildCalls = 0;
+  let javaVersion = 'openjdk version "21.0.12"\n';
+  const execute = async (command, args) => {
+    if (command === "git" && args[0] === "rev-parse") {
+      return { stdout: `${sourceCommit}\n`, stderr: "" };
+    }
+    if (command === "git" && args[0] === "status") {
+      return { stdout: "", stderr: "" };
+    }
+    if (command === "mvn" && args[0] === "clean") {
+      buildCalls += 1;
+      await writeFile(jarPath, "fresh frozen artifact\n");
+      return { stdout: "BUILD SUCCESS\n", stderr: "" };
+    }
+    if (command === "mvn" && args[0] === "--version") {
+      return {
+        stdout: "Apache Maven 3.9.11\nJava version: 21.0.12\n",
+        stderr: "",
+      };
+    }
+    if (command.endsWith("/java") && args[0] === "-version") {
+      return { stdout: "", stderr: javaVersion };
+    }
+    if (command === "unzip") {
+      return {
+        stdout:
+          "Manifest-Version: 1.0\nMain-Class: org.springframework.boot.loader.launch.JarLauncher\n\n",
+        stderr: "",
+      };
+    }
+    throw new Error(`unexpected command: ${command} ${args.join(" ")}`);
+  };
+  try {
+    await mkdir(join(directory, "target"));
+    const provenance = await runtime.prepareBackendArtifact({
+      backendDirectory: directory,
+      jarPath,
+      expectedSourceCommit: sourceCommit,
+      buildCommand,
+      javaHome: "/approved/jdk-21",
+      execute,
+    });
+    assert.equal(buildCalls, 1);
+    assert.equal(provenance.sourceCommit, sourceCommit);
+    assert.deepEqual(provenance.build.command, buildCommand);
+    assert.match(provenance.build.environment.javaVersion, /21\.0\.12/u);
+    assert.match(provenance.build.environment.mavenVersion, /3\.9\.11/u);
+    assert.equal(
+      provenance.jar.sha256,
+      createHash("sha256").update("fresh frozen artifact\n").digest("hex"),
+    );
+    assert.equal(provenance.jar.manifest["Manifest-Version"], "1.0");
+    await runtime.assertBackendArtifactMatches({
+      provenance,
+      backendDirectory: directory,
+      jarPath,
+      execute,
+    });
+
+    javaVersion = 'openjdk version "22.0.2"\n';
+    await assert.rejects(
+      () =>
+        runtime.prepareBackendArtifact({
+          backendDirectory: directory,
+          jarPath,
+          expectedSourceCommit: sourceCommit,
+          buildCommand,
+          javaHome: "/unapproved/jdk-22",
+          execute,
+        }),
+      /build environment|JDK 21/iu,
+    );
+
+    await writeFile(jarPath, "tampered artifact\n");
+    await assert.rejects(
+      () =>
+        runtime.assertBackendArtifactMatches({
+          provenance,
+          backendDirectory: directory,
+          jarPath,
+          execute,
+        }),
+      /artifact.*digest|digest.*artifact/iu,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects the wrong Backend source commit before invoking the build", async () => {
+  const runtime = await import("./stage-seven-local-runtime.mjs");
+  assert.equal(typeof runtime.prepareBackendArtifact, "function");
+  let buildCalls = 0;
+  const execute = async (command, args) => {
+    if (command === "git" && args[0] === "rev-parse") {
+      return { stdout: `${"a".repeat(40)}\n`, stderr: "" };
+    }
+    if (command === "git" && args[0] === "status") {
+      return { stdout: "", stderr: "" };
+    }
+    buildCalls += 1;
+    return { stdout: "", stderr: "" };
+  };
+  await assert.rejects(
+    () =>
+      runtime.prepareBackendArtifact({
+        backendDirectory: tmpdir(),
+        jarPath: join(tmpdir(), "missing.jar"),
+        expectedSourceCommit: "f".repeat(40),
+        buildCommand: ["mvn", "clean", "-DskipTests", "package"],
+        javaHome: "/approved/jdk-21",
+        execute,
+      }),
+    /source commit.*does not match|does not match.*source commit/iu,
+  );
+  assert.equal(buildCalls, 0);
+});
+
+test("rejects a symlinked Backend artifact directory without deleting outside data", async () => {
+  const runtime = await import("./stage-seven-local-runtime.mjs");
+  const root = await mkdtemp(join(tmpdir(), "stage7-backend-symlink-"));
+  const backendDirectory = join(root, "backend");
+  const outsideDirectory = join(root, "outside");
+  const outsideJar = join(outsideDirectory, "backend.jar");
+  const sourceCommit = "a".repeat(40);
+  let buildCalls = 0;
+  try {
+    await Promise.all([mkdir(backendDirectory), mkdir(outsideDirectory)]);
+    await writeFile(outsideJar, "outside sentinel\n");
+    await symlink(outsideDirectory, join(backendDirectory, "target"));
+    const execute = async (command, args) => {
+      if (command === "git" && args[0] === "rev-parse") {
+        return { stdout: `${sourceCommit}\n`, stderr: "" };
+      }
+      if (command === "git" && args[0] === "status") {
+        return { stdout: "", stderr: "" };
+      }
+      buildCalls += 1;
+      return { stdout: "", stderr: "" };
+    };
+    await assert.rejects(
+      () =>
+        runtime.prepareBackendArtifact({
+          backendDirectory,
+          jarPath: join(backendDirectory, "target/backend.jar"),
+          expectedSourceCommit: sourceCommit,
+          buildCommand: ["mvn", "clean", "-DskipTests", "package"],
+          javaHome: "/approved/jdk-21",
+          execute,
+        }),
+      /artifact.*(?:directory|path)|(?:directory|path).*artifact/iu,
+    );
+    assert.equal(buildCalls, 0);
+    assert.equal(await readFile(outsideJar, "utf8"), "outside sentinel\n");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

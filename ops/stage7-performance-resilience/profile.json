@@ -9,6 +9,12 @@
     "asynchronousImportRows": 5001,
     "concurrentImportJobs": 2
   },
+  "backendArtifact": {
+    "sourceCommit": "03904068ca1a43633d494b5c1848c38ade73e8b3",
+    "buildCommand": ["mvn", "clean", "-DskipTests", "package"],
+    "jarRelativePath": "target/grain-trade-enterprise-backend-0.0.1-SNAPSHOT.jar"
+  },
+  "receiptAuthorityPublicKeySha256": null,
   "slo": {
     "coreApiP95Ms": 800,
     "pageMainContentMs": 3000,

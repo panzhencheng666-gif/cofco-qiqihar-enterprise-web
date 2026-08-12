@@ -36,6 +36,7 @@
     "stage7:performance:replay-plan": "node scripts/run-stage-seven.mjs replay-plan --config ops/stage7-performance-resilience/preproduction-admission.json",
     "stage7:performance:replay": "node scripts/run-stage-seven.mjs replay --config ops/stage7-performance-resilience/preproduction-admission.json",
     "stage7:performance:local": "node scripts/run-stage-seven-local.mjs",
+    "stage7:performance:evidence:verify": "node scripts/run-stage-seven.mjs verify-evidence",
     "verify:runtime": "node --test scripts/verify-runtime.spec.mjs && node scripts/verify-runtime.mjs",
     "verify": "npm run verify:runtime && npm run format:check && npm run lint && npm run architecture && npm run stage1:inventory:check && npm run test && npm run build && npm run budget && npm run test:e2e:preview"
   },

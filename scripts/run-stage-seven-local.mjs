@@ -19,20 +19,22 @@ import { chromium } from "@playwright/test";
 import {
   evaluateScenario,
   percentile,
-  renderEvidence,
   validateProfile,
 } from "./stage-seven-core.mjs";
+import { writeEvidenceAtomically } from "./stage-seven-evidence.mjs";
 import {
   buildWeightedSchedule,
   runHttpLoad,
   scaleProfiles,
 } from "./stage-seven-load.mjs";
 import {
+  assertBackendArtifactMatches,
   assertIsolatedDatabaseName,
   assertSecretFree,
   evaluateLoadConsistency,
   hostMemoryPercent,
   normalizeHostCpuPercent,
+  prepareBackendArtifact,
   removeExactStageSevenRuntimeDirectory,
   runCleanupSteps,
   summarizeResourceTrend,
@@ -117,6 +119,7 @@ const resourceSamples = [];
 let maximumDatabaseConnections = 1;
 let runStartedAt = performance.now();
 let runStartedWallClock;
+let backendArtifactProvenance;
 
 function progress(message) {
   process.stdout.write(`[stage7-local] ${message}\n`);
@@ -192,6 +195,12 @@ async function waitForHealth(timeoutMs = 120_000) {
 }
 
 async function startBackend() {
+  await assertBackendArtifactMatches({
+    provenance: backendArtifactProvenance,
+    backendDirectory,
+    jarPath,
+    execute: command,
+  });
   backendLog = createWriteStream(backendLogPath, { flags: "a" });
   await waitForWritableOpen(backendLog);
   backend = spawn(`${javaHome}/bin/java`, ["-jar", jarPath], {
@@ -1365,7 +1374,6 @@ function scenario(code, status, details = {}) {
 
 async function main() {
   await Promise.all([
-    access(jarPath),
     access(seedPath),
     access(builtIndexPath),
     mkdir(contentRoot),
@@ -1375,6 +1383,14 @@ async function main() {
   const profileSha256 = createHash("sha256")
     .update(profileSource)
     .digest("hex");
+  backendArtifactProvenance = await prepareBackendArtifact({
+    backendDirectory,
+    jarPath,
+    expectedSourceCommit: profile.backendArtifact.sourceCommit,
+    buildCommand: profile.backendArtifact.buildCommand,
+    javaHome,
+    execute: command,
+  });
   const runMarker = `stage7-${randomBytes(4).toString("hex")}`;
   progress(
     `provenance=LOCAL_PROPORTIONAL_ONLY database=${databaseName} port=${port}`,
@@ -1519,6 +1535,12 @@ async function main() {
       contentStore,
     ),
   );
+  await assertBackendArtifactMatches({
+    provenance: backendArtifactProvenance,
+    backendDirectory,
+    jarPath,
+    execute: command,
+  });
   const candidates = {
     backend: await gitCommit(backendDirectory),
     frontend: await gitCommit(frontendDirectory),
@@ -1529,6 +1551,11 @@ async function main() {
     frontend: await gitClean(frontendDirectory),
     web: await gitClean(webDirectory),
   };
+  if (Object.values(candidateClean).some((clean) => clean !== true)) {
+    throw new Error(
+      "Stage 7 local evidence requires every candidate repository to be clean",
+    );
+  }
   const rawRun = assertSecretFree({
     runId: runMarker,
     profileSha256,
@@ -1542,11 +1569,13 @@ async function main() {
     smoke,
     candidates,
     candidateClean,
+    backendArtifact: backendArtifactProvenance,
     status: scenarios.every(({ status }) => status === "PASS")
       ? "PASS"
       : "FAIL",
     authority: profile.authority,
     slo: profile.slo,
+    resourceExpansion: profile.resourceExpansion,
     scaledProfiles: scaleProfiles(profile),
     scenarios,
     importBoundary,
@@ -1558,14 +1587,16 @@ async function main() {
     maximumRecoverySeconds: Math.max(...allRecoveries),
     exclusions: profile.excludedGates,
     externalBlocker: "EXT-005",
+    supervisorDisposition: {
+      independentReviewRequired: true,
+      defects: {
+        "DEF-125": "REGRESSION_PENDING",
+        "DEF-126": "REGRESSION_PENDING",
+        "DEF-127": "REGRESSION_PENDING",
+      },
+    },
   });
-  const evidence = renderEvidence(rawRun);
-  await mkdir(outputDirectory, { recursive: true });
-  await Promise.all(
-    Object.entries(evidence).map(([name, body]) =>
-      writeFile(resolve(outputDirectory, name), body, { flag: "wx" }),
-    ),
-  );
+  await writeEvidenceAtomically(outputDirectory, rawRun);
   progress(`evidence written: ${resolve(outputDirectory)}`);
   if (scenarios.some(({ status }) => status !== "PASS")) {
     throw new Error("One or more local proportional scenarios failed");
