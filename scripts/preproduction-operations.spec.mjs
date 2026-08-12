@@ -283,6 +283,7 @@ esac
     join(fakeBin, "openssl"),
     `#!/usr/bin/env bash
 set -euo pipefail
+cat >/dev/null
 case "$*" in
   *" dgst "*|dgst*) printf '%s\n' 'SHA2-256(stdin)= fixture-digest' ;;
   *" -pubkey "*|*" -pubout "*) printf '%s\n' 'fixture-public-key' ;;
@@ -476,6 +477,26 @@ function runScript(script, config, env) {
   return result;
 }
 
+function assertPipeConsumerDrainsInput(command, env) {
+  const result = spawnSync(
+    "bash",
+    [
+      "-o",
+      "pipefail",
+      "-c",
+      `dd if=/dev/zero bs=65536 count=16 2>/dev/null | ${command} >/dev/null`,
+    ],
+    { env, encoding: "utf8" },
+  );
+  assert.equal(result.error, undefined, result.error?.message);
+  assert.equal(result.signal, null, `pipeline terminated by ${result.signal}`);
+  assert.equal(
+    result.status,
+    0,
+    `${command} closed its input before the producer completed; stderr=${JSON.stringify(result.stderr)}`,
+  );
+}
+
 async function assertInjectedFailure(result, failurePoint, fixture) {
   const trace = await readFile(join(fixture.state, "trace"), "utf8");
   assert.equal(
@@ -592,9 +613,18 @@ test("remote apply refuses an absent named RDS whitelist before mutation", async
 });
 
 test("real remote apply fault-injects and restores all 12 production steps", async (t) => {
+  let pipelineConsumersChecked = false;
   for (const failurePoint of realDeployFailurePoints) {
     await t.test(failurePoint, async () => {
       const fixture = await createFixture();
+      if (!pipelineConsumersChecked) {
+        pipelineConsumersChecked = true;
+        assertPipeConsumerDrainsInput(
+          "openssl pkey -pubin -outform DER",
+          fixture.env,
+        );
+        assertPipeConsumerDrainsInput("openssl dgst -sha256", fixture.env);
+      }
       const result = runScript(remoteApply, fixture.paths.candidate, {
         ...fixture.env,
         COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
