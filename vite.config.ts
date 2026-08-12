@@ -151,6 +151,8 @@ export default defineConfig({
       "scripts/preproduction-config.spec.mjs",
       "scripts/preproduction-runtime.spec.mjs",
       "scripts/preproduction-transaction.spec.mjs",
+      "scripts/preproduction-operations.spec.mjs",
+      "scripts/preproduction-bundle.spec.mjs",
     ],
     restoreMocks: true,
     clearMocks: true,

@@ -6,12 +6,12 @@ source "$SCRIPT_DIR/common.sh"
 
 mode="${1:-dry-run}"
 config_path="${2:-$PACKAGE_ROOT/config/preproduction.env}"
-runtime_dir="$PACKAGE_ROOT/.runtime/rds-whitelist"
+runtime_dir="$OPERATION_RUNTIME_ROOT/rds-whitelist"
 snapshot_path="${3:-$runtime_dir/prior-whitelist.json}"
 
 case "$mode" in
-  dry-run|capture|apply|restore) ;;
-  *) fail "usage: rds-whitelist.sh [dry-run|capture|apply|restore] [config-path] [snapshot-path]" ;;
+  dry-run|capture|apply|restore|deny) ;;
+  *) fail "usage: rds-whitelist.sh [dry-run|capture|apply|restore|deny] [config-path] [snapshot-path]" ;;
 esac
 
 require_command node
@@ -42,7 +42,7 @@ if test "$mode" = "capture"; then
   jq -e --arg name "$whitelist_name" '
     [.Items.DBInstanceIPArray[]? | select(.DBInstanceIPArrayName == $name)]
     | if length == 0 then
-        {exists:false,securityIpList:"127.0.0.1"}
+        error("named whitelist is missing; exact restoration would be impossible")
       elif length == 1 then
         {exists:true,securityIpList:.[0].SecurityIPList}
       else
@@ -57,8 +57,11 @@ fi
 require_preproduction_change_approval
 if test "$mode" = "restore"; then
   require_config_mode "$snapshot_path"
-  whitelist_cidrs="$(jq -er '.securityIpList | select(type == "string" and length > 0)' "$snapshot_path")" \
+  whitelist_cidrs="$(jq -er 'select(.exists == true) | .securityIpList | select(type == "string" and length > 0)' "$snapshot_path")" \
     || fail "RDS whitelist snapshot is invalid"
+fi
+if test "$mode" = "deny"; then
+  whitelist_cidrs="127.0.0.1"
 fi
 
 aliyun rds ModifySecurityIps \

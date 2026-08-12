@@ -3,52 +3,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-function parseIpv4(value) {
-  const parts = value.split(".");
-  if (parts.length !== 4) return undefined;
-  const octets = parts.map(Number);
-  if (
-    octets.some(
-      (octet, index) =>
-        !Number.isInteger(octet) ||
-        octet < 0 ||
-        octet > 255 ||
-        String(octet) !== parts[index],
-    )
-  ) {
-    return undefined;
-  }
-  return octets.reduce((result, octet) => ((result << 8) | octet) >>> 0, 0);
-}
+import {
+  cidrWithinBoundary,
+  parseCidr,
+  parseIpv4,
+} from "./preproduction-network.mjs";
 
-function parseCidr(value) {
-  const [address, rawPrefix, ...extra] = value.split("/");
-  if (extra.length > 0 || rawPrefix === undefined) return undefined;
-  const ip = parseIpv4(address);
-  const prefix = Number(rawPrefix);
-  if (
-    ip === undefined ||
-    !Number.isInteger(prefix) ||
-    prefix < 0 ||
-    prefix > 32
-  ) {
-    return undefined;
-  }
-  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
-  if ((ip & mask) >>> 0 !== ip) return undefined;
-  return { ip, mask, prefix };
-}
-
-export function cidrWithinBoundary(candidate, boundary) {
-  const parsedCandidate = parseCidr(candidate);
-  const parsedBoundary = parseCidr(boundary);
-  return Boolean(
-    parsedCandidate &&
-    parsedBoundary &&
-    parsedCandidate.prefix >= parsedBoundary.prefix &&
-    (parsedCandidate.ip & parsedBoundary.mask) >>> 0 === parsedBoundary.ip,
-  );
-}
+export { cidrWithinBoundary };
 
 export function liveVswitchMatches(actual, expected) {
   return (
@@ -70,17 +31,39 @@ export function addressesBoundToCloudTarget(resolvedAddresses, cloudAddresses) {
   );
 }
 
-export function isApprovedOidcRedirect(location, approvedEndpoint) {
+export function isApprovedOidcRedirect(
+  location,
+  approvedEndpoint,
+  approvedClientId,
+  approvedRedirectUri,
+) {
   try {
     const actual = new URL(location);
     const approved = new URL(approvedEndpoint);
+    const exactSingleValue = (name, expected) => {
+      const values = actual.searchParams.getAll(name);
+      return values.length === 1 && values[0] === expected;
+    };
+    const exactNonemptyValue = (name) => {
+      const values = actual.searchParams.getAll(name);
+      return values.length === 1 && values[0].trim() !== "";
+    };
+    const scopes = actual.searchParams.getAll("scope");
     return (
       actual.protocol === "https:" &&
       !actual.username &&
       !actual.password &&
       !actual.hash &&
+      !actual.searchParams.has("error") &&
       actual.origin === approved.origin &&
-      actual.pathname === approved.pathname
+      actual.pathname === approved.pathname &&
+      exactSingleValue("response_type", "code") &&
+      exactSingleValue("client_id", approvedClientId) &&
+      exactSingleValue("redirect_uri", approvedRedirectUri) &&
+      scopes.length === 1 &&
+      scopes[0].split(/\s+/u).includes("openid") &&
+      exactNonemptyValue("state") &&
+      exactNonemptyValue("nonce")
     );
   } catch {
     return false;
@@ -100,8 +83,8 @@ export function renderGatewayTemplate(template, domain) {
 
 async function runCli() {
   const [mode, ...args] = process.argv.slice(2);
-  if (mode === "oidc-redirect" && args.length === 2) {
-    process.exitCode = isApprovedOidcRedirect(args[0], args[1]) ? 0 : 1;
+  if (mode === "oidc-redirect" && args.length === 4) {
+    process.exitCode = isApprovedOidcRedirect(...args) ? 0 : 1;
     return;
   }
   if (mode === "cidrs-within" && args.length === 2) {

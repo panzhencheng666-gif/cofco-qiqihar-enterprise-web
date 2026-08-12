@@ -28,6 +28,7 @@ expected_port="$(read_config "$config_path" COFCO_PREPROD_SSH_PORT)"
 expected_host_key="$(read_config "$config_path" COFCO_PREPROD_SSH_HOST_KEY_SHA256)"
 region="$(read_config "$config_path" COFCO_PREPROD_REGION)"
 ecs_instance_id="$(read_config "$config_path" COFCO_PREPROD_ECS_INSTANCE_ID)"
+release_id="$(read_config "$config_path" COFCO_PREPROD_RELEASE_ID)"
 ssh_config="$(ssh -G "$ssh_alias")"
 actual_host="$(awk '$1 == "hostname" {print $2; exit}' <<<"$ssh_config")"
 actual_user="$(awk '$1 == "user" {print $2; exit}' <<<"$ssh_config")"
@@ -93,11 +94,17 @@ ssh_options=(
   -o "UserKnownHostsFile=$known_hosts_file"
 )
 
-remote_bundle='.local/share/cofco-preproduction/bundle'
-remote_package="$remote_bundle/ops/alicloud-preproduction"
+remote_base='.local/share/cofco-preproduction'
+remote_bundle="$remote_base/bundle"
+remote_bundles="$remote_base/bundles"
+remote_staging="$remote_base/bundle-staging-$release_id-$$"
+remote_release_bundle="$remote_bundles/$release_id"
+remote_staging_package="$remote_staging/ops/alicloud-preproduction"
 config_validator_sha="$(sha256_file "$CONFIG_VALIDATOR")"
 runtime_validator_sha="$(sha256_file "$RUNTIME_VALIDATOR")"
-ssh "${ssh_options[@]}" "$ssh_alias" "install -d -m 0700 '$remote_bundle'"
+network_validator_sha="$(sha256_file "$NETWORK_VALIDATOR")"
+ssh "${ssh_options[@]}" "$ssh_alias" \
+  "install -d -m 0700 '$remote_base' '$remote_bundles'; test ! -e '$remote_staging'; test ! -e '$remote_release_bundle'; install -d -m 0700 '$remote_staging'"
 tar -C "$WEB_ROOT" \
   --exclude='ops/alicloud-preproduction/.runtime' \
   --exclude='ops/alicloud-preproduction/config/preproduction.env' \
@@ -108,23 +115,13 @@ tar -C "$WEB_ROOT" \
   -cf - \
   ops/alicloud-preproduction \
   scripts/preproduction-config.mjs \
+  scripts/preproduction-network.mjs \
   scripts/preproduction-runtime.mjs \
-  | ssh "${ssh_options[@]}" "$ssh_alias" "cd '$remote_bundle' && tar -xf -"
-scp -q "${ssh_options[@]}" "$config_path" "$ssh_alias:$remote_package/config/preproduction.env"
-ssh "${ssh_options[@]}" "$ssh_alias" bash -s -- \
-  "$remote_package" "$config_validator_sha" "$runtime_validator_sha" <<'REMOTE_VERIFY'
-set -euo pipefail
-remote_package="$1"
-expected_config_sha="$2"
-expected_runtime_sha="$3"
-cd "$remote_package"
-source ./scripts/common.sh
-test "$(sha256_file "$CONFIG_VALIDATOR")" = "$expected_config_sha"
-test "$(sha256_file "$RUNTIME_VALIDATOR")" = "$expected_runtime_sha"
-chmod 0600 ./config/preproduction.env
-REMOTE_VERIFY
-ssh "${ssh_options[@]}" "$ssh_alias" bash -s -- "$remote_package" <<'REMOTE_APPLY'
-set -euo pipefail
-cd "$1"
-COFCO_PREPROD_APPLY=APPLY_PREPRODUCTION ./scripts/remote-apply.sh ./config/preproduction.env
-REMOTE_APPLY
+  | ssh "${ssh_options[@]}" "$ssh_alias" "cd '$remote_staging' && tar -xf -"
+scp -q "${ssh_options[@]}" "$config_path" "$ssh_alias:$remote_staging_package/config/preproduction.env"
+ssh "${ssh_options[@]}" "$ssh_alias" bash \
+  "$remote_staging_package/scripts/activate-bundle.sh" \
+  "$remote_base" "$remote_staging" "$release_id" \
+  "$config_validator_sha" "$runtime_validator_sha" "$network_validator_sha" \
+  -- env COFCO_PREPROD_APPLY=APPLY_PREPRODUCTION \
+  ./scripts/remote-apply.sh ./config/preproduction.env

@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 source "$SCRIPT_DIR/common.sh"
 
 config_path="${1:-$PACKAGE_ROOT/config/preproduction.env}"
-evidence_dir="${2:-$PACKAGE_ROOT/.runtime/backup-evidence}"
+evidence_dir="${2:-$OPERATION_RUNTIME_ROOT/backup-evidence}"
 
 require_apply_approval
 require_shell_invariants "$config_path"

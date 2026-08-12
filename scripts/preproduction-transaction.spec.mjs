@@ -11,8 +11,8 @@ const transactionLibrary = resolve(
 );
 
 const failurePoints = [
+  "snapshot-invocation",
   "prepare-release",
-  "capture-whitelist",
   "rds-whitelist",
   "cloud-boundary",
   "secrets",
@@ -26,7 +26,7 @@ const failurePoints = [
 ];
 
 const rollbackFailurePoints = [
-  "capture-whitelist",
+  "snapshot-invocation",
   "stop",
   "rds-whitelist",
   "secrets",
@@ -36,7 +36,7 @@ const rollbackFailurePoints = [
   "pull",
   "up",
   "verify",
-  "checkpoint",
+  "current-checkpoint",
   "previous-checkpoint",
 ];
 

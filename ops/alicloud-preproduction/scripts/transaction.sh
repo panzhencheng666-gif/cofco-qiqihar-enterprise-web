@@ -5,6 +5,7 @@ STAGE5_TRANSACTION_ACTIVE=false
 STAGE5_TRANSACTION_COMMITTED=false
 STAGE5_TRANSACTION_COMPENSATION=""
 STAGE5_TRANSACTION_LAST_STEP="not-started"
+STAGE5_COMPENSATION_FAILURES=0
 
 _stage5_transaction_on_exit() {
   local original_status="$1"
@@ -19,6 +20,10 @@ _stage5_transaction_on_exit() {
       printf 'ERROR: stage-five compensation failed after step %s\n' "$STAGE5_TRANSACTION_LAST_STEP" >&2
       exit 70
     fi
+  fi
+
+  if declare -F stage5_mutation_lock_release >/dev/null 2>&1; then
+    stage5_mutation_lock_release
   fi
 
   exit "$original_status"
@@ -51,6 +56,11 @@ stage5_transaction_step() {
   }
   STAGE5_TRANSACTION_LAST_STEP="$step_name"
   "$@"
+  if test "${COFCO_PREPROD_TEST_MODE:-}" = "true" \
+    && test "${COFCO_PREPROD_TEST_FAIL_AT:-}" = "$step_name"; then
+    printf 'TEST_INJECTED_FAILURE step=%s\n' "$step_name" >&2
+    return 97
+  fi
 }
 
 stage5_transaction_commit() {
@@ -61,5 +71,26 @@ stage5_transaction_commit() {
   STAGE5_TRANSACTION_COMMITTED=true
   STAGE5_TRANSACTION_ACTIVE=false
   STAGE5_TRANSACTION_LAST_STEP="committed"
-  trap - EXIT
+}
+
+stage5_compensation_begin() {
+  STAGE5_COMPENSATION_FAILURES=0
+}
+
+stage5_compensate() {
+  local label="$1"
+  shift
+  if "$@"; then
+    return 0
+  fi
+  STAGE5_COMPENSATION_FAILURES=$((STAGE5_COMPENSATION_FAILURES + 1))
+  printf 'ERROR: compensation item failed: %s\n' "$label" >&2
+  return 0
+}
+
+stage5_compensation_finish() {
+  if test "$STAGE5_COMPENSATION_FAILURES" -ne 0; then
+    printf 'ERROR: compensation completed with %s failure(s)\n' "$STAGE5_COMPENSATION_FAILURES" >&2
+    return 1
+  fi
 }

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -29,6 +30,8 @@ test("ships every stage-five local asset through one bounded operations package"
     "ops/alicloud-preproduction/terraform/preproduction.tfvars.example",
     "ops/alicloud-preproduction/scripts/common.sh",
     "ops/alicloud-preproduction/scripts/transaction.sh",
+    "ops/alicloud-preproduction/scripts/invocation-state.sh",
+    "ops/alicloud-preproduction/scripts/activate-bundle.sh",
     "ops/alicloud-preproduction/scripts/preflight.sh",
     "ops/alicloud-preproduction/scripts/infra.sh",
     "ops/alicloud-preproduction/scripts/verify-terraform-backend.sh",
@@ -41,6 +44,7 @@ test("ships every stage-five local asset through one bounded operations package"
     "ops/alicloud-preproduction/scripts/verify.sh",
     "ops/alicloud-preproduction/scripts/backup-rds.sh",
     "ops/alicloud-preproduction/scripts/rollback.sh",
+    "scripts/preproduction-network.mjs",
   ];
 
   await Promise.all(requiredFiles.map((path) => read(path)));
@@ -186,7 +190,34 @@ test("bounds cold-start verification retries before declaring deployment failure
   assert.match(verify, /wait_for_http_code/u);
   assert.match(verify, /wait_for_prometheus/u);
   assert.match(verify, /SECONDS \+ 120/u);
+  assert.match(verify, /all\(\.data\.result\[\]; \.value\[1\] == "1"\)/u);
+  assert.doesNotMatch(verify, /all\(\.\[\]; \.value\[1\]/u);
   assert.doesNotMatch(verify, /sleep (?:6[1-9]|[7-9][0-9]|[1-9][0-9]{2,})/u);
+});
+
+test("fails the production Prometheus predicate when any real probe is unhealthy", async () => {
+  const verify = await read("ops/alicloud-preproduction/scripts/verify.sh");
+  const expression = verify.match(
+    /\| jq -e '(\.status == "success"[^']*all\([^']*)'/u,
+  )?.[1];
+  assert.ok(expression, "verify.sh must expose the production probe predicate");
+
+  const response = (values) =>
+    JSON.stringify({
+      status: "success",
+      data: {
+        result: values.map((value) => ({ value: [1710000000, value] })),
+      },
+    });
+  const healthy = spawnSync("jq", ["-e", expression], {
+    input: response(["1", "1", "1"]),
+  });
+  const unhealthy = spawnSync("jq", ["-e", expression], {
+    input: response(["1", "0", "1"]),
+  });
+
+  assert.equal(healthy.status, 0, healthy.stderr?.toString());
+  assert.notEqual(unhealthy.status, 0);
 });
 
 test("configures the named RDS whitelist and checks live isolation before pulling containers", async () => {
@@ -213,7 +244,7 @@ test("configures the named RDS whitelist and checks live isolation before pullin
   assert.match(boundaries, /unapproved whitelist CIDR/u);
   assert.ok(
     remoteApply.indexOf("verify-cloud-boundaries.sh") <
-      remoteApply.indexOf("docker compose"),
+      remoteApply.indexOf("stage5_transaction_step pull"),
   );
 });
 
@@ -290,12 +321,10 @@ test("refuses to overwrite an existing immutable release before copying config",
     remoteApply.indexOf('test ! -e "$release_dir"') <
       remoteApply.indexOf('install -m 0600 "$config_path"'),
   );
-  assert.match(remoteApply, /stage5_transaction_step capture-whitelist/u);
-  assert.match(remoteApply, /environment_mutation_started=false/u);
-  assert.match(
-    remoteApply,
-    /if test "\$environment_mutation_started" = "true"; then/u,
-  );
+  assert.match(remoteApply, /stage5_transaction_step snapshot-invocation/u);
+  assert.match(remoteApply, /whitelist_mutated=false/u);
+  assert.match(remoteApply, /stage5_invocation_state_mark_secrets_mutated/u);
+  assert.match(remoteApply, /stage5_invocation_state_mark_services_mutated/u);
   assert.match(remoteApply, /case "\$release_dir" in/u);
   assert.match(remoteApply, /rm -r -- "\$release_dir"/u);
 });
@@ -314,6 +343,7 @@ test("ships validators in the preserved remote Web layout", async () => {
 
   assert.match(deploy, /tar -C "\$WEB_ROOT"/u);
   assert.match(deploy, /scripts\/preproduction-config\.mjs/u);
+  assert.match(deploy, /scripts\/preproduction-network\.mjs/u);
   assert.match(deploy, /sha256_file/u);
   assert.match(deploy, /config\/preproduction\.env'/u);
   assert.match(deploy, /terraform\/\.terraform'/u);
@@ -322,26 +352,84 @@ test("ships validators in the preserved remote Web layout", async () => {
   assert.match(common, /CONFIG_VALIDATOR/u);
 });
 
-test("restores the exact original whitelist, secrets, and current release after failure", async () => {
+test("atomically replaces the fixed remote bundle with a freshly verified directory", async () => {
+  const deploy = await read("ops/alicloud-preproduction/scripts/deploy.sh");
+  const activate = await read(
+    "ops/alicloud-preproduction/scripts/activate-bundle.sh",
+  );
+  const combined = `${deploy}\n${activate}`;
+
+  assert.match(deploy, /bundle-staging/u);
+  assert.match(deploy, /bundles\/\$release_id/u);
+  assert.match(activate, /renameSync/u);
+  assert.match(activate, /forbidden bundle runtime asset/u);
+  assert.match(
+    deploy,
+    /activate-bundle\.sh[\s\S]*-- env COFCO_PREPROD_APPLY=APPLY_PREPRODUCTION[\s\S]*\.\/scripts\/remote-apply\.sh/u,
+  );
+  assert.doesNotMatch(combined, /-exec rm -r/u);
+});
+
+test("uses one shared IPv4 and CIDR implementation across both validators", async () => {
+  const config = await read("scripts/preproduction-config.mjs");
+  const runtime = await read("scripts/preproduction-runtime.mjs");
+  const network = await read("scripts/preproduction-network.mjs");
+  const combined = `${config}\n${runtime}\n${network}`;
+
+  assert.match(config, /from "\.\/preproduction-network\.mjs"/u);
+  assert.match(runtime, /from "\.\/preproduction-network\.mjs"/u);
+  assert.equal((combined.match(/function parseIpv4\b/gu) ?? []).length, 1);
+  assert.equal((combined.match(/function parseCidr\b/gu) ?? []).length, 1);
+});
+
+test("keeps operation runtime and scoped evidence outside the immutable bundle", async () => {
+  const common = await read("ops/alicloud-preproduction/scripts/common.sh");
+  const verify = await read("ops/alicloud-preproduction/scripts/verify.sh");
+  const scripts = await Promise.all(
+    [
+      "backup-rds.sh",
+      "infra.sh",
+      "rds-whitelist.sh",
+      "render-gateway.sh",
+      "verify-cloud-boundaries.sh",
+      "verify-terraform-backend.sh",
+      "verify.sh",
+    ].map((name) => read(`ops/alicloud-preproduction/scripts/${name}`)),
+  );
+
+  assert.match(common, /OPERATION_RUNTIME_ROOT/u);
+  assert.doesNotMatch(scripts.join("\n"), /PACKAGE_ROOT\/\.runtime/u);
+  assert.match(verify, /verification-\$verification_scope-/u);
+  assert.match(verify, /PREPRODUCTION_RUNTIME_RESTORED/u);
+});
+
+test("snapshots and best-effort restores the exact invocation state after failure", async () => {
   const remoteApply = await read(
     "ops/alicloud-preproduction/scripts/remote-apply.sh",
   );
   const rollback = await read("ops/alicloud-preproduction/scripts/rollback.sh");
+  const invocationState = await read(
+    "ops/alicloud-preproduction/scripts/invocation-state.sh",
+  );
 
   assert.match(
     remoteApply,
     /rds-whitelist\.sh" restore[^\n]*whitelist_snapshot/u,
   );
-  assert.match(remoteApply, /materialize-secrets\.sh" "\$previous_config/u);
-  assert.match(rollback, /rds-whitelist\.sh" apply "\$current_config/u);
-  assert.match(rollback, /materialize-secrets\.sh" "\$current_config/u);
-  assert.ok(
-    remoteApply.indexOf('rds-whitelist.sh" restore') <
-      remoteApply.indexOf('materialize-secrets.sh" "$previous_config'),
-  );
-  assert.ok(
-    remoteApply.indexOf('materialize-secrets.sh" "$previous_config') <
-      remoteApply.indexOf('docker compose --env-file "$previous_config'),
+  for (const script of [remoteApply, rollback]) {
+    assert.match(script, /source "\$SCRIPT_DIR\/invocation-state\.sh"/u);
+    assert.match(script, /stage5_compensation_begin/u);
+    assert.match(script, /stage5_compensate rds-whitelist/u);
+    assert.match(script, /stage5_invocation_state_compensate/u);
+    assert.match(script, /stage5_compensation_finish/u);
+  }
+  assert.match(invocationState, /runtime-secrets\.tar/u);
+  assert.match(invocationState, /running-services/u);
+  assert.match(invocationState, /stage5_compensate runtime-secrets/u);
+  assert.match(invocationState, /stage5_compensate running-services/u);
+  assert.match(
+    invocationState,
+    /stage5_invocation_state_restore_services\(\)[\s\S]*verify\.sh/u,
   );
 });
 

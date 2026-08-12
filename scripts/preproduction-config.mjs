@@ -2,6 +2,13 @@ import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  cidrWithinBoundary,
+  ipWithinCidr,
+  parseCidr,
+  parseIpv4,
+} from "./preproduction-network.mjs";
+
 const secretReferenceKeys = [
   "COFCO_PREPROD_RDS_CA_SECRET_REF",
   "COFCO_PREPROD_DB_SECRET_REF",
@@ -134,61 +141,6 @@ export function parseConfigText(text) {
   return config;
 }
 
-function parseIpv4(value) {
-  const parts = value.split(".");
-  if (parts.length !== 4) return undefined;
-  const octets = parts.map(Number);
-  if (
-    octets.some(
-      (octet, index) =>
-        !Number.isInteger(octet) ||
-        octet < 0 ||
-        octet > 255 ||
-        String(octet) !== parts[index],
-    )
-  ) {
-    return undefined;
-  }
-  return octets.reduce((result, octet) => ((result << 8) | octet) >>> 0, 0);
-}
-
-function parseCidr(value) {
-  const [address, rawPrefix, ...extra] = value.split("/");
-  if (extra.length > 0 || rawPrefix === undefined) return undefined;
-  const ip = parseIpv4(address);
-  const prefix = Number(rawPrefix);
-  if (
-    ip === undefined ||
-    !Number.isInteger(prefix) ||
-    prefix < 0 ||
-    prefix > 32
-  ) {
-    return undefined;
-  }
-  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0;
-  if ((ip & mask) >>> 0 !== ip) return undefined;
-  return { ip, mask, prefix };
-}
-
-function ipInCidr(address, cidr) {
-  const ip = parseIpv4(address);
-  const parsed = parseCidr(cidr);
-  return ip !== undefined && parsed !== undefined
-    ? (ip & parsed.mask) >>> 0 === parsed.ip
-    : false;
-}
-
-function cidrInCidr(candidate, boundary) {
-  const parsedCandidate = parseCidr(candidate);
-  const parsedBoundary = parseCidr(boundary);
-  return Boolean(
-    parsedCandidate &&
-    parsedBoundary &&
-    parsedCandidate.prefix >= parsedBoundary.prefix &&
-    (parsedCandidate.ip & parsedBoundary.mask) >>> 0 === parsedBoundary.ip,
-  );
-}
-
 function validateCidrList(value, label, minimumPrefix, errors) {
   const cidrs = value
     .split(",")
@@ -281,7 +233,7 @@ export function assessPreproductionConfig(config) {
     } else if (
       parsedVswitch.prefix < 16 ||
       !["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"].some(
-        (privateBoundary) => cidrInCidr(vswitchCidr, privateBoundary),
+        (privateBoundary) => cidrWithinBoundary(vswitchCidr, privateBoundary),
       )
     ) {
       errors.push(
@@ -290,7 +242,7 @@ export function assessPreproductionConfig(config) {
     }
   }
   const ecsPrivateIp = value("COFCO_PREPROD_ECS_PRIVATE_IP");
-  if (ecsPrivateIp && vswitchCidr && !ipInCidr(ecsPrivateIp, vswitchCidr)) {
+  if (ecsPrivateIp && vswitchCidr && !ipWithinCidr(ecsPrivateIp, vswitchCidr)) {
     errors.push("The ECS private IP must be inside the approved vSwitch CIDR");
   }
   const httpsEndpointIp = value("COFCO_PREPROD_HTTPS_ENDPOINT_IP");
@@ -434,7 +386,11 @@ export function assessPreproductionConfig(config) {
       errors,
     );
     for (const cidr of whitelistCidrs) {
-      if (vswitchCidr && parseCidr(cidr) && !cidrInCidr(cidr, vswitchCidr)) {
+      if (
+        vswitchCidr &&
+        parseCidr(cidr) &&
+        !cidrWithinBoundary(cidr, vswitchCidr)
+      ) {
         errors.push(
           "Every RDS whitelist CIDR must be inside the approved vSwitch CIDR",
         );

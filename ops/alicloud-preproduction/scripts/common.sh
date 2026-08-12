@@ -6,6 +6,14 @@ PACKAGE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 WEB_ROOT="$(cd "$PACKAGE_ROOT/../.." && pwd -P)"
 CONFIG_VALIDATOR="$WEB_ROOT/scripts/preproduction-config.mjs"
 RUNTIME_VALIDATOR="$WEB_ROOT/scripts/preproduction-runtime.mjs"
+NETWORK_VALIDATOR="$WEB_ROOT/scripts/preproduction-network.mjs"
+if test -n "${XDG_RUNTIME_DIR:-}"; then
+  default_operation_runtime_root="$XDG_RUNTIME_DIR/cofco-preproduction/operations"
+else
+  default_operation_runtime_root="$HOME/.local/state/cofco-preproduction/operations"
+fi
+OPERATION_RUNTIME_ROOT="${COFCO_PREPROD_OPERATION_RUNTIME_ROOT:-$default_operation_runtime_root}"
+STAGE5_MUTATION_LOCK_DIR=""
 
 fail() {
   printf 'ERROR: %s\n' "$1" >&2
@@ -65,6 +73,7 @@ require_shell_invariants() {
   require_command node
   test -f "$CONFIG_VALIDATOR" || fail "controlled preproduction config validator is missing from the Web bundle"
   test -f "$RUNTIME_VALIDATOR" || fail "controlled preproduction runtime validator is missing from the Web bundle"
+  test -f "$NETWORK_VALIDATOR" || fail "controlled preproduction network validator is missing from the Web bundle"
   node "$CONFIG_VALIDATOR" --config "$config_path" >/dev/null
   test "$(read_config "$config_path" COFCO_DEPLOYMENT_ENV)" = "preproduction" || fail "deployment environment must be preproduction"
   test "$(read_config "$config_path" COFCO_PREPROD_FIRST_DEPLOYMENT)" = "true" || fail "first cloud deployment must remain preproduction"
@@ -112,4 +121,24 @@ sha256_file() {
   else
     shasum -a 256 "$file_path" | awk '{print $1}'
   fi
+}
+
+stage5_mutation_lock_release() {
+  if test -n "${STAGE5_MUTATION_LOCK_DIR:-}"; then
+    rm -f "$STAGE5_MUTATION_LOCK_DIR/owner"
+    rmdir "$STAGE5_MUTATION_LOCK_DIR" 2>/dev/null || true
+    STAGE5_MUTATION_LOCK_DIR=""
+  fi
+}
+
+stage5_mutation_lock_acquire() {
+  local release_root="$1"
+  install -d -m 0700 "$release_root"
+  STAGE5_MUTATION_LOCK_DIR="$release_root/.mutation.lock"
+  if ! mkdir -m 0700 "$STAGE5_MUTATION_LOCK_DIR" 2>/dev/null; then
+    STAGE5_MUTATION_LOCK_DIR=""
+    fail "preproduction mutation lock is already held"
+  fi
+  printf '%s\n' "$$" >"$STAGE5_MUTATION_LOCK_DIR/owner"
+  trap stage5_mutation_lock_release EXIT
 }

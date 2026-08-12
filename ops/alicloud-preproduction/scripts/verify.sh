@@ -5,8 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 source "$SCRIPT_DIR/common.sh"
 
 config_path="${1:-$PACKAGE_ROOT/config/preproduction.env}"
-evidence_dir="${2:-$PACKAGE_ROOT/.runtime/verification-evidence}"
+evidence_dir="${2:-$OPERATION_RUNTIME_ROOT/verification-evidence}"
+verification_scope="${3:-full}"
 compose_file="$PACKAGE_ROOT/compose.yaml"
+case "$verification_scope" in
+  full|runtime-only) ;;
+  *) fail "verification scope must be full or runtime-only" ;;
+esac
 
 require_shell_invariants "$config_path"
 for command_name in curl docker jq openssl; do
@@ -17,6 +22,8 @@ install -d -m 0700 "$evidence_dir"
 domain="$(read_config "$config_path" COFCO_PREPROD_TLS_DOMAIN)"
 https_endpoint_ip="$(read_config "$config_path" COFCO_PREPROD_HTTPS_ENDPOINT_IP)"
 oidc_authorization_endpoint="$(read_config "$config_path" COFCO_PREPROD_OIDC_AUTHORIZATION_ENDPOINT)"
+oidc_client_id="$(read_config "$config_path" COFCO_PREPROD_OIDC_CLIENT_ID)"
+oidc_redirect_uri="$(read_config "$config_path" COFCO_PREPROD_OIDC_REDIRECT_URI)"
 runtime_secrets_dir="${COFCO_PREPROD_RUNTIME_SECRETS_DIR:?runtime secrets directory required}"
 export COFCO_PREPROD_RUNTIME_SECRETS_DIR="$runtime_secrets_dir"
 
@@ -25,7 +32,9 @@ certificate_file="$evidence_dir/.certificate.$$"
 dns_file="$evidence_dir/.dns.$$"
 trap 'rm -f "$headers_file" "$certificate_file" "$dns_file"' EXIT
 
-"$SCRIPT_DIR/verify-cloud-boundaries.sh" "$config_path" "$evidence_dir"
+if test "$verification_scope" = "full"; then
+  "$SCRIPT_DIR/verify-cloud-boundaries.sh" "$config_path" "$evidence_dir"
+fi
 
 node -e 'require("node:dns").promises.resolve4(process.argv[1]).then((addresses) => process.stdout.write(JSON.stringify(addresses))).catch(() => process.exit(1))' "$domain" >"$dns_file"
 jq -e --arg endpoint "$https_endpoint_ip" 'index($endpoint) != null' "$dns_file" >/dev/null || fail "DNS A records do not include the approved ECS HTTPS endpoint"
@@ -70,13 +79,15 @@ while test "$SECONDS" -lt "$login_deadline"; do
     --dump-header "$headers_file" --write-out '%{http_code}' "https://$domain/api/v1/session/login" || true)"
   login_location="$(awk 'tolower($1) == "location:" {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit}' "$headers_file")"
   if test "$login_status" = "302" \
-    && node "$RUNTIME_VALIDATOR" oidc-redirect "$login_location" "$oidc_authorization_endpoint"; then
+    && node "$RUNTIME_VALIDATOR" oidc-redirect \
+      "$login_location" "$oidc_authorization_endpoint" "$oidc_client_id" "$oidc_redirect_uri"; then
     break
   fi
   sleep 3
 done
 test "$login_status" = "302" || fail "OIDC login did not return the expected 302 status"
-node "$RUNTIME_VALIDATOR" oidc-redirect "$login_location" "$oidc_authorization_endpoint" \
+node "$RUNTIME_VALIDATOR" oidc-redirect \
+  "$login_location" "$oidc_authorization_endpoint" "$oidc_client_id" "$oidc_redirect_uri" \
   || fail "OIDC login Location did not match the approved OIDC authorization endpoint"
 if grep -Eiq '(127\.0\.0\.1:8090|backend:8090)' "$headers_file"; then
   fail "OIDC redirect leaked an internal backend address"
@@ -89,7 +100,7 @@ wait_for_prometheus() {
   while test "$SECONDS" -lt "$deadline"; do
     if curl --silent --fail "http://$prometheus_ip:9090/-/ready" >/dev/null \
       && curl --silent --fail --get --data-urlencode 'query=probe_success' "http://$prometheus_ip:9090/api/v1/query" \
-        | jq -e '.status == "success" and (.data.result | length) >= 3 and all(.[]; .value[1] == "1")' >/dev/null; then
+        | jq -e '.status == "success" and (.data.result | length) >= 3 and all(.data.result[]; .value[1] == "1")' >/dev/null; then
       return
     fi
     sleep 3
@@ -98,11 +109,17 @@ wait_for_prometheus() {
 }
 wait_for_prometheus
 
-evidence_file="$evidence_dir/verification-$(date -u +%Y%m%dT%H%M%SZ).json"
+evidence_file="$evidence_dir/verification-$verification_scope-$(date -u +%Y%m%dT%H%M%SZ).json"
 jq -n \
   --arg environment preproduction \
   --arg release "$(read_config "$config_path" COFCO_PREPROD_RELEASE_ID)" \
+  --arg scope "$verification_scope" \
   --arg verified_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{environment:$environment,releaseId:$release,tls:"PASS",gateway:"PASS",rdsPrivateEndpoint:"PASS",securityGroup:"PASS",monitoring:"PASS",verifiedAt:$verified_at}' >"$evidence_file"
+  '({environment:$environment,releaseId:$release,scope:$scope,tls:"PASS",gateway:"PASS",monitoring:"PASS",verifiedAt:$verified_at})
+   + (if $scope == "full" then {rdsPrivateEndpoint:"PASS",securityGroup:"PASS"} else {} end)' >"$evidence_file"
 chmod 0600 "$evidence_file"
-printf 'PREPRODUCTION_VERIFIED evidence=%s\n' "$evidence_file"
+if test "$verification_scope" = "full"; then
+  printf 'PREPRODUCTION_VERIFIED evidence=%s\n' "$evidence_file"
+else
+  printf 'PREPRODUCTION_RUNTIME_RESTORED evidence=%s\n' "$evidence_file"
+fi

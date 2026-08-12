@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-本地模板、校验器、dry-run、失败安全、备份和回滚入口已具备。没有批准的 EXT-005 参数、阿里云 CLI/RAM 身份、Terraform、Docker、SSH 主机别名和不可变镜像 digest 时，唯一正确结论是 `LOCAL_COMPLETE + BLOCKED_EXTERNAL`；不得写成预生产已建立或 `PASS / COMPLETE`。
+本地模板、校验器、dry-run、失败安全、备份和回滚入口的驳回修复证据仍待监督独立复核。没有批准的 EXT-005 参数、阿里云 CLI/RAM 身份、Terraform、Docker、SSH 主机别名和不可变镜像 digest 时，当前只能记录为 `REVIEW_FIX_EVIDENCE_PENDING_SUPERVISOR + BLOCKED_EXTERNAL`；不得写成预生产已建立、`LOCAL_COMPLETE`或`PASS / COMPLETE`。
 
 所有秘密只能写成阿里云 KMS 凭据 ARN。配置文件、命令行、日志、Git 和证据禁止出现密码、AccessKey Secret、OIDC client secret、Cookie、Token、私钥或明文数据库凭据。推荐 ECS 使用实例 RAM 角色调用 KMS/RDS 只需权限，避免静态 AccessKey。
 
@@ -38,7 +38,7 @@ npm run stage5:preproduction:validate
 4. 仅在批准 plan 后，把上一步输出的64位哈希原样绑定到 apply：`COFCO_PREPROD_APPLY=APPLY_PREPRODUCTION COFCO_PREPROD_APPROVED_PLAN_SHA256=<reviewed-sha256> infra.sh apply <config>`；现场 plan 不匹配时在 Terraform 调用前失败。
 5. 分别从三个权威仓构建干净候选镜像，推送到批准的 ACR，并把 registry 返回的 digest 写入配置；标签不能代替 digest。
 6. 可先用 `rds-whitelist.sh dry-run <config>` 核对命名白名单；真实部署只在安全 SSH 主机别名和云边界均批准后执行：`COFCO_PREPROD_APPLY=APPLY_PREPRODUCTION deploy.sh apply <config>`。
-7. 部署包保留 `ops/alicloud-preproduction` 与唯一 Node 配置/运行时校验器的 Web 相对布局，远端在副作用前核对两份校验器 SHA-256。事务在首个云写入前锁定 current/previous 与白名单快照；白名单、实时 vSwitch/VPC/zone/CIDR、秘密、Compose、备份、pull、up、运行验证和检查点任一步失败，都恢复原白名单、原秘密、原运行版本并复验。首次部署失败停止服务、清除候选秘密并恢复拒绝式白名单边界。
+7. 部署包保留 `ops/alicloud-preproduction` 与唯一 Node 配置/运行时/网络校验器的 Web 相对布局，远端在副作用前核对三份校验器 SHA-256。固定 bundle 由全程互斥锁保护，以干净 staging 原子切换到本次不可变 release，真实事务只从该固定 release 路径执行；命名 RDS 白名单必须预先存在，否则在首个写入前失败关闭。事务在读取检查点前锁定 current/previous，并快照真实白名单、秘密、运行服务和检查点；白名单、实时 vSwitch/VPC/zone/CIDR、秘密、Compose、备份、pull、up、运行验证和检查点任一步失败，都逐项尽力恢复并复验，汇总补偿失败。首次部署失败停止服务且不残留候选秘密；回滚到 undeployed 时清除秘密并恢复拒绝式白名单边界。
 8. 已验证回滚：`COFCO_PREPROD_ROLLBACK=ROLLBACK_PREPRODUCTION rollback.sh <config>`。配置中的目标必须与 `previous` 检查点一致；没有旧版本时只允许目标 `undeployed`。
 
 `materialize-secrets.sh` 只把 KMS 返回值写入当前用户运行时目录，目录 `0700`、文件 `0600`，不打印内容。Compose 通过 Spring ConfigTree 文件注入数据库密码和 OIDC client secret；TLS 私钥同样只读挂载。

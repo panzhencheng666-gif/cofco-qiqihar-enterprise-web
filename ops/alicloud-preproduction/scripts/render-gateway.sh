@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 source "$SCRIPT_DIR/common.sh"
 
 config_path="${1:-$PACKAGE_ROOT/config/preproduction.env}"
-output_path="${2:-$PACKAGE_ROOT/.runtime/gateway/nginx.conf}"
+output_path="${2:-$OPERATION_RUNTIME_ROOT/gateway/nginx.conf}"
 template_path="$PACKAGE_ROOT/gateway/nginx.conf"
 
 require_shell_invariants "$config_path"

@@ -50,36 +50,37 @@ test("binds every resolved SSH address to the cloud-confirmed ECS target", () =>
   assert.equal(addressesBoundToCloudTarget([], cloudAddresses), false);
 });
 
-test("accepts only the approved OIDC authorization origin and path", () => {
+test("accepts only the exact approved OIDC authorization request", () => {
   const approved = "https://idp.example.test/oauth2/authorize";
+  const clientId = "cofco-preproduction";
+  const redirectUri =
+    "https://preprod.example.internal/login/oauth2/code/enterprise";
+  const valid = `${approved}?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid%20profile&state=state-1&nonce=nonce-1`;
   assert.equal(
-    isApprovedOidcRedirect(
-      "https://idp.example.test/oauth2/authorize?client_id=x&state=y",
-      approved,
-    ),
+    isApprovedOidcRedirect(valid, approved, clientId, redirectUri),
     true,
   );
-  assert.equal(
-    isApprovedOidcRedirect(
-      "https://wrong.example.test/oauth2/authorize?state=y",
-      approved,
+
+  for (const invalid of [
+    valid.replace("idp.example.test", "wrong.example.test"),
+    valid.replace("/oauth2/authorize", "/internal/authorize"),
+    valid.replace(clientId, "wrong-client"),
+    valid.replace(
+      encodeURIComponent(redirectUri),
+      encodeURIComponent("https://wrong.example.test/callback"),
     ),
-    false,
-  );
-  assert.equal(
-    isApprovedOidcRedirect(
-      "https://idp.example.test/internal/authorize?state=y",
-      approved,
-    ),
-    false,
-  );
-  assert.equal(
-    isApprovedOidcRedirect(
-      "https://127.0.0.1:8090/oauth2/authorize?state=y",
-      approved,
-    ),
-    false,
-  );
+    valid.replace("response_type=code&", ""),
+    valid.replace("scope=openid%20profile&", "scope=profile&"),
+    valid.replace("state=state-1&", ""),
+    valid.replace("nonce=nonce-1", ""),
+    `${valid}&error=access_denied`,
+  ]) {
+    assert.equal(
+      isApprovedOidcRedirect(invalid, approved, clientId, redirectUri),
+      false,
+      invalid,
+    );
+  }
 });
 
 test("renders one approved TLS host without retaining the marker", () => {
