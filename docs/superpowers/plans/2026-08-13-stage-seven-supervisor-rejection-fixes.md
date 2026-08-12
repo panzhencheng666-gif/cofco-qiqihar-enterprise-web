@@ -94,6 +94,6 @@
 
 - [x] **Step 1: Run Node 24/npm 11 Stage 7 focused and complete Web verification.** Stage 7 is 27/27 and the final full Web `npm run verify` passed.
 - [x] **Step 2: Run the necessary local proportional replay.** The pre-commit full run was 28/28, 5,000 + 2×5,001 imports, 38 resource samples, 2.306-second maximum recovery, and preserved the same 11 audit directories. A clean committed-candidate rerun is still required before evidence publication.
-- [ ] **Step 3: Update four evidence artifacts and three ledgers.** Record fresh commands, candidate SHA, red/green evidence, cleanup counts, exclusions, and `REGRESSION_PENDING / PENDING_SUPERVISOR_REVIEW` for DEF-122 through DEF-124.
-- [ ] **Step 4: Review the exact diff and commit once.** Commit only Web implementation/plan changes plus authorized authority documents, then ordinary-push the existing branch.
+- [x] **Step 3: Update four evidence artifacts and three ledgers.** Recorded the clean candidate run, red/green evidence, cleanup counts, exclusions, and `REGRESSION_PENDING / PENDING_SUPERVISOR_REVIEW` for DEF-122 through DEF-124.
+- [x] **Step 4: Review the exact diff and commit once.** Implementation commit `272c6e14d3dfdf1c36e1a0b9fd9f875bb36b7ae2` was ordinarily pushed; one final evidence-only commit follows the clean-candidate replay.
 - [ ] **Step 5: Re-read all authority documents and verify the three-repository boundary.** Require three clean worktrees, `HEAD=upstream`, and 0/0 before structured supervisor handoff.
