@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -179,6 +180,30 @@ test("admits local evidence only as proportional and blocks incomplete cloud adm
         inputs: {},
       }),
     /EXT-005/u,
+  );
+});
+
+test("the standard preproduction admission entry reports only EXT-005", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      resolve(import.meta.dirname, "run-stage-seven.mjs"),
+      "admit",
+      "--mode",
+      "preproduction",
+      "--config",
+      resolve(
+        import.meta.dirname,
+        "../ops/stage7-performance-resilience/preproduction-admission.json",
+      ),
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 2);
+  assert.equal(result.stdout, "");
+  assert.equal(
+    result.stderr,
+    "BLOCKED_EXTERNAL(EXT-005): approved HTTPS base URL is missing\n",
   );
 });
 
