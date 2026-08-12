@@ -1,0 +1,193 @@
+name: cofco-qiqihar-preproduction
+
+x-service-security: &service-security
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: 20m
+      max-file: "5"
+
+services:
+  gateway:
+    <<: *service-security
+    image: ${COFCO_PREPROD_GATEWAY_IMAGE:?immutable gateway image required}
+    user: "101:101"
+    read_only: true
+    ports:
+      - "443:8443"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    secrets:
+      - source: tls_certificate
+        target: tls.crt
+      - source: tls_private_key
+        target: tls.key
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/cache/nginx:size=32m,uid=101,gid=101,mode=0750
+      - /var/run:size=4m,uid=101,gid=101,mode=0750
+    networks:
+      - edge
+      - application
+    depends_on:
+      business-web:
+        condition: service_healthy
+      overview-web:
+        condition: service_healthy
+
+  business-web:
+    <<: *service-security
+    image: ${COFCO_PREPROD_BUSINESS_IMAGE:?immutable business image required}
+    user: "101:101"
+    read_only: true
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/cache/nginx:size=32m,uid=101,gid=101,mode=0750
+      - /var/run:size=4m,uid=101,gid=101,mode=0750
+    networks:
+      - application
+
+  overview-web:
+    <<: *service-security
+    image: ${COFCO_PREPROD_OVERVIEW_IMAGE:?immutable overview image required}
+    user: "101:101"
+    read_only: true
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/cache/nginx:size=32m,uid=101,gid=101,mode=0750
+      - /var/run:size=4m,uid=101,gid=101,mode=0750
+    networks:
+      - application
+
+  backend:
+    <<: *service-security
+    image: ${COFCO_PREPROD_BACKEND_IMAGE:?immutable backend image required}
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    expose:
+      - "8090"
+    environment:
+      COFCO_DEPLOYMENT_ENV: preproduction
+      SPRING_PROFILES_ACTIVE: preproduction
+      SPRING_CONFIG_IMPORT: "optional:configtree:/run/secrets/"
+      QIQIHAR_SERVER_PORT: "8090"
+      QIQIHAR_DB_URL: "jdbc:postgresql://${COFCO_PREPROD_RDS_PRIVATE_ENDPOINT}:${COFCO_PREPROD_RDS_PORT}/${COFCO_PREPROD_RDS_DATABASE}?sslmode=verify-full&sslrootcert=/run/secrets/rds-ca.pem"
+      QIQIHAR_DB_USERNAME: ${COFCO_PREPROD_RDS_USERNAME}
+      QIQIHAR_OIDC_ISSUER_URI: ${COFCO_PREPROD_OIDC_ISSUER_URI}
+      QIQIHAR_OIDC_CLIENT_ID: ${COFCO_PREPROD_OIDC_CLIENT_ID}
+      QIQIHAR_OIDC_REDIRECT_URI: ${COFCO_PREPROD_OIDC_REDIRECT_URI}
+      QIQIHAR_OIDC_POST_LOGOUT_REDIRECT_URI: ${COFCO_PREPROD_OIDC_POST_LOGOUT_REDIRECT_URI}
+      QIQIHAR_OIDC_MFA_AMR_VALUES: ${COFCO_PREPROD_OIDC_MFA_AMR_VALUES}
+      QIQIHAR_OIDC_MFA_ACR_VALUES: ${COFCO_PREPROD_OIDC_MFA_ACR_VALUES:-}
+      QIQIHAR_SESSION_COOKIE_SECURE: "true"
+    secrets:
+      - source: database_password
+        target: spring.datasource.password
+      - source: oidc_client_secret
+        target: qiqihar.security.oidc.client-secret
+      - source: rds_ca_certificate
+        target: rds-ca.pem
+    tmpfs:
+      - /tmp:size=128m,uid=10001,gid=10001,mode=0700
+    networks:
+      - application
+      - private-egress
+    stop_grace_period: 30s
+
+  prometheus:
+    <<: *service-security
+    image: ${COFCO_PREPROD_PROMETHEUS_IMAGE:?immutable Prometheus image required}
+    user: "65534:65534"
+    read_only: true
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${COFCO_PREPROD_MONITORING_RETENTION}
+      - --web.enable-lifecycle=false
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - monitoring
+
+  blackbox:
+    <<: *service-security
+    image: ${COFCO_PREPROD_BLACKBOX_IMAGE:?immutable blackbox image required}
+    user: "65534:65534"
+    read_only: true
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+    volumes:
+      - ./monitoring/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    networks:
+      - monitoring
+      - application
+
+  alertmanager:
+    <<: *service-security
+    image: ${COFCO_PREPROD_ALERTMANAGER_IMAGE:?immutable Alertmanager image required}
+    user: "65534:65534"
+    read_only: true
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    secrets:
+      - source: alert_target
+        target: alert-target
+    networks:
+      - monitoring
+
+networks:
+  edge:
+    driver: bridge
+  application:
+    driver: bridge
+    internal: true
+  private-egress:
+    driver: bridge
+  monitoring:
+    driver: bridge
+    internal: true
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+
+secrets:
+  tls_certificate:
+    file: ${COFCO_PREPROD_RUNTIME_SECRETS_DIR:?runtime secret directory required}/tls.crt
+  tls_private_key:
+    file: ${COFCO_PREPROD_RUNTIME_SECRETS_DIR:?runtime secret directory required}/tls.key
+  rds_ca_certificate:
+    file: ${COFCO_PREPROD_RUNTIME_SECRETS_DIR:?runtime secret directory required}/rds-ca.pem
+  database_password:
+    file: ${COFCO_PREPROD_RUNTIME_SECRETS_DIR:?runtime secret directory required}/spring.datasource.password
+  oidc_client_secret:
+    file: ${COFCO_PREPROD_RUNTIME_SECRETS_DIR:?runtime secret directory required}/qiqihar.security.oidc.client-secret
+  alert_target:
+    file: ${COFCO_PREPROD_RUNTIME_SECRETS_DIR:?runtime secret directory required}/alert-target

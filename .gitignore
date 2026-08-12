@@ -10,6 +10,12 @@ coverage/
 *.tsbuildinfo
 playwright-report/
 test-results/
+ops/alicloud-preproduction/config/preproduction.env
+ops/alicloud-preproduction/.runtime/
+ops/alicloud-preproduction/terraform/.terraform/
+ops/alicloud-preproduction/terraform/*.tfstate
+ops/alicloud-preproduction/terraform/*.tfstate.*
+ops/alicloud-preproduction/terraform/*.tfplan
 .DS_Store
 .env
 .env.*

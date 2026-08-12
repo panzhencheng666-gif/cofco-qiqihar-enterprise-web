@@ -1,0 +1,22 @@
+groups:
+  - name: preproduction-availability
+    rules:
+      - alert: PreproductionEndpointUnavailable
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+          environment: preproduction
+        annotations:
+          summary: "Preproduction endpoint is unavailable"
+          description: "The isolated preproduction probe has failed for two minutes."
+
+      - alert: PreproductionProbeSlow
+        expr: probe_duration_seconds > 3
+        for: 5m
+        labels:
+          severity: warning
+          environment: preproduction
+        annotations:
+          summary: "Preproduction probe is slower than three seconds"
+          description: "The endpoint probe exceeded the bounded page availability target."

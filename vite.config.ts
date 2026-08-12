@@ -147,6 +147,8 @@ export default defineConfig({
       "e2e/**",
       ".worktrees/**",
       "scripts/run-stage-three-idp-supplement.spec.mjs",
+      "scripts/preproduction-assets.spec.mjs",
+      "scripts/preproduction-config.spec.mjs",
     ],
     restoreMocks: true,
     clearMocks: true,

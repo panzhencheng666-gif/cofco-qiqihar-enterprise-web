@@ -1,0 +1,14 @@
+enable_apply      = false
+environment       = "preproduction"
+region            = "REQUIRED_APPROVED_REGION"
+zone_id           = "REQUIRED_APPROVED_ZONE"
+vpc_id            = "REQUIRED_APPROVED_VPC"
+vswitch_id        = "REQUIRED_APPROVED_VSWITCH"
+security_group_id = "REQUIRED_APPROVED_SECURITY_GROUP"
+ecs_instance_id   = "REQUIRED_APPROVED_ECS"
+ecs_private_ip    = "REQUIRED_APPROVED_PRIVATE_IP"
+rds_instance_id   = "REQUIRED_APPROVED_RDS"
+https_source_cidrs = [
+  "REQUIRED_APPROVED_CIDR"
+]
+ssh_source_cidr = "REQUIRED_APPROVED_ADMIN_CIDR"

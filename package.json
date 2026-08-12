@@ -13,7 +13,7 @@
     "preview:e2e": "vite preview --host 127.0.0.1 --port 63180 --strictPort",
     "build": "tsc -b && vite build",
     "budget": "node scripts/check-initial-bundle-budget.mjs",
-    "test": "vitest run && npm run stage3:idp-supplement:test",
+    "test": "vitest run && npm run stage3:idp-supplement:test && npm run stage5:preproduction:test",
     "test:watch": "vitest",
     "test:e2e": "npm run build && npm run budget && npm run test:e2e:preview",
     "test:e2e:preview": "node scripts/run-playwright.mjs",
@@ -28,6 +28,8 @@
     "stage3:console-proof": "node scripts/verify-chromium-http-console-semantics.mjs",
     "stage3:idp-supplement": "node scripts/run-stage-three-idp-supplement.mjs",
     "stage3:idp-supplement:test": "node --test scripts/run-stage-three-idp-supplement.spec.mjs",
+    "stage5:preproduction:test": "node --test scripts/preproduction-config.spec.mjs scripts/preproduction-assets.spec.mjs",
+    "stage5:preproduction:validate": "node scripts/preproduction-config.mjs --config ops/alicloud-preproduction/config/preproduction.env",
     "verify": "npm run format:check && npm run lint && npm run architecture && npm run stage1:inventory:check && npm run test && npm run build && npm run budget && npm run test:e2e:preview"
   },
   "dependencies": {
