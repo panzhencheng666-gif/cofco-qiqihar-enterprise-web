@@ -7,6 +7,38 @@ const e2eApiTarget = process.env["E2E_API_TARGET"];
 export const localAcceptanceActor = "wang-yang";
 const localActorCookieName = "cofco_local_actor";
 const localActorPattern = /^[A-Za-z0-9._:@-]{1,120}$/u;
+const overviewAuditContractVersion = "overview-audit-v2";
+const overviewAuditFields = [
+  "formula",
+  "sourceRelation",
+  "dataCutoff",
+  "coverageScope",
+  "coverageStatus",
+  "calculationVersion",
+] as const;
+
+export function localLoopbackProxyTarget(
+  value: string | undefined,
+  fallback: string,
+) {
+  if (value === undefined || value.trim() === "") return fallback;
+  const target = new URL(value);
+  if (
+    target.protocol !== "http:" ||
+    target.hostname !== "127.0.0.1" ||
+    target.port === "" ||
+    target.username !== "" ||
+    target.password !== "" ||
+    target.pathname !== "/" ||
+    target.search !== "" ||
+    target.hash !== ""
+  ) {
+    throw new Error(
+      "Local acceptance proxy target must be an explicit numeric loopback HTTP origin",
+    );
+  }
+  return target.origin;
+}
 
 function rejectRemovedEntry(
   request: { url?: string },
@@ -74,7 +106,10 @@ export const localIdentitySwitchPlugin: Plugin = {
 };
 
 export const enterpriseApiProxy: ProxyOptions = {
-  target: "http://127.0.0.1:8090",
+  target: localLoopbackProxyTarget(
+    process.env["COFCO_ENTERPRISE_API_PROXY_TARGET"],
+    "http://127.0.0.1:8090",
+  ),
   changeOrigin: true,
   xfwd: true,
   configure(proxy) {
@@ -88,21 +123,111 @@ export const enterpriseApiProxy: ProxyOptions = {
   },
 };
 
+export async function verifyLocalOverviewContract(
+  fetchContract: typeof fetch = fetch,
+): Promise<void> {
+  if (typeof enterpriseApiProxy.target !== "string") {
+    throw new Error(
+      "CONTRACT_GATE_CONFIG: local enterprise API target is unavailable",
+    );
+  }
+  const endpoint = new URL(
+    "/api/v1/overview/indicators?productCode=CORN&regionCode=230200&year=2026",
+    enterpriseApiProxy.target,
+  );
+  const response = await fetchContract(endpoint, {
+    headers: { "X-Actor": localAcceptanceActor },
+  });
+  const traceId = response.headers.get("X-Trace-Id") ?? "missing";
+  if (!response.ok) {
+    throw new Error(
+      `CONTRACT_GATE_UNAVAILABLE endpoint=${endpoint.pathname} status=${response.status} trace=${traceId}`,
+    );
+  }
+  const payload: unknown = await response.json();
+  const record =
+    typeof payload === "object" && payload !== null
+      ? (payload as Record<string, unknown>)
+      : undefined;
+  if (record === undefined) {
+    throw new Error(
+      `CONTRACT_MISMATCH endpoint=${endpoint.pathname} expected=object received=${typeof payload} trace=${traceId}`,
+    );
+  }
+  const received = record["contractVersion"];
+  if (received !== overviewAuditContractVersion) {
+    throw new Error(
+      `CONTRACT_MISMATCH endpoint=${endpoint.pathname} expected=${overviewAuditContractVersion} received=${diagnosticValue(received)} trace=${traceId}`,
+    );
+  }
+  const data = record["data"];
+  if (!Array.isArray(data)) {
+    throw new Error(
+      `CONTRACT_MISMATCH endpoint=${endpoint.pathname} expected=data[] received=${typeof data} trace=${traceId}`,
+    );
+  }
+  data.forEach((indicator, index) => {
+    const missing = overviewAuditFields.filter(
+      (field) =>
+        typeof indicator !== "object" ||
+        indicator === null ||
+        !Object.prototype.hasOwnProperty.call(indicator, field),
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        `CONTRACT_MISMATCH endpoint=${endpoint.pathname} indicator=${index} missing=${missing.join(",")} trace=${traceId}`,
+      );
+    }
+  });
+}
+
+function diagnosticValue(value: unknown): string {
+  if (value === undefined || value === null) return "missing";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  if (typeof value === "bigint") return value.toString();
+  try {
+    return JSON.stringify(value) ?? typeof value;
+  } catch {
+    return typeof value;
+  }
+}
+
+export const localAcceptanceContractGatePlugin: Plugin = {
+  name: "cofco-local-overview-contract-gate",
+  async configureServer() {
+    if (process.env["VITEST"] === "true") return;
+    await verifyLocalOverviewContract();
+  },
+};
+
 export const overviewRendererProxy: ProxyOptions = {
-  target: "http://127.0.0.1:63200",
+  target: localLoopbackProxyTarget(
+    process.env["COFCO_OVERVIEW_RENDERER_PROXY_TARGET"],
+    "http://127.0.0.1:63200",
+  ),
   changeOrigin: true,
   ws: true,
 };
 
 export const overviewAssetProxy: ProxyOptions = {
-  target: "http://127.0.0.1:63200",
+  target: localLoopbackProxyTarget(
+    process.env["COFCO_OVERVIEW_RENDERER_PROXY_TARGET"],
+    "http://127.0.0.1:63200",
+  ),
   changeOrigin: true,
   rewrite: (path) =>
     path.replace(/^\/overview\//u, "/overview-monitoring/overview/"),
 };
 
 export default defineConfig({
-  plugins: [react(), canonicalEnterpriseEntryPlugin, localIdentitySwitchPlugin],
+  plugins: [
+    localAcceptanceContractGatePlugin,
+    react(),
+    canonicalEnterpriseEntryPlugin,
+    localIdentitySwitchPlugin,
+  ],
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "src"),

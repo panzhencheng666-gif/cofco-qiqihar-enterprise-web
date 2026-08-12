@@ -3,11 +3,35 @@ import {
   default as enterpriseConfig,
   canonicalEnterpriseEntryPlugin,
   enterpriseApiProxy,
+  localAcceptanceContractGatePlugin,
   localAcceptanceActor,
   localIdentitySwitchPlugin,
+  localLoopbackProxyTarget,
+  verifyLocalOverviewContract,
 } from "./vite.config";
 
 describe("enterprise local acceptance API proxy", () => {
+  it("allows only explicit numeric loopback origins for an isolated acceptance stack", () => {
+    expect(
+      localLoopbackProxyTarget(
+        "http://127.0.0.1:18090",
+        "http://127.0.0.1:8090",
+      ),
+    ).toBe("http://127.0.0.1:18090");
+    expect(() =>
+      localLoopbackProxyTarget(
+        "http://localhost:18090",
+        "http://127.0.0.1:8090",
+      ),
+    ).toThrow(/numeric loopback/);
+    expect(() =>
+      localLoopbackProxyTarget(
+        "http://127.0.0.1:18090/path",
+        "http://127.0.0.1:8090",
+      ),
+    ).toThrow(/numeric loopback/);
+  });
+
   it("rejects the removed alternate HTML entry instead of serving an SPA fallback", () => {
     expect(canonicalEnterpriseEntryPlugin.name).toBe(
       "cofco-canonical-enterprise-entry",
@@ -166,6 +190,36 @@ describe("enterprise local acceptance API proxy", () => {
     );
     expect(response.setHeader).toHaveBeenCalledWith("Location", "/");
     expect(response.end).toHaveBeenCalledOnce();
+  });
+
+  it("stops local acceptance when the backend still serves the legacy overview contract", async () => {
+    const fetchContract = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                code: "PRODUCTION_CULTIVATED_AREA",
+                name: "核定播种面积",
+                sourceCount: 1,
+                sourceDomain: "PRODUCTION",
+                sourcePath: "/api/v1/production-records",
+                unitCode: "亩",
+                value: "10",
+              },
+            ],
+          }),
+          { headers: { "X-Trace-Id": "trace-def-101" }, status: 200 },
+        ),
+      ),
+    );
+
+    await expect(verifyLocalOverviewContract(fetchContract)).rejects.toThrow(
+      /CONTRACT_MISMATCH.*trace-def-101/u,
+    );
+    expect(enterpriseConfig.plugins).toEqual(
+      expect.arrayContaining([localAcceptanceContractGatePlugin]),
+    );
   });
 });
 
