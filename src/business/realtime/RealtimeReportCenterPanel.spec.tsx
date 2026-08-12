@@ -267,8 +267,9 @@ describe("realtime report center", () => {
         repository={api}
       />,
     );
-    await screen.findByRole("heading", { name: "业务报告" });
-    await user.click(screen.getByRole("button", { name: "生成报告预览" }));
+    await user.click(
+      await screen.findByRole("button", { name: "生成报告预览" }),
+    );
     await screen.findByRole("heading", { name: "齐齐哈尔市玉米市场日报" });
     await user.click(screen.getByRole("button", { name: "导出当前报告" }));
     expect(screen.getByRole("button", { name: "正在导出……" })).toBeDisabled();
