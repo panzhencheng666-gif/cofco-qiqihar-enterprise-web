@@ -32,8 +32,7 @@ export function createLiveE2eProxy(
     configure(proxy) {
       proxy.on("proxyReq", (proxyRequest) => {
         proxyRequest.removeHeader("x-actor");
-        if (authMode === "fixed")
-          proxyRequest.setHeader("X-Actor", fixedActor);
+        if (authMode === "fixed") proxyRequest.setHeader("X-Actor", fixedActor);
       });
     },
   };
@@ -46,9 +45,7 @@ export function createLiveE2eConfig(
   if (authMode !== "fixed" && authMode !== "anonymous")
     throw new Error("LIVE_E2E_AUTH_MODE must be fixed or anonymous");
   const actor =
-    authMode === "fixed"
-      ? required(environment, "LIVE_E2E_ACTOR")
-      : undefined;
+    authMode === "fixed" ? required(environment, "LIVE_E2E_ACTOR") : undefined;
   const target = required(environment, "LIVE_E2E_API_TARGET");
 
   return {

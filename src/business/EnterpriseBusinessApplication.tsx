@@ -44,6 +44,10 @@ import {
 } from "./application/realtimeWorkItemProjection";
 import { realtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+import {
+  enterpriseLoginPath,
+  enterpriseLogoutPath,
+} from "@/platform/api/browserSession";
 import type {
   BusinessNotificationRow,
   CurrentSession,
@@ -312,21 +316,13 @@ export function EnterpriseBusinessApplication({
       requestedMode: environment["VITE_REALTIME_DATA_MODE"],
     });
   const realtimeMode = runtimeDataMode === "api";
-  const resolvedLoginUrl =
-    loginUrl ??
-    (typeof environment["VITE_LOGIN_URL"] === "string"
-      ? environment["VITE_LOGIN_URL"]
-      : undefined);
+  const resolvedLoginUrl = loginUrl ?? enterpriseLoginPath;
   const resolvedIdentityManagementUrl =
     identityManagementUrl ??
     (typeof environment["VITE_IDENTITY_MANAGEMENT_URL"] === "string"
       ? environment["VITE_IDENTITY_MANAGEMENT_URL"]
       : undefined);
-  const resolvedLogoutUrl =
-    logoutUrl ??
-    (typeof environment["VITE_LOGOUT_URL"] === "string"
-      ? environment["VITE_LOGOUT_URL"]
-      : undefined);
+  const resolvedLogoutUrl = logoutUrl ?? enterpriseLogoutPath;
   const [currentSession, setCurrentSession] = useState<CurrentSession | null>(
     null,
   );

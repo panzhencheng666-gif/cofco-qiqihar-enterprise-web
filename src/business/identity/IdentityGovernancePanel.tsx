@@ -10,6 +10,7 @@ import type {
   IdentityAssignmentOptions,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { csrfTokenFromCookies } from "@/platform/api/browserSession";
 
 type GovernanceView =
   "profile" | "organization" | "employees" | "reviews" | "audit";
@@ -671,7 +672,16 @@ export function IdentityGovernancePanel({
                       账号安全与登录设备由企业统一身份平台管理，当前入口尚未配置。
                     </small>
                   )}
-                  {logoutUrl && <a href={logoutUrl}>退出登录</a>}
+                  {logoutUrl && (
+                    <form action={logoutUrl} method="post">
+                      <input
+                        name="_csrf"
+                        type="hidden"
+                        value={csrfTokenFromCookies() ?? ""}
+                      />
+                      <button type="submit">退出登录</button>
+                    </form>
+                  )}
                 </div>
               </article>
             </section>

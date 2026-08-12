@@ -37,7 +37,7 @@ function approvedInputEnvironment(directory) {
     STAGE3_IDP_LOGIN_ENTRY_URI:
       "https://issuer.example.test/approved-tenant/authorize",
     STAGE3_IDP_REDIRECT_URI:
-      "https://idp-stage.example.test/login/oauth2/callback/enterprise",
+      "https://idp-stage.example.test/login/oauth2/code/enterprise",
     STAGE3_IDP_EMPLOYEE_A_STORAGE_STATE_FILE: employeeAState,
     STAGE3_IDP_EMPLOYEE_A_SUBJECT_SHA256: "a".repeat(64),
     STAGE3_IDP_EMPLOYEE_A_EXPECTED_ROLES: "BUSINESS_OPERATOR,BUSINESS_REVIEWER",
@@ -99,4 +99,29 @@ test("accepts only a replay-ready two-employee, four-role parameter set without 
   assert.equal(evidence.storageStateFilesOwnerOnly, true);
   assert.equal(evidenceText.includes("employee-a-state.json"), false);
   assert.equal(evidenceText.includes("a".repeat(64)), false);
+});
+
+test("rejects an IdP redirect that does not use the fixed enterprise callback path", () => {
+  const evidenceDirectory = mkdtempSync(join(tmpdir(), "stage3-idp-callback-"));
+  const result = spawnSync(
+    process.execPath,
+    [script, "--check-inputs-only", "--evidence-dir", evidenceDirectory],
+    {
+      encoding: "utf8",
+      env: {
+        ...approvedInputEnvironment(evidenceDirectory),
+        STAGE3_IDP_REDIRECT_URI:
+          "https://idp-stage.example.test/login/oauth2/callback/enterprise",
+      },
+    },
+  );
+
+  assert.equal(result.status, 2);
+  const evidence = JSON.parse(
+    readFileSync(join(evidenceDirectory, "idp-supplement-result.json"), "utf8"),
+  );
+  assert.equal(evidence.status, "BLOCKED_EXTERNAL");
+  assert.ok(
+    evidence.invalidInputs.includes("STAGE3_IDP_REDIRECT_URI_CALLBACK_PATH"),
+  );
 });

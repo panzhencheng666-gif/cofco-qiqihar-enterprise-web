@@ -13,7 +13,7 @@
     "preview:e2e": "vite preview --host 127.0.0.1 --port 63180 --strictPort",
     "build": "tsc -b && vite build",
     "budget": "node scripts/check-initial-bundle-budget.mjs",
-    "test": "vitest run",
+    "test": "vitest run && npm run stage3:idp-supplement:test",
     "test:watch": "vitest",
     "test:e2e": "npm run build && npm run budget && npm run test:e2e:preview",
     "test:e2e:preview": "node scripts/run-playwright.mjs",
@@ -27,6 +27,7 @@
     "stage3:acceptance": "node scripts/run-stage-three-acceptance.mjs",
     "stage3:console-proof": "node scripts/verify-chromium-http-console-semantics.mjs",
     "stage3:idp-supplement": "node scripts/run-stage-three-idp-supplement.mjs",
+    "stage3:idp-supplement:test": "node --test scripts/run-stage-three-idp-supplement.spec.mjs",
     "verify": "npm run format:check && npm run lint && npm run architecture && npm run stage1:inventory:check && npm run test && npm run build && npm run budget && npm run test:e2e:preview"
   },
   "dependencies": {

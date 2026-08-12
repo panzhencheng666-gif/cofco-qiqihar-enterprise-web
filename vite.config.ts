@@ -76,6 +76,7 @@ export const localIdentitySwitchPlugin: Plugin = {
 export const enterpriseApiProxy: ProxyOptions = {
   target: "http://127.0.0.1:8090",
   changeOrigin: true,
+  xfwd: true,
   configure(proxy) {
     proxy.on("proxyReq", (proxyRequest, request) => {
       proxyRequest.removeHeader("x-actor");
@@ -119,6 +120,9 @@ export default defineConfig({
     allowedHosts: ["all"],
     proxy: {
       "/api": enterpriseApiProxy,
+      "/oauth2": enterpriseApiProxy,
+      "/login/oauth2": enterpriseApiProxy,
+      "/logout/connect/back-channel": enterpriseApiProxy,
       "/overview-monitoring": overviewRendererProxy,
       "^/overview/": overviewAssetProxy,
     },
@@ -138,7 +142,12 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/vitest.setup.ts"],
-    exclude: [...configDefaults.exclude, "e2e/**", ".worktrees/**"],
+    exclude: [
+      ...configDefaults.exclude,
+      "e2e/**",
+      ".worktrees/**",
+      "scripts/run-stage-three-idp-supplement.spec.mjs",
+    ],
     restoreMocks: true,
     clearMocks: true,
     coverage: {

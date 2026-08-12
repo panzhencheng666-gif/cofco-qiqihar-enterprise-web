@@ -106,6 +106,9 @@ const redirectUri = approvedHttpsUri("STAGE3_IDP_REDIRECT_URI");
 if (baseUrl && redirectUri && baseUrl.origin !== redirectUri.origin) {
   invalidInputs.push("STAGE3_IDP_REDIRECT_URI_SAME_ORIGIN");
 }
+if (redirectUri?.pathname !== "/login/oauth2/code/enterprise") {
+  invalidInputs.push("STAGE3_IDP_REDIRECT_URI_CALLBACK_PATH");
+}
 
 const storageStateFiles = [
   resolve(process.env.STAGE3_IDP_EMPLOYEE_A_STORAGE_STATE_FILE),

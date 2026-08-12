@@ -135,17 +135,14 @@ test("reconciles one approved source identity across list, work, notification, o
     (await definitions.json()) as { data: Array<{ code: string }> }
   ).data[0]?.code;
   expect(indicatorCode).toBeTruthy();
-  const comparison = await request.get(
-    "/api/v1/overview/annual-comparisons",
-    {
-      params: {
-        productCode: "RICE",
-        regionCode: "230208101001",
-        surveyYear: 2026,
-        indicatorCode: indicatorCode ?? "",
-      },
+  const comparison = await request.get("/api/v1/overview/annual-comparisons", {
+    params: {
+      productCode: "RICE",
+      regionCode: "230208101001",
+      surveyYear: 2026,
+      indicatorCode: indicatorCode ?? "",
     },
-  );
+  });
   expect(comparison.status()).toBe(200);
   expect(await comparison.json()).toMatchObject({
     data: {
@@ -209,7 +206,9 @@ test("reconciles one approved source identity across list, work, notification, o
   await page.goto("/#/经营总览/风险关注");
   await expect(page.getByRole("main")).toContainText("粮食商情经营总览");
   await page.goto("/#/供需分析/供需平衡");
-  await expect(page.getByRole("heading", { name: "实时供需平衡" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "实时供需平衡" }),
+  ).toBeVisible();
   await reporterPage.goto(
     `${liveBrowserAccounts.reporter.url}/#/产情监测/产情分析`,
   );
@@ -219,7 +218,9 @@ test("reconciles one approved source identity across list, work, notification, o
   await reporterPage.goto(
     `${liveBrowserAccounts.reporter.url}/#/报表中心/业务报告`,
   );
-  await expect(reporterPage.getByRole("heading", { name: "业务报告" })).toBeVisible();
+  await expect(
+    reporterPage.getByRole("heading", { name: "业务报告" }),
+  ).toBeVisible();
   reporterErrors.assertClean();
   await reporterContext.close();
 });

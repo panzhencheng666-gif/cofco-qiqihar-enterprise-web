@@ -43,11 +43,8 @@ export default defineConfig({
       command: `npm run preview -- --config vite.live-e2e.config.ts --host 127.0.0.1 --port ${preview.port} --strictPort`,
       url: `http://127.0.0.1:${preview.port}`,
       env: {
-        ...("actor" in preview
-          ? { LIVE_E2E_ACTOR: preview.actor }
-          : {}),
-        LIVE_E2E_AUTH_MODE:
-          "authMode" in preview ? preview.authMode : "fixed",
+        ...("actor" in preview ? { LIVE_E2E_ACTOR: preview.actor } : {}),
+        LIVE_E2E_AUTH_MODE: "authMode" in preview ? preview.authMode : "fixed",
         LIVE_E2E_API_TARGET: preview.target,
       },
       reuseExistingServer: false,

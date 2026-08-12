@@ -1,7 +1,10 @@
+import { csrfTokenFromCookies } from "./browserSession";
+
 export interface RealtimeApiClientOptions {
   baseUrl?: string;
   fetcher?: typeof fetch;
   timeoutMs?: number;
+  cookieSource?: () => string;
 }
 
 export interface ApiErrorShape {
@@ -57,9 +60,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function runtimeBaseUrl(): string {
-  const configured = import.meta.env.VITE_API_BASE_URL?.trim();
-  if (configured) return configured.replace(/\/$/u, "");
-  if (typeof window === "undefined") return "";
   return "";
 }
 
@@ -79,12 +79,12 @@ function queryString(
   return serialized ? `?${serialized}` : "";
 }
 
-function withoutActorHeader(
+function withoutBrowserIdentityHeaders(
   headers: Readonly<Record<string, string>>,
 ): Record<string, string> {
   return Object.fromEntries(
     Object.entries(headers).filter(
-      ([name]) => name.toLowerCase() !== "x-actor",
+      ([name]) => !["x-actor", "authorization"].includes(name.toLowerCase()),
     ),
   );
 }
@@ -135,6 +135,15 @@ export function createRealtimeApiClient(
   const fetcher = options.fetcher ?? fetch;
   const baseUrl = (options.baseUrl ?? runtimeBaseUrl()).replace(/\/$/u, "");
   const timeoutMs = options.timeoutMs ?? 15_000;
+  const cookieSource =
+    options.cookieSource ??
+    (() => (typeof document === "undefined" ? "" : document.cookie));
+
+  function csrfHeaders(method: "GET" | "POST" | "PUT"): Record<string, string> {
+    if (method === "GET") return {};
+    const token = csrfTokenFromCookies(cookieSource());
+    return token ? { "X-XSRF-TOKEN": token } : {};
+  }
 
   async function request<T>(
     method: "GET" | "POST" | "PUT",
@@ -156,6 +165,7 @@ export function createRealtimeApiClient(
             ...(body === undefined
               ? {}
               : { "Content-Type": "application/json" }),
+            ...csrfHeaders(method),
             "X-Client": "qiqihar-enterprise-web",
           },
           ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -207,7 +217,8 @@ export function createRealtimeApiClient(
         signal: controller.signal,
         headers: {
           Accept: "application/json",
-          ...withoutActorHeader(extraHeaders),
+          ...withoutBrowserIdentityHeaders(extraHeaders),
+          ...csrfHeaders("POST"),
           "X-Client": "qiqihar-enterprise-web",
         },
         body: form,

@@ -275,9 +275,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
 
-    await screen.findByRole("button", { name: "作废记录" }).then((button) =>
-      fireEvent.click(button),
-    );
+    await screen
+      .findByRole("button", { name: "作废记录" })
+      .then((button) => fireEvent.click(button));
     expect(transitionProduction).toHaveBeenCalledWith(
       draft.id,
       "void",

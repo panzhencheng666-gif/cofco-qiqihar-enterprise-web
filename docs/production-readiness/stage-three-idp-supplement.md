@@ -16,6 +16,8 @@ subject, display name, storage-state path, cookie, token, password, or secret.
 The union of the two expected role lists must contain at least four role codes.
 `STAGE3_IDP_CLIENT_SECRET` is deliberately unsupported: credentials remain in
 the enterprise login flow and must never be placed in this parameter manifest.
+The approved redirect must use the same origin as the application and the fixed
+Spring OIDC callback path `/login/oauth2/code/enterprise`.
 
 ## Parameter gate
 

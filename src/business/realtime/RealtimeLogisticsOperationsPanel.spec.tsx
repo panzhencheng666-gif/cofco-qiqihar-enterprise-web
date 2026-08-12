@@ -169,9 +169,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       />,
     );
 
-    await user.click(
-      await screen.findByRole("button", { name: "作废记录" }),
-    );
+    await user.click(await screen.findByRole("button", { name: "作废记录" }));
     expect(transitionLogistics).toHaveBeenCalledWith(
       draft.id,
       "void",

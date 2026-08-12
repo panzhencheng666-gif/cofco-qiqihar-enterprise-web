@@ -228,9 +228,7 @@ export function RealtimeLogisticsOperationsPanel({
     }
   }
 
-  async function transition(
-    action: "submit" | "approve" | "return" | "void",
-  ) {
+  async function transition(action: "submit" | "approve" | "return" | "void") {
     if (!selected) return;
     if (
       (action === "approve" && !permissions.includes("BUSINESS_APPROVE")) ||

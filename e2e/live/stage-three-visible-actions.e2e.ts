@@ -27,16 +27,19 @@ test("maps every visible runtime action on all formal routes to current evidence
       await expect(main).toContainText(expectedContent, { timeout: 10_000 });
 
       const controls = await page
-        .locator("a:visible, button:visible, input:visible, select:visible, textarea:visible")
+        .locator(
+          "a:visible, button:visible, input:visible, select:visible, textarea:visible",
+        )
         .evaluateAll((elements): BrowserControl[] =>
           elements.map((element) => {
             const input = element as HTMLInputElement;
-            const labels = "labels" in input
-              ? Array.from(input.labels ?? [])
-                  .map((label) => label.textContent?.trim() ?? "")
-                  .filter(Boolean)
-                  .join(" ")
-              : "";
+            const labels =
+              "labels" in input
+                ? Array.from(input.labels ?? [])
+                    .map((label) => label.textContent?.trim() ?? "")
+                    .filter(Boolean)
+                    .join(" ")
+                : "";
             const controlName =
               element.getAttribute("aria-label")?.trim() ||
               element.getAttribute("title")?.trim() ||
@@ -50,7 +53,8 @@ test("maps every visible runtime action on all formal routes to current evidence
               controlType: element.tagName.toLowerCase(),
               enabled:
                 !("disabled" in input) ||
-                (!input.disabled && element.getAttribute("aria-disabled") !== "true"),
+                (!input.disabled &&
+                  element.getAttribute("aria-disabled") !== "true"),
               outerHtml: element.outerHTML.slice(0, 500),
             };
           }),

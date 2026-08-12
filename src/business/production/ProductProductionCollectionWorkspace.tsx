@@ -936,13 +936,18 @@ export function ProductProductionCollectionWorkspace({
             }}
           >
             <option value="">全部状态</option>
-            {["填写中", "退回待补充", "审核退回", "待审核", "已核定", "已作废"].map(
-              (label) => (
-                <option key={label} value={label}>
-                  {label}
-                </option>
-              ),
-            )}
+            {[
+              "填写中",
+              "退回待补充",
+              "审核退回",
+              "待审核",
+              "已核定",
+              "已作废",
+            ].map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
           </select>
         </label>
         <div className="enterprise-ledger-query__actions">

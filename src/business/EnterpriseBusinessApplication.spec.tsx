@@ -89,7 +89,6 @@ describe("formal enterprise prototype", () => {
     render(
       <RuntimeEnterpriseBusinessApplication
         dataMode="api"
-        loginUrl="/oauth2/authorization/enterprise"
         repository={repository}
       />,
     );
@@ -99,7 +98,7 @@ describe("formal enterprise prototype", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("link", { name: "进入统一身份认证" }),
-    ).toHaveAttribute("href", "/oauth2/authorization/enterprise");
+    ).toHaveAttribute("href", "/api/v1/session/login");
     expect(screen.queryByText("产情监测")).not.toBeInTheDocument();
     expect(loadMasterData).not.toHaveBeenCalled();
     expect(listWorkItems).not.toHaveBeenCalled();

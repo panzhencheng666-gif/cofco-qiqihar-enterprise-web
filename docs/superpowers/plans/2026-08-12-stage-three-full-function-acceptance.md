@@ -23,6 +23,7 @@
 ### Task 1: Stage-Three HTTP and Database Boundary
 
 **Files:**
+
 - Modify: `vite.live-e2e.config.ts`
 - Modify: `vite.live-e2e.config.spec.ts`
 - Modify: `playwright.live.config.ts`
@@ -31,6 +32,7 @@
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces fixed local previews for two operators, reviewer, reporter, publisher, outside-region operator, anonymous session, and unavailable backend.
 - Produces a stage-three runner that records database names before and after Playwright and fails unless `qiqihar_enterprise_e2e` is absent after teardown.
 
@@ -44,6 +46,7 @@
 ### Task 2: Three-Domain Void Terminal State
 
 **Files:**
+
 - Create: Backend `src/main/resources/db/migration/V99__add_voided_business_record_state.sql`
 - Modify: Backend production, market, and logistics status/domain/action-policy/service/controller/repository projection files.
 - Modify: Backend production, market, logistics domain and REST integration tests.
@@ -52,6 +55,7 @@
 - Create: `e2e/live/stage-three-void.e2e.ts`
 
 **Interfaces:**
+
 - Adds `POST /api/v1/{production|market|logistics}-records/{id}/void` with optimistic version input.
 - Allows a locally authorized business-update operator to void only `DRAFT` or `RETURNED`; `VOIDED` is terminal, read-only, excluded from actionable work, and recorded in audit/outbox. Creator ownership is deliberately not asserted because that identity rule belongs to stage four.
 
@@ -68,11 +72,13 @@
 ### Task 3: Runtime Menu, Visible-Action, and Failure Matrix
 
 **Files:**
+
 - Create: `e2e/live/stage-three-contract.ts`
 - Create: `e2e/live/stage-three-visible-actions.e2e.ts`
 - Create: `e2e/live/stage-three-failure-modes.e2e.ts`
 
 **Interfaces:**
+
 - Consumes the 28 formal routes and current runtime controls.
 - Produces one machine-readable row per visible control with route, role, control name, enabled state, evidence scenario, and status.
 
@@ -85,10 +91,12 @@
 ### Task 4: Post-Commit Consumer Reconciliation
 
 **Files:**
+
 - Create: `e2e/live/stage-three-consumers.e2e.ts`
 - Reuse without weakening: existing production, market, logistics, XLSX, notification, overview, analysis, supply, and report live tests.
 
 **Interfaces:**
+
 - Uses one `S3C-20260812-` approved dataset and proves its database row/audit/outbox identity reaches every required consumer.
 
 - [ ] Create manual and XLSX records in production, market, and logistics using the namespace.
@@ -99,11 +107,13 @@
 ### Task 5: Evidence, Cleanup, and Handoff
 
 **Files:**
+
 - Create permanent evidence directory under the ledger `evidence/` tree.
 - Modify permanent ledger `2026-08-11-compressed-go-live-execution-order.md`.
 - Create evidence `SUMMARY.md`, `MATRIX.md`, `VERIFICATION.md`, `DATABASE-DIFF.md`, `VISIBLE-ACTIONS.json`, and `HANDOFF.md`.
 
 **Interfaces:**
+
 - Produces conservative `PASS / FAIL / BLOCKED_EXTERNAL / NOT_EVIDENCED` rows for S3-1 through S3-4 and records exact candidate SHAs.
 
 - [ ] Run the stage-three acceptance command once from a clean candidate and immediately collect its result.

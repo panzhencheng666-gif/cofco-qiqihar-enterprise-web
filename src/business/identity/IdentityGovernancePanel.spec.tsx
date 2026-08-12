@@ -190,12 +190,13 @@ describe("IdentityGovernancePanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("links account security, login devices and logout to the enterprise identity provider", () => {
+  it("links account security and posts logout with the server CSRF token", () => {
+    document.cookie = "XSRF-TOKEN=csrf%20logout";
     render(
       <IdentityGovernancePanel
         identityManagementUrl="/identity/account"
         initialView="profile"
-        logoutUrl="/identity/logout"
+        logoutUrl="/api/v1/session/logout"
         onClose={vi.fn()}
         repository={repository() as unknown as RealtimeBusinessRepository}
         session={session}
@@ -205,9 +206,12 @@ describe("IdentityGovernancePanel", () => {
     expect(
       screen.getByRole("link", { name: "账号安全与登录设备" }),
     ).toHaveAttribute("href", "/identity/account");
-    expect(screen.getByRole("link", { name: "退出登录" })).toHaveAttribute(
-      "href",
-      "/identity/logout",
+    const button = screen.getByRole("button", { name: "退出登录" });
+    const form = button.closest("form");
+    expect(form).toHaveAttribute("method", "post");
+    expect(form).toHaveAttribute("action", "/api/v1/session/logout");
+    expect(form?.querySelector('input[name="_csrf"]')).toHaveValue(
+      "csrf logout",
     );
   });
 

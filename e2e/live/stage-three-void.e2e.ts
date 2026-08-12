@@ -106,16 +106,20 @@ async function createDrafts(request: APIRequestContext) {
   expect(logistics.status()).toBe(201);
 
   const body = async (response: typeof production) =>
-    ((await response.json()) as {
-      data: { id: string; allowedActions: readonly string[] };
-    }).data;
+    (
+      (await response.json()) as {
+        data: { id: string; allowedActions: readonly string[] };
+      }
+    ).data;
   const created = {
     production: await body(production),
     market: await body(market),
     logistics: await body(logistics),
   };
   for (const [domain, record] of Object.entries(created)) {
-    expect(record.allowedActions, `${domain} create response`).toContain("VOID");
+    expect(record.allowedActions, `${domain} create response`).toContain(
+      "VOID",
+    );
     const detail = await request.get(
       `/api/v1/${domain === "production" ? "production-records" : domain === "market" ? "market-records" : "logistics-records"}/${record.id}`,
     );
@@ -123,9 +127,10 @@ async function createDrafts(request: APIRequestContext) {
     const detailBody = (await detail.json()) as {
       data: { allowedActions: readonly string[] };
     };
-    expect(detailBody.data.allowedActions, `${domain} detail response`).toContain(
-      "VOID",
-    );
+    expect(
+      detailBody.data.allowedActions,
+      `${domain} detail response`,
+    ).toContain("VOID");
   }
   return {
     productionId: created.production.id,
@@ -199,9 +204,7 @@ test("voids production, market, and logistics drafts through Chromium and persis
   await expect(
     logistics.getByRole("button", { name: "保存物流记录" }),
   ).toHaveCount(0);
-  await logistics
-    .getByRole("button", { name: "关闭补充物流监测填报" })
-    .click();
+  await logistics.getByRole("button", { name: "关闭补充物流监测填报" }).click();
 
   for (const [table, id] of [
     ["production.production_record", ids.productionId],

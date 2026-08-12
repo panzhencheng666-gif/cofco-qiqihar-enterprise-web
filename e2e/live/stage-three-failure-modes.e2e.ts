@@ -155,7 +155,11 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
     ).status(),
   ).toBe(200);
   matrix.push({ scenario: "EMPTY_SCOPED_DATA", http: 200, status: "PASS" });
-  matrix.push({ scenario: "OUTSIDE_REGION_PERMISSION", http: 403, status: "PASS" });
+  matrix.push({
+    scenario: "OUTSIDE_REGION_PERMISSION",
+    http: 403,
+    status: "PASS",
+  });
 
   await page.goto("/#/产情监测/玉米产情填报");
   await page.getByRole("button", { name: "新建调查记录" }).click();
@@ -188,15 +192,13 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
       response.request().method() === "POST" &&
       response.url().includes("/api/v1/imports/production?"),
   );
-  await page
-    .getByLabel("批量导入产情记录")
-    .setInputFiles(invalidWorkbook.path);
+  await page.getByLabel("批量导入产情记录").setInputFiles(invalidWorkbook.path);
   const importResponse = await importResponsePromise;
   expect(importResponse.status()).toBe(201);
   const importJob = (await importResponse.json()) as { data: { id: string } };
-  await expect(
-    page.getByText(/导入完成：成功 0 条，失败 1 条/u),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/导入完成：成功 0 条，失败 1 条/u)).toBeVisible({
+    timeout: 15_000,
+  });
   const errorDownloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "下载错误清单" }).click();
   const errorDownload = await errorDownloadEvent;

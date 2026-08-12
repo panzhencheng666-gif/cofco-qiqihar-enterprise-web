@@ -39,6 +39,7 @@ describe("realtime API client", () => {
     const client = createRealtimeApiClient({
       baseUrl: "",
       fetcher,
+      cookieSource: () => "XSRF-TOKEN=csrf-token-1",
     });
 
     await client.post("/api/v1/production-records", { sample: true });
@@ -46,24 +47,32 @@ describe("realtime API client", () => {
     const [url, init] = fetcher.mock.calls[0] ?? [];
     expect(url).toBe("/api/v1/production-records");
     expect(new Headers(init?.headers).has("X-Actor")).toBe(false);
+    expect(new Headers(init?.headers).get("X-XSRF-TOKEN")).toBe("csrf-token-1");
   });
 
-  it("strips an actor identity from upload extension headers", async () => {
+  it("strips browser identity headers and adds CSRF to uploads", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
       .mockResolvedValue(
         new Response(JSON.stringify({ data: { ok: true } }), { status: 200 }),
       );
-    const client = createRealtimeApiClient({ baseUrl: "", fetcher });
+    const client = createRealtimeApiClient({
+      baseUrl: "",
+      fetcher,
+      cookieSource: () => "other=value; XSRF-TOKEN=csrf%20token",
+    });
 
     await client.upload("/api/v1/imports/production", new FormData(), {
       "X-Actor": "browser-asserted-user",
+      Authorization: "Bearer browser-asserted-token",
       "Idempotency-Key": "request-1",
     });
 
     const [, init] = fetcher.mock.calls[0] ?? [];
     const headers = new Headers(init?.headers);
     expect(headers.has("X-Actor")).toBe(false);
+    expect(headers.has("Authorization")).toBe(false);
+    expect(headers.get("X-XSRF-TOKEN")).toBe("csrf token");
     expect(headers.get("Idempotency-Key")).toBe("request-1");
   });
 

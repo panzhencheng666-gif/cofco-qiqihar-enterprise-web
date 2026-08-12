@@ -1,4 +1,5 @@
 import { realtimeApiClient, type RealtimeApiClient } from "./realtimeApiClient";
+import { enterpriseSessionPath } from "./browserSession";
 
 export interface MasterProduct {
   code: string;
@@ -950,16 +951,12 @@ export function createRealtimeBusinessRepository(
   client: RealtimeApiClient = realtimeApiClient,
   options: RealtimeBusinessRepositoryOptions = {},
 ): RealtimeBusinessRepository {
-  const streamBaseUrl = (
-    options.eventStreamBaseUrl ??
-    import.meta.env.VITE_API_BASE_URL ??
-    ""
-  ).replace(/\/$/u, "");
+  const streamBaseUrl = (options.eventStreamBaseUrl ?? "").replace(/\/$/u, "");
   const eventSourceFactory =
     options.eventSourceFactory ??
     ((url: string) => new EventSource(url, { withCredentials: true }));
   return {
-    loadCurrentSession: () => client.get<CurrentSession>("/api/v1/session/me"),
+    loadCurrentSession: () => client.get<CurrentSession>(enterpriseSessionPath),
     listEmployees: () =>
       client.get<readonly EmployeeProfile[]>("/api/v1/identity/employees"),
     loadAssignmentOptions: (workUnitCode) =>
