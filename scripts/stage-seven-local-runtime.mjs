@@ -1,4 +1,9 @@
+import { lstat, realpath, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, dirname, isAbsolute } from "node:path";
+
 const databasePattern = /^qiqihar_stage7_[0-9a-f]{12}$/u;
+const runtimeDirectoryPattern = /^cofco-stage7-[A-Za-z0-9_-]{6,}$/u;
 const sensitiveKey =
   /(password|secret|token|cookie|credential|access.?key|session.?state)/iu;
 
@@ -44,6 +49,29 @@ export async function runCleanupSteps(steps) {
   if (failures.length > 0) {
     throw new AggregateError(failures, "Stage 7 cleanup failed");
   }
+}
+
+export async function removeExactStageSevenRuntimeDirectory(path) {
+  if (
+    typeof path !== "string" ||
+    !isAbsolute(path) ||
+    !runtimeDirectoryPattern.test(basename(path))
+  ) {
+    throw new Error("Expected an exact Stage 7 runtime directory");
+  }
+  const [parent, temporaryRoot, metadata] = await Promise.all([
+    realpath(dirname(path)),
+    realpath(tmpdir()),
+    lstat(path),
+  ]);
+  if (
+    parent !== temporaryRoot ||
+    !metadata.isDirectory() ||
+    metadata.isSymbolicLink()
+  ) {
+    throw new Error("Refusing to remove a non-isolated Stage 7 runtime path");
+  }
+  await rm(path, { recursive: true, force: true });
 }
 
 function successful(byWorkload, code) {

@@ -43,18 +43,51 @@ const requiredScenarios = [
   "private-content-store-interruption",
 ];
 
+const independentCorrectnessScenarios = [
+  "duplicate-click-idempotency",
+  "client-retry-idempotency",
+  "concurrent-edit",
+  "optimistic-lock",
+  "no-silent-overwrite",
+  "no-duplicate-business-effect",
+];
+
 const cloudInputKeys = [
   "backendCommit",
   "frontendCommit",
   "webCommit",
+  "profileSha256",
   "topologyEvidenceSha256",
   "capacityApprovalSha256",
+  "faultControlApprovalSha256",
+  "environmentName",
+  "cloudProvider",
+  "regionId",
+  "ecsInstanceId",
+  "vpcId",
+  "vswitchId",
   "rdsResourceId",
   "ossBucket",
   "ossEndpoint",
+  "workloadControlEndpoint",
   "monitoringEndpoint",
-  "faultControlApprovalSha256",
+  "faultControlEndpoint",
+  "candidateManifestPath",
+  "backendImage",
+  "businessImage",
+  "overviewImage",
+  "gatewayImage",
+  "prometheusImage",
+  "blackboxImage",
+  "alertmanagerImage",
 ];
+
+const commitPattern = /^[a-f0-9]{40}$/u;
+const sha256Pattern = /^[a-f0-9]{64}$/u;
+const regionPattern = /^cn-[a-z]+(?:-[a-z]+)*$/u;
+const immutableImagePattern = /^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$/u;
+const uuidPattern =
+  /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u;
 
 const sensitiveKey =
   /(password|secret|token|cookie|credential|access.?key|session.?state)/iu;
@@ -66,6 +99,45 @@ export class StageSevenAdmissionError extends Error {
     this.exitCode = 2;
     this.code = "BLOCKED_EXTERNAL(EXT-005)";
   }
+}
+
+function blockAdmission(message) {
+  throw new StageSevenAdmissionError(message);
+}
+
+function requirePattern(inputs, key, pattern, message = key) {
+  if (!pattern.test(inputs[key])) {
+    blockAdmission(`${message} is invalid`);
+  }
+}
+
+function approvedHttpsOrigin(value, label) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    blockAdmission(`${label} is invalid`);
+  }
+  const hostname = url.hostname.toLowerCase();
+  if (
+    url.protocol !== "https:" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    (url.port !== "" && url.port !== "443") ||
+    !["", "/"].includes(url.pathname) ||
+    url.search !== "" ||
+    url.hash !== "" ||
+    !hostname.includes(".") ||
+    ["localhost", "127.0.0.1", "::1"].includes(hostname) ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") ||
+    hostname.endsWith(".invalid") ||
+    hostname.endsWith(".test") ||
+    hostname.endsWith(".example")
+  ) {
+    blockAdmission(`${label} must be an approved public HTTPS origin`);
+  }
+  return url.origin;
 }
 
 export function validateProfile(input) {
@@ -204,7 +276,7 @@ export function evaluateScenario(metrics, rawProfile) {
   };
 }
 
-export function admitRun(request) {
+export function admitRun(request, expected = {}) {
   if (request?.mode === "local") {
     return {
       mode: "local",
@@ -215,20 +287,12 @@ export function admitRun(request) {
   if (request?.mode !== "preproduction") {
     throw new Error("Stage 7 mode must be local or preproduction");
   }
-  let url;
-  try {
-    url = new URL(request.baseUrl);
-  } catch {
+  if (typeof request.baseUrl !== "string" || request.baseUrl.trim() === "") {
     throw new StageSevenAdmissionError("approved HTTPS base URL is missing");
   }
-  if (
-    url.protocol !== "https:" ||
-    ["localhost", "127.0.0.1", "::1"].includes(url.hostname) ||
-    request.productionEquivalent !== true
-  ) {
-    throw new StageSevenAdmissionError(
-      "loopback, non-HTTPS, or unapproved production-equivalent target",
-    );
+  const baseUrl = approvedHttpsOrigin(request.baseUrl, "base URL");
+  if (request.productionEquivalent !== true) {
+    blockAdmission("production-equivalent approval is missing");
   }
   const missing = cloudInputKeys.filter(
     (key) =>
@@ -240,16 +304,195 @@ export function admitRun(request) {
       `required production-equivalent inputs are missing: ${missing.join(",")}`,
     );
   }
+  const inputs = request.inputs;
+  for (const key of ["backendCommit", "frontendCommit", "webCommit"]) {
+    requirePattern(inputs, key, commitPattern, `${key} candidate commit`);
+  }
+  for (const key of [
+    "profileSha256",
+    "topologyEvidenceSha256",
+    "capacityApprovalSha256",
+    "faultControlApprovalSha256",
+  ]) {
+    requirePattern(inputs, key, sha256Pattern, `${key} digest`);
+  }
+  if (
+    !expected.candidates ||
+    !["backend", "frontend", "web"].every((repository) =>
+      commitPattern.test(expected.candidates[repository]),
+    ) ||
+    !sha256Pattern.test(expected.profileSha256 ?? "")
+  ) {
+    blockAdmission("candidate commit and profile digest binding is missing");
+  }
+  if (
+    inputs.backendCommit !== expected.candidates.backend ||
+    inputs.frontendCommit !== expected.candidates.frontend ||
+    inputs.webCommit !== expected.candidates.web ||
+    inputs.profileSha256 !== expected.profileSha256
+  ) {
+    blockAdmission("candidate commit binding or profile digest does not match");
+  }
+  if (
+    inputs.environmentName !== "preproduction" ||
+    inputs.cloudProvider !== "ALIBABA_CLOUD"
+  ) {
+    blockAdmission("approved preproduction topology is invalid");
+  }
+  requirePattern(inputs, "regionId", regionPattern, "Alibaba Cloud region");
+  requirePattern(inputs, "ecsInstanceId", /^i-[A-Za-z0-9]{8,64}$/u);
+  requirePattern(inputs, "vpcId", /^vpc-[A-Za-z0-9]{8,64}$/u);
+  requirePattern(inputs, "vswitchId", /^vsw-[A-Za-z0-9]{8,64}$/u);
+  requirePattern(inputs, "rdsResourceId", /^rm-[A-Za-z0-9]{8,64}$/u);
+  requirePattern(inputs, "ossBucket", /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/u);
+  const expectedOssEndpoint = `https://oss-${inputs.regionId}-internal.aliyuncs.com`;
+  if (inputs.ossEndpoint !== expectedOssEndpoint) {
+    blockAdmission("private OSS endpoint is not bound to the approved region");
+  }
+  const monitoringEndpoint = approvedHttpsOrigin(
+    inputs.monitoringEndpoint,
+    "monitoring endpoint",
+  );
+  const workloadControlEndpoint = approvedHttpsOrigin(
+    inputs.workloadControlEndpoint,
+    "workload-control endpoint",
+  );
+  const faultControlEndpoint = approvedHttpsOrigin(
+    inputs.faultControlEndpoint,
+    "fault-control endpoint",
+  );
+  if (
+    !/^\/api\/[A-Za-z0-9/_-]+$/u.test(inputs.candidateManifestPath) ||
+    inputs.candidateManifestPath.includes("//") ||
+    inputs.candidateManifestPath.includes("..")
+  ) {
+    blockAdmission("candidate manifest path is invalid");
+  }
+  const artifactKeys = [
+    "backendImage",
+    "businessImage",
+    "overviewImage",
+    "gatewayImage",
+    "prometheusImage",
+    "blackboxImage",
+    "alertmanagerImage",
+  ];
+  for (const key of artifactKeys) {
+    requirePattern(inputs, key, immutableImagePattern, `${key} digest`);
+  }
   return {
     mode: "preproduction",
     provenance: "PREPRODUCTION_EQUIVALENT",
     productionEquivalent: true,
-    baseUrl: url.origin,
+    baseUrl,
     candidate: {
       backend: request.inputs.backendCommit,
       frontend: request.inputs.frontendCommit,
       web: request.inputs.webCommit,
     },
+    profileSha256: inputs.profileSha256,
+    approvalEvidence: {
+      topology: inputs.topologyEvidenceSha256,
+      capacity: inputs.capacityApprovalSha256,
+      faultControl: inputs.faultControlApprovalSha256,
+    },
+    topology: {
+      environmentName: inputs.environmentName,
+      cloudProvider: inputs.cloudProvider,
+      regionId: inputs.regionId,
+      ecsInstanceId: inputs.ecsInstanceId,
+      vpcId: inputs.vpcId,
+      vswitchId: inputs.vswitchId,
+      rdsResourceId: inputs.rdsResourceId,
+      ossBucket: inputs.ossBucket,
+      ossEndpoint: inputs.ossEndpoint,
+      workloadControlEndpoint,
+      monitoringEndpoint,
+      faultControlEndpoint,
+      candidateManifestPath: inputs.candidateManifestPath,
+    },
+    artifacts: Object.fromEntries(
+      artifactKeys.map((key) => [key.replace(/Image$/u, ""), inputs[key]]),
+    ),
+  };
+}
+
+export function buildPreproductionReplayPlan(admission, rawProfile) {
+  const profile = validateProfile(rawProfile);
+  if (
+    admission?.provenance !== "PREPRODUCTION_EQUIVALENT" ||
+    admission.productionEquivalent !== true ||
+    !commitPattern.test(admission.candidate?.backend ?? "") ||
+    !commitPattern.test(admission.candidate?.frontend ?? "") ||
+    !commitPattern.test(admission.candidate?.web ?? "") ||
+    !sha256Pattern.test(admission.profileSha256 ?? "") ||
+    !admission.topology ||
+    !admission.artifacts
+  ) {
+    throw new Error("Invalid admitted Stage 7 preproduction replay");
+  }
+  return {
+    schemaVersion: "cofco-stage7-preproduction-replay-v1",
+    mode: "preproduction",
+    provenance: admission.provenance,
+    productionEquivalent: true,
+    candidate: structuredClone(admission.candidate),
+    profileSha256: admission.profileSha256,
+    target: {
+      baseUrl: admission.baseUrl,
+      candidateManifestUrl: new URL(
+        admission.topology.candidateManifestPath,
+        admission.baseUrl,
+      ).href,
+      rdsResourceId: admission.topology.rdsResourceId,
+      ossBucket: admission.topology.ossBucket,
+      ossEndpoint: admission.topology.ossEndpoint,
+      workloadControlEndpoint: admission.topology.workloadControlEndpoint,
+      monitoringEndpoint: admission.topology.monitoringEndpoint,
+      faultControlEndpoint: admission.topology.faultControlEndpoint,
+    },
+    phases: [
+      {
+        code: "candidate-binding",
+        candidates: structuredClone(admission.candidate),
+        artifacts: structuredClone(admission.artifacts),
+      },
+      {
+        code: "load",
+        endpoint: admission.topology.workloadControlEndpoint,
+        expectedScenarioCodes: [
+          ...profile.profiles.map(({ code }) => code),
+          ...profile.performanceScenarios,
+        ],
+        profiles: structuredClone(profile.profiles),
+        workloads: structuredClone(profile.workloads),
+      },
+      {
+        code: "correctness",
+        endpoint: admission.topology.workloadControlEndpoint,
+        expectedScenarioCodes: structuredClone(profile.correctnessScenarios),
+        scenarios: structuredClone(profile.correctnessScenarios),
+      },
+      {
+        code: "database",
+        endpoint: admission.topology.workloadControlEndpoint,
+        expectedScenarioCodes: structuredClone(profile.databaseScenarios),
+        scenarios: structuredClone(profile.databaseScenarios),
+      },
+      {
+        code: "faults",
+        endpoint: admission.topology.faultControlEndpoint,
+        expectedScenarioCodes: structuredClone(profile.faultScenarios),
+        scenarios: structuredClone(profile.faultScenarios),
+      },
+      {
+        code: "resource-sampling",
+        endpoint: admission.topology.monitoringEndpoint,
+        expectedScenarioCodes: [],
+      },
+      { code: "evidence", files: 5 },
+    ],
+    exclusions: structuredClone(profile.excludedGates),
   };
 }
 
@@ -276,6 +519,59 @@ export function renderEvidence(rawRun) {
     !Array.isArray(run.exclusions)
   ) {
     throw new Error("Invalid Stage 7 evidence input");
+  }
+  const local = run.provenance === "LOCAL_PROPORTIONAL_ONLY";
+  if (
+    run.productionEquivalent !== !local ||
+    (local && run.externalBlocker !== "EXT-005")
+  ) {
+    throw new Error(
+      "Stage 7 productionEquivalent flag contradicts evidence provenance",
+    );
+  }
+  if (
+    !local &&
+    (run.admission?.provenance !== "PREPRODUCTION_EQUIVALENT" ||
+      run.admission?.productionEquivalent !== true ||
+      JSON.stringify(run.admission?.candidate) !==
+        JSON.stringify(run.candidates) ||
+      run.admission?.profileSha256 !== run.profileSha256)
+  ) {
+    throw new Error("Stage 7 preproduction evidence is not admission-bound");
+  }
+  if (
+    !local &&
+    (run.replay?.schemaVersion !== "cofco-stage7-preproduction-replay-v1" ||
+      JSON.stringify(run.replay?.phaseReceipts?.map(({ code }) => code)) !==
+        JSON.stringify([
+          "candidate-binding",
+          "load",
+          "correctness",
+          "database",
+          "faults",
+          "resource-sampling",
+        ]) ||
+      run.replay?.phaseReceipts?.some(
+        ({ candidateBound, profileBound }) =>
+          candidateBound !== true || profileBound !== true,
+      ) ||
+      !sha256Pattern.test(
+        run.replay?.phaseReceipts?.[0]?.manifestSha256 ?? "",
+      ) ||
+      run.replay?.phaseReceipts
+        ?.slice(1)
+        .some(
+          ({ executionReceiptSha256 }) =>
+            !sha256Pattern.test(executionReceiptSha256 ?? ""),
+        ))
+  ) {
+    throw new Error(
+      "Stage 7 preproduction evidence lacks bound replay receipts",
+    );
+  }
+  const scenarioCodeList = run.scenarios.map(({ code }) => code);
+  if (new Set(scenarioCodeList).size !== scenarioCodeList.length) {
+    throw new Error("Stage 7 evidence contains a duplicate scenario result");
   }
   const scenarioCodes = new Set(
     run.scenarios.map(({ code, status }) => {
@@ -304,7 +600,66 @@ export function renderEvidence(rawRun) {
       `Stage 7 dynamic scenario evidence is incomplete: ${missingScenarios.join(",")}`,
     );
   }
-  const local = run.provenance === "LOCAL_PROPORTIONAL_ONLY";
+  const correctnessResults = independentCorrectnessScenarios.map((code) =>
+    run.scenarios.find((scenario) => scenario.code === code),
+  );
+  const correctnessRecordIds = correctnessResults.map(
+    ({ recordId }) => recordId,
+  );
+  if (
+    correctnessRecordIds.some(
+      (recordId) => !uuidPattern.test(recordId ?? ""),
+    ) ||
+    new Set(correctnessRecordIds).size !== correctnessRecordIds.length
+  ) {
+    throw new Error(
+      "Stage 7 correctness scenarios require distinct dynamic records",
+    );
+  }
+  const passingCorrectnessResults = correctnessResults.filter(
+    ({ status }) => status === "PASS",
+  );
+  if (
+    passingCorrectnessResults.some(
+      ({ auditEffects, eventEffects, conflictCode }) =>
+        auditEffects !== 1 ||
+        eventEffects !== 1 ||
+        conflictCode !== "PRODUCTION_RECORD_VERSION_CONFLICT",
+    )
+  ) {
+    throw new Error(
+      "Stage 7 correctness scenarios require distinct records and independent effects",
+    );
+  }
+  const correctnessByCode = Object.fromEntries(
+    correctnessResults.map((result) => [result.code, result]),
+  );
+  const sequentialRetry = correctnessByCode["client-retry-idempotency"];
+  const concurrentEdit = correctnessByCode["concurrent-edit"];
+  const optimisticLock = correctnessByCode["optimistic-lock"];
+  const silentOverwrite = correctnessByCode["no-silent-overwrite"];
+  if (
+    correctnessResults.every(({ status }) => status === "PASS") &&
+    (sequentialRetry.execution !== "SEQUENTIAL_CLIENT_RETRY" ||
+      JSON.stringify(sequentialRetry.observedStatuses) !==
+        JSON.stringify([200, 409]) ||
+      concurrentEdit.execution !== "CONCURRENT_DISTINCT_CONTENT" ||
+      new Set(concurrentEdit.actors ?? []).size !== 2 ||
+      new Set(concurrentEdit.proposedContents ?? []).size !== 2 ||
+      !concurrentEdit.proposedContents.includes(
+        concurrentEdit.persistedContent,
+      ) ||
+      optimisticLock.execution !== "SEQUENTIAL_STALE_VERSION" ||
+      optimisticLock.expectedVersion !== 0 ||
+      optimisticLock.persistedVersion !== 1 ||
+      silentOverwrite.execution !== "CONCURRENT_DISTINCT_CONTENT_OWNERSHIP" ||
+      JSON.stringify(silentOverwrite.observedStatuses) !==
+        JSON.stringify([200, 409]) ||
+      silentOverwrite.persistedContent !== silentOverwrite.winningContent ||
+      silentOverwrite.persistedContent === silentOverwrite.losingContent)
+  ) {
+    throw new Error("Stage 7 correctness scenario semantics are incomplete");
+  }
   const overallStatus = local
     ? run.scenarios.some(({ status }) => status !== "PASS")
       ? "LOCAL_FAIL"

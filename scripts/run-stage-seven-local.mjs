@@ -33,6 +33,7 @@ import {
   evaluateLoadConsistency,
   hostMemoryPercent,
   normalizeHostCpuPercent,
+  removeExactStageSevenRuntimeDirectory,
   runCleanupSteps,
   summarizeResourceTrend,
   waitForWritableOpen,
@@ -411,6 +412,49 @@ async function approvedReviewCount(recordIds) {
   );
 }
 
+async function responseOutcome(response) {
+  const body = await response.json();
+  return {
+    status: response.status,
+    code: body?.error?.code ?? null,
+    data: body?.data ?? null,
+  };
+}
+
+async function correctnessState(recordId, actionCode) {
+  return JSON.parse(
+    await psql(`
+      SELECT json_build_object(
+        'statusCode',record.status_code,
+        'version',record.version,
+        'lastModifiedBy',record.last_modified_by,
+        'persistedContent',(SELECT metadata.value
+          FROM production.production_record_submission_metadata metadata
+          WHERE metadata.record_id=record.record_id
+            AND metadata.field_code='PROD_CULTIVAR_NAME'),
+        'auditEffects',(SELECT count(*) FROM platform.business_audit_event
+          WHERE aggregate_type='PRODUCTION_RECORD' AND aggregate_id=record.record_id
+            AND action_code='${actionCode}'),
+        'eventEffects',(SELECT count(*) FROM platform.business_event_outbox
+          WHERE aggregate_type='PRODUCTION_RECORD' AND aggregate_id=record.record_id
+            AND action_code='${actionCode}')
+      )::text
+      FROM production.production_record record
+      WHERE record.record_id='${recordId}'
+    `),
+  );
+}
+
+function editRequest(record, marker, actor) {
+  return api(actor, `/api/v1/production-records/${record.id}`, {
+    method: "PUT",
+    json: {
+      ...productionDraft(marker, record.evidencePhotos[0].id),
+      version: 0,
+    },
+  });
+}
+
 function photoId(sequence) {
   return `70000000-0000-4000-8000-${String(sequence).padStart(12, "0")}`;
 }
@@ -721,47 +765,213 @@ async function executeLoadProfiles(profile, runMarker) {
 
 async function executeCorrectnessScenarios(runMarker) {
   progress(
-    "correctness: concurrent duplicate action, optimistic lock, single business effect, session recovery",
+    "correctness: independent duplicate click, retry, concurrent edit, optimistic lock, ownership, single effect, session recovery",
   );
-  const record = await createRecord(`${runMarker}-correctness-concurrent`);
-  const duplicateResponses = await Promise.all([
-    api("e2e-operator-one", `/api/v1/production-records/${record.id}/submit`, {
-      method: "POST",
-      json: { version: 0 },
-    }),
-    api("e2e-operator-one", `/api/v1/production-records/${record.id}/submit`, {
-      method: "POST",
-      json: { version: 0 },
-    }),
-  ]);
-  const duplicateStatuses = duplicateResponses
+
+  const conflictCode = "PRODUCTION_RECORD_VERSION_CONFLICT";
+  const duplicateRecord = await createRecord(
+    `${runMarker}-correctness-duplicate-click`,
+  );
+  const duplicateOutcomes = await Promise.all(
+    [
+      api(
+        "e2e-operator-one",
+        `/api/v1/production-records/${duplicateRecord.id}/submit`,
+        { method: "POST", json: { version: 0 } },
+      ),
+      api(
+        "e2e-operator-one",
+        `/api/v1/production-records/${duplicateRecord.id}/submit`,
+        { method: "POST", json: { version: 0 } },
+      ),
+    ].map(async (response) => responseOutcome(await response)),
+  );
+  const duplicateState = await correctnessState(
+    duplicateRecord.id,
+    "PRODUCTION_RECORD_SUBMITTED",
+  );
+  const duplicateStatuses = duplicateOutcomes
     .map(({ status }) => status)
     .sort((left, right) => left - right);
-  await Promise.all(
-    duplicateResponses.map((response) => response.arrayBuffer()),
-  );
-  const concurrencyState = JSON.parse(
-    await psql(`
-      SELECT json_build_object(
-        'statusCode',record.status_code,
-        'version',record.version,
-        'auditEffects',(SELECT count(*) FROM platform.business_audit_event
-          WHERE aggregate_type='PRODUCTION_RECORD' AND aggregate_id=record.record_id
-            AND action_code='PRODUCTION_RECORD_SUBMITTED'),
-        'eventEffects',(SELECT count(*) FROM platform.business_event_outbox
-          WHERE aggregate_type='PRODUCTION_RECORD' AND aggregate_id=record.record_id
-            AND action_code='PRODUCTION_RECORD_SUBMITTED')
-      )::text
-      FROM production.production_record record
-      WHERE record.record_id='${record.id}'
-    `),
-  );
-  const concurrencyPassed =
+  const duplicateConflictCode = duplicateOutcomes.find(
+    ({ status }) => status === 409,
+  )?.code;
+  const duplicatePassed =
     JSON.stringify(duplicateStatuses) === JSON.stringify([200, 409]) &&
-    concurrencyState.statusCode === "PENDING_REVIEW" &&
-    concurrencyState.version === 1 &&
-    concurrencyState.auditEffects === 1 &&
-    concurrencyState.eventEffects === 1;
+    duplicateConflictCode === conflictCode &&
+    duplicateState.statusCode === "PENDING_REVIEW" &&
+    duplicateState.version === 1 &&
+    duplicateState.auditEffects === 1 &&
+    duplicateState.eventEffects === 1;
+
+  const retryRecord = await createRecord(
+    `${runMarker}-correctness-client-retry`,
+  );
+  const retryFirst = await responseOutcome(
+    await api(
+      "e2e-operator-one",
+      `/api/v1/production-records/${retryRecord.id}/submit`,
+      { method: "POST", json: { version: 0 } },
+    ),
+  );
+  const retrySecond = await responseOutcome(
+    await api(
+      "e2e-operator-one",
+      `/api/v1/production-records/${retryRecord.id}/submit`,
+      { method: "POST", json: { version: 0 } },
+    ),
+  );
+  const retryState = await correctnessState(
+    retryRecord.id,
+    "PRODUCTION_RECORD_SUBMITTED",
+  );
+  const retryPassed =
+    retryFirst.status === 200 &&
+    retrySecond.status === 409 &&
+    retrySecond.code === conflictCode &&
+    retryState.statusCode === "PENDING_REVIEW" &&
+    retryState.version === 1 &&
+    retryState.auditEffects === 1 &&
+    retryState.eventEffects === 1;
+
+  const concurrentEditRecord = await createRecord(
+    `${runMarker}-correctness-concurrent-edit`,
+  );
+  const concurrentProposals = [
+    `${runMarker}-concurrent-edit-proposal-one`,
+    `${runMarker}-concurrent-edit-proposal-two`,
+  ];
+  const concurrentActors = ["e2e-operator-one", "e2e-operator-two"];
+  const concurrentEditOutcomes = await Promise.all(
+    concurrentActors.map(async (actor, index) =>
+      responseOutcome(
+        await editRequest(
+          concurrentEditRecord,
+          concurrentProposals[index],
+          actor,
+        ),
+      ),
+    ),
+  );
+  const concurrentEditState = await correctnessState(
+    concurrentEditRecord.id,
+    "PRODUCTION_RECORD_UPDATED",
+  );
+  const concurrentWinnerIndex = concurrentProposals.indexOf(
+    concurrentEditState.persistedContent,
+  );
+  const concurrentEditStatuses = concurrentEditOutcomes
+    .map(({ status }) => status)
+    .sort((left, right) => left - right);
+  const concurrentEditConflictCode = concurrentEditOutcomes.find(
+    ({ status }) => status === 409,
+  )?.code;
+  const concurrentEditPassed =
+    JSON.stringify(concurrentEditStatuses) === JSON.stringify([200, 409]) &&
+    concurrentEditConflictCode === conflictCode &&
+    concurrentWinnerIndex >= 0 &&
+    concurrentEditState.lastModifiedBy ===
+      concurrentActors[concurrentWinnerIndex] &&
+    concurrentEditState.version === 1 &&
+    concurrentEditState.auditEffects === 1 &&
+    concurrentEditState.eventEffects === 1;
+
+  const optimisticRecord = await createRecord(
+    `${runMarker}-correctness-optimistic-lock`,
+  );
+  const optimisticWinner = `${runMarker}-optimistic-lock-winner`;
+  const optimisticLoser = `${runMarker}-optimistic-lock-stale`;
+  const optimisticFirst = await responseOutcome(
+    await editRequest(optimisticRecord, optimisticWinner, "e2e-operator-one"),
+  );
+  const optimisticSecond = await responseOutcome(
+    await editRequest(optimisticRecord, optimisticLoser, "e2e-operator-two"),
+  );
+  const optimisticState = await correctnessState(
+    optimisticRecord.id,
+    "PRODUCTION_RECORD_UPDATED",
+  );
+  const optimisticPassed =
+    optimisticFirst.status === 200 &&
+    optimisticSecond.status === 409 &&
+    optimisticSecond.code === conflictCode &&
+    optimisticState.version === 1 &&
+    optimisticState.persistedContent === optimisticWinner &&
+    optimisticState.lastModifiedBy === "e2e-operator-one" &&
+    optimisticState.auditEffects === 1 &&
+    optimisticState.eventEffects === 1;
+
+  const ownershipRecord = await createRecord(
+    `${runMarker}-correctness-no-silent-overwrite`,
+  );
+  const ownershipProposals = [
+    `${runMarker}-ownership-proposal-one`,
+    `${runMarker}-ownership-proposal-two`,
+  ];
+  const ownershipActors = ["e2e-operator-one", "e2e-operator-two"];
+  const ownershipOutcomes = await Promise.all(
+    ownershipActors.map(async (actor, index) =>
+      responseOutcome(
+        await editRequest(ownershipRecord, ownershipProposals[index], actor),
+      ),
+    ),
+  );
+  const ownershipState = await correctnessState(
+    ownershipRecord.id,
+    "PRODUCTION_RECORD_UPDATED",
+  );
+  const ownershipWinnerIndex = ownershipProposals.indexOf(
+    ownershipState.persistedContent,
+  );
+  const ownershipLoserIndex = ownershipWinnerIndex === 0 ? 1 : 0;
+  const ownershipStatuses = ownershipOutcomes
+    .map(({ status }) => status)
+    .sort((left, right) => left - right);
+  const ownershipConflictCode = ownershipOutcomes.find(
+    ({ status }) => status === 409,
+  )?.code;
+  const ownershipPassed =
+    JSON.stringify(ownershipStatuses) === JSON.stringify([200, 409]) &&
+    ownershipConflictCode === conflictCode &&
+    ownershipWinnerIndex >= 0 &&
+    ownershipState.lastModifiedBy === ownershipActors[ownershipWinnerIndex] &&
+    ownershipState.persistedContent !==
+      ownershipProposals[ownershipLoserIndex] &&
+    ownershipState.auditEffects === 1 &&
+    ownershipState.eventEffects === 1;
+
+  const singleEffectRecord = await createRecord(
+    `${runMarker}-correctness-single-business-effect`,
+  );
+  const singleEffectOutcomes = await Promise.all(
+    [
+      api(
+        "e2e-operator-one",
+        `/api/v1/production-records/${singleEffectRecord.id}/submit`,
+        { method: "POST", json: { version: 0 } },
+      ),
+      api(
+        "e2e-operator-one",
+        `/api/v1/production-records/${singleEffectRecord.id}/submit`,
+        { method: "POST", json: { version: 0 } },
+      ),
+    ].map(async (response) => responseOutcome(await response)),
+  );
+  const singleEffectState = await correctnessState(
+    singleEffectRecord.id,
+    "PRODUCTION_RECORD_SUBMITTED",
+  );
+  const singleEffectStatuses = singleEffectOutcomes
+    .map(({ status }) => status)
+    .sort((left, right) => left - right);
+  const singleEffectConflictCode = singleEffectOutcomes.find(
+    ({ status }) => status === 409,
+  )?.code;
+  const singleEffectPassed =
+    JSON.stringify(singleEffectStatuses) === JSON.stringify([200, 409]) &&
+    singleEffectConflictCode === conflictCode &&
+    singleEffectState.auditEffects === 1 &&
+    singleEffectState.eventEffects === 1;
 
   const recoveryPhoto = await uploadPhoto(
     `${runMarker}-session-recovery-photo`,
@@ -789,40 +999,75 @@ async function executeCorrectnessScenarios(runMarker) {
     ),
   );
   const sessionPassed = expired.status === 401 && recoveredCount === 1;
-  const concurrencyDetails = {
-    observedStatuses: duplicateStatuses,
-    ...concurrencyState,
-  };
   return [
-    scenario(
-      "duplicate-click-idempotency",
-      concurrencyPassed ? "PASS" : "FAIL",
-      concurrencyDetails,
-    ),
-    scenario(
-      "client-retry-idempotency",
-      concurrencyPassed ? "PASS" : "FAIL",
-      concurrencyDetails,
-    ),
-    scenario(
-      "concurrent-edit",
-      concurrencyPassed ? "PASS" : "FAIL",
-      concurrencyDetails,
-    ),
-    scenario(
-      "optimistic-lock",
-      concurrencyPassed ? "PASS" : "FAIL",
-      concurrencyDetails,
-    ),
-    scenario(
-      "no-silent-overwrite",
-      concurrencyPassed ? "PASS" : "FAIL",
-      concurrencyDetails,
-    ),
+    scenario("duplicate-click-idempotency", duplicatePassed ? "PASS" : "FAIL", {
+      recordId: duplicateRecord.id,
+      actor: "e2e-operator-one",
+      execution: "CONCURRENT_DUPLICATE_CLICK",
+      observedStatuses: duplicateStatuses,
+      conflictCode: duplicateConflictCode,
+      ...duplicateState,
+    }),
+    scenario("client-retry-idempotency", retryPassed ? "PASS" : "FAIL", {
+      recordId: retryRecord.id,
+      actor: "e2e-operator-one",
+      execution: "SEQUENTIAL_CLIENT_RETRY",
+      observedStatuses: [retryFirst.status, retrySecond.status],
+      conflictCode: retrySecond.code,
+      ...retryState,
+    }),
+    scenario("concurrent-edit", concurrentEditPassed ? "PASS" : "FAIL", {
+      recordId: concurrentEditRecord.id,
+      actors: concurrentActors,
+      execution: "CONCURRENT_DISTINCT_CONTENT",
+      proposedContents: concurrentProposals,
+      persistedContent: concurrentEditState.persistedContent,
+      winningActor: concurrentEditState.lastModifiedBy,
+      observedStatuses: concurrentEditStatuses,
+      conflictCode: concurrentEditConflictCode,
+      version: concurrentEditState.version,
+      auditEffects: concurrentEditState.auditEffects,
+      eventEffects: concurrentEditState.eventEffects,
+    }),
+    scenario("optimistic-lock", optimisticPassed ? "PASS" : "FAIL", {
+      recordId: optimisticRecord.id,
+      actors: ["e2e-operator-one", "e2e-operator-two"],
+      execution: "SEQUENTIAL_STALE_VERSION",
+      expectedVersion: 0,
+      persistedVersion: optimisticState.version,
+      persistedContent: optimisticState.persistedContent,
+      winningActor: optimisticState.lastModifiedBy,
+      observedStatuses: [optimisticFirst.status, optimisticSecond.status],
+      conflictCode: optimisticSecond.code,
+      auditEffects: optimisticState.auditEffects,
+      eventEffects: optimisticState.eventEffects,
+    }),
+    scenario("no-silent-overwrite", ownershipPassed ? "PASS" : "FAIL", {
+      recordId: ownershipRecord.id,
+      actors: ownershipActors,
+      execution: "CONCURRENT_DISTINCT_CONTENT_OWNERSHIP",
+      winningContent: ownershipProposals[ownershipWinnerIndex],
+      losingContent: ownershipProposals[ownershipLoserIndex],
+      persistedContent: ownershipState.persistedContent,
+      winningActor: ownershipState.lastModifiedBy,
+      observedStatuses: ownershipStatuses,
+      conflictCode: ownershipConflictCode,
+      auditEffects: ownershipState.auditEffects,
+      eventEffects: ownershipState.eventEffects,
+    }),
     scenario(
       "no-duplicate-business-effect",
-      concurrencyPassed ? "PASS" : "FAIL",
-      concurrencyDetails,
+      singleEffectPassed ? "PASS" : "FAIL",
+      {
+        recordId: singleEffectRecord.id,
+        actor: "e2e-operator-one",
+        execution: "CONCURRENT_SINGLE_EFFECT",
+        actionCode: "PRODUCTION_RECORD_SUBMITTED",
+        observedStatuses: singleEffectStatuses,
+        conflictCode: singleEffectConflictCode,
+        auditEffects: singleEffectState.auditEffects,
+        eventEffects: singleEffectState.eventEffects,
+      },
     ),
     scenario("session-expiry-draft-recovery", sessionPassed ? "PASS" : "FAIL", {
       expiredStatus: expired.status,
@@ -1344,6 +1589,10 @@ try {
         await command("dropdb", ["--username", databaseUser, databaseName]);
         databaseCreated = false;
         progress(`isolated database removed: ${databaseName}`);
+      },
+      async () => {
+        await removeExactStageSevenRuntimeDirectory(runtimeDirectory);
+        progress(`runtime namespace removed: ${runtimeDirectory}`);
       },
     ]);
   } catch (cleanupFailure) {

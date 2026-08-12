@@ -30,9 +30,11 @@
     "stage3:idp-supplement:test": "node --test scripts/run-stage-three-idp-supplement.spec.mjs",
     "stage5:preproduction:test": "node scripts/run-stage-five-preproduction-tests.mjs",
     "stage5:preproduction:validate": "node scripts/preproduction-config.mjs --config ops/alicloud-preproduction/config/preproduction.env",
-    "stage7:performance:test": "node --test scripts/stage-seven-core.spec.mjs scripts/stage-seven-load.spec.mjs scripts/stage-seven-local-runtime.spec.mjs",
+    "stage7:performance:test": "node --test scripts/stage-seven-core.spec.mjs scripts/stage-seven-load.spec.mjs scripts/stage-seven-local-runtime.spec.mjs scripts/stage-seven-preproduction-runtime.spec.mjs",
     "stage7:performance:validate": "node scripts/run-stage-seven.mjs validate",
     "stage7:performance:admit": "node scripts/run-stage-seven.mjs admit --mode preproduction --config ops/stage7-performance-resilience/preproduction-admission.json",
+    "stage7:performance:replay-plan": "node scripts/run-stage-seven.mjs replay-plan --config ops/stage7-performance-resilience/preproduction-admission.json",
+    "stage7:performance:replay": "node scripts/run-stage-seven.mjs replay --config ops/stage7-performance-resilience/preproduction-admission.json",
     "stage7:performance:local": "node scripts/run-stage-seven-local.mjs",
     "verify:runtime": "node --test scripts/verify-runtime.spec.mjs && node scripts/verify-runtime.mjs",
     "verify": "npm run verify:runtime && npm run format:check && npm run lint && npm run architecture && npm run stage1:inventory:check && npm run test && npm run build && npm run budget && npm run test:e2e:preview"

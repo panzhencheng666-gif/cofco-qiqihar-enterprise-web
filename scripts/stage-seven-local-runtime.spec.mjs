@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -10,6 +12,7 @@ import {
   evaluateLoadConsistency,
   hostMemoryPercent,
   normalizeHostCpuPercent,
+  removeExactStageSevenRuntimeDirectory,
   runCleanupSteps,
   summarizeResourceTrend,
   waitForWritableOpen,
@@ -31,6 +34,73 @@ test("attempts every exact cleanup step and aggregates failures", async () => {
     /Stage 7 cleanup failed/u,
   );
   assert.deepEqual(attempted, ["backend", "database"]);
+});
+
+test("removes only the exact current Stage 7 runtime after earlier cleanup failures", async () => {
+  const current = await mkdtemp(join(tmpdir(), "cofco-stage7-"));
+  const preserved = await mkdtemp(join(tmpdir(), "cofco-stage7-"));
+  await writeFile(join(current, "private-content.bin"), "current\n");
+  await writeFile(join(preserved, "supervisor-audit.log"), "preserve\n");
+  try {
+    const attempted = [];
+    await assert.rejects(
+      () =>
+        runCleanupSteps([
+          async () => {
+            attempted.push("backend");
+            throw new Error("backend stop failed");
+          },
+          async () => {
+            attempted.push("database");
+            throw new Error("database cleanup failed");
+          },
+          async () => {
+            attempted.push("runtime");
+            await removeExactStageSevenRuntimeDirectory(current);
+          },
+        ]),
+      (error) => error instanceof AggregateError && error.errors.length === 2,
+    );
+    assert.deepEqual(attempted, ["backend", "database", "runtime"]);
+    await assert.rejects(() => readdir(current), { code: "ENOENT" });
+    assert.deepEqual(await readdir(preserved), ["supervisor-audit.log"]);
+  } finally {
+    await rm(current, { recursive: true, force: true });
+    await rm(preserved, { recursive: true, force: true });
+  }
+});
+
+test("the real local runner leaves no namespace after a controlled early failure", async () => {
+  const existing = (await readdir(tmpdir()))
+    .filter((name) => name.startsWith("cofco-stage7-"))
+    .sort();
+  const output = await mkdtemp(join(tmpdir(), "stage7-failure-output-"));
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        resolve(import.meta.dirname, "run-stage-seven-local.mjs"),
+        "--output",
+        output,
+      ],
+      {
+        cwd: resolve(import.meta.dirname, ".."),
+        env: {
+          ...process.env,
+          STAGE7_BACKEND_DIR: join(tmpdir(), "stage7-missing-backend"),
+        },
+        encoding: "utf8",
+      },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /ENOENT|no such file/iu);
+    const after = (await readdir(tmpdir()))
+      .filter((name) => name.startsWith("cofco-stage7-"))
+      .sort();
+    assert.deepEqual(after, existing);
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
 });
 
 test("counts successful writes as consistent only after database invariants", () => {
@@ -96,6 +166,29 @@ test("seeds isolated regions only through the reviewed master-data apply path", 
     seed,
     /refresh_monitoring_scope_boundary_render\('FORMAL_BUSINESS'\)/iu,
   );
+});
+
+test("orchestrates every correctness meaning with an independent dynamic record", async () => {
+  const source = await readFile(
+    resolve(import.meta.dirname, "run-stage-seven-local.mjs"),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /const concurrencyDetails/u);
+  assert.match(source, /SEQUENTIAL_CLIENT_RETRY/u);
+  assert.match(source, /CONCURRENT_DISTINCT_CONTENT/u);
+  assert.match(source, /SEQUENTIAL_STALE_VERSION/u);
+  assert.match(source, /CONCURRENT_DISTINCT_CONTENT_OWNERSHIP/u);
+  assert.match(source, /e2e-operator-two/u);
+  for (const marker of [
+    "duplicate-click",
+    "client-retry",
+    "concurrent-edit",
+    "optimistic-lock",
+    "no-silent-overwrite",
+    "single-business-effect",
+  ]) {
+    assert.match(source, new RegExp(`correctness-${marker}`, "u"));
+  }
 });
 
 test("normalizes multi-core ps CPU against the available logical CPU quota", () => {

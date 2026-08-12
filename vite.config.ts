@@ -283,6 +283,7 @@ export default defineConfig({
       "scripts/stage-seven-core.spec.mjs",
       "scripts/stage-seven-load.spec.mjs",
       "scripts/stage-seven-local-runtime.spec.mjs",
+      "scripts/stage-seven-preproduction-runtime.spec.mjs",
       "scripts/verify-runtime.spec.mjs",
     ],
     restoreMocks: true,
