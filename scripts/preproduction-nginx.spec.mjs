@@ -6,8 +6,10 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { resolveVerifiedNginx } from "./verified-nginx-tool.mjs";
 
-const nginxBinary = process.env.COFCO_TEST_NGINX_BIN ?? "nginx";
+const nginxBinary =
+  process.env.COFCO_TEST_NGINX_BIN ?? (await resolveVerifiedNginx()).binaryPath;
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const forgedHeaders = {
   "x-actor": "forged-actor",
@@ -16,53 +18,52 @@ const forgedHeaders = {
   "x-remote-user": "forged-remote-user",
 };
 
-if (!process.env.COFCO_TEST_NGINX_LIFECYCLE_SCENARIO) {
-  test("nginx fixture exits promptly for missing tools and early child exits", async () => {
-    const probeDirectory = await mkdtemp(
-      join(tmpdir(), "cofco-stage5-nginx-lifecycle-"),
-    );
-    const earlyExitBinary = join(probeDirectory, "nginx-early-exit");
-    await writeFile(
-      earlyExitBinary,
-      '#!/usr/bin/env bash\ncase " $* " in *" -t "*) exit 0 ;; esac\nexit 23\n',
-      { mode: 0o700 },
+test("nginx fixture exits promptly for missing tools and early child exits", async () => {
+  const probeDirectory = await mkdtemp(
+    join(tmpdir(), "cofco-stage5-nginx-lifecycle-"),
+  );
+  const earlyExitBinary = join(probeDirectory, "nginx-early-exit");
+  const missingBinary = join(
+    probeDirectory,
+    "cofco-definitely-missing-nginx-binary",
+  );
+  let earlyExitProcess;
+  await writeFile(
+    earlyExitBinary,
+    '#!/usr/bin/env bash\ncase " $* " in *" -t "*) exit 0 ;; esac\nexit 23\n',
+    { mode: 0o700 },
+  );
+
+  try {
+    const missingCheck = spawnSync(missingBinary, ["-t"], {
+      encoding: "utf8",
+    });
+    assert.throws(
+      () => requireSuccessfulConfigCheck(missingCheck, missingBinary),
+      /required nginx binary is unavailable/iu,
     );
 
+    const earlyCheck = spawnSync(earlyExitBinary, ["-t"], {
+      encoding: "utf8",
+    });
+    requireSuccessfulConfigCheck(earlyCheck, earlyExitBinary);
+    const unusedPort = await reservePort();
+    earlyExitProcess = watchProcess(
+      spawn(earlyExitBinary, [], { stdio: ["ignore", "ignore", "pipe"] }),
+      "nginx",
+    );
+    await assert.rejects(
+      waitForHttp(unusedPort, earlyExitProcess),
+      /nginx exited before readiness/iu,
+    );
+  } finally {
     try {
-      for (const [scenario, binary, expectedDiagnostic] of [
-        ["early-exit", earlyExitBinary, /nginx exited before readiness/iu],
-        [
-          "missing-binary",
-          join(tmpdir(), "cofco-definitely-missing-nginx-binary"),
-          /required nginx binary is unavailable/iu,
-        ],
-      ]) {
-        const childEnvironment = {
-          ...process.env,
-          COFCO_TEST_NGINX_BIN: binary,
-          COFCO_TEST_NGINX_LIFECYCLE_SCENARIO: scenario,
-        };
-        delete childEnvironment.NODE_TEST_CONTEXT;
-        const result = spawnSync(
-          process.execPath,
-          ["--test", import.meta.filename],
-          {
-            encoding: "utf8",
-            env: childEnvironment,
-            timeout: 2_000,
-          },
-        );
-
-        assert.equal(result.error, undefined, result.error?.message);
-        assert.equal(result.signal, null);
-        assert.notEqual(result.status, 0);
-        assert.match(`${result.stdout}\n${result.stderr}`, expectedDiagnostic);
-      }
+      await stopProcess(earlyExitProcess);
     } finally {
       await rm(probeDirectory, { recursive: true, force: true });
     }
-  });
-}
+  }
+});
 
 async function listen(server) {
   await new Promise((resolveListen, rejectListen) => {
@@ -150,10 +151,10 @@ async function stopProcess(processHandle) {
   );
 }
 
-function requireSuccessfulConfigCheck(result) {
+function requireSuccessfulConfigCheck(result, binary = nginxBinary) {
   if (result.error) {
     throw new Error(
-      `required nginx binary is unavailable: ${nginxBinary}: ${result.error.message}`,
+      `required nginx binary is unavailable: ${binary}: ${result.error.message}`,
     );
   }
   assert.equal(result.signal, null, `nginx -t terminated by ${result.signal}`);
@@ -165,13 +166,24 @@ async function waitForHttp(port, processHandle) {
     if (processHandle.outcome) {
       throw processExitError(processHandle, processHandle.outcome);
     }
-    const result = await Promise.race([
-      httpGet(port, "/healthz", { host: "preprod.example.test" }).then(
-        () => ({ ready: true }),
-        () => ({ ready: false }),
-      ),
-      processHandle.terminated.then((outcome) => ({ outcome })),
-    ]);
+    const abortController = new AbortController();
+    let result;
+    try {
+      result = await Promise.race([
+        httpGet(
+          port,
+          "/healthz",
+          { host: "preprod.example.test" },
+          abortController.signal,
+        ).then(
+          () => ({ ready: true }),
+          () => ({ ready: false }),
+        ),
+        processHandle.terminated.then((outcome) => ({ outcome })),
+      ]);
+    } finally {
+      abortController.abort();
+    }
     if (result.outcome) throw processExitError(processHandle, result.outcome);
     if (result.ready) return;
     await delay(10);
@@ -179,10 +191,10 @@ async function waitForHttp(port, processHandle) {
   throw new Error("nginx did not become ready");
 }
 
-function httpGet(port, path, headers = {}) {
+function httpGet(port, path, headers = {}, signal) {
   return new Promise((resolveRequest, rejectRequest) => {
     const outgoing = request(
-      { host: "127.0.0.1", port, path, headers },
+      { host: "127.0.0.1", port, path, headers, signal },
       (response) => {
         const chunks = [];
         response.on("data", (chunk) => chunks.push(chunk));
@@ -242,7 +254,7 @@ test("real nginx removes forged identity headers from every gateway proxy locati
         `listen 127.0.0.1:${gatewayPort} default_server;`,
       )
       .replace(/listen 8443 ssl;/u, `listen 127.0.0.1:${gatewayPort};`)
-      .replace(/^\s*ssl_certificate(?:_key)? [^;]+;\s*$/gmu, "")
+      .replace(/^\s*ssl_[a-z_]+ [^;]+;\s*$/gmu, "")
       .replaceAll("__COFCO_PREPROD_TLS_DOMAIN__", "preprod.example.test");
     const configPath = join(directory, "nginx.conf");
     await writeFile(configPath, configuration, { mode: 0o600 });

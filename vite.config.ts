@@ -153,6 +153,7 @@ export default defineConfig({
       "scripts/preproduction-transaction.spec.mjs",
       "scripts/preproduction-operations.spec.mjs",
       "scripts/preproduction-bundle.spec.mjs",
+      "scripts/preproduction-nginx-tool.spec.mjs",
       "scripts/preproduction-nginx.spec.mjs",
     ],
     restoreMocks: true,

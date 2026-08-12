@@ -28,7 +28,7 @@
     "stage3:console-proof": "node scripts/verify-chromium-http-console-semantics.mjs",
     "stage3:idp-supplement": "node scripts/run-stage-three-idp-supplement.mjs",
     "stage3:idp-supplement:test": "node --test scripts/run-stage-three-idp-supplement.spec.mjs",
-    "stage5:preproduction:test": "node --test scripts/preproduction-config.spec.mjs scripts/preproduction-assets.spec.mjs scripts/preproduction-runtime.spec.mjs scripts/preproduction-transaction.spec.mjs scripts/preproduction-bundle.spec.mjs scripts/preproduction-nginx.spec.mjs scripts/preproduction-operations.spec.mjs",
+    "stage5:preproduction:test": "node scripts/run-stage-five-preproduction-tests.mjs",
     "stage5:preproduction:validate": "node scripts/preproduction-config.mjs --config ops/alicloud-preproduction/config/preproduction.env",
     "verify": "npm run format:check && npm run lint && npm run architecture && npm run stage1:inventory:check && npm run test && npm run build && npm run budget && npm run test:e2e:preview"
   },
