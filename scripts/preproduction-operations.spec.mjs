@@ -417,7 +417,21 @@ async function createFixture({ current = true, previous = true } = {}) {
 }
 
 function runScript(script, config, env) {
-  return spawnSync("bash", [script, config], { env, encoding: "utf8" });
+  const result = spawnSync("bash", [script, config], {
+    env,
+    encoding: "utf8",
+  });
+  assert.equal(
+    result.error,
+    undefined,
+    `failed to execute ${basename(script)}: ${result.error?.message}`,
+  );
+  assert.equal(
+    result.signal,
+    null,
+    `${basename(script)} terminated by signal ${result.signal}`,
+  );
+  return result;
 }
 
 async function readSecrets(directory) {
