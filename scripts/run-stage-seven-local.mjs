@@ -10,7 +10,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
-import { availableParallelism, tmpdir } from "node:os";
+import { availableParallelism, tmpdir, totalmem } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { promisify } from "node:util";
@@ -31,6 +31,7 @@ import {
   assertIsolatedDatabaseName,
   assertSecretFree,
   evaluateLoadConsistency,
+  hostMemoryPercent,
   normalizeHostCpuPercent,
   runCleanupSteps,
   summarizeResourceTrend,
@@ -482,9 +483,7 @@ async function sampleResources() {
         ]);
         const [cpu, rssKb] = processLine.trim().split(/\s+/u).map(Number);
         const logicalCpuCount = availableParallelism();
-        const hostBytes = Number(
-          (await command("sysctl", ["-n", "hw.memsize"])).stdout.trim(),
-        );
+        const hostBytes = totalmem();
         resourceSamples.push({
           elapsedSeconds: Number(
             ((performance.now() - runStartedAt) / 1000).toFixed(3),
@@ -494,9 +493,7 @@ async function sampleResources() {
           cpuPercent: Number(
             normalizeHostCpuPercent(cpu, logicalCpuCount).toFixed(2),
           ),
-          memoryPercent: Number(
-            (((rssKb * 1024) / hostBytes) * 100).toFixed(4),
-          ),
+          memoryPercent: Number(hostMemoryPercent(rssKb, hostBytes).toFixed(4)),
           databaseConnections: Number(connections),
         });
       } catch {
@@ -505,6 +502,15 @@ async function sampleResources() {
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 1000));
   }
+}
+
+async function waitForInitialResourceSample(timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (resourceSamples.length > 0) return;
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 100));
+  }
+  throw new Error("Resource sampling preflight produced no sample");
 }
 
 async function executePageMainContent(profile) {
@@ -1147,6 +1153,7 @@ async function main() {
   runStartedWallClock = new Date().toISOString();
   sampling = true;
   samplePromise = sampleResources();
+  await waitForInitialResourceSample();
 
   const loadExecution = await executeLoadProfiles(profile, runMarker);
   const rawLoad = loadExecution.results;

@@ -8,6 +8,7 @@ import {
   assertIsolatedDatabaseName,
   assertSecretFree,
   evaluateLoadConsistency,
+  hostMemoryPercent,
   normalizeHostCpuPercent,
   runCleanupSteps,
   summarizeResourceTrend,
@@ -102,6 +103,18 @@ test("normalizes multi-core ps CPU against the available logical CPU quota", () 
   assert.throws(
     () => normalizeHostCpuPercent(100, 0),
     /Invalid host CPU sample/u,
+  );
+});
+
+test("calculates host memory without a platform-specific shell command", () => {
+  assert.equal(hostMemoryPercent(1024, 8 * 1024 * 1024), 12.5);
+  assert.throws(
+    () => hostMemoryPercent(1024, 0),
+    /Invalid host memory sample/u,
+  );
+  assert.throws(
+    () => hostMemoryPercent(-1, 8 * 1024 * 1024),
+    /Invalid host memory sample/u,
   );
 });
 

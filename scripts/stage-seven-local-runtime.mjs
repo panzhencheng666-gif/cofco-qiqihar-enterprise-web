@@ -14,6 +14,18 @@ export function normalizeHostCpuPercent(rawMultiCorePercent, logicalCpuCount) {
   return rawMultiCorePercent / logicalCpuCount;
 }
 
+export function hostMemoryPercent(residentKilobytes, hostBytes) {
+  if (
+    !Number.isFinite(residentKilobytes) ||
+    residentKilobytes < 0 ||
+    !Number.isFinite(hostBytes) ||
+    hostBytes <= 0
+  ) {
+    throw new Error("Invalid host memory sample");
+  }
+  return (residentKilobytes * 1024 * 100) / hostBytes;
+}
+
 export async function runCleanupSteps(steps) {
   if (
     !Array.isArray(steps) ||
