@@ -379,6 +379,9 @@ export function admitRun(request, expected = {}) {
   ];
   for (const key of artifactKeys) {
     requirePattern(inputs, key, immutableImagePattern, `${key} digest`);
+    if (!inputs[key].startsWith(`registry.${inputs.regionId}.aliyuncs.com/`)) {
+      blockAdmission(`${key} is not bound to the approved regional ACR`);
+    }
   }
   return {
     mode: "preproduction",

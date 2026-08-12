@@ -353,6 +353,13 @@ test("rejects fake cloud values and binds admission to exact candidates and prof
     /BLOCKED_EXTERNAL\(EXT-005\).*candidate commit binding/iu,
   );
 
+  const foreignRegistry = validPreproductionRequest();
+  foreignRegistry.inputs.backendImage = `registry.cn-shanghai.aliyuncs.com/cofco/backend@sha256:${"4".repeat(64)}`;
+  assert.throws(
+    () => admitRun(foreignRegistry, { candidates, profileSha256 }),
+    /backendImage.*approved regional ACR/iu,
+  );
+
   const admission = admitRun(validPreproductionRequest(), {
     candidates,
     profileSha256,
