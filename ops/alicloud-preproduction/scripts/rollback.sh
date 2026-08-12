@@ -18,6 +18,7 @@ for command_name in aliyun cmp docker jq tar; do
 done
 
 stage5_mutation_lock_acquire "$release_root"
+stage5_invocation_runtime_create "rollback"
 current_id="$(readlink "$release_root/current" 2>/dev/null || true)"
 previous_id="$(readlink "$release_root/previous" 2>/dev/null || true)"
 declared_target="$(read_config "$config_path" COFCO_PREPROD_ROLLBACK_RELEASE_ID)"
@@ -36,7 +37,7 @@ current_config="$release_root/$current_id/release.env"
 current_gateway="$release_root/$current_id/runtime/gateway/nginx.conf"
 test -f "$current_config" || fail "current release config is missing"
 export COFCO_PREPROD_GATEWAY_CONFIG="$current_gateway"
-transaction_dir="$release_root/.transaction-rollback-$current_id-$$"
+transaction_dir="$STAGE5_INVOCATION_RUNTIME_DIR"
 whitelist_snapshot="$transaction_dir/prior-rds-whitelist.json"
 stage5_invocation_state_configure \
   "$transaction_dir" "$runtime_root" "$COFCO_PREPROD_RUNTIME_SECRETS_DIR" \
@@ -87,16 +88,6 @@ restore_previous_checkpoint() {
   fi
 }
 
-cleanup_transaction_snapshot() {
-  case "$transaction_dir" in
-    "$release_root"/.transaction-rollback-*) ;;
-    *) return 64 ;;
-  esac
-  if test -e "$transaction_dir"; then
-    rm -r -- "$transaction_dir"
-  fi
-}
-
 restore_invocation_state() {
   stage5_compensation_begin
   if test "$whitelist_mutated" = "true"; then
@@ -106,7 +97,6 @@ restore_invocation_state() {
   stage5_invocation_state_compensate
   stage5_compensate current-checkpoint restore_current_checkpoint
   stage5_compensate previous-checkpoint restore_previous_checkpoint
-  stage5_compensate transaction-snapshot cleanup_transaction_snapshot
   stage5_compensation_finish
 }
 
@@ -160,7 +150,6 @@ if test -z "$previous_id"; then
   stage5_transaction_step current-checkpoint checkpoint_remove_current
   stage5_transaction_step previous-checkpoint checkpoint_remove_previous
   stage5_transaction_commit
-  cleanup_transaction_snapshot
   printf 'PREPRODUCTION_ROLLED_BACK target=undeployed previous=%s\n' "$current_id"
   exit 0
 fi
@@ -182,5 +171,4 @@ stage5_transaction_step verify \
 stage5_transaction_step current-checkpoint checkpoint_previous_as_current
 stage5_transaction_step previous-checkpoint checkpoint_current_as_previous
 stage5_transaction_commit
-cleanup_transaction_snapshot
 printf 'PREPRODUCTION_ROLLED_BACK target=%s previous=%s\n' "$previous_id" "$current_id"

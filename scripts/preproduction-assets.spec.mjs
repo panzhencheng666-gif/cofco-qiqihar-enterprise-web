@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import test from "node:test";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
@@ -75,16 +76,41 @@ test("keeps only the TLS gateway published and injects backend secrets through c
   }
 });
 
-test("strips every legacy identity header at the preproduction gateway", async () => {
-  const nginx = await read("ops/alicloud-preproduction/gateway/nginx.conf");
+function blocksForDirective(configuration, directive) {
+  const blocks = [];
+  let cursor = 0;
+  while ((cursor = configuration.indexOf(directive, cursor)) !== -1) {
+    const openingBrace = configuration.indexOf("{", cursor);
+    let depth = 1;
+    let index = openingBrace + 1;
+    while (depth > 0 && index < configuration.length) {
+      if (configuration[index] === "{") depth += 1;
+      if (configuration[index] === "}") depth -= 1;
+      index += 1;
+    }
+    blocks.push(configuration.slice(cursor, index));
+    cursor = index;
+  }
+  return blocks;
+}
 
-  for (const header of [
-    "X-Actor",
-    "X-Qiqihar-Authenticated-Subject",
-    "X-Authenticated-Subject",
-    "X-Remote-User",
-  ]) {
-    assert.match(nginx, new RegExp(`proxy_set_header ${header} "";`, "u"));
+test("strips every legacy identity header inside every gateway proxy location", async () => {
+  const nginx = await read("ops/alicloud-preproduction/gateway/nginx.conf");
+  const proxyLocations = blocksForDirective(nginx, "location").filter((block) =>
+    block.includes("proxy_pass"),
+  );
+
+  assert.equal(proxyLocations.length, 7);
+
+  for (const location of proxyLocations) {
+    for (const header of [
+      "X-Actor",
+      "X-Qiqihar-Authenticated-Subject",
+      "X-Authenticated-Subject",
+      "X-Remote-User",
+    ]) {
+      assert.match(location, new RegExp(`proxy_set_header ${header} "";`, "u"));
+    }
   }
   assert.match(nginx, /ssl_protocols TLSv1\.2 TLSv1\.3;/u);
   assert.match(nginx, /server_tokens off;/u);
@@ -164,9 +190,14 @@ test("requires encrypted versioned remote OSS state with TableStore locking", as
   assert.match(infra, /terraform[^\n]*state pull/u);
   assert.match(infra, /backend fingerprint/u);
   assert.match(backend, /GetBucketVersioning/u);
+  assert.match(backend, /GetBucketAcl/u);
+  assert.match(backend, /AccessControlList/u);
+  assert.match(backend, /private/u);
   assert.match(backend, /DescribeTable/u);
   assert.match(backend, /LockID/u);
-  assert.match(backend, /AES256|encrypt/u);
+  assert.match(backend, /SSEAlgorithm/u);
+  assert.match(backend, /AES256/u);
+  assert.doesNotMatch(backend, /AES256" or \. == "KMS/u);
   assert.match(backend, /minimum permissions/u);
 });
 
@@ -187,6 +218,12 @@ test("provides monitoring, backup verification, and image rollback without calli
 test("bounds cold-start verification retries before declaring deployment failure", async () => {
   const verify = await read("ops/alicloud-preproduction/scripts/verify.sh");
 
+  assert.doesNotMatch(
+    verify,
+    /curl[^\n]*api\/v1\/query[^\n]*\\\n\s*\|\s*jq/u,
+    "monitoring verification must not expose curl to SIGPIPE from an early jq exit",
+  );
+
   assert.match(verify, /wait_for_http_code/u);
   assert.match(verify, /wait_for_prometheus/u);
   assert.match(verify, /SECONDS \+ 120/u);
@@ -198,7 +235,7 @@ test("bounds cold-start verification retries before declaring deployment failure
 test("fails the production Prometheus predicate when any real probe is unhealthy", async () => {
   const verify = await read("ops/alicloud-preproduction/scripts/verify.sh");
   const expression = verify.match(
-    /\| jq -e '(\.status == "success"[^']*all\([^']*)'/u,
+    /jq -e '(\.status == "success"[^']*all\([^']*)'/u,
   )?.[1];
   assert.ok(expression, "verify.sh must expose the production probe predicate");
 
@@ -275,19 +312,72 @@ test("binds DNS and strict TLS verification to the approved ECS HTTPS endpoint",
 
 test("fails closed unless the SSH alias expands to the approved hardened connection", async () => {
   const deploy = await read("ops/alicloud-preproduction/scripts/deploy.sh");
+  const common = await read("ops/alicloud-preproduction/scripts/common.sh");
 
   assert.match(deploy, /COFCO_PREPROD_SSH_EXPECTED_HOST/u);
   assert.match(deploy, /COFCO_PREPROD_SSH_USER/u);
   assert.match(deploy, /BatchMode=yes/u);
   assert.match(deploy, /StrictHostKeyChecking=yes/u);
   assert.match(deploy, /IdentitiesOnly=yes/u);
-  assert.match(deploy, /ssh-keygen -F/u);
+  assert.match(common, /ssh-keygen -F/u);
+  assert.match(deploy, /stage5_verify_known_host_fingerprints/u);
   assert.match(deploy, /identity file must exist with mode 0600 or 0400/u);
   assert.match(deploy, /DescribeInstances/u);
   assert.match(deploy, /COFCO_PREPROD_SSH_PORT/u);
   assert.match(deploy, /proxyjump/u);
   assert.match(deploy, /proxycommand/u);
   assert.match(deploy, /resolved SSH target is not the cloud-confirmed ECS/u);
+});
+
+test("rejects an extra unapproved key for the approved known_hosts target", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "cofco-stage5-known-hosts-"));
+  try {
+    const approvedKey = join(directory, "approved");
+    const unapprovedKey = join(directory, "unapproved");
+    const knownHosts = join(directory, "known_hosts");
+    for (const key of [approvedKey, unapprovedKey]) {
+      const generated = spawnSync(
+        "ssh-keygen",
+        ["-q", "-t", "ed25519", "-N", "", "-f", key],
+        { encoding: "utf8" },
+      );
+      assert.equal(generated.status, 0, generated.stderr);
+    }
+    const approvedPublic = (
+      await readFile(`${approvedKey}.pub`, "utf8")
+    ).trim();
+    const unapprovedPublic = (
+      await readFile(`${unapprovedKey}.pub`, "utf8")
+    ).trim();
+    await writeFile(knownHosts, `approved.example ${approvedPublic}\n`, {
+      mode: 0o600,
+    });
+    const approvedFingerprint = spawnSync(
+      "ssh-keygen",
+      ["-lf", `${approvedKey}.pub`, "-E", "sha256"],
+      { encoding: "utf8" },
+    )
+      .stdout.trim()
+      .split(/\s+/u)[1];
+    const script = [
+      `source "${resolve(repositoryRoot, "ops/alicloud-preproduction/scripts/common.sh")}"`,
+      `stage5_verify_known_host_fingerprints approved.example "${knownHosts}" "${approvedFingerprint}"`,
+    ].join("\n");
+    const approved = spawnSync("bash", ["-c", script], { encoding: "utf8" });
+    assert.equal(approved.status, 0, approved.stderr);
+
+    await writeFile(
+      knownHosts,
+      `approved.example ${approvedPublic}\napproved.example ${unapprovedPublic}\n`,
+      { mode: 0o600 },
+    );
+    const rejected = spawnSync("bash", ["-c", script], { encoding: "utf8" });
+    assert.notEqual(rejected.status, 0);
+    assert.match(rejected.stderr, /unapproved SSH host key/iu);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+  await assert.rejects(access(directory), /ENOENT/u);
 });
 
 test("arms transaction recovery before every deploy or rollback side effect", async () => {
@@ -399,6 +489,10 @@ test("keeps operation runtime and scoped evidence outside the immutable bundle",
 
   assert.match(common, /OPERATION_RUNTIME_ROOT/u);
   assert.doesNotMatch(scripts.join("\n"), /PACKAGE_ROOT\/\.runtime/u);
+  assert.doesNotMatch(scripts.join("\n"), /release_root\/\.transaction/u);
+  assert.match(common, /stage5_invocation_runtime_create/u);
+  assert.match(common, /stage5_invocation_runtime_cleanup/u);
+  assert.match(common, /-mtime/u);
   assert.match(verify, /verification-\$verification_scope-/u);
   assert.match(verify, /PREPRODUCTION_RUNTIME_RESTORED/u);
 });

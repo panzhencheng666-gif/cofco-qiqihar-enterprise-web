@@ -19,6 +19,7 @@ for command_name in aliyun cmp curl docker jq openssl tar; do
 done
 
 stage5_mutation_lock_acquire "$release_root"
+stage5_invocation_runtime_create "deploy-$release_id"
 old_current="$(readlink "$release_root/current" 2>/dev/null || true)"
 old_previous="$(readlink "$release_root/previous" 2>/dev/null || true)"
 for release_link in "$old_current" "$old_previous"; do
@@ -36,7 +37,7 @@ test ! -e "$release_dir" || fail "candidate release ID already exists and cannot
 
 runtime_root="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export COFCO_PREPROD_RUNTIME_SECRETS_DIR="$runtime_root/cofco-preproduction/secrets"
-transaction_dir="$release_root/.transaction-$release_id-$$"
+transaction_dir="$STAGE5_INVOCATION_RUNTIME_DIR"
 whitelist_snapshot="$transaction_dir/prior-rds-whitelist.json"
 original_config="$config_path"
 original_gateway="$transaction_dir/no-running-gateway.conf"
@@ -104,16 +105,6 @@ cleanup_candidate() {
   fi
 }
 
-cleanup_transaction_snapshot() {
-  case "$transaction_dir" in
-    "$release_root"/.transaction-*) ;;
-    *) return 64 ;;
-  esac
-  if test -e "$transaction_dir"; then
-    rm -r -- "$transaction_dir"
-  fi
-}
-
 restore_original() {
   stage5_compensation_begin
   if test "$whitelist_mutated" = "true"; then
@@ -124,7 +115,6 @@ restore_original() {
   stage5_compensate current-checkpoint restore_current_checkpoint
   stage5_compensate previous-checkpoint restore_previous_checkpoint
   stage5_compensate candidate-release cleanup_candidate
-  stage5_compensate transaction-snapshot cleanup_transaction_snapshot
   stage5_compensation_finish
 }
 
@@ -158,5 +148,4 @@ stage5_transaction_step verify \
   "$SCRIPT_DIR/verify.sh" "$release_dir/release.env" "$release_dir/evidence"
 stage5_transaction_step checkpoint checkpoint_candidate
 stage5_transaction_commit
-cleanup_transaction_snapshot
 printf 'PREPRODUCTION_DEPLOYED release=%s previous=%s\n' "$release_id" "${old_current:-undeployed}"

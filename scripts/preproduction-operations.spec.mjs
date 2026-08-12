@@ -8,8 +8,10 @@ import {
   readlink,
   readdir,
   rm,
+  stat,
   symlink,
   unlink,
+  utimes,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,6 +23,10 @@ const repositoryRoot = resolve(import.meta.dirname, "..");
 const packageRoot = resolve(repositoryRoot, "ops/alicloud-preproduction");
 const remoteApply = resolve(packageRoot, "scripts/remote-apply.sh");
 const rollback = resolve(packageRoot, "scripts/rollback.sh");
+const verifyTerraformBackend = resolve(
+  packageRoot,
+  "scripts/verify-terraform-backend.sh",
+);
 const digest = `sha256:${"a".repeat(64)}`;
 const realDeployFailurePoints = [
   "snapshot-invocation",
@@ -151,6 +157,18 @@ async function createFakeCommands(directory) {
 set -euo pipefail
 printf 'aliyun:%s\n' "$*" >>"$FAKE_TRACE"
 case "$*" in
+  *"GetBucketAcl"*)
+    jq -cn --arg grant "\${FAKE_TF_STATE_ACL:-private}" '{AccessControlList:{Grant:$grant}}'
+    ;;
+  *"GetBucketVersioning"*)
+    printf '%s\n' '{"VersioningConfiguration":{"Status":"Enabled"}}'
+    ;;
+  *"GetBucketEncryption"*)
+    jq -cn --arg algorithm "\${FAKE_TF_STATE_ENCRYPTION:-AES256}" '{ServerSideEncryptionRule:{ApplyServerSideEncryptionByDefault:{SSEAlgorithm:$algorithm}}}'
+    ;;
+  *"DescribeTable"*)
+    printf '%s\n' '{"TableMeta":{"PrimaryKeySchema":[{"Name":"LockID","Type":"STRING"}]}}'
+    ;;
   *"ModifySecurityIps"*)
     count=0
     test ! -f "$FAKE_RDS_MODIFY_COUNT" || count="$(cat "$FAKE_RDS_MODIFY_COUNT")"
@@ -225,11 +243,17 @@ shift || true
 case "$command_name" in
   config|pull) exit 0 ;;
   ps)
-    if printf '%s\n' "$*" | grep -q -- '-q prometheus'; then printf 'prometheus-id\n'; else cat "$FAKE_SERVICE_STATE"; fi
+    if [[ " $* " == *" -q prometheus "* ]]; then printf 'prometheus-id\n'; else cat "$FAKE_SERVICE_STATE"; fi
     ;;
   stop) : >"$FAKE_SERVICE_STATE" ;;
   up)
-    release="$(awk -F= '$1 == "COFCO_PREPROD_RELEASE_ID" {print $2; exit}' "$env_file")"
+    release=""
+    while IFS='=' read -r key value; do
+      if test "$key" = "COFCO_PREPROD_RELEASE_ID"; then
+        release="$value"
+        break
+      fi
+    done <"$env_file"
     if test "\${FAKE_FAIL_UP_RELEASE:-}" = "$release"; then
       marker="$FAKE_STATE/fail-up-$release"
       if test ! -f "$marker"; then touch "$marker"; exit 92; fi
@@ -288,7 +312,7 @@ case "$url" in
   *"/prototype.html") printf '404' ;;
   *"/api/v1/session/me") printf '401' ;;
   *"/healthz")
-    if printf '%s\n' "$*" | grep -q 'unapproved.invalid'; then printf '421'; else printf '200'; fi
+    if [[ "$*" == *"unapproved.invalid"* ]]; then printf '421'; else printf '200'; fi
     ;;
   *"/api/v1/query") printf '%s\n' '{"status":"success","data":{"result":[{"value":[0,"1"]},{"value":[0,"1"]},{"value":[0,"1"]}]}}' ;;
   *) : ;;
@@ -307,6 +331,16 @@ exec "$REAL_NODE" "$@"
     join(fakeBin, "sleep"),
     "#!/usr/bin/env bash\nexit 0\n",
   );
+  await writeExecutable(
+    join(fakeBin, "rm"),
+    `#!/usr/bin/env bash
+set -euo pipefail
+if test "\${FAKE_FAIL_INVOCATION_CLEANUP:-}" = "true" && [[ "$*" =~ invocations/|[.]transaction ]]; then
+  exit 98
+fi
+exec /bin/rm "$@"
+`,
+  );
   return fakeBin;
 }
 
@@ -319,6 +353,12 @@ async function createFixture({ current = true, previous = true } = {}) {
   await mkdir(releaseRoot, { recursive: true, mode: 0o700 });
   await mkdir(secretsDir, { recursive: true, mode: 0o700 });
   await mkdir(state, { recursive: true, mode: 0o700 });
+  const failureMarkerRoot = join(
+    runtimeRoot,
+    "cofco-preproduction/operations/test-markers",
+  );
+  const failureMarker = join(failureMarkerRoot, "failure-step");
+  await mkdir(failureMarkerRoot, { recursive: true, mode: 0o700 });
 
   const ids = {
     candidate: "stage5-candidate-001",
@@ -400,6 +440,7 @@ async function createFixture({ current = true, previous = true } = {}) {
     initialSecrets,
     initialServices,
     initialWhitelist,
+    failureMarker,
     env: {
       ...process.env,
       PATH: `${fakeBin}:${process.env.PATH}`,
@@ -412,6 +453,7 @@ async function createFixture({ current = true, previous = true } = {}) {
       FAKE_RDS_STATE: join(state, "rds-whitelist"),
       FAKE_RDS_MODIFY_COUNT: join(state, "rds-modify-count"),
       FAKE_SERVICE_STATE: join(state, "services"),
+      REAL_RM: "/bin/rm",
     },
   };
 }
@@ -432,6 +474,22 @@ function runScript(script, config, env) {
     `${basename(script)} terminated by signal ${result.signal}`,
   );
   return result;
+}
+
+async function assertInjectedFailure(result, failurePoint, fixture) {
+  const trace = await readFile(join(fixture.state, "trace"), "utf8");
+  assert.equal(
+    result.status,
+    97,
+    `expected injected failure ${failurePoint}; stdout=${JSON.stringify(result.stdout)} stderr=${JSON.stringify(result.stderr)} trace=${JSON.stringify(trace)}`,
+  );
+  assert.equal(
+    await readFile(fixture.failureMarker, "utf8"),
+    `${failurePoint}\n`,
+  );
+  if (result.stderr) {
+    assert.match(result.stderr, new RegExp(`step=${failurePoint}`, "u"));
+  }
 }
 
 async function readSecrets(directory) {
@@ -543,8 +601,7 @@ test("real remote apply fault-injects and restores all 12 production steps", asy
         COFCO_PREPROD_TEST_FAIL_AT: failurePoint,
       });
 
-      assert.notEqual(result.status, 0, result.stdout);
-      assert.match(result.stderr, new RegExp(`step=${failurePoint}`, "u"));
+      await assertInjectedFailure(result, failurePoint, fixture);
       await assertInvocationStateRestored(fixture);
       await assert.rejects(
         readFile(
@@ -585,6 +642,26 @@ test("real remote apply continues every compensation after the first recovery fa
   await assert.rejects(
     readFile(join(fixture.releaseRoot, fixture.ids.candidate, "release.env")),
     /ENOENT/u,
+  );
+  await assert.rejects(
+    access(join(fixture.releaseRoot, ".mutation.lock")),
+    /ENOENT/u,
+  );
+  assert.deepEqual(
+    await readdir(
+      join(fixture.runtimeRoot, "cofco-preproduction/operations/invocations"),
+    ),
+    [],
+  );
+
+  const retry = runScript(remoteApply, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
+  });
+  assert.equal(retry.status, 0, retry.stderr);
+  assert.equal(
+    await checkpointTarget(join(fixture.releaseRoot, "current")),
+    fixture.ids.candidate,
   );
 });
 
@@ -665,8 +742,7 @@ test("real previous rollback fault-injects and restores every production step", 
         COFCO_PREPROD_TEST_FAIL_AT: failurePoint,
       });
 
-      assert.notEqual(result.status, 0, result.stdout);
-      assert.match(result.stderr, new RegExp(`step=${failurePoint}`, "u"));
+      await assertInjectedFailure(result, failurePoint, fixture);
       await assertInvocationStateRestored(fixture);
       if (failurePoint === "clear-secrets") {
         assert.match(
@@ -732,9 +808,114 @@ test("real undeployed rollback fault-injects every mutation and checkpoint step"
         COFCO_PREPROD_TEST_FAIL_AT: failurePoint,
       });
 
-      assert.notEqual(result.status, 0, result.stdout);
-      assert.match(result.stderr, new RegExp(`step=${failurePoint}`, "u"));
+      await assertInjectedFailure(result, failurePoint, fixture);
       await assertInvocationStateRestored(fixture);
+      if (failurePoint === "clear-secrets") {
+        assert.match(
+          await readFile(join(fixture.state, "trace"), "utf8"),
+          /curl:[^\n]*\/healthz/u,
+        );
+      }
+    });
+  }
+});
+
+test("committed deploy keeps success and matching checkpoints when invocation cleanup fails", async () => {
+  const fixture = await createFixture();
+  const result = runScript(remoteApply, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
+    FAKE_FAIL_INVOCATION_CLEANUP: "true",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    await checkpointTarget(join(fixture.releaseRoot, "current")),
+    fixture.ids.candidate,
+  );
+  assert.equal(
+    await checkpointTarget(join(fixture.releaseRoot, "previous")),
+    fixture.ids.current,
+  );
+});
+
+test("invocation snapshots use a controlled runtime directory and never the release root", async () => {
+  const fixture = await createFixture();
+  const result = runScript(remoteApply, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
+    FAKE_FAIL_UP_RELEASE: fixture.ids.candidate,
+    FAKE_FAIL_INVOCATION_CLEANUP: "true",
+  });
+
+  assert.equal(result.status, 70, result.stderr);
+  assert.deepEqual(
+    (await readdir(fixture.releaseRoot)).filter((name) =>
+      name.startsWith(".transaction"),
+    ),
+    [],
+  );
+  const invocationRoot = join(
+    fixture.runtimeRoot,
+    "cofco-preproduction/operations/invocations",
+  );
+  const invocationDirectories = await readdir(invocationRoot);
+  assert.equal(invocationDirectories.length, 1);
+  const invocationDirectory = join(invocationRoot, invocationDirectories[0]);
+  assert.equal((await stat(invocationDirectory)).mode & 0o777, 0o700);
+  assert.equal(
+    (await stat(join(invocationDirectory, "runtime-secrets.tar"))).mode & 0o777,
+    0o600,
+  );
+});
+
+test("operation startup removes stale controlled invocation snapshots", async () => {
+  const fixture = await createFixture();
+  const invocationRoot = join(
+    fixture.runtimeRoot,
+    "cofco-preproduction/operations/invocations",
+  );
+  const staleInvocation = join(invocationRoot, "invocation-stale");
+  await mkdir(staleInvocation, { recursive: true, mode: 0o700 });
+  await writeFile(join(staleInvocation, "runtime-secrets.tar"), "stale", {
+    mode: 0o600,
+  });
+  const staleTimestamp = new Date(Date.now() - 3 * 24 * 60 * 60 * 1_000);
+  await utimes(staleInvocation, staleTimestamp, staleTimestamp);
+
+  const result = runScript(remoteApply, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(await readdir(invocationRoot), []);
+  await assert.rejects(access(staleInvocation), /ENOENT/u);
+});
+
+test("Terraform backend rejects non-private ACL and non-AES256 encryption", async (t) => {
+  for (const [label, injectedEnvironment, expectedError] of [
+    ["public ACL", { FAKE_TF_STATE_ACL: "public-read" }, /private ACL/iu],
+    ["KMS encryption", { FAKE_TF_STATE_ENCRYPTION: "KMS" }, /AES256/iu],
+  ]) {
+    await t.test(label, async () => {
+      const fixture = await createFixture();
+      const evidence = join(
+        fixture.directory,
+        `backend-${label.replaceAll(" ", "-")}`,
+      );
+      const result = runScript(
+        verifyTerraformBackend,
+        fixture.paths.candidate,
+        {
+          ...fixture.env,
+          ...injectedEnvironment,
+        },
+      );
+
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, expectedError);
+      await assert.rejects(access(evidence), /ENOENT/u);
     });
   }
 });
@@ -745,6 +926,17 @@ for (const [label, script] of [
 ]) {
   test(`${label} takes the shared mutation lock before reading checkpoints`, async () => {
     const fixture = await createFixture();
+    const invocationRoot = join(
+      fixture.runtimeRoot,
+      "cofco-preproduction/operations/invocations",
+    );
+    const activeInvocation = join(invocationRoot, "invocation-active");
+    await mkdir(activeInvocation, { recursive: true, mode: 0o700 });
+    await writeFile(join(activeInvocation, "runtime-secrets.tar"), "active", {
+      mode: 0o600,
+    });
+    const oldTimestamp = new Date(Date.now() - 3 * 24 * 60 * 60 * 1_000);
+    await utimes(activeInvocation, oldTimestamp, oldTimestamp);
     await mkdir(join(fixture.releaseRoot, ".mutation.lock"), { mode: 0o700 });
     await unlink(join(fixture.releaseRoot, "current"));
     await symlink("../unsafe", join(fixture.releaseRoot, "current"));
@@ -757,6 +949,10 @@ for (const [label, script] of [
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /mutation lock is already held/iu);
     assert.doesNotMatch(result.stderr, /unsafe target/iu);
+    assert.equal(
+      await readFile(join(activeInvocation, "runtime-secrets.tar"), "utf8"),
+      "active",
+    );
   });
 }
 

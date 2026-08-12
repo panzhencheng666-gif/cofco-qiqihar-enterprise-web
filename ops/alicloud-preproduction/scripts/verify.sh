@@ -97,10 +97,12 @@ prometheus_id="$(docker compose --env-file "$config_path" -f "$compose_file" ps 
 prometheus_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$prometheus_id")"
 wait_for_prometheus() {
   local deadline=$((SECONDS + 120))
+  local prometheus_response=""
   while test "$SECONDS" -lt "$deadline"; do
     if curl --silent --fail "http://$prometheus_ip:9090/-/ready" >/dev/null \
-      && curl --silent --fail --get --data-urlencode 'query=probe_success' "http://$prometheus_ip:9090/api/v1/query" \
-        | jq -e '.status == "success" and (.data.result | length) >= 3 and all(.data.result[]; .value[1] == "1")' >/dev/null; then
+      && prometheus_response="$(curl --silent --fail --get --data-urlencode 'query=probe_success' "http://$prometheus_ip:9090/api/v1/query")" \
+      && jq -e '.status == "success" and (.data.result | length) >= 3 and all(.data.result[]; .value[1] == "1")' \
+        <<<"$prometheus_response" >/dev/null; then
       return
     fi
     sleep 3

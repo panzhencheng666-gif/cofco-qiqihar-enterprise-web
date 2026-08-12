@@ -23,21 +23,29 @@ tablestore_endpoint="$(read_config "$config_path" COFCO_PREPROD_TF_STATE_TABLEST
 tablestore_instance="$(read_config "$config_path" COFCO_PREPROD_TF_STATE_TABLESTORE_INSTANCE)"
 tablestore_table="$(read_config "$config_path" COFCO_PREPROD_TF_STATE_TABLESTORE_TABLE)"
 versioning_info="$evidence_dir/.versioning.$$"
+acl_info="$evidence_dir/.acl.$$"
 encryption_info="$evidence_dir/.encryption.$$"
 table_info="$evidence_dir/.table.$$"
-trap 'rm -f "$versioning_info" "$encryption_info" "$table_info"' EXIT
+trap 'rm -f "$versioning_info" "$acl_info" "$encryption_info" "$table_info"' EXIT
+
+aliyun oss GetBucketAcl \
+  --BucketName "$bucket" \
+  --endpoint "$oss_endpoint" >"$acl_info"
+jq -e '.AccessControlList.Grant == "private"' "$acl_info" >/dev/null \
+  || fail "Terraform state OSS bucket must have private ACL"
 
 aliyun oss GetBucketVersioning \
   --BucketName "$bucket" \
   --endpoint "$oss_endpoint" >"$versioning_info"
-jq -e '.. | strings | select(. == "Enabled")' "$versioning_info" >/dev/null \
+jq -e '.VersioningConfiguration.Status == "Enabled"' "$versioning_info" >/dev/null \
   || fail "Terraform state OSS bucket versioning is not enabled"
 
 aliyun oss GetBucketEncryption \
   --BucketName "$bucket" \
   --endpoint "$oss_endpoint" >"$encryption_info"
-jq -e '.. | strings | select(. == "AES256" or . == "KMS")' "$encryption_info" >/dev/null \
-  || fail "Terraform state OSS bucket encryption is not enabled"
+jq -e '.ServerSideEncryptionRule.ApplyServerSideEncryptionByDefault.SSEAlgorithm == "AES256"' \
+  "$encryption_info" >/dev/null \
+  || fail "Terraform state OSS bucket encryption must be AES256"
 
 aliyun ots DescribeTable \
   --InstanceName "$tablestore_instance" \
@@ -54,6 +62,6 @@ jq -n \
   --arg bucket "$bucket" \
   --arg table "$tablestore_table" \
   --arg verified_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{backend:"oss",bucket:$bucket,versioning:"PASS",encryption:"PASS",locking:"TableStore",lockTable:$table,minimumPermissionsApproval:"PASS",verifiedAt:$verified_at}' >"$evidence_file"
+  '{backend:"oss",bucket:$bucket,acl:"private",versioning:"PASS",encryption:"AES256",locking:"TableStore",lockTable:$table,minimumPermissionsApproval:"PASS",verifiedAt:$verified_at}' >"$evidence_file"
 chmod 0600 "$evidence_file"
 printf 'TERRAFORM_BACKEND_VERIFIED evidence=%s\n' "$evidence_file"

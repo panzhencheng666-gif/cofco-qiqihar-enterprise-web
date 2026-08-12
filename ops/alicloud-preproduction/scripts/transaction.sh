@@ -10,6 +10,8 @@ STAGE5_COMPENSATION_FAILURES=0
 _stage5_transaction_on_exit() {
   local original_status="$1"
   local compensation_status=0
+  local cleanup_status=0
+  local final_status="$original_status"
   trap - EXIT
 
   if test "$STAGE5_TRANSACTION_ACTIVE" = "true" \
@@ -18,15 +20,30 @@ _stage5_transaction_on_exit() {
     "$STAGE5_TRANSACTION_COMPENSATION" || compensation_status=$?
     if test "$compensation_status" -ne 0; then
       printf 'ERROR: stage-five compensation failed after step %s\n' "$STAGE5_TRANSACTION_LAST_STEP" >&2
-      exit 70
+      final_status=70
     fi
   fi
 
-  if declare -F stage5_mutation_lock_release >/dev/null 2>&1; then
-    stage5_mutation_lock_release
+  if declare -F stage5_process_cleanup >/dev/null 2>&1; then
+    stage5_process_cleanup || cleanup_status=$?
+    if test "${STAGE5_MUTATION_LOCK_CLEANUP_STATUS:-0}" -ne 0; then
+      printf 'ERROR: stage-five mutation lock cleanup failed after step %s\n' "$STAGE5_TRANSACTION_LAST_STEP" >&2
+      final_status=70
+    elif test "${STAGE5_INVOCATION_CLEANUP_STATUS:-0}" -ne 0; then
+      if test "$STAGE5_TRANSACTION_COMMITTED" = "true" \
+        && test "$original_status" -eq 0; then
+        printf 'WARNING: committed stage-five operation retained a controlled runtime snapshot for startup cleanup\n' >&2
+      else
+        printf 'ERROR: stage-five controlled runtime cleanup failed after step %s\n' "$STAGE5_TRANSACTION_LAST_STEP" >&2
+        final_status=70
+      fi
+    elif test "$cleanup_status" -ne 0; then
+      printf 'ERROR: stage-five process cleanup failed after step %s\n' "$STAGE5_TRANSACTION_LAST_STEP" >&2
+      final_status=70
+    fi
   fi
 
-  exit "$original_status"
+  exit "$final_status"
 }
 
 stage5_transaction_begin() {
@@ -49,6 +66,8 @@ stage5_transaction_begin() {
 
 stage5_transaction_step() {
   local step_name="$1"
+  local failure_marker=""
+  local failure_marker_root=""
   shift
   test "$STAGE5_TRANSACTION_ACTIVE" = "true" || {
     printf 'ERROR: stage-five transaction is not active\n' >&2
@@ -58,6 +77,16 @@ stage5_transaction_step() {
   "$@"
   if test "${COFCO_PREPROD_TEST_MODE:-}" = "true" \
     && test "${COFCO_PREPROD_TEST_FAIL_AT:-}" = "$step_name"; then
+    failure_marker_root="${OPERATION_RUNTIME_ROOT:?operation runtime root required}/test-markers"
+    failure_marker="$failure_marker_root/failure-step"
+    test -d "$failure_marker_root" \
+      && test ! -L "$failure_marker_root" \
+      && test ! -L "$failure_marker" || {
+      printf 'ERROR: unsafe stage-five test marker directory\n' >&2
+      return 64
+    }
+    printf '%s\n' "$step_name" >"$failure_marker"
+    chmod 0600 "$failure_marker"
     printf 'TEST_INJECTED_FAILURE step=%s\n' "$step_name" >&2
     return 97
   fi

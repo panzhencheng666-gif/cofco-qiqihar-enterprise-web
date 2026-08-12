@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -9,6 +16,27 @@ const transactionLibrary = resolve(
   import.meta.dirname,
   "../ops/alicloud-preproduction/scripts/transaction.sh",
 );
+const commonLibrary = resolve(
+  import.meta.dirname,
+  "../ops/alicloud-preproduction/scripts/common.sh",
+);
+
+async function createLockReleaseFailureBin(directory) {
+  const fakeBin = join(directory, "bin");
+  await mkdir(fakeBin, { recursive: true, mode: 0o700 });
+  await writeFile(
+    join(fakeBin, "rm"),
+    `#!/usr/bin/env bash
+set -euo pipefail
+case "\${!#}" in
+  */.mutation.lock/owner) exit 98 ;;
+esac
+exec /bin/rm "$@"
+`,
+    { mode: 0o700 },
+  );
+  return fakeBin;
+}
 
 const failurePoints = [
   "snapshot-invocation",
@@ -164,6 +192,143 @@ test("does not compensate a committed transaction", async () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(await readFile(trace, "utf8"), "");
+});
+
+test("records the exact injected failure point in controlled runtime evidence", async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), "cofco-stage5-injected-failure-"),
+  );
+  const operationRuntimeRoot = join(directory, "operations");
+  const markerRoot = join(operationRuntimeRoot, "test-markers");
+  const marker = join(markerRoot, "failure-step");
+  await mkdir(markerRoot, { recursive: true, mode: 0o700 });
+  const script = [
+    "set -euo pipefail",
+    `OPERATION_RUNTIME_ROOT="${operationRuntimeRoot}"`,
+    'COFCO_PREPROD_TEST_MODE="true"',
+    'COFCO_PREPROD_TEST_FAIL_AT="secrets"',
+    `source "${transactionLibrary}"`,
+    "restore_original() { :; }",
+    "stage5_transaction_begin restore_original",
+    "stage5_transaction_step secrets true",
+  ].join("\n");
+
+  const result = spawnSync("bash", ["-c", script], { encoding: "utf8" });
+
+  assert.equal(result.status, 97, result.stderr);
+  assert.match(result.stderr, /TEST_INJECTED_FAILURE step=secrets/u);
+  assert.equal(await readFile(marker, "utf8"), "secrets\n");
+});
+
+test("ignores a traversal marker override and writes only the fixed controlled marker", async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), "cofco-stage5-marker-traversal-"),
+  );
+  const operationRuntimeRoot = join(directory, "operations");
+  const markerRoot = join(operationRuntimeRoot, "test-markers");
+  const controlledMarker = join(markerRoot, "failure-step");
+  const escapedMarker = join(directory, "escaped-marker");
+  await mkdir(markerRoot, { recursive: true, mode: 0o700 });
+  const script = [
+    "set -euo pipefail",
+    `OPERATION_RUNTIME_ROOT="${operationRuntimeRoot}"`,
+    'COFCO_PREPROD_TEST_MODE="true"',
+    'COFCO_PREPROD_TEST_FAIL_AT="verify"',
+    `COFCO_PREPROD_TEST_FAILURE_MARKER="${markerRoot}/../../escaped-marker"`,
+    `source "${transactionLibrary}"`,
+    "restore_original() { :; }",
+    "stage5_transaction_begin restore_original",
+    "stage5_transaction_step verify true",
+  ].join("\n");
+
+  const result = spawnSync("bash", ["-c", script], { encoding: "utf8" });
+
+  assert.equal(result.status, 97, result.stderr);
+  assert.equal(await readFile(controlledMarker, "utf8"), "verify\n");
+  await assert.rejects(access(escapedMarker), /ENOENT/u);
+});
+
+test("rejects a symlinked controlled marker directory", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "cofco-stage5-marker-link-"));
+  const operationRuntimeRoot = join(directory, "operations");
+  const outsideRoot = join(directory, "outside");
+  const markerRoot = join(operationRuntimeRoot, "test-markers");
+  const escapedMarker = join(outsideRoot, "failure-step");
+  await mkdir(operationRuntimeRoot, { recursive: true, mode: 0o700 });
+  await mkdir(outsideRoot, { mode: 0o700 });
+  await symlink(outsideRoot, markerRoot);
+  const script = [
+    "set -euo pipefail",
+    `OPERATION_RUNTIME_ROOT="${operationRuntimeRoot}"`,
+    'COFCO_PREPROD_TEST_MODE="true"',
+    'COFCO_PREPROD_TEST_FAIL_AT="verify"',
+    `source "${transactionLibrary}"`,
+    "restore_original() { :; }",
+    "stage5_transaction_begin restore_original",
+    "stage5_transaction_step verify true",
+  ].join("\n");
+
+  const result = spawnSync("bash", ["-c", script], { encoding: "utf8" });
+
+  assert.equal(result.status, 64, result.stderr);
+  assert.match(result.stderr, /unsafe stage-five test marker directory/iu);
+  await assert.rejects(access(escapedMarker), /ENOENT/u);
+});
+
+test("mutation lock release preserves and reports a lock it cannot remove", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "cofco-stage5-lock-release-"));
+  const fakeBin = await createLockReleaseFailureBin(directory);
+  const releaseRoot = join(directory, "releases");
+  const operationRuntimeRoot = join(directory, "operations");
+  const script = [
+    "set -euo pipefail",
+    `export PATH="${fakeBin}:$PATH"`,
+    `source "${commonLibrary}"`,
+    `OPERATION_RUNTIME_ROOT="${operationRuntimeRoot}"`,
+    `stage5_mutation_lock_acquire "${releaseRoot}"`,
+    `expected_lock="${releaseRoot}/.mutation.lock"`,
+    "set +e",
+    "stage5_mutation_lock_release",
+    "release_status=$?",
+    "set -e",
+    "trap - EXIT",
+    'test -d "$expected_lock" && lock_exists=yes || lock_exists=no',
+    `printf 'status=%s\\ntracked=%s\\nexists=%s\\n' "$release_status" "$STAGE5_MUTATION_LOCK_DIR" "$lock_exists"`,
+  ].join("\n");
+
+  const result = spawnSync("bash", ["-c", script], { encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /status=98/u);
+  assert.match(
+    result.stdout,
+    new RegExp(`tracked=${releaseRoot}/[.]mutation[.]lock`, "u"),
+  );
+  assert.match(result.stdout, /exists=yes/u);
+});
+
+test("a committed transaction fails loudly when its mutation lock cannot be released", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "cofco-stage5-lock-commit-"));
+  const fakeBin = await createLockReleaseFailureBin(directory);
+  const releaseRoot = join(directory, "releases");
+  const operationRuntimeRoot = join(directory, "operations");
+  const script = [
+    "set -euo pipefail",
+    `export PATH="${fakeBin}:$PATH"`,
+    `source "${commonLibrary}"`,
+    `source "${transactionLibrary}"`,
+    `OPERATION_RUNTIME_ROOT="${operationRuntimeRoot}"`,
+    'stage5_invocation_runtime_create "committed-lock-failure"',
+    `stage5_mutation_lock_acquire "${releaseRoot}"`,
+    "restore_original() { :; }",
+    "stage5_transaction_begin restore_original",
+    "stage5_transaction_commit",
+  ].join("\n");
+
+  const result = spawnSync("bash", ["-c", script], { encoding: "utf8" });
+
+  assert.equal(result.status, 70, result.stderr);
+  assert.match(result.stderr, /mutation lock cleanup failed/iu);
 });
 
 test("a failed compensation fails loudly with a distinct status", () => {

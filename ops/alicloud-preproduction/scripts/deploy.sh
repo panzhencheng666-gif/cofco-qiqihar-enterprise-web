@@ -56,12 +56,8 @@ case "$identity_mode" in
 esac
 known_hosts_file="${user_known_hosts%% *}"
 test -f "$known_hosts_file" || fail "SSH known_hosts file is missing"
-ssh-keygen -F "$actual_host" -f "$known_hosts_file" >/dev/null || fail "approved SSH host key is not present in known_hosts"
-ssh-keygen -F "$actual_host" -f "$known_hosts_file" \
-  | awk '!/^#/' \
-  | ssh-keygen -lf - -E sha256 \
-  | awk '{print $2}' \
-  | grep -Fxq "$expected_host_key" || fail "known_hosts does not contain the approved SSH host-key fingerprint"
+stage5_verify_known_host_fingerprints \
+  "$actual_host" "$known_hosts_file" "$expected_host_key"
 
 ecs_info="$(mktemp "${TMPDIR:-/tmp}/cofco-preproduction-ecs.XXXXXX")"
 trap 'rm -f "$ecs_info"' EXIT

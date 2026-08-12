@@ -14,6 +14,9 @@ else
 fi
 OPERATION_RUNTIME_ROOT="${COFCO_PREPROD_OPERATION_RUNTIME_ROOT:-$default_operation_runtime_root}"
 STAGE5_MUTATION_LOCK_DIR=""
+STAGE5_INVOCATION_RUNTIME_DIR=""
+STAGE5_INVOCATION_CLEANUP_STATUS=0
+STAGE5_MUTATION_LOCK_CLEANUP_STATUS=0
 
 fail() {
   printf 'ERROR: %s\n' "$1" >&2
@@ -123,10 +126,68 @@ sha256_file() {
   fi
 }
 
+stage5_verify_known_host_fingerprints() {
+  local host_name="$1"
+  local known_hosts_file="$2"
+  local approved_fingerprint="$3"
+  local host_entries
+  local actual_fingerprints
+  host_entries="$(ssh-keygen -F "$host_name" -f "$known_hosts_file" | awk '!/^#/ && NF >= 3')"
+  test -n "$host_entries" || fail "approved SSH host key is not present in known_hosts"
+  actual_fingerprints="$(printf '%s\n' "$host_entries" \
+    | ssh-keygen -lf - -E sha256 \
+    | awk '{print $2}' \
+    | LC_ALL=C sort -u)"
+  test "$actual_fingerprints" = "$approved_fingerprint" \
+    || fail "known_hosts contains an unapproved SSH host key for the target Host"
+}
+
+stage5_invocation_runtime_cleanup() {
+  if test -n "${STAGE5_INVOCATION_RUNTIME_DIR:-}"; then
+    case "$STAGE5_INVOCATION_RUNTIME_DIR" in
+      "$OPERATION_RUNTIME_ROOT"/invocations/invocation-*) ;;
+      *) return 64 ;;
+    esac
+    if test -e "$STAGE5_INVOCATION_RUNTIME_DIR"; then
+      rm -r -- "$STAGE5_INVOCATION_RUNTIME_DIR" || return $?
+    fi
+    STAGE5_INVOCATION_RUNTIME_DIR=""
+  fi
+}
+
+stage5_invocation_runtime_create() {
+  local invocation_label="$1"
+  local invocation_root="$OPERATION_RUNTIME_ROOT/invocations"
+  case "$invocation_label" in
+    *[!A-Za-z0-9._-]*|'') return 64 ;;
+  esac
+  install -d -m 0700 "$OPERATION_RUNTIME_ROOT" "$invocation_root"
+  find "$invocation_root" -mindepth 1 -maxdepth 1 -type d \
+    -name 'invocation-*' -mtime +0 -exec rm -r -- {} +
+  STAGE5_INVOCATION_RUNTIME_DIR="$(mktemp -d "$invocation_root/invocation-$invocation_label.XXXXXX")"
+  chmod 0700 "$STAGE5_INVOCATION_RUNTIME_DIR"
+  trap stage5_process_cleanup EXIT
+}
+
+stage5_process_cleanup() {
+  STAGE5_INVOCATION_CLEANUP_STATUS=0
+  STAGE5_MUTATION_LOCK_CLEANUP_STATUS=0
+  stage5_invocation_runtime_cleanup || STAGE5_INVOCATION_CLEANUP_STATUS=$?
+  stage5_mutation_lock_release || STAGE5_MUTATION_LOCK_CLEANUP_STATUS=$?
+  if test "$STAGE5_MUTATION_LOCK_CLEANUP_STATUS" -ne 0; then
+    return "$STAGE5_MUTATION_LOCK_CLEANUP_STATUS"
+  fi
+  return "$STAGE5_INVOCATION_CLEANUP_STATUS"
+}
+
 stage5_mutation_lock_release() {
+  local release_status=0
   if test -n "${STAGE5_MUTATION_LOCK_DIR:-}"; then
-    rm -f "$STAGE5_MUTATION_LOCK_DIR/owner"
-    rmdir "$STAGE5_MUTATION_LOCK_DIR" 2>/dev/null || true
+    rm -f "$STAGE5_MUTATION_LOCK_DIR/owner" || release_status=$?
+    if test "$release_status" -eq 0; then
+      rmdir "$STAGE5_MUTATION_LOCK_DIR" 2>/dev/null || release_status=$?
+    fi
+    test "$release_status" -eq 0 || return "$release_status"
     STAGE5_MUTATION_LOCK_DIR=""
   fi
 }
@@ -140,5 +201,5 @@ stage5_mutation_lock_acquire() {
     fail "preproduction mutation lock is already held"
   fi
   printf '%s\n' "$$" >"$STAGE5_MUTATION_LOCK_DIR/owner"
-  trap stage5_mutation_lock_release EXIT
+  trap stage5_process_cleanup EXIT
 }
