@@ -256,6 +256,7 @@ function databaseArgs(port, sql) {
     process.env.USER,
     "-d",
     databaseName,
+    "-q",
     "-At",
     "-c",
     sql,
@@ -266,6 +267,21 @@ async function query(tools, port, sql) {
   return (
     await runCommand(tools.psql.path, databaseArgs(port, sql))
   ).stdout.trim();
+}
+
+export function parseScalarQueryOutput(output) {
+  const lines = String(output)
+    .split(/\r?\n/gu)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length !== 1) {
+    throw new Error("PostgreSQL query must return exactly one scalar value");
+  }
+  return lines[0];
+}
+
+async function scalarQuery(tools, port, sql) {
+  return parseScalarQueryOutput(await query(tools, port, sql));
 }
 
 async function startPostgres(tools, dataDirectory, logPath) {
@@ -639,7 +655,7 @@ export async function runNativeStageNineRecovery({
     if (!applicationFailureDetected)
       throw new Error("Owned application failure was not detected");
 
-    const flywayVersion = await query(
+    const flywayVersion = await scalarQuery(
       tools,
       sourcePort,
       "SELECT max(CAST(version AS integer)) FROM public.flyway_schema_history WHERE success",
@@ -698,21 +714,21 @@ export async function runNativeStageNineRecovery({
     );
 
     const recoveredThroughAt = new Date(
-      await query(
+      await scalarQuery(
         tools,
         sourcePort,
         "INSERT INTO public.stage9_recovery_marker(code) VALUES ('TARGET_PRESENT') RETURNING committed_at",
       ),
     ).toISOString();
     const [targetLsn, targetAtRaw] = (
-      await query(
+      await scalarQuery(
         tools,
         sourcePort,
         `SELECT pg_create_restore_point('${restorePoint}')::text || '|' || clock_timestamp()::text`,
       )
     ).split("|");
     const targetAt = new Date(targetAtRaw).toISOString();
-    const targetWal = await query(
+    const targetWal = await scalarQuery(
       tools,
       sourcePort,
       `SELECT pg_walfile_name('${targetLsn}'::pg_lsn)`,
@@ -776,7 +792,7 @@ export async function runNativeStageNineRecovery({
     );
     restoreStarted = true;
     const markerCounts = (
-      await query(
+      await scalarQuery(
         tools,
         restorePort,
         "SELECT count(*) FILTER (WHERE code='TARGET_PRESENT') || '|' || count(*) FILTER (WHERE code='LATER_MUST_BE_ABSENT') FROM public.stage9_recovery_marker",
@@ -784,13 +800,13 @@ export async function runNativeStageNineRecovery({
     )
       .split("|")
       .map(Number);
-    const recoveredFlywayVersion = await query(
+    const recoveredFlywayVersion = await scalarQuery(
       tools,
       restorePort,
       "SELECT max(CAST(version AS integer)) FROM public.flyway_schema_history WHERE success",
     );
     const photo = (
-      await query(
+      await scalarQuery(
         tools,
         restorePort,
         `SELECT content_object_key || '|' || btrim(sha256) || '|' || btrim(watermarked_sha256) || '|' || byte_length || '|' || original_filename FROM evidence.evidence_photo WHERE photo_id='${photoId}'`,
@@ -873,7 +889,7 @@ export async function runNativeStageNineRecovery({
         baseBackupManifestVerified: true,
         continuousArchiveVerified: archiveEntries.length > 0,
         recoveryTargetReached:
-          (await query(
+          (await scalarQuery(
             tools,
             restorePort,
             "SELECT NOT pg_is_in_recovery()",

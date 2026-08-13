@@ -7,6 +7,7 @@ import {
   assertIsolatedWorkspace,
   assertPostgresToolchain,
   calculateRecoveryObjectives,
+  parseScalarQueryOutput,
   renderRecoveryConfiguration,
   renderSourceConfiguration,
 } from "./stage-nine-postgres.mjs";
@@ -112,4 +113,16 @@ test("recomputes bounded RPO and RTO from machine timestamps", () => {
       }),
     /recovered-through/iu,
   );
+});
+
+test("accepts exactly one quiet psql scalar and rejects command-status pollution", () => {
+  assert.equal(
+    parseScalarQueryOutput("2026-08-13 03:40:00.123456+00\n"),
+    "2026-08-13 03:40:00.123456+00",
+  );
+  assert.throws(
+    () => parseScalarQueryOutput("2026-08-13 03:40:00.123456+00\nINSERT 0 1\n"),
+    /exactly one scalar/iu,
+  );
+  assert.throws(() => parseScalarQueryOutput("\n"), /exactly one scalar/iu);
 });
