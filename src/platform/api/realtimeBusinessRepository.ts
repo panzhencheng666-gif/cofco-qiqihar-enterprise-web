@@ -1,4 +1,10 @@
-import { realtimeApiClient, type RealtimeApiClient } from "./realtimeApiClient";
+import { z } from "zod";
+
+import {
+  RealtimeApiError,
+  realtimeApiClient,
+  type RealtimeApiClient,
+} from "./realtimeApiClient";
 import { enterpriseSessionPath } from "./browserSession";
 
 export interface MasterProduct {
@@ -614,6 +620,8 @@ export interface BusinessRecordListInput {
 export interface ProductionDefinition {
   productCode: string;
   objectTypeCode: string | null;
+  contractVersion: "production-survey-fields-v1";
+  fields: readonly ProductionSurveyField[];
   groups: readonly {
     category: string;
     label: string;
@@ -629,6 +637,121 @@ export interface ProductionDefinition {
       sortOrder: number;
     }[];
   }[];
+}
+
+export interface ProductionSurveyField {
+  code: string;
+  label: string;
+  groupCode: string;
+  groupLabel: string;
+  groupOrder: number;
+  sortOrder: number;
+  valueType: string;
+  controlType: string;
+  unit: string | null;
+  required: boolean;
+  options: readonly string[];
+  readOnly: boolean;
+  calculated: boolean;
+  importable: boolean;
+  displayed: boolean;
+  description: string | null;
+  precision: number;
+  scale: number;
+}
+
+const productionSurveyFieldSchema = z.object({
+  code: z.string().min(1),
+  label: z.string().min(1),
+  groupCode: z.string().min(1),
+  groupLabel: z.string().min(1),
+  groupOrder: z.number().int(),
+  sortOrder: z.number().int(),
+  valueType: z.string().min(1),
+  controlType: z.string().min(1),
+  unit: z.string().nullable(),
+  required: z.boolean(),
+  options: z.array(z.string()),
+  readOnly: z.boolean(),
+  calculated: z.boolean(),
+  importable: z.boolean(),
+  displayed: z.boolean(),
+  description: z.string().nullable(),
+  precision: z.number().int().nonnegative(),
+  scale: z.number().int().nonnegative(),
+});
+
+const productionFactFieldSchema = z.object({
+  code: z.string().min(1),
+  label: z.string().min(1),
+  valueType: z.string().min(1),
+  unit: z.string().nullable(),
+  description: z.string().nullable(),
+  precision: z.number().int(),
+  scale: z.number().int(),
+  sortOrder: z.number().int(),
+});
+
+const productionDefinitionSchema = z.object({
+  productCode: z.string().min(1),
+  objectTypeCode: z.string().nullable(),
+  contractVersion: z.literal("production-survey-fields-v1"),
+  fields: z.array(productionSurveyFieldSchema).min(1),
+  groups: z.array(
+    z.object({
+      category: z.string().min(1),
+      label: z.string().min(1),
+      sortOrder: z.number().int(),
+      fields: z.array(productionFactFieldSchema),
+    }),
+  ),
+});
+
+function contractMismatch(details: unknown): RealtimeApiError {
+  return new RealtimeApiError({
+    code: "CONTRACT_MISMATCH",
+    message: "产情字段契约与当前页面版本不一致，请刷新页面或联系管理员",
+    status: 200,
+    details,
+  });
+}
+
+export function parseProductionDefinition(
+  value: unknown,
+): ProductionDefinition {
+  const result = productionDefinitionSchema.safeParse(value);
+  if (!result.success) throw contractMismatch(result.error.issues);
+  const definition = result.data;
+  const codes = definition.fields.map(({ code }) => code);
+  const subjectCode = definition.fields.find(
+    ({ code }) => code === "PROD_SAMPLE_SUBJECT_CODE",
+  );
+  const subjectName = definition.fields.find(
+    ({ code }) => code === "PROD_SAMPLE_NAME",
+  );
+  const ordered = definition.fields.every((field, index, fields) => {
+    const previous = fields[index - 1];
+    return (
+      !previous ||
+      field.groupOrder > previous.groupOrder ||
+      (field.groupOrder === previous.groupOrder &&
+        field.sortOrder >= previous.sortOrder)
+    );
+  });
+  if (
+    new Set(codes).size !== codes.length ||
+    codes.includes("sample_point_id") ||
+    !subjectCode ||
+    !subjectName ||
+    !subjectCode.readOnly ||
+    subjectCode.importable ||
+    subjectCode.controlType !== "READONLY_SUBJECT" ||
+    subjectName.readOnly ||
+    !ordered
+  ) {
+    throw contractMismatch({ reason: "INVALID_PRODUCTION_FIELD_BOUNDARY" });
+  }
+  return definition;
 }
 
 export interface MarketDefinition {
@@ -1099,10 +1222,12 @@ export function createRealtimeBusinessRepository(
         productCode,
         domain,
       }),
-    loadProductionDefinition: (productCode, objectTypeCode) =>
-      client.get<ProductionDefinition>(
-        "/api/v1/production-record-definitions",
-        { productCode, objectTypeCode },
+    loadProductionDefinition: async (productCode, objectTypeCode) =>
+      parseProductionDefinition(
+        await client.get<unknown>("/api/v1/production-record-definitions", {
+          productCode,
+          objectTypeCode,
+        }),
       ),
     loadMarketDefinition: (productCode, objectTypeCode) =>
       client.get<MarketDefinition>("/api/v1/market-record-definitions", {

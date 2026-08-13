@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RealtimeApiClient } from "./realtimeApiClient";
+import type { RealtimeApiClient, RealtimeApiError } from "./realtimeApiClient";
 import {
   createRealtimeBusinessRepository,
+  parseProductionDefinition,
   type RealtimeBusinessRepository,
 } from "./realtimeBusinessRepository";
 
@@ -109,6 +110,56 @@ function client() {
 }
 
 describe("realtime business repository", () => {
+  it("accepts only the authoritative production survey contract version and boundaries", () => {
+    const definition = productionDefinition();
+
+    expect(parseProductionDefinition(definition)).toEqual(definition);
+    expect(() =>
+      parseProductionDefinition({
+        ...definition,
+        contractVersion: "production-survey-fields-obsolete",
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<RealtimeApiError>>({
+        code: "CONTRACT_MISMATCH",
+      }),
+    );
+    expect(() =>
+      parseProductionDefinition({
+        ...definition,
+        fields: definition.fields.map((field) =>
+          field.code === "PROD_SAMPLE_SUBJECT_CODE"
+            ? { ...field, readOnly: false }
+            : field,
+        ),
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<RealtimeApiError>>({
+        code: "CONTRACT_MISMATCH",
+      }),
+    );
+  });
+
+  it("runtime-validates production definitions loaded from the API", async () => {
+    const { api, get } = client();
+    get.mockResolvedValueOnce(productionDefinition() as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    const definition = await repository.loadProductionDefinition(
+      "CORN",
+      "FARMER",
+    );
+
+    expect(definition.contractVersion).toBe("production-survey-fields-v1");
+    expect(definition.fields).toContainEqual(
+      expect.objectContaining({
+        code: "PROD_SAMPLE_SUBJECT_CODE",
+        readOnly: true,
+        importable: false,
+      }),
+    );
+  });
+
   it("publishes an approved business record as a governed supply source", async () => {
     const { api, post } = client();
     const repository = createRealtimeBusinessRepository(api);
@@ -692,3 +743,73 @@ describe("realtime business repository", () => {
     );
   });
 });
+
+function productionDefinition() {
+  const field = (
+    code: string,
+    overrides: Partial<{
+      label: string;
+      groupCode: string;
+      groupLabel: string;
+      groupOrder: number;
+      sortOrder: number;
+      valueType: string;
+      controlType: string;
+      unit: string | null;
+      required: boolean;
+      options: readonly string[];
+      readOnly: boolean;
+      calculated: boolean;
+      importable: boolean;
+      displayed: boolean;
+      description: string | null;
+      precision: number;
+      scale: number;
+    }> = {},
+  ) => ({
+    code,
+    label: code,
+    groupCode: "CONTEXT",
+    groupLabel: "基础信息",
+    groupOrder: 10,
+    sortOrder: 10,
+    valueType: "TEXT",
+    controlType: "TEXT",
+    unit: null,
+    required: false,
+    options: [],
+    readOnly: false,
+    calculated: false,
+    importable: true,
+    displayed: true,
+    description: null,
+    precision: 0,
+    scale: 0,
+    ...overrides,
+  });
+  return {
+    productCode: "CORN",
+    objectTypeCode: "FARMER",
+    contractVersion: "production-survey-fields-v1",
+    fields: [
+      field("objectTypeCode", { controlType: "SELECT", required: true }),
+      field("regionCode", { controlType: "REGION", required: true }),
+      field("PROD_SAMPLE_SUBJECT_CODE", {
+        label: "稳定主体码",
+        groupCode: "SUBJECT",
+        groupLabel: "调查对象与联系",
+        groupOrder: 20,
+        controlType: "READONLY_SUBJECT",
+        readOnly: true,
+        importable: false,
+      }),
+      field("PROD_SAMPLE_NAME", {
+        label: "填报对象名称",
+        groupCode: "SUBJECT",
+        groupLabel: "调查对象与联系",
+        groupOrder: 20,
+      }),
+    ],
+    groups: [],
+  };
+}

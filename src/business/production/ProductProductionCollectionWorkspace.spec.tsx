@@ -54,6 +54,130 @@ const loadMasterData = vi.fn().mockResolvedValue({
   ],
 });
 
+const productionDefinition = vi.fn().mockResolvedValue({
+  productCode: "CORN",
+  objectTypeCode: "FARMER",
+  contractVersion: "production-survey-fields-v1",
+  fields: [
+    contractField(
+      "PROD_SAMPLE_SUBJECT_CODE",
+      "稳定主体码",
+      "SUBJECT",
+      "调查对象与联系",
+      20,
+      10,
+      {
+        controlType: "READONLY_SUBJECT",
+        readOnly: true,
+        importable: false,
+      },
+    ),
+    contractField(
+      "PROD_SAMPLE_NAME",
+      "填报对象名称",
+      "SUBJECT",
+      "调查对象与联系",
+      20,
+      20,
+    ),
+    contractField(
+      "PROD_REPORTER_NAME",
+      "填报人",
+      "SUBJECT",
+      "调查对象与联系",
+      20,
+      30,
+      {
+        controlType: "READONLY_TEXT",
+        readOnly: true,
+        importable: false,
+      },
+    ),
+    contractField(
+      "PROD_SAMPLE_CONTACT",
+      "填报对象联系方式",
+      "SUBJECT",
+      "调查对象与联系",
+      20,
+      40,
+    ),
+    contractField(
+      "PROD_SAMPLE_LATITUDE",
+      "填报对象纬度",
+      "SUBJECT",
+      "调查对象与联系",
+      20,
+      50,
+      {
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+      },
+    ),
+    contractField(
+      "cultivatedAreaMu",
+      "种植面积",
+      "OUTPUT",
+      "产量信息",
+      30,
+      10,
+      {
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        unit: "亩",
+      },
+    ),
+    contractField(
+      "estimatedOutputKilograms",
+      "预计总产",
+      "OUTPUT",
+      "产量信息",
+      30,
+      20,
+      {
+        valueType: "DECIMAL",
+        controlType: "READONLY_DECIMAL",
+        unit: "公斤",
+        readOnly: true,
+        calculated: true,
+        importable: false,
+      },
+    ),
+  ],
+  groups: [],
+});
+
+function contractField(
+  code: string,
+  label: string,
+  groupCode: string,
+  groupLabel: string,
+  groupOrder: number,
+  sortOrder: number,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    code,
+    label,
+    groupCode,
+    groupLabel,
+    groupOrder,
+    sortOrder,
+    valueType: "TEXT",
+    controlType: "TEXT",
+    unit: null,
+    required: false,
+    options: [],
+    readOnly: false,
+    calculated: false,
+    importable: true,
+    displayed: true,
+    description: null,
+    precision: 18,
+    scale: 4,
+    ...overrides,
+  };
+}
+
 describe("product production collection workspace", () => {
   it("queries by mandatory survey year, optional month, real filling dates and status", async () => {
     const user = userEvent.setup();
@@ -75,6 +199,7 @@ describe("product production collection workspace", () => {
           {
             listProduction,
             loadMasterData,
+            loadProductionDefinition: productionDefinition,
           } as unknown as RealtimeBusinessRepository
         }
         scope={realtimeScope}
@@ -139,6 +264,7 @@ describe("product production collection workspace", () => {
           {
             listProduction,
             loadMasterData,
+            loadProductionDefinition: productionDefinition,
           } as unknown as RealtimeBusinessRepository
         }
         scope={realtimeScope}
@@ -227,6 +353,7 @@ describe("product production collection workspace", () => {
       listProduction,
       importProductionCsv,
       downloadProductionXlsxTemplate,
+      loadProductionDefinition: productionDefinition,
     } as unknown as RealtimeBusinessRepository;
 
     render(
@@ -243,6 +370,19 @@ describe("product production collection workspace", () => {
     );
 
     expect(await screen.findByText("克山县第一调查点")).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "调查对象与联系" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "派生字段" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "系统字段" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "稳定主体码" }),
+    ).toBeVisible();
+    expect(screen.getByText("待权威映射（EXT-007）")).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "填报人" })).toBeVisible();
     expect(
       screen.getByRole("columnheader", { name: "填报对象联系方式" }),

@@ -18,6 +18,361 @@ import { RealtimeBusinessOperationsPanel } from "./RealtimeBusinessOperationsPan
 
 afterEach(cleanup);
 
+function productionContractField(
+  code: string,
+  label: string,
+  groupCode: string,
+  groupLabel: string,
+  groupOrder: number,
+  sortOrder: number,
+  overrides: Partial<{
+    valueType: string;
+    controlType: string;
+    unit: string | null;
+    required: boolean;
+    readOnly: boolean;
+    calculated: boolean;
+    importable: boolean;
+  }> = {},
+) {
+  return {
+    code,
+    label,
+    groupCode,
+    groupLabel,
+    groupOrder,
+    sortOrder,
+    valueType: "TEXT",
+    controlType: "TEXT",
+    unit: null,
+    required: false,
+    options: [],
+    readOnly: false,
+    calculated: false,
+    importable: true,
+    displayed: true,
+    description: null,
+    precision: 18,
+    scale: 4,
+    ...overrides,
+  };
+}
+
+function productionDefinition() {
+  const dynamic = [
+    productionContractField(
+      "PROD_OPENING_INVENTORY",
+      "期初库存",
+      "DETAIL",
+      "业务调查明细",
+      40,
+      10,
+      {
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        unit: "吨",
+      },
+    ),
+    productionContractField(
+      "PROD_SALES_VOLUME",
+      "销售数量",
+      "DETAIL",
+      "业务调查明细",
+      40,
+      20,
+      {
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        unit: "吨",
+      },
+    ),
+    productionContractField(
+      "PROD_SELF_USE",
+      "自用数量",
+      "DETAIL",
+      "业务调查明细",
+      40,
+      30,
+      {
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        unit: "吨",
+      },
+    ),
+    productionContractField("PROTEIN", "蛋白", "QUALITY", "质量指标", 50, 10, {
+      valueType: "DECIMAL",
+      controlType: "DECIMAL",
+      unit: "%",
+    }),
+    productionContractField(
+      "OIL_YIELD",
+      "出油率",
+      "QUALITY",
+      "质量指标",
+      50,
+      20,
+      {
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        unit: "%",
+      },
+    ),
+  ];
+  return {
+    productCode: "CORN",
+    objectTypeCode: "FARMER",
+    contractVersion: "production-survey-fields-v1" as const,
+    fields: [
+      productionContractField(
+        "objectTypeCode",
+        "样本点类型",
+        "CONTEXT",
+        "基础信息",
+        10,
+        10,
+        {
+          controlType: "SELECT",
+          required: true,
+          importable: false,
+        },
+      ),
+      productionContractField(
+        "regionCode",
+        "所在地区",
+        "CONTEXT",
+        "基础信息",
+        10,
+        20,
+        {
+          controlType: "REGION",
+          required: true,
+        },
+      ),
+      productionContractField(
+        "PROD_CULTIVAR_NAME",
+        "具体品种",
+        "CONTEXT",
+        "基础信息",
+        10,
+        30,
+      ),
+      productionContractField(
+        "surveyDate",
+        "调查日期",
+        "CONTEXT",
+        "基础信息",
+        10,
+        40,
+        {
+          valueType: "DATE",
+          controlType: "DATE",
+          required: true,
+        },
+      ),
+      productionContractField(
+        "PROD_SAMPLE_SUBJECT_CODE",
+        "稳定主体码",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        10,
+        {
+          controlType: "READONLY_SUBJECT",
+          readOnly: true,
+          importable: false,
+        },
+      ),
+      productionContractField(
+        "PROD_SAMPLE_NAME",
+        "填报对象名称",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        20,
+      ),
+      productionContractField(
+        "PROD_REPORTER_NAME",
+        "填报人",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        30,
+        {
+          controlType: "READONLY_TEXT",
+          required: true,
+          readOnly: true,
+          importable: false,
+        },
+      ),
+      productionContractField(
+        "PROD_REPORTER_PHONE",
+        "填报人联系方式",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        40,
+        {
+          required: true,
+        },
+      ),
+      productionContractField(
+        "PROD_SAMPLE_CONTACT",
+        "填报对象联系方式",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        50,
+        {
+          required: true,
+        },
+      ),
+      productionContractField(
+        "PROD_SAMPLE_LATITUDE",
+        "填报对象纬度",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        60,
+        {
+          valueType: "DECIMAL",
+          controlType: "DECIMAL",
+          required: true,
+        },
+      ),
+      productionContractField(
+        "PROD_SAMPLE_LONGITUDE",
+        "填报对象经度",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        70,
+        {
+          valueType: "DECIMAL",
+          controlType: "DECIMAL",
+          required: true,
+        },
+      ),
+      productionContractField(
+        "cultivatedAreaMu",
+        "种植面积",
+        "OUTPUT",
+        "产量信息",
+        30,
+        10,
+        {
+          valueType: "DECIMAL",
+          controlType: "DECIMAL",
+          unit: "亩",
+          required: true,
+        },
+      ),
+      productionContractField(
+        "yieldPerMuKilograms",
+        "权威采用单产",
+        "OUTPUT",
+        "产量信息",
+        30,
+        20,
+        {
+          valueType: "DECIMAL",
+          controlType: "DECIMAL",
+          unit: "公斤/亩",
+          required: true,
+        },
+      ),
+      productionContractField(
+        "estimatedOutputKilograms",
+        "预计总产",
+        "OUTPUT",
+        "产量信息",
+        30,
+        30,
+        {
+          valueType: "DECIMAL",
+          controlType: "READONLY_DECIMAL",
+          unit: "公斤",
+          readOnly: true,
+          calculated: true,
+          importable: false,
+        },
+      ),
+      productionContractField(
+        "yearOnYear",
+        "与上年同比",
+        "OUTPUT",
+        "产量信息",
+        30,
+        40,
+        {
+          controlType: "READONLY_TEXT",
+          readOnly: true,
+          calculated: true,
+          importable: false,
+        },
+      ),
+      ...dynamic,
+    ],
+    groups: [
+      {
+        category: "DETAIL",
+        label: "业务调查明细",
+        sortOrder: 10,
+        fields: dynamic
+          .slice(0, 3)
+          .map(
+            ({
+              code,
+              label,
+              valueType,
+              unit,
+              description,
+              precision,
+              scale,
+              sortOrder,
+            }) => ({
+              code,
+              label,
+              valueType,
+              unit,
+              description,
+              precision,
+              scale,
+              sortOrder,
+            }),
+          ),
+      },
+      {
+        category: "QUALITY",
+        label: "质量指标",
+        sortOrder: 20,
+        fields: dynamic
+          .slice(3)
+          .map(
+            ({
+              code,
+              label,
+              valueType,
+              unit,
+              description,
+              precision,
+              scale,
+              sortOrder,
+            }) => ({
+              code,
+              label,
+              valueType,
+              unit,
+              description,
+              precision,
+              scale,
+              sortOrder,
+            }),
+          ),
+      },
+    ],
+  };
+}
+
 function repository() {
   const createProduction = vi.fn();
   const getProduction = vi.fn();
@@ -102,63 +457,7 @@ function repository() {
       Promise.resolve([{ code: "FARMER", name: "农户", domain: "PRODUCTION" }]),
     ),
     loadProductionDefinition: vi.fn(() =>
-      Promise.resolve({
-        productCode: "CORN",
-        objectTypeCode: "FARMER",
-        groups: [
-          {
-            category: "DETAIL",
-            label: "业务调查明细",
-            sortOrder: 10,
-            fields: [
-              {
-                code: "PROD_SAMPLE_NAME",
-                label: "填报对象",
-                valueType: "TEXT",
-                unit: null,
-                description: null,
-                precision: 18,
-                scale: 4,
-                sortOrder: 10,
-              },
-              ...[
-                ["PROD_OPENING_INVENTORY", "期初库存"],
-                ["PROD_SALES_VOLUME", "销售数量"],
-                ["PROD_SELF_USE", "自用数量"],
-              ].map(([code, label], index) => ({
-                code,
-                label,
-                valueType: "DECIMAL" as const,
-                unit: "吨",
-                description: null,
-                precision: 18,
-                scale: 4,
-                sortOrder: 20 + index,
-              })),
-            ],
-          },
-          {
-            category: "QUALITY",
-            label: "质量指标",
-            sortOrder: 20,
-            fields: [
-              ...[
-                ["PROTEIN", "蛋白"],
-                ["OIL_YIELD", "出油率"],
-              ].map(([code, label], index) => ({
-                code,
-                label,
-                valueType: "DECIMAL" as const,
-                unit: "%",
-                description: null,
-                precision: 18,
-                scale: 4,
-                sortOrder: 10 + index,
-              })),
-            ],
-          },
-        ],
-      }),
+      Promise.resolve(productionDefinition()),
     ),
     loadMarketDefinition: vi.fn(),
     listWorkItems: vi.fn(),
@@ -371,7 +670,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       await screen.findByRole("heading", { name: "产情单据审核" }),
     ).toBeVisible();
-    expect(screen.getByLabelText("填报人")).toHaveTextContent("原始填报员");
+    expect(await screen.findByLabelText("填报人")).toHaveTextContent(
+      "原始填报员",
+    );
     await act(async () => {
       resolveSession({
         subjectId: "reviewer",
@@ -763,7 +1064,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       await screen.findByRole("heading", { name: "产情填报" }),
     ).toBeVisible();
-    expect(screen.getByLabelText("填报人")).toBeVisible();
+    expect(await screen.findByLabelText("填报人")).toBeVisible();
     await waitFor(() =>
       expect(screen.getByLabelText("填报人")).toHaveTextContent("王洋"),
     );
@@ -788,8 +1089,11 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(screen.getByLabelText("与上年同比")).toBeInstanceOf(
       HTMLOutputElement,
     );
+    expect(screen.getByLabelText("稳定主体码")).toHaveTextContent(
+      "待权威映射（EXT-007）",
+    );
     expect(screen.getByRole("group", { name: "基础信息" })).toBeVisible();
-    expect(screen.getByRole("group", { name: "联系与位置" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "调查对象与联系" })).toBeVisible();
   });
 
   it("refuses to open a record that does not belong to the menu-locked product", async () => {

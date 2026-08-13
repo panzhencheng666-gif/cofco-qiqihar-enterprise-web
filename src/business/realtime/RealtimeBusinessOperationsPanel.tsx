@@ -19,6 +19,7 @@ import {
   type ProductionRecordRow,
   type RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { BusinessImportStatus } from "../importing/BusinessImportStatus";
 import {
   awaitBusinessImport,
@@ -27,8 +28,7 @@ import {
 import {
   definitionFields,
   marketPayloadFromValues,
-  productionCoreFields,
-  productionMetadataFields,
+  productionFields,
   productionPayloadFromValues,
   type RealtimeFormField,
 } from "./realtimeRecordFormModel";
@@ -265,8 +265,14 @@ export function RealtimeBusinessOperationsPanel({
       .then((nextDefinition) => {
         if (!cancelled) setDefinition(nextDefinition);
       })
-      .catch(() => {
-        if (!cancelled) setError("填报规则读取失败，请稍后重试。");
+      .catch((loadError: unknown) => {
+        if (!cancelled)
+          setError(
+            loadError instanceof RealtimeApiError &&
+              loadError.code === "CONTRACT_MISMATCH"
+              ? loadError.message
+              : "填报规则读取失败，请稍后重试。",
+          );
       });
     return () => {
       cancelled = true;
@@ -275,11 +281,9 @@ export function RealtimeBusinessOperationsPanel({
 
   const fields = useMemo(() => {
     if (domain === "production") {
-      const dynamic =
-        definition && "groups" in definition
-          ? definitionFields(definition)
-          : [];
-      return [...productionCoreFields, ...productionMetadataFields, ...dynamic];
+      return definition && "contractVersion" in definition
+        ? productionFields(definition)
+        : [];
     }
     if (!definition || !("coreFields" in definition)) return [];
     const core: RealtimeFormField[] = definition.coreFields.map((field) => ({
@@ -338,6 +342,9 @@ export function RealtimeBusinessOperationsPanel({
   }
 
   function displayedValue(field: RealtimeFormField): string {
+    if (field.code === "PROD_SAMPLE_SUBJECT_CODE") {
+      return values[field.code] || "待权威映射（EXT-007）";
+    }
     if (field.code === "estimatedOutputKilograms") {
       const area = Number(values.cultivatedAreaMu);
       const yieldPerMu = Number(values.yieldPerMuKilograms);
@@ -492,7 +499,11 @@ export function RealtimeBusinessOperationsPanel({
       let record: SelectedRecord;
       if (domain === "production") {
         const payload = {
-          ...productionPayloadFromValues(values, productCode, definition),
+          ...productionPayloadFromValues(
+            values,
+            productCode,
+            definition as ProductionDefinition,
+          ),
           evidencePhotoIds,
         };
         record = selected

@@ -21,6 +21,7 @@ import {
 } from "./fixtureOperationalState";
 import type {
   BusinessNotificationRow,
+  ProductionDefinition,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
@@ -59,6 +60,114 @@ function apiSession(overrides: Record<string, unknown> = {}) {
     permissions: ["BUSINESS_READ", "BUSINESS_CREATE"],
     regionCodes: ["230200"],
     ...overrides,
+  };
+}
+
+function productionDefinitionFixture(): ProductionDefinition {
+  const field = (
+    code: string,
+    label: string,
+    groupCode: string,
+    groupLabel: string,
+    groupOrder: number,
+    sortOrder: number,
+    overrides: Partial<ProductionDefinition["fields"][number]> = {},
+  ): ProductionDefinition["fields"][number] => ({
+    code,
+    label,
+    groupCode,
+    groupLabel,
+    groupOrder,
+    sortOrder,
+    valueType: "TEXT",
+    controlType: "TEXT",
+    unit: null,
+    required: false,
+    options: [],
+    readOnly: false,
+    calculated: false,
+    importable: true,
+    displayed: true,
+    description: null,
+    precision: 0,
+    scale: 0,
+    ...overrides,
+  });
+  return {
+    productCode: "CORN",
+    objectTypeCode: "FARMER",
+    contractVersion: "production-survey-fields-v1",
+    fields: [
+      field("surveyDate", "调查日期", "CONTEXT", "基础信息", 10, 10, {
+        valueType: "DATE",
+        controlType: "DATE",
+        required: true,
+      }),
+      field(
+        "PROD_SAMPLE_SUBJECT_CODE",
+        "稳定主体码",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        10,
+        {
+          controlType: "READONLY_SUBJECT",
+          readOnly: true,
+          importable: false,
+        },
+      ),
+      field(
+        "PROD_SAMPLE_NAME",
+        "填报对象名称",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        20,
+      ),
+      field("cultivatedAreaMu", "种植面积", "OUTPUT", "产量信息", 30, 10, {
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        unit: "亩",
+        required: true,
+        precision: 18,
+        scale: 4,
+      }),
+      field(
+        "yieldPerMuKilograms",
+        "权威采用单产",
+        "OUTPUT",
+        "产量信息",
+        30,
+        20,
+        {
+          valueType: "DECIMAL",
+          controlType: "DECIMAL",
+          unit: "公斤/亩",
+          required: true,
+          precision: 18,
+          scale: 4,
+        },
+      ),
+      field(
+        "estimatedOutputKilograms",
+        "预计总产",
+        "OUTPUT",
+        "产量信息",
+        30,
+        30,
+        {
+          valueType: "DECIMAL",
+          controlType: "READONLY_DECIMAL",
+          unit: "公斤",
+          readOnly: true,
+          calculated: true,
+          importable: false,
+          precision: 18,
+          scale: 4,
+        },
+      ),
+    ],
+    groups: [],
   };
 }
 
@@ -291,11 +400,7 @@ describe("formal enterprise prototype", () => {
           totalPages: 0,
         }),
       loadProductionDefinition: () =>
-        Promise.resolve({
-          productCode: "CORN",
-          objectTypeCode: "FARMER",
-          groups: [],
-        }),
+        Promise.resolve(productionDefinitionFixture()),
       getProduction,
     } as unknown as RealtimeBusinessRepository;
 
@@ -578,11 +683,7 @@ describe("formal enterprise prototype", () => {
           { code: "FARMER", name: "农户", domain: "PRODUCTION" },
         ]),
       loadProductionDefinition: () =>
-        Promise.resolve({
-          productCode: "CORN",
-          objectTypeCode: "FARMER",
-          groups: [],
-        }),
+        Promise.resolve(productionDefinitionFixture()),
       getProduction,
       listNotifications,
       markNotificationRead,
@@ -695,11 +796,7 @@ describe("formal enterprise prototype", () => {
           totalPages: 0,
         }),
       loadProductionDefinition: () =>
-        Promise.resolve({
-          productCode: "CORN",
-          objectTypeCode: "FARMER",
-          groups: [],
-        }),
+        Promise.resolve(productionDefinitionFixture()),
     } as unknown as RealtimeBusinessRepository;
 
     render(

@@ -16,106 +16,31 @@ export interface RealtimeFormField {
   readOnly?: boolean;
 }
 
-export const productionCoreFields: readonly RealtimeFormField[] = [
-  {
-    code: "objectTypeCode",
-    label: "样本点类型",
-    type: "select",
-    required: true,
-    section: "基础信息",
-  },
-  {
-    code: "regionCode",
-    label: "所在地区",
-    type: "select",
-    required: true,
-    section: "基础信息",
-  },
-  {
-    code: "PROD_CULTIVAR_NAME",
-    label: "具体品种",
-    type: "text",
-    section: "基础信息",
-  },
-  {
-    code: "surveyDate",
-    label: "调查日期",
-    type: "date",
-    required: true,
-    section: "基础信息",
-  },
-  {
-    code: "cultivatedAreaMu",
-    label: "种植面积",
-    type: "decimal",
-    required: true,
-    unit: "亩",
-    section: "产量信息",
-  },
-  {
-    code: "yieldPerMuKilograms",
-    label: "权威采用单产",
-    type: "decimal",
-    required: true,
-    unit: "公斤/亩",
-    section: "产量信息",
-  },
-  {
-    code: "estimatedOutputKilograms",
-    label: "预计总产",
-    type: "decimal",
-    unit: "公斤",
-    section: "产量信息",
-    readOnly: true,
-  },
-  {
-    code: "yearOnYear",
-    label: "与上年同比",
-    type: "text",
-    section: "产量信息",
-    readOnly: true,
-  },
-];
-
-export const productionMetadataFields: readonly RealtimeFormField[] = [
-  {
-    code: "PROD_REPORTER_NAME",
-    label: "填报人",
-    type: "text",
-    required: true,
-    section: "联系与位置",
-  },
-  {
-    code: "PROD_REPORTER_PHONE",
-    label: "填报人联系方式",
-    type: "text",
-    required: true,
-    section: "联系与位置",
-  },
-  {
-    code: "PROD_SAMPLE_CONTACT",
-    label: "填报对象联系方式",
-    type: "text",
-    required: true,
-    section: "联系与位置",
-  },
-  {
-    code: "PROD_SAMPLE_LATITUDE",
-    label: "填报对象纬度",
-    type: "decimal",
-    required: true,
-    unit: "度",
-    section: "联系与位置",
-  },
-  {
-    code: "PROD_SAMPLE_LONGITUDE",
-    label: "填报对象经度",
-    type: "decimal",
-    required: true,
-    unit: "度",
-    section: "联系与位置",
-  },
-];
+export function productionFields(
+  definition: ProductionDefinition,
+): readonly RealtimeFormField[] {
+  return definition.fields
+    .filter(({ displayed }) => displayed)
+    .map((field) => ({
+      code: field.code,
+      label: field.label,
+      type:
+        field.controlType === "REGION"
+          ? ("region" as const)
+          : field.controlType === "SELECT"
+            ? ("select" as const)
+            : field.controlType === "DATE"
+              ? ("date" as const)
+              : field.valueType === "DECIMAL"
+                ? ("decimal" as const)
+                : ("text" as const),
+      required: field.required,
+      unit: field.unit,
+      options: field.options.map((value) => ({ value, label: value })),
+      section: field.groupLabel,
+      readOnly: field.readOnly || field.calculated,
+    }));
+}
 
 function populated(
   values: Readonly<Record<string, string>>,
@@ -135,17 +60,24 @@ function categoryValues(
   category: string,
 ): Record<string, string> {
   const codes =
-    definition?.groups
-      .filter((group) => group.category.toUpperCase() === category)
-      .flatMap((group) => group.fields.map((field) => field.code)) ?? [];
+    definition?.fields
+      .filter((field) => field.groupCode.toUpperCase() === category)
+      .map((field) => field.code) ?? [];
   return populated(values, codes);
 }
 
 export function productionPayloadFromValues(
   values: Readonly<Record<string, string>>,
   lockedProductCode: string,
-  definition?: ProductionDefinition,
+  definition: ProductionDefinition,
 ): ProductionDraftPayload {
+  const metadataCodes = definition.fields
+    .filter(
+      ({ code, groupCode }) =>
+        code.startsWith("PROD_") &&
+        !["QUALITY", "COST", "INSURANCE", "SUBSIDY"].includes(groupCode),
+    )
+    .map(({ code }) => code);
   return {
     productCode: lockedProductCode.trim().toUpperCase(),
     objectTypeCode: values.objectTypeCode?.trim() ?? "",
@@ -158,13 +90,7 @@ export function productionPayloadFromValues(
     costs: categoryValues(values, definition, "COST"),
     insurance: categoryValues(values, definition, "INSURANCE"),
     subsidies: categoryValues(values, definition, "SUBSIDY"),
-    submissionMetadata: {
-      ...populated(values, [
-        "PROD_CULTIVAR_NAME",
-        ...productionMetadataFields.map(({ code }) => code),
-      ]),
-      ...categoryValues(values, definition, "DETAIL"),
-    },
+    submissionMetadata: populated(values, metadataCodes),
     evidencePhotoIds: [],
   };
 }
@@ -195,6 +121,17 @@ export function marketPayloadFromValues(
 export function definitionFields(
   definition: ProductionDefinition | MarketDefinition,
 ): readonly RealtimeFormField[] {
+  if ("contractVersion" in definition) {
+    const dynamicGroups = new Set(
+      definition.groups.map(({ category }) => category.toUpperCase()),
+    );
+    return productionFields(definition).filter(({ code }) => {
+      const field = definition.fields.find(
+        (candidate) => candidate.code === code,
+      );
+      return field ? dynamicGroups.has(field.groupCode.toUpperCase()) : false;
+    });
+  }
   return definition.groups.flatMap((group) =>
     group.fields.map((field) => ({
       code: field.code,
