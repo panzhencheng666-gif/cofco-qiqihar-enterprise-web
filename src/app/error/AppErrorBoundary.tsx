@@ -1,5 +1,5 @@
 import { Alert, Button, Space } from "antd";
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, type ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
@@ -16,8 +16,8 @@ export class AppErrorBoundary extends Component<Props, State> {
     return { failed: true };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("page-render-failure", { error, info });
+  componentDidCatch() {
+    reportRenderFailure();
   }
 
   render() {
@@ -39,4 +39,8 @@ export class AppErrorBoundary extends Component<Props, State> {
       />
     );
   }
+}
+
+export function reportRenderFailure() {
+  console.error("page-render-failure");
 }

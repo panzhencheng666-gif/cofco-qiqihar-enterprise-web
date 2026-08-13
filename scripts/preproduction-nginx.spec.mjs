@@ -18,6 +18,30 @@ const forgedHeaders = {
   "x-remote-user": "forged-remote-user",
 };
 
+test("gateway declares bounded API and authentication rates plus browser policy headers", async () => {
+  const source = await readFile(
+    resolve(repositoryRoot, "ops/alicloud-preproduction/gateway/nginx.conf"),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /limit_req_zone \$api_limit_key zone=api_per_ip:10m rate=120r\/s;/u,
+  );
+  assert.match(
+    source,
+    /limit_req_zone \$auth_limit_key zone=auth_per_ip:10m rate=60r\/m;/u,
+  );
+  assert.match(source, /limit_req zone=api_per_ip burst=240 nodelay;/u);
+  assert.match(source, /limit_req zone=auth_per_ip burst=10 nodelay;/u);
+  assert.match(source, /limit_req_status 429;/u);
+  assert.match(source, /add_header Content-Security-Policy /u);
+  assert.match(source, /default-src 'self'/u);
+  assert.match(source, /object-src 'none'/u);
+  assert.match(source, /frame-ancestors 'self'/u);
+  assert.match(source, /add_header Permissions-Policy /u);
+});
+
 test("nginx fixture exits promptly for missing tools and early child exits", async () => {
   const probeDirectory = await mkdtemp(
     join(tmpdir(), "cofco-stage5-nginx-lifecycle-"),
@@ -201,6 +225,7 @@ function httpGet(port, path, headers = {}, signal) {
         response.on("end", () =>
           resolveRequest({
             status: response.statusCode,
+            headers: response.headers,
             body: Buffer.concat(chunks).toString("utf8"),
           }),
         );
@@ -284,6 +309,22 @@ test("real nginx removes forged identity headers from every gateway proxy locati
         "x-forwarded-for": "203.0.113.66",
       });
       assert.equal(response.status, 200, `${path}: ${response.body}`);
+      assert.match(
+        response.headers["content-security-policy"],
+        /default-src 'self'/u,
+      );
+      assert.match(
+        response.headers["content-security-policy"],
+        /object-src 'none'/u,
+      );
+      assert.equal(
+        response.headers["permissions-policy"],
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+      );
+      assert.equal(
+        response.headers["strict-transport-security"],
+        "max-age=31536000",
+      );
       const received = JSON.parse(response.body);
       for (const header of Object.keys(forgedHeaders)) {
         assert.equal(
