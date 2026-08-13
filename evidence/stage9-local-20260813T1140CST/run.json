@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "cofco-stage9-recovery-v1",
+  "status": "LOCAL_EVIDENCE_READY",
+  "externalStatus": "BLOCKED_EXTERNAL(EXT-005)",
+  "operatorMode": true,
+  "sourceEditedDuringDrill": false,
+  "provenance": {
+    "webCommit": "7e17cf8482af346b11bcdb614c9c8817e67ab0ec",
+    "backendCommit": "0f12b72f22d1c39062316c606037ee135ec86082",
+    "backendJarSha256": "2282297f6f9be3f01d3f2aeb525fd4ce435805b55e96f582b0ac7d8fd4d4312c",
+    "javaVersion": "openjdk version \"21.0.12\" 2026-07-21",
+    "postgresToolchain": {
+      "initdb": "17.10",
+      "postgres": "17.10",
+      "pg_ctl": "17.10",
+      "psql": "17.10",
+      "createdb": "17.10",
+      "pg_basebackup": "17.10",
+      "pg_verifybackup": "17.10",
+      "pg_controldata": "17.10",
+      "pg_waldump": "17.10"
+    },
+    "backupManifestSha256": "14b7c32ce278b9e8cfda6ffd2df6068fa78a3d38b44bdc93ca0aa74c8af6b913",
+    "targetWalSha256": "a858d22132a383282df05f3aca62fc65f46cfbfd7603bf376eb3e42635bc3516",
+    "archivedWalSegments": 7
+  },
+  "postgres": {
+    "version": "17.10",
+    "checksumsEnabled": true,
+    "baseBackupManifestVerified": true,
+    "continuousArchiveVerified": true,
+    "recoveryTargetReached": true,
+    "targetTransactionPresent": true,
+    "laterMutationAbsent": true,
+    "flywayVersion": "116"
+  },
+  "recovery": {
+    "targetAt": "2026-08-13T03:45:00.880Z",
+    "recoveredThroughAt": "2026-08-13T03:45:00.866Z",
+    "rpoSeconds": 0,
+    "rtoSeconds": 3,
+    "rpoLimitSeconds": 900,
+    "rtoLimitSeconds": 7200
+  },
+  "photo": {
+    "objectKey": "evidence/00/00000000-0000-4000-8000-000000000009.evp",
+    "databaseOriginalSha256": "c7ecbad682d560614f28a0b2eca307d48891b57bff029cbf01c8b6cd8f17867d",
+    "objectOriginalSha256": "c7ecbad682d560614f28a0b2eca307d48891b57bff029cbf01c8b6cd8f17867d",
+    "databaseWatermarkedSha256": "605b6048bd20002e982e34b8cb02b17827fd4e90b189b26552d270a2b0261074",
+    "objectWatermarkedSha256": "605b6048bd20002e982e34b8cb02b17827fd4e90b189b26552d270a2b0261074",
+    "databaseByteLength": 21,
+    "objectOriginalByteLength": 21,
+    "replicaVerified": true,
+    "selectedVersionCreatedAt": "2026-08-13T03:45:00.471Z"
+  },
+  "scenarios": [
+    {
+      "code": "application-failure",
+      "status": "PASS",
+      "runbookSha256": "70ec1e07613887c06b1055b26a14dbbc9ab876b3f46ff932c07d4b735d860dde",
+      "mode": "LOCAL_OPERATOR_REPLAY"
+    },
+    {
+      "code": "message-backlog",
+      "status": "PASS",
+      "runbookSha256": "a5ddc5896c8ac3144bf52ad5bba90541ef89e4a46d403fec97608cd90908cc83",
+      "mode": "LOCAL_OPERATOR_REPLAY"
+    },
+    {
+      "code": "database-photo-recovery",
+      "status": "PASS",
+      "runbookSha256": "9e6f6a2a5601d59fcef7c2c422346e9fdaa9830b330e7972e9738a9af064cd2e",
+      "mode": "LOCAL_OPERATOR_REPLAY"
+    },
+    {
+      "code": "manual-degradation-reconciliation",
+      "status": "PASS",
+      "runbookSha256": "9a9a2cfdbc71089fcd2bf473111b0bff117558fdef77a579eca6830d16182a7c",
+      "mode": "LOCAL_OPERATOR_REPLAY",
+      "reconciliationSha256": "886034841bc71f6fa1bfb413ec8249dacdcf9c0dafa63be3a5603e84845780dd"
+    },
+    {
+      "code": "on-call-escalation",
+      "status": "PASS",
+      "runbookSha256": "a5d96d7e5088a1f65c3064d895a493257e874d7e060282141828e3b13c4cc05a",
+      "mode": "LOCAL_OPERATOR_REPLAY"
+    },
+    {
+      "code": "rollback",
+      "status": "PASS",
+      "runbookSha256": "4da29c2d6331940ea9244b2da85845d4c4149ac8a92d6a1be7b0fe88fa77d6ac",
+      "mode": "LOCAL_OPERATOR_REPLAY"
+    },
+    {
+      "code": "security-event",
+      "status": "PASS",
+      "runbookSha256": "fa954e83b25e7e6557984036a3a45181d6f96c3bb93bbe4d107ac590f93f8069",
+      "mode": "LOCAL_OPERATOR_REPLAY"
+    }
+  ]
+}
