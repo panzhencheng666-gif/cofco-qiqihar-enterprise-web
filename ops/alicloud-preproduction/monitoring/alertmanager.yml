@@ -4,9 +4,20 @@ route:
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity="critical"
+      receiver: preproduction-escalation
+      group_wait: 0s
+      group_interval: 5m
+      repeat_interval: 15m
 
 receivers:
   - name: preproduction-operations
+    webhook_configs:
+      - url_file: /run/secrets/alert-target
+        send_resolved: true
+  - name: preproduction-escalation
     webhook_configs:
       - url_file: /run/secrets/alert-target
         send_resolved: true

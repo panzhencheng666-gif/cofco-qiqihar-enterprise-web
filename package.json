@@ -13,7 +13,7 @@
     "preview:e2e": "vite preview --host 127.0.0.1 --port 63180 --strictPort",
     "build": "tsc -b && vite build",
     "budget": "node scripts/check-initial-bundle-budget.mjs",
-    "test": "vitest run && npm run stage3:idp-supplement:test && npm run stage5:preproduction:test && npm run stage7:performance:test",
+    "test": "vitest run && npm run stage3:idp-supplement:test && npm run stage5:preproduction:test && npm run stage7:performance:test && npm run stage9:observability:test",
     "test:watch": "vitest",
     "test:e2e": "npm run build && npm run budget && npm run test:e2e:preview",
     "test:e2e:preview": "node scripts/run-playwright.mjs",
@@ -37,6 +37,9 @@
     "stage7:performance:replay": "node scripts/run-stage-seven.mjs replay --config ops/stage7-performance-resilience/preproduction-admission.json",
     "stage7:performance:local": "node scripts/run-stage-seven-local.mjs",
     "stage7:performance:evidence:verify": "node scripts/run-stage-seven.mjs verify-evidence",
+    "stage9:observability:test": "node --test scripts/stage-nine-observability.spec.mjs scripts/stage-nine-core.spec.mjs scripts/stage-nine-postgres.spec.mjs",
+    "stage9:continuity:local": "node scripts/run-stage-nine.mjs local",
+    "stage9:evidence:verify": "node scripts/run-stage-nine.mjs verify-evidence",
     "verify:runtime": "node --test scripts/verify-runtime.spec.mjs && node scripts/verify-runtime.mjs",
     "verify": "npm run verify:runtime && npm run format:check && npm run lint && npm run architecture && npm run stage1:inventory:check && npm run test && npm run build && npm run budget && npm run test:e2e:preview"
   },

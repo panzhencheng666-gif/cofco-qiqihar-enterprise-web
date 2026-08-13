@@ -1,22 +1,165 @@
 groups:
-  - name: preproduction-availability
+  - name: stage9-availability-and-slo
     rules:
-      - alert: PreproductionEndpointUnavailable
+      - alert: Stage9EndpointUnavailable
         expr: probe_success == 0
         for: 2m
-        labels:
-          severity: critical
-          environment: preproduction
+        labels: { severity: critical, environment: preproduction }
         annotations:
-          summary: "Preproduction endpoint is unavailable"
-          description: "The isolated preproduction probe has failed for two minutes."
+          summary: "A bounded synthetic endpoint is unavailable"
+          runbook_url: "runbook://stage9/application-failure"
 
-      - alert: PreproductionProbeSlow
-        expr: probe_duration_seconds > 3
+      - alert: Stage9ApiErrorRateHigh
+        expr: >-
+          sum(rate(http_server_requests_seconds_count{http_response_status_code=~"5.."}[5m]))
+          / clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 1) > 0.001
         for: 5m
-        labels:
-          severity: warning
-          environment: preproduction
+        labels: { severity: critical, environment: preproduction }
         annotations:
-          summary: "Preproduction probe is slower than three seconds"
-          description: "The endpoint probe exceeded the bounded page availability target."
+          summary: "API error rate exceeds the approved 0.1% SLO"
+          runbook_url: "runbook://stage9/application-failure"
+
+      - alert: Stage9ApiLatencyHigh
+        expr: >-
+          histogram_quantile(0.95,
+          sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) > 0.8
+        for: 5m
+        labels: { severity: warning, environment: preproduction }
+        annotations:
+          summary: "API p95 latency exceeds 800 ms"
+          runbook_url: "runbook://stage9/application-failure"
+
+      - alert: Stage9TrafficAbsent
+        expr: sum(rate(http_server_requests_seconds_count[10m])) == 0
+        for: 10m
+        labels: { severity: warning, environment: preproduction }
+        annotations:
+          summary: "No backend traffic is visible"
+          runbook_url: "runbook://stage9/application-failure"
+
+  - name: stage9-resource-and-capacity
+    rules:
+      - alert: Stage9CpuHigh
+        expr: process_cpu_usage > 0.7
+        for: 10m
+        labels: { severity: warning, environment: preproduction }
+        annotations:
+          summary: "Backend CPU exceeds the approved 70% threshold"
+          runbook_url: "runbook://stage9/capacity"
+
+      - alert: Stage9MemoryHigh
+        expr: >-
+          sum(jvm_memory_used_bytes) / clamp_min(sum(jvm_memory_max_bytes), 1) > 0.75
+        for: 10m
+        labels: { severity: warning, environment: preproduction }
+        annotations:
+          summary: "JVM memory exceeds the approved 75% threshold"
+          runbook_url: "runbook://stage9/capacity"
+
+      - alert: Stage9DatabasePoolSaturated
+        expr: >-
+          qiqihar_database_pool_active
+          / clamp_min(qiqihar_database_pool_maximum, 1) > 0.7
+        for: 5m
+        labels: { severity: critical, environment: preproduction }
+        annotations:
+          summary: "Primary database connection pool exceeds 70%"
+          runbook_url: "runbook://stage9/application-failure"
+
+      - alert: Stage9DiskLow
+        expr: disk_free_bytes / clamp_min(disk_total_bytes, 1) < 0.2
+        for: 10m
+        labels: { severity: critical, environment: preproduction }
+        annotations:
+          summary: "Backend writable disk headroom is below 20%"
+          runbook_url: "runbook://stage9/capacity"
+
+      - alert: Stage9CapacityHeadroomLow
+        expr: >-
+          (process_cpu_usage > 0.7)
+          + (sum(jvm_memory_used_bytes) / clamp_min(sum(jvm_memory_max_bytes), 1) > 0.75)
+          + (qiqihar_database_pool_active / clamp_min(qiqihar_database_pool_maximum, 1) > 0.7) >= 2
+        for: 5m
+        labels: { severity: critical, environment: preproduction }
+        annotations:
+          summary: "At least two approved capacity thresholds are exhausted"
+          runbook_url: "runbook://stage9/capacity"
+
+  - name: stage9-business-workloads
+    rules:
+      - alert: Stage9ImportQueueStalled
+        expr: qiqihar_import_queue_active > 0
+        for: 15m
+        labels: { severity: critical, environment: preproduction }
+        annotations:
+          summary: "A queued import has remained active for 15 minutes"
+          runbook_url: "runbook://stage9/message-backlog"
+
+      - alert: Stage9ImportFailures
+        expr: increase(qiqihar_import_jobs_total{outcome="failed"}[10m]) > 0
+        for: 1m
+        labels: { severity: warning, environment: preproduction }
+        annotations:
+          summary: "A durable queued import failed"
+          runbook_url: "runbook://stage9/message-backlog"
+
+      - alert: Stage9ReportGenerationSlow
+        expr: >-
+          histogram_quantile(0.95,
+          sum by (le) (rate(qiqihar_report_generation_seconds_bucket[10m]))) > 3
+        for: 5m
+        labels: { severity: warning, environment: preproduction }
+        annotations:
+          summary: "Formal report generation p95 exceeds three seconds"
+          runbook_url: "runbook://stage9/application-failure"
+
+      - alert: Stage9EventBacklogStale
+        expr: qiqihar_business_event_backlog_seconds > 60
+        for: 2m
+        labels: { severity: critical, environment: preproduction }
+        annotations:
+          summary: "Durable business-event backlog exceeds 60 seconds"
+          runbook_url: "runbook://stage9/message-backlog"
+
+  - name: stage9-security-backup-and-required-signals
+    rules:
+      - alert: Stage9CertificateExpiring
+        expr: probe_ssl_earliest_cert_expiry - time() < 30 * 24 * 60 * 60
+        for: 15m
+        labels: { severity: critical, environment: preproduction }
+        annotations:
+          summary: "TLS certificate expires within 30 days"
+          runbook_url: "runbook://stage9/security-event"
+
+      - alert: Stage9SecretOrKeyNotReady
+        expr: qiqihar_security_secret_key_ready < 1
+        for: 2m
+        labels: { severity: critical, environment: preproduction }
+        annotations:
+          summary: "Required OIDC/OSS key references are not ready"
+          runbook_url: "runbook://stage9/security-event"
+
+      - alert: Stage9BackupStale
+        expr: >-
+          time() - cofco_backup_last_success_unixtime > 900
+          or absent(cofco_backup_last_success_unixtime)
+        for: 2m
+        labels: { severity: critical, environment: preproduction }
+        annotations:
+          summary: "Backup freshness exceeds the 15-minute RPO"
+          runbook_url: "runbook://stage9/database-photo-recovery"
+
+      - alert: Stage9RequiredMetricMissing
+        expr: >-
+          absent(http_server_requests_seconds_count)
+          or absent(qiqihar_database_pool_active)
+          or absent(qiqihar_import_queue_active)
+          or absent(qiqihar_report_generation_seconds_count)
+          or absent(qiqihar_business_event_backlog_seconds)
+          or absent(qiqihar_security_secret_key_ready)
+          or absent(cofco_backup_last_success_unixtime)
+        for: 5m
+        labels: { severity: critical, environment: preproduction }
+        annotations:
+          summary: "A required Stage 9 observability signal is absent"
+          runbook_url: "runbook://stage9/application-failure"

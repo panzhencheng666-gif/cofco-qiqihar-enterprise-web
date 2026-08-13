@@ -120,6 +120,7 @@ services:
     networks:
       - application
       - private-egress
+      - monitoring
     stop_grace_period: 30s
 
   prometheus:

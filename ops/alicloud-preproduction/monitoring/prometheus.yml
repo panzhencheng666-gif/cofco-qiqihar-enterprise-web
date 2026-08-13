@@ -11,7 +11,12 @@ alerting:
         - targets: ["alertmanager:9093"]
 
 scrape_configs:
-  - job_name: blackbox
+  - job_name: backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["backend:8090"]
+
+  - job_name: blackbox-health
     metrics_path: /probe
     params:
       module: [http_2xx]
@@ -27,6 +32,29 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: blackbox:9115
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: probe_success|probe_duration_seconds|probe_ssl_earliest_cert_expiry
+        action: keep
+
+  - job_name: blackbox-oidc
+    metrics_path: /probe
+    params:
+      module: [http_oidc_redirect]
+    static_configs:
+      - targets:
+          - http://backend:8090/api/v1/session/login
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # The https_2xx module is activated only after EXT-005 supplies the approved
+  # rendered TLS target. Until then certificate metrics remain absent and the
+  # Stage9RequiredMetricMissing alert intentionally fails closed.
 
   - job_name: prometheus
     static_configs:
