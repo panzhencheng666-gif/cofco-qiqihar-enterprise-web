@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useEffect,
   useMemo,
   useState,
@@ -20,7 +22,6 @@ import { EnterpriseShell } from "./EnterpriseShell";
 import { IdentityGovernancePanel } from "./identity/IdentityGovernancePanel";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
-import { FormalMarketMonitoringWorkspace } from "./MarketMonitoringWorkspace";
 import { FormalMyWorkWorkspace } from "./MyWorkWorkspace";
 import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
 import { FormalReportCenterWorkspace } from "./ReportCenterWorkspace";
@@ -68,6 +69,12 @@ import {
 } from "./runtimeIdentity";
 import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
 import { createFormalRoute } from "./formalEnterpriseModel";
+
+const FormalMarketMonitoringWorkspace = lazy(() =>
+  import("./MarketMonitoringWorkspace").then((module) => ({
+    default: module.FormalMarketMonitoringWorkspace,
+  })),
+);
 
 export interface EnterpriseBusinessApplicationProps {
   initialSearch?: string;
@@ -1156,7 +1163,9 @@ export function EnterpriseBusinessApplication({
           </div>
         </section>
       )}
-      {workspace}
+      <Suspense fallback={<div role="status">正在加载市场监测工作区</div>}>
+        {workspace}
+      </Suspense>
       {realtimeEntry}
       {realtimeMode && currentSession && identityPanelView && (
         <IdentityGovernancePanel

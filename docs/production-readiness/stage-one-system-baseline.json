@@ -1041,6 +1041,7 @@
         "docs/superpowers/plans/2026-08-09-menu-locked-product-and-workbook-contract.md",
         "docs/superpowers/plans/2026-08-12-stage-six-master-data-migration-metrics.md",
         "docs/superpowers/plans/2026-08-12-stage-three-full-function-acceptance.md",
+        "docs/superpowers/plans/2026-08-13-stage-nine-observability-dr.md",
         "docs/superpowers/plans/2026-08-13-stage-seven-performance-resilience.md",
         "docs/superpowers/plans/2026-08-13-stage-seven-supervisor-rejection-fixes.md",
         "docs/superpowers/specs/2026-07-31-contextual-business-report-export-and-enterprise-shell-optimization-design.md",
@@ -1056,6 +1057,7 @@
         "docs/superpowers/specs/2026-08-08-enterprise-production-system-design.md",
         "docs/superpowers/specs/2026-08-08-production-submission-evidence-import-design.md",
         "docs/superpowers/specs/2026-08-09-enterprise-production-readiness-and-go-live-design.md",
+        "docs/superpowers/specs/2026-08-13-stage-nine-observability-dr-design.md",
         "docs/superpowers/specs/2026-08-13-stage-seven-performance-resilience-design.md"
       ]
     }
