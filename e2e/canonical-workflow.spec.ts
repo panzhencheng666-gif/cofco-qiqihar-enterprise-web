@@ -148,7 +148,7 @@ test("keeps product-owned entry and workbook contracts aligned across business d
   await productionPanel.getByLabel("种植面积").fill("120");
   await productionPanel.getByLabel("权威采用单产").fill("310");
   await productionPanel
-    .getByRole("textbox", { name: "填报对象", exact: true })
+    .getByRole("textbox", { name: "填报对象名称", exact: true })
     .fill("通齐村第一调查户");
   await productionPanel.getByLabel("期初库存").fill("18");
   await productionPanel.getByLabel("销售数量").fill("4");

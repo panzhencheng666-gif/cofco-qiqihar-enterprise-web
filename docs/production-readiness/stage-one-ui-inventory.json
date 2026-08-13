@@ -4,10 +4,10 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 44,
-  "sourceDigest": "a7444797c0d42bca2e7ea6c51c18ff64b63ab05d0f8a65170853cd167ef5e08f",
-  "itemCount": 382,
+  "sourceDigest": "8d0044d41c1c75e49fe0a44f094772d67aea63a778c62b5c288e6f7eb9644d21",
+  "itemCount": 383,
   "countsByKind": {
-    "BUTTON": 185,
+    "BUTTON": 186,
     "LINK": 8,
     "FILTER_OR_INPUT": 184,
     "DIALOG": 5
@@ -280,10 +280,10 @@
       "sourceExcerpt": "<button aria-label={`打开${application.label}`} key={application.key} type=\"button\" onClick={() => { onSelect?.(application.key); setOpen(false); }} >"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1101:13:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1108:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1101,
+      "line": 1108,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -294,10 +294,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={rebuildOperationalState}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1119:11:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1126:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1119,
+      "line": 1126,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -308,10 +308,10 @@
       "sourceExcerpt": "<button onClick={() => updateCoordinates({ regionId: \"authorized-all\", businessDomainId: undefined, businessSubtypeId: undefined, productId: undefined, cultivarId: undefined, releaseVersion: undefined, dataLayer: \"official\", }) } type=\"b..."
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:134:11:LINK",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:141:11:LINK",
       "kind": "LINK",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 134,
+      "line": 141,
       "column": 11,
       "tag": "a",
       "accessibleNameSource": null,
@@ -322,10 +322,10 @@
       "sourceExcerpt": "<a className=\"enterprise-session-action\" href={loginUrl}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:277:7:DIALOG",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:284:7:DIALOG",
       "kind": "DIALOG",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 277,
+      "line": 284,
       "column": 7,
       "tag": "section",
       "accessibleNameSource": "aria-label={label}",
@@ -336,10 +336,10 @@
       "sourceExcerpt": "<section aria-label={label} aria-modal=\"true\" className=\"realtime-entry-dialog\" role=\"dialog\" >"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:283:9:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:290:9:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 283,
+      "line": 290,
       "column": 9,
       "tag": "button",
       "accessibleNameSource": "aria-label={`关闭${label}`}",
@@ -3472,80 +3472,10 @@
       "sourceExcerpt": "<button className=\"production-task5-row-action\" type=\"button\" onClick={() => onSelectionChange({ type: \"work-item\", id: item.workId, }) } >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1028:17:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1028,
-      "column": 17,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button disabled={ !importObjectType || importing || !realtimeRepository.downloadProductionXlsxTemplate } type=\"button\" onClick={() => void downloadTemplate()} >"
-    },
-    {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1041:19:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1016:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1041,
-      "column": 19,
-      "tag": "input",
-      "accessibleNameSource": "aria-label=\"批量导入产情记录\"",
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<input accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" aria-label=\"批量导入产情记录\" disabled={!importObjectType || importing} type=\"file\" onChange={(event) => { void importRecords(event.target.files?.[0]); event..."
-    },
-    {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1054:13:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1054,
-      "column": 13,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button type=\"button\" onClick={() => onCreateRecord?.(productCode)}>"
-    },
-    {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1175:21:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1175,
-      "column": 21,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => { if (realtimeRepository && onEditRecord) { onEditRecord(productCode, row.workId); return; } onSelectionChange({ type: \"work-item\", id: row.workId, }); }} >"
-    },
-    {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:784:11:FILTER_OR_INPUT",
-      "kind": "FILTER_OR_INPUT",
-      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 784,
-      "column": 11,
-      "tag": "select",
-      "accessibleNameSource": "aria-label=\"调查年份\"",
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<select aria-label=\"调查年份\" required value={surveyYear} onChange={(event) => { setSurveyYear(event.target.value); setPageNumber(0); }} >"
-    },
-    {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:802:11:FILTER_OR_INPUT",
-      "kind": "FILTER_OR_INPUT",
-      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 802,
+      "line": 1016,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"调查月份\"",
@@ -3556,10 +3486,10 @@
       "sourceExcerpt": "<select aria-label=\"调查月份\" value={surveyMonth} onChange={(event) => { setSurveyMonth(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:844:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1058:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 844,
+      "line": 1058,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"调查批次\"",
@@ -3570,10 +3500,10 @@
       "sourceExcerpt": "<select aria-label=\"调查批次\" value={scope.coordinates.periodKey ?? \"\"} onChange={(event) => { setPageNumber(0); onScopeChange({ periodKey: event.target.value || undefined }); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:863:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1077:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 863,
+      "line": 1077,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"对象类型\"",
@@ -3584,10 +3514,10 @@
       "sourceExcerpt": "<select aria-label=\"对象类型\" value={objectType} onChange={(event) => { setPageNumber(0); setObjectType( event.target.value as \"\" | ProductionBusinessObjectTypeId, ); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:885:15:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1099:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 885,
+      "line": 1099,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"具体品种\"",
@@ -3598,10 +3528,10 @@
       "sourceExcerpt": "<select aria-label=\"具体品种\" value={scope.coordinates.cultivarId ?? \"\"} onChange={(event) => { setPageNumber(0); onScopeChange({ cultivarId: event.target.value || undefined, }); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:906:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1120:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 906,
+      "line": 1120,
       "column": 11,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"填报日期起\"",
@@ -3612,10 +3542,10 @@
       "sourceExcerpt": "<input aria-label=\"填报日期起\" type=\"date\" value={fillingDateFrom} onChange={(event) => { setFillingDateFrom(event.target.value); setPageNumber(0); }} />"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:918:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1132:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 918,
+      "line": 1132,
       "column": 11,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"填报日期止\"",
@@ -3626,10 +3556,10 @@
       "sourceExcerpt": "<input aria-label=\"填报日期止\" type=\"date\" value={fillingDateTo} onChange={(event) => { setFillingDateTo(event.target.value); setPageNumber(0); }} />"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:930:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1144:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 930,
+      "line": 1144,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"填报状态\"",
@@ -3640,10 +3570,10 @@
       "sourceExcerpt": "<select aria-label=\"填报状态\" value={status} onChange={(event) => { setStatus(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:954:11:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1168:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 954,
+      "line": 1168,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3654,10 +3584,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" onClick={() => setRecordsRevision((value) => value + 1)} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:961:11:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1175:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 961,
+      "line": 1175,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3666,6 +3596,90 @@
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
       "sourceExcerpt": "<button type=\"button\" onClick={() => { setStatus(\"\"); setObjectType(\"\"); setSurveyYear(currentSurveyYear); setSurveyMonth(\"\"); setFillingDateFrom(\"\"); setFillingDateTo(\"\"); setLowerRegion({}); setRealtimeRegionCode(\"\"); setPageNumber(0);..."
+    },
+    {
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1247:17:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "line": 1247,
+      "column": 17,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button disabled={ !importObjectType || importing || !realtimeRepository.downloadProductionXlsxTemplate } type=\"button\" onClick={() => void downloadTemplate()} >"
+    },
+    {
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1260:19:FILTER_OR_INPUT",
+      "kind": "FILTER_OR_INPUT",
+      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "line": 1260,
+      "column": 19,
+      "tag": "input",
+      "accessibleNameSource": "aria-label=\"批量导入产情记录\"",
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<input accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" aria-label=\"批量导入产情记录\" disabled={!importObjectType || importing} type=\"file\" onChange={(event) => { void importRecords(event.target.files?.[0]); event..."
+    },
+    {
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1273:13:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "line": 1273,
+      "column": 13,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button type=\"button\" onClick={() => onCreateRecord?.(productCode)}>"
+    },
+    {
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1424:25:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "line": 1424,
+      "column": 25,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => { if (realtimeRepository && onEditRecord) { onEditRecord(productCode, row.workId); return; } onSelectionChange({ type: \"work-item\", id: row.workId, }); }} >"
+    },
+    {
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:439:15:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "line": 439,
+      "column": 15,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => onEditRecord?.(productCode, record.id)} >"
+    },
+    {
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:998:11:FILTER_OR_INPUT",
+      "kind": "FILTER_OR_INPUT",
+      "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "line": 998,
+      "column": 11,
+      "tag": "select",
+      "accessibleNameSource": "aria-label=\"调查年份\"",
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductProductionCollectionWorkspace.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<select aria-label=\"调查年份\" required value={surveyYear} onChange={(event) => { setSurveyYear(event.target.value); setPageNumber(0); }} >"
     },
     {
       "id": "src/business/realtime/RealtimeAnnualComparisonPanel.tsx:221:13:FILTER_OR_INPUT",
@@ -3780,10 +3794,24 @@
       "sourceExcerpt": "<button className={ activeYear === point.businessYear ? \"is-active\" : \"\" } key={point.businessYear} onFocus={() => setActiveYear(point.businessYear)} onMouseEnter={() => setActiveYear(point.businessYear)} type=\"button\" >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1006:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1008:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1006,
+      "line": 1008,
+      "column": 15,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"void\")} >"
+    },
+    {
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1017:15:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
+      "line": 1017,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3794,10 +3822,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"approve\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1016:17:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1027:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1016,
+      "line": 1027,
       "column": 17,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"退回原因\"",
@@ -3808,10 +3836,10 @@
       "sourceExcerpt": "<input aria-label=\"退回原因\" placeholder=\"填写退回原因\" value={returnReason} onChange={(event) => setReturnReason(event.target.value)} />"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1022:17:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1033:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1022,
+      "line": 1033,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3822,10 +3850,10 @@
       "sourceExcerpt": "<button disabled={busy || !returnReason.trim()} type=\"button\" onClick={() => void transition(\"return\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:746:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:757:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 746,
+      "line": 757,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3836,10 +3864,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={busy || importing || !productCode || !objectTypeCode} onClick={() => void downloadWorkbook()} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:755:17:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:766:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 755,
+      "line": 766,
       "column": 17,
       "tag": "input",
       "accessibleNameSource": null,
@@ -3850,10 +3878,10 @@
       "sourceExcerpt": "<input type=\"file\" accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" disabled={busy || importing} onChange={(event) => void importWorkbook(event.target.files?.[0]) } />"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:767:13:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:778:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 767,
+      "line": 778,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3864,10 +3892,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={newRecord} disabled={busy || importing} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:793:19:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:804:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 793,
+      "line": 804,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3878,10 +3906,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={busy} onClick={() => void openRecord(record.id)} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:880:27:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:891:27:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 880,
+      "line": 891,
       "column": 27,
       "tag": "select",
       "accessibleNameSource": "aria-label={field.label}",
@@ -3892,10 +3920,10 @@
       "sourceExcerpt": "<select aria-label={field.label} required={field.required} value={values[field.code] ?? \"\"} onChange={(event) => edit(field.code, event.target.value) } >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:896:27:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:907:27:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 896,
+      "line": 907,
       "column": 27,
       "tag": "input",
       "accessibleNameSource": "aria-label={field.label}",
@@ -3906,10 +3934,10 @@
       "sourceExcerpt": "<input aria-label={field.label} inputMode={ field.type === \"decimal\" ? \"decimal\" : undefined } required={field.required} type={inputType(field)} value={values[field.code] ?? \"\"} onChange={(event) => edit(field.code, event.target.value) } />"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:920:19:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:931:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 920,
+      "line": 931,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"现场水印照片\"",
@@ -3920,10 +3948,10 @@
       "sourceExcerpt": "<input aria-label=\"现场水印照片\" accept=\"image/jpeg,image/png\" multiple type=\"file\" onChange={(event) => { const files = Array.from(event.target.files ?? []); if (files.length > 5) { setEvidenceFiles([]); setError(\"现场水印照片最多上传 5 张。\"); event.tar..."
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:953:25:LINK",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:964:25:LINK",
       "kind": "LINK",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 953,
+      "line": 964,
       "column": 25,
       "tag": "a",
       "accessibleNameSource": null,
@@ -3934,10 +3962,10 @@
       "sourceExcerpt": "<a href={`/api/v1/evidence-photos/${photo.id}/content`} rel=\"noreferrer\" target=\"_blank\" >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:975:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:986:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 975,
+      "line": 986,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3948,10 +3976,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={onCancel}>"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:980:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:991:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 980,
+      "line": 991,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3962,10 +3990,10 @@
       "sourceExcerpt": "<button disabled={busy || !definition || existingRecordUnavailable} type=\"submit\" >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:988:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:999:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 988,
+      "line": 999,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3974,20 +4002,6 @@
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"submit\")} >"
-    },
-    {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:997:15:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 997,
-      "column": 15,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"void\")} >"
     },
     {
       "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:401:13:BUTTON",
