@@ -11,6 +11,11 @@ import {
   PRODUCTION_SURVEY_CONTRACT_DIGEST,
   PRODUCTION_SURVEY_CONTRACT_VERSION,
 } from "./productionSurveyContract";
+import {
+  parseObservableAnalysisSnapshot,
+  type ObservableAnalysisQuery,
+  type ObservableAnalysisSnapshot,
+} from "./observableAnalysisContract";
 
 export interface MasterProduct {
   code: string;
@@ -931,6 +936,9 @@ export interface MarketObjectMutation {
 }
 
 export interface RealtimeBusinessRepository {
+  loadObservableAnalysisSnapshot(
+    input: ObservableAnalysisQuery,
+  ): Promise<ObservableAnalysisSnapshot>;
   loadCurrentSession(): Promise<CurrentSession>;
   listEmployees(): Promise<readonly EmployeeProfile[]>;
   loadAssignmentOptions(
@@ -1198,6 +1206,17 @@ export function createRealtimeBusinessRepository(
     ((url: string) => new EventSource(url, { withCredentials: true }));
   const productionDefinitionCache = new Map<string, ProductionDefinition>();
   return {
+    loadObservableAnalysisSnapshot: async (input) =>
+      parseObservableAnalysisSnapshot(
+        await client.get<unknown>("/api/v1/observable-analysis/snapshots", {
+          productCode: input.productCode,
+          regionCode: input.regionCode,
+          surveyYear: input.surveyYear,
+          surveyMonth: input.surveyMonth,
+          cultivarCode: input.cultivarCode,
+          subjectTypeCode: input.subjectTypeCode,
+        }),
+      ),
     loadCurrentSession: () => client.get<CurrentSession>(enterpriseSessionPath),
     listEmployees: () =>
       client.get<readonly EmployeeProfile[]>("/api/v1/identity/employees"),

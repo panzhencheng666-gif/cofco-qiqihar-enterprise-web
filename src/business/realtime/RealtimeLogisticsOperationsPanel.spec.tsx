@@ -64,6 +64,7 @@ const publicEditableValues = {
 
 function repository(): RealtimeBusinessRepository {
   return {
+    loadObservableAnalysisSnapshot: vi.fn(),
     loadCurrentSession: vi.fn(),
     listEmployees: vi.fn(),
     loadAssignmentOptions: vi.fn(),

@@ -20,7 +20,7 @@ import { MarketTaskWorkspace } from "./market/MarketTaskWorkspace";
 import type { MarketDocumentDraft } from "./market/MarketDocumentWorkbench";
 import { FormalWorkspaceScopeProvider } from "./UnifiedWorkspacePrimitives";
 import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
-import { RealtimeAnnualComparisonPanel } from "./realtime/RealtimeAnnualComparisonPanel";
+import { MarketAnalysisPanel } from "./analysis/MarketAnalysisPanel";
 
 export interface MarketMonitoringWorkspaceProps {
   section: MarketSection;
@@ -165,12 +165,7 @@ export function MarketMonitoringWorkspace({
     );
   }
   if (section === "analysis" && realtimeRepository) {
-    return (
-      <RealtimeAnnualComparisonPanel
-        domain="market"
-        repository={realtimeRepository}
-      />
-    );
+    return <MarketAnalysisPanel repository={realtimeRepository} />;
   }
   return (
     <MarketAnalysisWorkspace

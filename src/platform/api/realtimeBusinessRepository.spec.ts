@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RealtimeApiClient, RealtimeApiError } from "./realtimeApiClient";
+import { RealtimeApiError, type RealtimeApiClient } from "./realtimeApiClient";
+import { validSnapshot } from "./observableAnalysisContract.fixture";
 import {
   createRealtimeBusinessRepository,
   parseProductionDefinition,
@@ -118,6 +119,63 @@ function client(
 }
 
 describe("realtime business repository", () => {
+  it("loads one strictly parsed observable snapshot with only allowed query parameters", async () => {
+    const { api, get } = client();
+    get.mockResolvedValueOnce(validSnapshot() as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    const snapshot = await repository.loadObservableAnalysisSnapshot({
+      productCode: "CORN",
+      regionCode: "230200",
+      surveyYear: 2026,
+      surveyMonth: 8,
+      cultivarCode: "CORN-DENT",
+      subjectTypeCode: "FARMER",
+    });
+    expect(snapshot.analysisVersion).toMatch(/^sha256:/u);
+    expect(snapshot.qualityState).toBe("AVAILABLE");
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/observable-analysis/snapshots",
+      {
+        productCode: "CORN",
+        regionCode: "230200",
+        surveyYear: 2026,
+        surveyMonth: 8,
+        cultivarCode: "CORN-DENT",
+        subjectTypeCode: "FARMER",
+      },
+    );
+  });
+
+  it("keeps transport errors distinct from snapshot contract failures", async () => {
+    const { api, get } = client();
+    const repository = createRealtimeBusinessRepository(api);
+    get.mockRejectedValueOnce(
+      new RealtimeApiError({
+        code: "ACCESS_REGION_DENIED",
+        message: "无权访问该地区",
+        status: 403,
+      }),
+    );
+
+    await expect(
+      repository.loadObservableAnalysisSnapshot({
+        productCode: "CORN",
+        regionCode: "150700",
+        surveyYear: 2026,
+      }),
+    ).rejects.toMatchObject({ code: "ACCESS_REGION_DENIED", status: 403 });
+
+    get.mockResolvedValueOnce({ ...validSnapshot(), recordId: "private" } as never);
+    await expect(
+      repository.loadObservableAnalysisSnapshot({
+        productCode: "CORN",
+        regionCode: "230200",
+        surveyYear: 2026,
+      }),
+    ).rejects.toMatchObject({ code: "CONTRACT_MISMATCH", status: 200 });
+  });
+
   it("sends the expected production contract version and digest to the backend", async () => {
     const { api, get } = client();
     get.mockResolvedValueOnce(

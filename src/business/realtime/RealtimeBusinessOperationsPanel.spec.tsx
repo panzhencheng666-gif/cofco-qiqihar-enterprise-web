@@ -1300,7 +1300,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       items: [
         {
           id: "production-soybean",
-          values: {},
+          values: { PROD_SAMPLE_NAME: "production-soybean" },
           allowedActions: [],
           version: 1,
         },

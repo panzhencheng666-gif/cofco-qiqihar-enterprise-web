@@ -19,7 +19,7 @@ import { ProductionAnalysisWorkspace } from "./production/ProductionAnalysisWork
 import { ProductionObjectRegistry } from "./production/ProductionObjectRegistry";
 import { ProductProductionCollectionWorkspace } from "./production/ProductProductionCollectionWorkspace";
 import { ProductionTaskWorkspace } from "./production/ProductionTaskWorkspace";
-import { RealtimeAnnualComparisonPanel } from "./realtime/RealtimeAnnualComparisonPanel";
+import { ProductionAnalysisPanel } from "./analysis/ProductionAnalysisPanel";
 import type { ProductionDocumentDraft } from "./production/ProductionDocumentWorkbench";
 import { FormalWorkspaceScopeProvider } from "./UnifiedWorkspacePrimitives";
 
@@ -142,10 +142,7 @@ export function ProductionMonitoringWorkspace({
   }
   if (section === "analysis" && realtimeRepository) {
     return (
-      <RealtimeAnnualComparisonPanel
-        domain="production"
-        repository={realtimeRepository}
-      />
+      <ProductionAnalysisPanel repository={realtimeRepository} />
     );
   }
   return (

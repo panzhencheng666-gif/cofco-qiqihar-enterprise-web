@@ -3946,6 +3946,55 @@ body {
   margin-top: 1.1rem;
 }
 
+.observable-analysis-filters {
+  border: 1px solid #c7d8e4;
+  border-radius: 0.65rem;
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.observable-analysis-filters legend {
+  color: #173b58;
+  font-weight: 700;
+  padding: 0 0.4rem;
+}
+
+.observable-analysis-filter-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.observable-analysis-filter-grid label,
+.observable-analysis-filters .realtime-region-cascade label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.observable-analysis-filters input,
+.observable-analysis-filters select {
+  border: 1px solid #b8cad7;
+  border-radius: 0.35rem;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+}
+
+.observable-analysis-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.observable-analysis-filter-actions button {
+  border: 1px solid #1f625f;
+  border-radius: 0.35rem;
+  background: #fff;
+  color: #1f625f;
+  cursor: pointer;
+  padding: 0.52rem 0.75rem;
+}
+
 .realtime-supply-operations {
   border: 1px solid #c7d8e4;
   border-radius: 0.65rem;
@@ -4203,6 +4252,10 @@ body {
   margin: 0;
 }
 
+.realtime-supply-kpis--observable {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .realtime-supply-kpis > div {
   border-right: 1px solid #dce7ee;
   padding: 1rem;
@@ -4252,6 +4305,145 @@ body {
   border-radius: 0.55rem;
   margin: 0;
   padding: 1rem;
+}
+
+.realtime-supply-live-state {
+  color: #526b7e;
+  font-size: 0.82rem;
+  margin: 0.75rem 0 0;
+}
+
+.observable-analysis-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.observable-analysis-title {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.observable-analysis-title button {
+  border: 1px solid #1f625f;
+  border-radius: 0.35rem;
+  background: #fff;
+  color: #1f625f;
+  cursor: pointer;
+  padding: 0.55rem 0.85rem;
+}
+
+.observable-analysis-status {
+  align-items: center;
+  border: 1px solid #b8d5cd;
+  border-left: 5px solid #167d69;
+  border-radius: 0.55rem;
+  background: #eef8f5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.25rem;
+  padding: 0.85rem 1rem;
+}
+
+.observable-analysis-status span {
+  color: #526b7e;
+  font-size: 0.82rem;
+}
+
+.observable-analysis-section {
+  border: 1px solid #cbdce7;
+  border-radius: 0.65rem;
+  background: #fff;
+  padding: 1rem;
+}
+
+.observable-analysis-section > header h2,
+.observable-analysis-section > header p {
+  margin: 0;
+}
+
+.observable-analysis-section > header p {
+  color: #61778a;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.observable-analysis-metric-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 1rem 0 0;
+}
+
+.observable-analysis-metric-grid > div {
+  border: 1px solid #dbe6ed;
+  border-radius: 0.45rem;
+  background: #f8fbfd;
+  padding: 0.8rem;
+}
+
+.observable-analysis-metric-grid dt,
+.observable-analysis-metric-grid small {
+  color: #61778a;
+  font-size: 0.76rem;
+}
+
+.observable-analysis-metric-grid dd {
+  color: #173b58;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0.3rem 0;
+}
+
+.observable-analysis-bars {
+  display: grid;
+  gap: 0.65rem;
+  margin: 1rem 0;
+}
+
+.observable-analysis-bars > div {
+  align-items: center;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: minmax(100px, 0.35fr) minmax(160px, 1fr) minmax(120px, 0.35fr);
+}
+
+.observable-analysis-bars i {
+  background: linear-gradient(90deg, #2d7eb3, #43a18f);
+  border-radius: 999px;
+  height: 0.7rem;
+  min-width: 0;
+}
+
+.observable-analysis-bars strong {
+  color: #294c65;
+  font-size: 0.82rem;
+}
+
+.observable-analysis-equivalent-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.observable-analysis-equivalent-table th,
+.observable-analysis-equivalent-table td {
+  border-bottom: 1px solid #e0e8ee;
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+}
+
+.observable-analysis-summary,
+.observable-analysis-empty {
+  border-left: 3px solid #2d7eb3;
+  color: #425b70;
+  margin: 0.9rem 0 0;
+  padding: 0.55rem 0.75rem;
+}
+
+.realtime-supply-formula-note {
+  color: #61778a;
+  font-size: 0.8rem;
+  margin: 0.85rem 0 0;
 }
 
 .realtime-supply-bridge figcaption,
@@ -4408,9 +4600,15 @@ body {
 
 @media (max-width: 1000px) {
   .realtime-supply-query,
+  .observable-analysis-filter-grid,
   .realtime-supply-analysis-grid,
   .realtime-supply-validation,
   .realtime-supply-source-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .observable-analysis-metric-grid,
+  .observable-analysis-bars > div {
     grid-template-columns: 1fr;
   }
 

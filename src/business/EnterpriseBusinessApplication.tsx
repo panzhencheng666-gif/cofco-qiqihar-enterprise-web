@@ -903,6 +903,7 @@ export function EnterpriseBusinessApplication({
         if (realtimeMode) {
           return (
             <RealtimeSupplyBalancePanel
+              authorizedRegionCodes={currentSession?.regionCodes ?? ["*"]}
               permissions={currentSession?.permissions ?? []}
               productCode={realtimeSupplyProductCode(location.route.section)}
               regionCode={realtimeSupplyRegionCode(scope.coordinates.regionId)}
