@@ -58,13 +58,13 @@ describe("business import status", () => {
     );
 
     expect(screen.getByText(/第 2 行 · 铁路样本点/u)).toHaveTextContent(
-      "已保存为草稿",
+      "已保存为草稿（当前完整度 100%）",
     );
     expect(screen.getByText(/第 3 行 · 公路样本点/u)).toHaveTextContent(
-      "需补充基础信息后重新导入",
+      "已保存为草稿（当前完整度 50%）",
     );
-    expect(screen.getAllByRole("button", { name: "提交审核" })).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: "提交审核" }));
+    expect(screen.getAllByRole("button", { name: "提交审核" })).toHaveLength(2);
+    await user.click(screen.getAllByRole("button", { name: "提交审核" })[0]!);
     expect(onSubmitDraft).toHaveBeenCalledWith("draft-1");
   });
 

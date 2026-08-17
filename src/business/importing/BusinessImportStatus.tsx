@@ -51,21 +51,17 @@ export function BusinessImportStatus({
                   {draft.sampleName || "未命名样本点"} ·{" "}
                   {draft.stateCode === "PROMOTED"
                     ? "已提交审核"
-                    : draft.missingFields.length > 0
-                      ? "已保存为草稿，需补充基础信息后重新导入"
-                      : "已保存为草稿"}
+                    : `已保存为草稿（当前完整度 ${draft.completenessPercent}%）`}
                 </span>
-                {draft.stateCode === "DRAFT" &&
-                  draft.missingFields.length === 0 &&
-                  onSubmitDraft && (
-                    <button
-                      disabled={busy}
-                      type="button"
-                      onClick={() => onSubmitDraft(draft.id)}
-                    >
-                      提交审核
-                    </button>
-                  )}
+                {draft.stateCode === "DRAFT" && onSubmitDraft && (
+                  <button
+                    disabled={busy}
+                    type="button"
+                    onClick={() => onSubmitDraft(draft.id)}
+                  >
+                    提交审核
+                  </button>
+                )}
               </li>
             ))}
           </ul>
