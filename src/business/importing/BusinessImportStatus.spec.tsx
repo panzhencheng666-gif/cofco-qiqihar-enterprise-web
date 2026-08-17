@@ -7,6 +7,67 @@ import { BusinessImportStatus } from "./BusinessImportStatus";
 afterEach(cleanup);
 
 describe("business import status", () => {
+  it("shows independently stored rows and submits only a complete draft", async () => {
+    const user = userEvent.setup();
+    const onSubmitDraft = vi.fn();
+    render(
+      <BusinessImportStatus
+        busy={false}
+        className="business-alert"
+        drafts={[
+          {
+            id: "draft-1",
+            domainCode: "LOGISTICS",
+            productCode: "CORN",
+            sampleName: "铁路样本点",
+            regionCode: "230208",
+            surveyPeriod: "2026-08",
+            missingFields: [],
+            completenessPercent: 100,
+            stateCode: "DRAFT",
+            canonicalRecordId: null,
+            sourceRowNumber: 2,
+            version: 1,
+          },
+          {
+            id: "draft-2",
+            domainCode: "LOGISTICS",
+            productCode: "CORN",
+            sampleName: "公路样本点",
+            regionCode: "",
+            surveyPeriod: null,
+            missingFields: ["地区"],
+            completenessPercent: 50,
+            stateCode: "DRAFT",
+            canonicalRecordId: null,
+            sourceRowNumber: 3,
+            version: 1,
+          },
+        ]}
+        job={{
+          id: "import-1",
+          domainCode: "LOGISTICS",
+          statusCode: "COMPLETED",
+          importedRows: 2,
+          failedRows: 0,
+        }}
+        onDownloadErrors={vi.fn()}
+        onRetry={vi.fn()}
+        onSubmitDraft={onSubmitDraft}
+      />,
+    );
+
+    expect(screen.getByText(/第 2 行 · 铁路样本点/u)).toHaveTextContent(
+      "已保存为草稿",
+    );
+    expect(screen.getByText(/第 3 行 · 公路样本点/u)).toHaveTextContent(
+      "需补充基础信息后重新导入",
+    );
+    expect(screen.getAllByRole("button", { name: "提交审核" })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "提交审核" }));
+    expect(onSubmitDraft).toHaveBeenCalledWith("draft-1");
+  });
+
   it("offers the durable error receipt and retry action for a failed job", async () => {
     const user = userEvent.setup();
     const onDownloadErrors = vi.fn();

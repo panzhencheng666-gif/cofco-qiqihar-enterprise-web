@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type {
+  BusinessImportDraft,
   LogisticsDefinition,
   LogisticsRecordRow,
   ProductionImportJob,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 import {
   RegionCascadeSelector,
@@ -305,6 +307,10 @@ export function LogisticsMonitoringWorkspace({
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState("");
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
+  const [importDrafts, setImportDrafts] = useState<
+    readonly BusinessImportDraft[]
+  >([]);
+  const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [, setDefinition] = useState<LogisticsDefinition | null>(null);
   const { masterData, masterDataError } =
@@ -319,7 +325,10 @@ export function LogisticsMonitoringWorkspace({
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `物流-${productCode}-批量导入模板.xlsx`;
+      const productName =
+        masterData?.products.find((product) => product.code === productCode)
+          ?.name ?? "粮食";
+      anchor.download = `物流-${productName}-批量导入模板.xlsx`;
       anchor.click();
       URL.revokeObjectURL(url);
       setImportMessage("物流导入模板已下载");
@@ -333,10 +342,12 @@ export function LogisticsMonitoringWorkspace({
     setImporting(true);
     setImportMessage("");
     setImportJob(null);
+    setImportDrafts([]);
     try {
       const initial = await realtimeRepository.importLogisticsWorkbook(
         file,
         productCode,
+        importPhotos,
       );
       const result = await awaitBusinessImport({
         repository: realtimeRepository,
@@ -345,8 +356,10 @@ export function LogisticsMonitoringWorkspace({
         onUpdate: setImportJob,
       });
       if (result.statusCode !== "FAILED") {
-        setPageNumber(0);
-        setRecordsRevision((value) => value + 1);
+        setImportDrafts(
+          (await realtimeRepository.listImportDrafts?.(result.id)) ?? [],
+        );
+        setImportPhotos([]);
       }
     } catch {
       setImportMessage("物流记录导入失败，请核对模板和填报内容。");
@@ -371,10 +384,35 @@ export function LogisticsMonitoringWorkspace({
         onUpdate: setImportJob,
       });
       if (result.statusCode !== "FAILED") {
-        setRecordsRevision((value) => value + 1);
+        setImportDrafts(
+          (await realtimeRepository.listImportDrafts?.(result.id)) ?? [],
+        );
       }
     } catch {
       setRecordsError("物流导入任务重试失败，请稍后重试。");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function submitImportDraft(draftId: string) {
+    if (!realtimeRepository?.submitImportDraft) return;
+    setImporting(true);
+    setRecordsError("");
+    try {
+      const submitted = await realtimeRepository.submitImportDraft(draftId);
+      setImportDrafts((current) =>
+        current.map((draft) => (draft.id === submitted.id ? submitted : draft)),
+      );
+      setPageNumber(0);
+      setRecordsRevision((value) => value + 1);
+    } catch (reason) {
+      setRecordsError(
+        reason instanceof RealtimeApiError &&
+          reason.code === "IMPORT_DRAFT_INCOMPLETE"
+          ? "该行已保留为草稿；请在 XLSX 中补充正式审核所需基础信息后重新导入。"
+          : "导入草稿提交审核失败，请稍后重试。",
+      );
     } finally {
       setImporting(false);
     }
@@ -786,9 +824,11 @@ export function LogisticsMonitoringWorkspace({
       <BusinessImportStatus
         busy={importing}
         className="market-task6-alert"
+        drafts={importDrafts}
         job={importJob}
         onDownloadErrors={() => void downloadImportErrors()}
         onRetry={() => void retryImport()}
+        onSubmitDraft={(draftId) => void submitImportDraft(draftId)}
       />
 
       <header className="enterprise-ledger-title">
@@ -827,6 +867,21 @@ export function LogisticsMonitoringWorkspace({
                     void importWorkbook(event.target.files?.[0]);
                     event.target.value = "";
                   }}
+                />
+              </label>
+            )}
+            {realtimeRepository?.importLogisticsWorkbook && (
+              <label className="realtime-business-file-action">
+                附加照片（可选）
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  aria-label="附加物流照片"
+                  disabled={importing}
+                  multiple
+                  type="file"
+                  onChange={(event) =>
+                    setImportPhotos(Array.from(event.target.files ?? []))
+                  }
                 />
               </label>
             )}

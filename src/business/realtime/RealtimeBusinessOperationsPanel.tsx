@@ -9,6 +9,7 @@ import {
 
 import {
   realtimeBusinessRepository,
+  type BusinessImportDraft,
   type BusinessRecordListItem,
   type MarketDefinition,
   type MarketRecordRow,
@@ -166,6 +167,10 @@ export function RealtimeBusinessOperationsPanel({
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
+  const [importDrafts, setImportDrafts] = useState<
+    readonly BusinessImportDraft[]
+  >([]);
+  const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
   const [evidenceFiles, setEvidenceFiles] = useState<readonly File[]>([]);
   const [authenticatedName, setAuthenticatedName] = useState(actorName);
   const [identityError, setIdentityError] = useState("");
@@ -494,8 +499,8 @@ export function RealtimeBusinessOperationsPanel({
       setError(identityError);
       return;
     }
-    if (!selected && (evidenceFiles.length < 1 || evidenceFiles.length > 5)) {
-      setError("请上传 1–5 张现场水印照片后再保存。");
+    if (!selected && evidenceFiles.length > 5) {
+      setError("现场照片最多上传 5 张。");
       return;
     }
     setBusy(true);
@@ -629,6 +634,7 @@ export function RealtimeBusinessOperationsPanel({
     setImporting(true);
     setError("");
     setImportJob(null);
+    setImportDrafts([]);
     try {
       const initial =
         domain === "production"
@@ -636,11 +642,13 @@ export function RealtimeBusinessOperationsPanel({
               file,
               productCode,
               objectTypeCode,
+              importPhotos,
             )
           : await repository.importMarketWorkbook?.(
               file,
               productCode,
               objectTypeCode,
+              importPhotos,
             );
       if (!initial) throw new Error("IMPORT_NOT_CONFIGURED");
       const terminal = await awaitBusinessImport({
@@ -650,8 +658,10 @@ export function RealtimeBusinessOperationsPanel({
         onUpdate: setImportJob,
       });
       if (terminal.statusCode !== "FAILED") {
-        await reload(productCode);
-        onRecordsChanged?.();
+        setImportDrafts(
+          (await repository.listImportDrafts?.(terminal.id)) ?? [],
+        );
+        setImportPhotos([]);
       }
     } catch {
       setError(
@@ -675,11 +685,35 @@ export function RealtimeBusinessOperationsPanel({
         onUpdate: setImportJob,
       });
       if (terminal.statusCode !== "FAILED") {
-        await reload(productCode);
-        onRecordsChanged?.();
+        setImportDrafts(
+          (await repository.listImportDrafts?.(terminal.id)) ?? [],
+        );
       }
     } catch {
       setError("批量导入任务重试失败，请稍后重试。");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function submitImportDraft(draftId: string) {
+    if (!repository.submitImportDraft) return;
+    setImporting(true);
+    setError("");
+    try {
+      const submitted = await repository.submitImportDraft(draftId);
+      setImportDrafts((current) =>
+        current.map((draft) => (draft.id === submitted.id ? submitted : draft)),
+      );
+      await reload(productCode);
+      onRecordsChanged?.();
+    } catch (reason) {
+      setError(
+        reason instanceof RealtimeApiError &&
+          reason.code === "IMPORT_DRAFT_INCOMPLETE"
+          ? "该行已保留为草稿；请在 XLSX 中补充正式审核所需基础信息后重新导入。"
+          : "导入草稿提交审核失败，请稍后重试。",
+      );
     } finally {
       setImporting(false);
     }
@@ -717,7 +751,7 @@ export function RealtimeBusinessOperationsPanel({
       const href = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = href;
-      anchor.download = `${domain === "production" ? "产情" : "市场"}-${productCode}-${objectTypeCode}-批量导入模板.xlsx`;
+      anchor.download = `${domain === "production" ? "产情" : "市场"}-${productName(productCode, master)}-批量导入模板.xlsx`;
       anchor.click();
       URL.revokeObjectURL(href);
     } catch {
@@ -811,6 +845,19 @@ export function RealtimeBusinessOperationsPanel({
                   }
                 />
               </label>
+              <label className="realtime-business-file-action">
+                附加照片（可选）
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  aria-label={`${domain === "production" ? "附加产情照片" : "附加市场照片"}`}
+                  disabled={busy || importing}
+                  multiple
+                  onChange={(event) =>
+                    setImportPhotos(Array.from(event.target.files ?? []))
+                  }
+                />
+              </label>
             </>
           )}
           {!editorOnly && (
@@ -827,9 +874,11 @@ export function RealtimeBusinessOperationsPanel({
       <BusinessImportStatus
         busy={importing}
         className="realtime-business-message"
+        drafts={importDrafts}
         job={importJob}
         onDownloadErrors={() => void downloadImportErrors()}
         onRetry={() => void retryImport()}
+        onSubmitDraft={(draftId) => void submitImportDraft(draftId)}
       />
       <div
         className={`realtime-business-layout${editorOnly ? " is-editor-only" : ""}`}
@@ -963,7 +1012,7 @@ export function RealtimeBusinessOperationsPanel({
               <fieldset>
                 <legend>现场照片</legend>
                 <label className="realtime-business-evidence-upload">
-                  <span>现场水印照片（1–5 张） *</span>
+                  <span>现场照片（可选，最多 5 张）</span>
                   <input
                     aria-label="现场水印照片"
                     accept="image/jpeg,image/png"
@@ -985,7 +1034,7 @@ export function RealtimeBusinessOperationsPanel({
                   <small>
                     {evidenceFiles.length > 0
                       ? `已选择 ${evidenceFiles.length} 张：${evidenceFiles.map((file) => file.name).join("、")}`
-                      : "照片将按填报坐标和时间生成水印；保存后，具有该地区业务读取权限的员工均可查看。"}
+                      : "没有照片也可正常保存；选择照片后，系统将按填报坐标和时间生成水印。"}
                   </small>
                 </label>
               </fieldset>

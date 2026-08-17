@@ -467,12 +467,17 @@ describe("product production collection workspace", () => {
     await user.upload(screen.getByLabelText("批量导入产情记录"), file);
 
     await waitFor(() =>
-      expect(importProductionCsv).toHaveBeenCalledWith(file, "CORN", "FARMER"),
+      expect(importProductionCsv).toHaveBeenCalledWith(
+        file,
+        "CORN",
+        "FARMER",
+        [],
+      ),
     );
     expect(
-      await screen.findByText("导入完成：成功 1 条，失败 0 条。"),
+      await screen.findByText("导入完成：1 行已保存到填报草稿，失败 0 行。"),
     ).toBeVisible();
-    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(3));
+    expect(listProduction).toHaveBeenCalledTimes(2);
     await user.click(screen.getByRole("button", { name: "新建调查记录" }));
     expect(onCreateRecord).toHaveBeenCalledWith("CORN");
     await user.click(screen.getByRole("button", { name: "查看记录" }));

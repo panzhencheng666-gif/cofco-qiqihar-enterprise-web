@@ -1376,7 +1376,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(select).not.toHaveTextContent("呼伦贝尔市");
   });
 
-  it("requires watermarked field photos and binds their ids to a new production record", async () => {
+  it("allows a new production record without a photo", async () => {
     const { api, createProduction, uploadEvidencePhoto } = repository();
     vi.mocked(createProduction).mockResolvedValue({
       id: "production-1",
@@ -1425,35 +1425,15 @@ describe("RealtimeBusinessOperationsPanel", () => {
     });
     await waitFor(() => expect(saveButton).not.toBeDisabled());
     fireEvent.submit(saveButton.closest("form") as HTMLFormElement);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "请上传 1–5 张现场水印照片",
-    );
-    expect(createProduction).not.toHaveBeenCalled();
-
-    const photo = new File(["field-photo"], "field.png", {
-      type: "image/png",
-    });
-    fireEvent.change(screen.getByLabelText("现场水印照片"), {
-      target: { files: [photo] },
-    });
-    fireEvent.submit(saveButton.closest("form") as HTMLFormElement);
-
-    await waitFor(() => expect(uploadEvidencePhoto).toHaveBeenCalled());
-    expect(uploadEvidencePhoto).toHaveBeenCalledWith(
-      expect.objectContaining({
-        file: photo,
-        latitude: "47.3543",
-        longitude: "123.9182",
-      }),
-    );
-    expect(createProduction).toHaveBeenCalledOnce();
+    await waitFor(() => expect(createProduction).toHaveBeenCalledOnce());
+    expect(uploadEvidencePhoto).not.toHaveBeenCalled();
     const created = createProduction.mock.calls[0]?.[0] as unknown as
       ProductionDraftPayload | undefined;
     expect(created).toMatchObject({
       productCode: "CORN",
       cultivarCode: null,
       regionCode: "230221101001",
-      evidencePhotoIds: ["photo-1"],
+      evidencePhotoIds: [],
       submissionMetadata: {
         PROD_CULTIVAR_NAME: "龙单86",
       },

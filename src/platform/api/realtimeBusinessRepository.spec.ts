@@ -134,17 +134,14 @@ describe("realtime business repository", () => {
     });
     expect(snapshot.analysisVersion).toMatch(/^sha256:/u);
     expect(snapshot.qualityState).toBe("AVAILABLE");
-    expect(get).toHaveBeenCalledWith(
-      "/api/v1/observable-analysis/snapshots",
-      {
-        productCode: "CORN",
-        regionCode: "230200",
-        surveyYear: 2026,
-        surveyMonth: 8,
-        cultivarCode: "CORN-DENT",
-        subjectTypeCode: "FARMER",
-      },
-    );
+    expect(get).toHaveBeenCalledWith("/api/v1/observable-analysis/snapshots", {
+      productCode: "CORN",
+      regionCode: "230200",
+      surveyYear: 2026,
+      surveyMonth: 8,
+      cultivarCode: "CORN-DENT",
+      subjectTypeCode: "FARMER",
+    });
   });
 
   it("keeps transport errors distinct from snapshot contract failures", async () => {
@@ -166,7 +163,10 @@ describe("realtime business repository", () => {
       }),
     ).rejects.toMatchObject({ code: "ACCESS_REGION_DENIED", status: 403 });
 
-    get.mockResolvedValueOnce({ ...validSnapshot(), recordId: "private" } as never);
+    get.mockResolvedValueOnce({
+      ...validSnapshot(),
+      recordId: "private",
+    } as never);
     await expect(
       repository.loadObservableAnalysisSnapshot({
         productCode: "CORN",
@@ -897,20 +897,21 @@ describe("realtime business repository", () => {
     expect(form.get("watermarkText")).toBe("齐齐哈尔市 产情调查 张三");
   });
 
-  it("binds every workbook upload to its current menu context", async () => {
+  it("binds each product workbook to the menu product and includes optional photos", async () => {
     const { api, upload } = client();
     const repository = createRealtimeBusinessRepository(api);
     const workbook = new File(["xlsx"], "业务批量导入.xlsx", {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
-    await repository.importProductionCsv(workbook, "CORN", "FARMER");
+    const photo = new File(["photo"], "样本点一.jpg", { type: "image/jpeg" });
+    await repository.importProductionCsv(workbook, "CORN", "FARMER", [photo]);
     await repository.importMarketWorkbook?.(workbook, "SOYBEAN", "TRADER");
     await repository.importLogisticsWorkbook?.(workbook, "RICE");
 
     const expectedPaths = [
-      "/api/v1/imports/production?productCode=CORN&objectTypeCode=FARMER",
-      "/api/v1/imports/market?productCode=SOYBEAN&objectTypeCode=TRADER",
+      "/api/v1/imports/production?productCode=CORN",
+      "/api/v1/imports/market?productCode=SOYBEAN",
       "/api/v1/imports/logistics?productCode=RICE",
     ];
     expectedPaths.forEach((path, index) => {
@@ -919,6 +920,29 @@ describe("realtime business repository", () => {
       expect(call?.[1]).toBeInstanceOf(FormData);
       expect(call?.[2]?.["Idempotency-Key"]).toMatch(/^[0-9a-f-]{36}$/u);
     });
+    const productionForm = upload.mock.calls[0]?.[1];
+    if (!(productionForm instanceof FormData))
+      throw new Error("expected multipart form");
+    expect(productionForm.getAll("photos")).toHaveLength(1);
+    expect((productionForm.get("photos") as File).name).toBe("样本点一.jpg");
+  });
+
+  it("lists imported rows and submits one draft to formal review", async () => {
+    const { api, get, post } = client();
+    get.mockResolvedValueOnce([] as never);
+    post.mockResolvedValueOnce({
+      id: "draft/1",
+      stateCode: "PROMOTED",
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.listImportDrafts?.("job/1");
+    await repository.submitImportDraft?.("draft/1");
+
+    expect(get).toHaveBeenCalledWith("/api/v1/import-drafts", {
+      importJobId: "job/1",
+    });
+    expect(post).toHaveBeenCalledWith("/api/v1/import-drafts/draft%2F1/submit");
   });
 
   it("reads, retries and downloads the durable result of every background import", async () => {

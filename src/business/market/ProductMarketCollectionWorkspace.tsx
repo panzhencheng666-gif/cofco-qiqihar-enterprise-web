@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 
 import type {
+  BusinessImportDraft,
   BusinessRecordListItem,
   MarketDefinition,
   MasterObjectType,
   ProductionImportJob,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 import {
   RegionCascadeSelector,
@@ -492,6 +494,10 @@ export function ProductMarketCollectionWorkspace({
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
+  const [importDrafts, setImportDrafts] = useState<
+    readonly BusinessImportDraft[]
+  >([]);
+  const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
   const { masterData, masterDataError } =
     useRealtimeMasterData(realtimeRepository);
   const usesFormalObjectTypes =
@@ -811,6 +817,7 @@ export function ProductMarketCollectionWorkspace({
     setImporting(true);
     setRecordsError("");
     setImportJob(null);
+    setImportDrafts([]);
     try {
       const productCode =
         context.productId === "corn"
@@ -823,14 +830,20 @@ export function ProductMarketCollectionWorkspace({
         file,
         productCode,
         objectTypeCode,
+        importPhotos,
       );
-      await awaitBusinessImport({
+      const terminal = await awaitBusinessImport({
         repository: realtimeRepository,
         domain: "market",
         initial,
         onUpdate: setImportJob,
       });
-      setRecordsRevision((value) => value + 1);
+      if (terminal.statusCode !== "FAILED") {
+        setImportDrafts(
+          (await realtimeRepository.listImportDrafts?.(terminal.id)) ?? [],
+        );
+        setImportPhotos([]);
+      }
     } catch {
       setRecordsError("市场采集记录导入失败，请核对文件内容后重试。");
     } finally {
@@ -847,15 +860,41 @@ export function ProductMarketCollectionWorkspace({
         "market",
         importJob.id,
       );
-      await awaitBusinessImport({
+      const terminal = await awaitBusinessImport({
         repository: realtimeRepository,
         domain: "market",
         initial,
         onUpdate: setImportJob,
       });
-      setRecordsRevision((value) => value + 1);
+      if (terminal.statusCode !== "FAILED") {
+        setImportDrafts(
+          (await realtimeRepository.listImportDrafts?.(terminal.id)) ?? [],
+        );
+      }
     } catch {
       setRecordsError("市场导入任务重试失败，请稍后重试。");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const submitImportDraft = async (draftId: string) => {
+    if (!realtimeRepository?.submitImportDraft) return;
+    setImporting(true);
+    setRecordsError("");
+    try {
+      const submitted = await realtimeRepository.submitImportDraft(draftId);
+      setImportDrafts((current) =>
+        current.map((draft) => (draft.id === submitted.id ? submitted : draft)),
+      );
+      setRecordsRevision((value) => value + 1);
+    } catch (reason) {
+      setRecordsError(
+        reason instanceof RealtimeApiError &&
+          reason.code === "IMPORT_DRAFT_INCOMPLETE"
+          ? "该行已保留为草稿；请在 XLSX 中补充正式审核所需基础信息后重新导入。"
+          : "导入草稿提交审核失败，请稍后重试。",
+      );
     } finally {
       setImporting(false);
     }
@@ -893,7 +932,7 @@ export function ProductMarketCollectionWorkspace({
       const href = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = href;
-      anchor.download = `${context.productLabel}市场-${objectTypeCode}-批量导入模板.xlsx`;
+      anchor.download = `市场-${context.productLabel}-批量导入模板.xlsx`;
       anchor.click();
       URL.revokeObjectURL(href);
     } catch {
@@ -1105,9 +1144,11 @@ export function ProductMarketCollectionWorkspace({
       <BusinessImportStatus
         busy={importing}
         className="market-task6-alert"
+        drafts={importDrafts}
         job={importJob}
         onDownloadErrors={() => void downloadImportErrors()}
         onRetry={() => void retryImport()}
+        onSubmitDraft={(draftId) => void submitImportDraft(draftId)}
       />
 
       <header className="enterprise-ledger-title">
@@ -1150,6 +1191,19 @@ export function ProductMarketCollectionWorkspace({
                       void importRecords(event.target.files?.[0]);
                       event.target.value = "";
                     }}
+                  />
+                </label>
+                <label className="realtime-business-file-action">
+                  附加照片（可选）
+                  <input
+                    accept="image/jpeg,image/png,image/webp"
+                    aria-label="附加市场照片"
+                    disabled={importing}
+                    multiple
+                    type="file"
+                    onChange={(event) =>
+                      setImportPhotos(Array.from(event.target.files ?? []))
+                    }
                   />
                 </label>
               </>

@@ -600,6 +600,21 @@ export interface ProductionImportJob {
 
 export type BusinessImportDomain = "production" | "market" | "logistics";
 
+export interface BusinessImportDraft {
+  id: string;
+  domainCode: "PRODUCTION" | "MARKET" | "LOGISTICS";
+  productCode: string;
+  sampleName: string;
+  regionCode: string;
+  surveyPeriod: string | null;
+  missingFields: readonly string[];
+  completenessPercent: number;
+  stateCode: "DRAFT" | "PROMOTED";
+  canonicalRecordId: string | null;
+  sourceRowNumber: number;
+  version: number;
+}
+
 export interface LogisticsDefinition {
   productCode: string;
   fields: readonly {
@@ -1116,6 +1131,7 @@ export interface RealtimeBusinessRepository {
     file: File,
     productCode: string,
     objectTypeCode: string,
+    photos?: readonly File[],
   ): Promise<ProductionImportJob>;
   downloadProductionXlsxTemplate?(
     productCode: string,
@@ -1125,6 +1141,7 @@ export interface RealtimeBusinessRepository {
     file: File,
     productCode: string,
     objectTypeCode: string,
+    photos?: readonly File[],
   ): Promise<ProductionImportJob>;
   downloadMarketXlsxTemplate?(
     productCode: string,
@@ -1133,6 +1150,7 @@ export interface RealtimeBusinessRepository {
   importLogisticsWorkbook?(
     file: File,
     productCode: string,
+    photos?: readonly File[],
   ): Promise<ProductionImportJob>;
   downloadLogisticsXlsxTemplate?(productCode: string): Promise<Blob>;
   getImportJob?(
@@ -1147,6 +1165,10 @@ export interface RealtimeBusinessRepository {
     domain: BusinessImportDomain,
     importJobId: string,
   ): Promise<Blob>;
+  listImportDrafts?(
+    importJobId: string,
+  ): Promise<readonly BusinessImportDraft[]>;
+  submitImportDraft?(draftId: string): Promise<BusinessImportDraft>;
   loadLogisticsDefinition(productCode: string): Promise<LogisticsDefinition>;
   listLogistics(
     input: BusinessRecordListInput,
@@ -1477,43 +1499,44 @@ export function createRealtimeBusinessRepository(
       ),
     runSupplyAccount: (input) =>
       client.post<SupplyAccountRow>("/api/v1/supply-accounts/runs", input),
-    importProductionCsv: (file, productCode, objectTypeCode) => {
+    importProductionCsv: (file, productCode, _objectTypeCode, photos = []) => {
       const form = new FormData();
       form.append("file", file, file.name);
+      photos.forEach((photo) => form.append("photos", photo, photo.name));
       return client.upload<ProductionImportJob>(
-        `/api/v1/imports/production?productCode=${encodeURIComponent(productCode)}&objectTypeCode=${encodeURIComponent(objectTypeCode)}`,
+        `/api/v1/imports/production?productCode=${encodeURIComponent(productCode)}`,
         form,
         {
           "Idempotency-Key": crypto.randomUUID(),
         },
       );
     },
-    downloadProductionXlsxTemplate: (productCode, objectTypeCode) =>
+    downloadProductionXlsxTemplate: (productCode) =>
       client.download("/api/v1/imports/production/template", {
         format: "xlsx",
         productCode,
-        objectTypeCode,
       }),
-    importMarketWorkbook: (file, productCode, objectTypeCode) => {
+    importMarketWorkbook: (file, productCode, _objectTypeCode, photos = []) => {
       const form = new FormData();
       form.append("file", file, file.name);
+      photos.forEach((photo) => form.append("photos", photo, photo.name));
       return client.upload<ProductionImportJob>(
-        `/api/v1/imports/market?productCode=${encodeURIComponent(productCode)}&objectTypeCode=${encodeURIComponent(objectTypeCode)}`,
+        `/api/v1/imports/market?productCode=${encodeURIComponent(productCode)}`,
         form,
         {
           "Idempotency-Key": crypto.randomUUID(),
         },
       );
     },
-    downloadMarketXlsxTemplate: (productCode, objectTypeCode) =>
+    downloadMarketXlsxTemplate: (productCode) =>
       client.download("/api/v1/imports/market/template", {
         format: "xlsx",
         productCode,
-        objectTypeCode,
       }),
-    importLogisticsWorkbook: (file, productCode) => {
+    importLogisticsWorkbook: (file, productCode, photos = []) => {
       const form = new FormData();
       form.append("file", file, file.name);
+      photos.forEach((photo) => form.append("photos", photo, photo.name));
       return client.upload<ProductionImportJob>(
         `/api/v1/imports/logistics?productCode=${encodeURIComponent(productCode)}`,
         form,
@@ -1533,6 +1556,14 @@ export function createRealtimeBusinessRepository(
     downloadImportErrors: (domain, importJobId) =>
       client.download(
         `/api/v1/imports/${domain}/${encodeURIComponent(importJobId)}/errors`,
+      ),
+    listImportDrafts: (importJobId) =>
+      client.get<BusinessImportDraft[]>("/api/v1/import-drafts", {
+        importJobId,
+      }),
+    submitImportDraft: (draftId) =>
+      client.post<BusinessImportDraft>(
+        `/api/v1/import-drafts/${encodeURIComponent(draftId)}/submit`,
       ),
     loadLogisticsDefinition: (productCode) =>
       client.get<LogisticsDefinition>("/api/v1/logistics-record-definitions", {

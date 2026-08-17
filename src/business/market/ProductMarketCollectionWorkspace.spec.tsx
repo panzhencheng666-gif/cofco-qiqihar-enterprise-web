@@ -460,12 +460,17 @@ describe("product market collection workspace", () => {
     await user.upload(screen.getByLabelText("批量导入市场采集记录"), file);
 
     await waitFor(() =>
-      expect(importMarketWorkbook).toHaveBeenCalledWith(file, "CORN", "TRADER"),
+      expect(importMarketWorkbook).toHaveBeenCalledWith(
+        file,
+        "CORN",
+        "TRADER",
+        [],
+      ),
     );
     expect(
-      await screen.findByText("导入完成：成功 2 条，失败 0 条。"),
+      await screen.findByText("导入完成：2 行已保存到填报草稿，失败 0 行。"),
     ).toBeVisible();
-    await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(3));
+    expect(listMarket).toHaveBeenCalledTimes(2);
     await user.click(screen.getByRole("button", { name: "新建采集记录" }));
     expect(onCreateRecord).toHaveBeenCalledWith("CORN");
     await user.click(screen.getByRole("button", { name: "查看记录" }));

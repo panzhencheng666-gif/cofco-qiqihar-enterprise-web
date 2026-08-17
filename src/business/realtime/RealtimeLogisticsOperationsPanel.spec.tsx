@@ -676,11 +676,11 @@ describe("RealtimeLogisticsOperationsPanel", () => {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
     );
-    expect(importWorkbook).toHaveBeenCalledWith(expect.any(File), "CORN");
+    expect(importWorkbook).toHaveBeenCalledWith(expect.any(File), "CORN", []);
     expect(await screen.findByLabelText("批量导入处理结果")).toHaveTextContent(
-      "导入完成：成功 2 条，失败 0 条。",
+      "导入完成：2 行已保存到填报草稿，失败 0 行。",
     );
-    expect(listLogistics).toHaveBeenCalledTimes(2);
+    expect(listLogistics).toHaveBeenCalledTimes(1);
 
     createObjectUrl.mockRestore();
     revokeObjectUrl.mockRestore();

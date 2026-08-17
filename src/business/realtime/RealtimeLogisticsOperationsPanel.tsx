@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   realtimeBusinessRepository,
+  type BusinessImportDraft,
   type LogisticsDefinition,
   type LogisticsRecordRow,
   type ProductionImportJob,
@@ -20,6 +21,12 @@ import {
 } from "../importing/businessImportWorkflow";
 
 type PanelMode = "entry" | "view" | "review";
+
+const productNames: Readonly<Record<string, string>> = {
+  CORN: "玉米",
+  SOYBEAN: "大豆",
+  RICE: "稻谷",
+};
 
 const publicLogisticsFieldOrder = [
   "surveyYear",
@@ -101,6 +108,10 @@ export function RealtimeLogisticsOperationsPanel({
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
+  const [importDrafts, setImportDrafts] = useState<
+    readonly BusinessImportDraft[]
+  >([]);
+  const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("正在读取物流业务定义…");
   const [returnReason, setReturnReason] = useState("");
@@ -304,7 +315,7 @@ export function RealtimeLogisticsOperationsPanel({
       const href = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = href;
-      anchor.download = `物流-${productCode}-批量导入模板.xlsx`;
+      anchor.download = `物流-${productNames[productCode] ?? "粮食"}-批量导入模板.xlsx`;
       anchor.click();
       URL.revokeObjectURL(href);
     } catch {
@@ -316,11 +327,13 @@ export function RealtimeLogisticsOperationsPanel({
     if (!file || !repository.importLogisticsWorkbook) return;
     setImporting(true);
     setImportJob(null);
+    setImportDrafts([]);
     setError("");
     try {
       const initial = await repository.importLogisticsWorkbook(
         file,
         productCode,
+        importPhotos,
       );
       const terminal = await awaitBusinessImport({
         repository,
@@ -329,8 +342,10 @@ export function RealtimeLogisticsOperationsPanel({
         onUpdate: setImportJob,
       });
       if (terminal.statusCode !== "FAILED") {
-        await reload();
-        onRecordsChanged?.();
+        setImportDrafts(
+          (await repository.listImportDrafts?.(terminal.id)) ?? [],
+        );
+        setImportPhotos([]);
       }
     } catch {
       setError("物流记录导入失败，请核对 XLSX 模板内容后重试。");
@@ -355,11 +370,32 @@ export function RealtimeLogisticsOperationsPanel({
         onUpdate: setImportJob,
       });
       if (terminal.statusCode !== "FAILED") {
-        await reload();
-        onRecordsChanged?.();
+        setImportDrafts(
+          (await repository.listImportDrafts?.(terminal.id)) ?? [],
+        );
       }
     } catch {
       setError("物流批量导入任务重试失败，请稍后重试。");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function submitImportDraft(draftId: string) {
+    if (!repository.submitImportDraft) return;
+    setImporting(true);
+    setError("");
+    try {
+      const submitted = await repository.submitImportDraft(draftId);
+      setImportDrafts((current) =>
+        current.map((draft) => (draft.id === submitted.id ? submitted : draft)),
+      );
+      await reload();
+      onRecordsChanged?.();
+    } catch {
+      setError(
+        "该行已保留为草稿；如需提交审核，请在 XLSX 中补充基础信息后重新导入。",
+      );
     } finally {
       setImporting(false);
     }
@@ -453,6 +489,19 @@ export function RealtimeLogisticsOperationsPanel({
                 }}
               />
             </label>
+            <label className="realtime-business-file-action">
+              附加照片（可选）
+              <input
+                aria-label="附加物流照片"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={busy || importing}
+                multiple
+                type="file"
+                onChange={(event) =>
+                  setImportPhotos(Array.from(event.target.files ?? []))
+                }
+              />
+            </label>
             <button
               type="button"
               onClick={newRecord}
@@ -466,9 +515,11 @@ export function RealtimeLogisticsOperationsPanel({
       <BusinessImportStatus
         busy={importing}
         className="realtime-business-message"
+        drafts={importDrafts}
         job={importJob}
         onDownloadErrors={() => void downloadImportErrors()}
         onRetry={() => void retryImport()}
+        onSubmitDraft={(draftId) => void submitImportDraft(draftId)}
       />
       {error && (
         <p className="realtime-business-error" role="alert">

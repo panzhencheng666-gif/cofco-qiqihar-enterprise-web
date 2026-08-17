@@ -54,7 +54,7 @@ describe("business import workflow", () => {
       "批量数据正在导入，请稍候。",
     );
     expect(businessImportMessage(job("COMPLETED"))).toBe(
-      "导入完成：成功 2 条，失败 0 条。",
+      "导入完成：2 行已保存到填报草稿，失败 0 行。",
     );
     expect(
       businessImportMessage({
