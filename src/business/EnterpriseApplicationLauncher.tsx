@@ -10,7 +10,7 @@ export const businessLauncherApplications: readonly {
   {
     key: "work",
     label: "我的工作",
-    description: "集中处理本人待填、待审、异常和待发布事项",
+    description: "集中处理本人待填、待审、退回和异常事项",
   },
   {
     key: "overview",

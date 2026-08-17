@@ -669,7 +669,7 @@ function MyWorkLedger({
       <WorkspaceHeader
         eyebrow="统一工作门户 / 我的工作"
         title={view.label}
-        summary="统一汇总本人待填报、待审核、待发布、退回、异常与逾期事项，按截止时间和风险排序，并直达原业务单据。"
+        summary="统一汇总本人待填报、待审核、退回、异常与逾期事项，按截止时间和风险排序，并直达原业务单据。"
       />
       <Filters
         availableClassificationOptions={classificationOptions}
@@ -697,7 +697,7 @@ function MyWorkLedger({
           <div>
             <h2>{view.label}任务台账</h2>
             <p>
-              汇总待填报、待审核、待发布、退回、异常和逾期事项；同一业务事项只保留一个当前处理节点。
+              汇总待填报、待审核、退回、异常和逾期事项；同一业务事项只保留一个当前处理节点。
             </p>
           </div>
           <strong>{visible.length} 项</strong>
