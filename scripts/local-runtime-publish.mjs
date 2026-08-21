@@ -11,7 +11,15 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import {
+  basename,
+  delimiter,
+  dirname,
+  join,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 import { homedir } from "node:os";
 import { pathToFileURL } from "node:url";
 
@@ -277,6 +285,22 @@ function runCommand(command, args, { cwd, env = process.env } = {}) {
   });
 }
 
+export function createCommandEnvironment(
+  environment = process.env,
+  nodeExecutable = process.execPath,
+) {
+  const pathEntries = [
+    dirname(nodeExecutable),
+    ...(environment.PATH ?? "").split(delimiter),
+    "/usr/sbin",
+    "/sbin",
+  ].filter(Boolean);
+  return {
+    ...environment,
+    PATH: [...new Set(pathEntries)].join(delimiter),
+  };
+}
+
 export async function runQualityGates(
   sourceRoot,
   commandEnvironment,
@@ -431,10 +455,7 @@ async function runCli() {
   }
   const sourceRoot = resolve(import.meta.dirname, "..");
   const runtimeRoot = DEFAULT_RUNTIME_ROOT;
-  const commandEnvironment = {
-    ...process.env,
-    PATH: `${dirname(process.execPath)}:${process.env.PATH ?? ""}`,
-  };
+  const commandEnvironment = createCommandEnvironment();
   if (process.argv[2] === "verify") {
     await validateManagedRuntime(runtimeRoot, commandEnvironment);
     return;

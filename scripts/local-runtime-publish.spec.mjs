@@ -169,6 +169,20 @@ test("quality gates enforce the bundle budget immediately after the build", asyn
   assert.equal(budgetIndex, buildIndex + 1);
 });
 
+test("managed command environment keeps Node first and includes macOS service tools", async () => {
+  const releaseModule = await import(moduleUrl);
+  const commandEnvironment = releaseModule.createCommandEnvironment(
+    { PATH: "/usr/bin:/bin", MARKER: "preserved" },
+    "/opt/node24/bin/node",
+  );
+
+  assert.equal(
+    commandEnvironment.PATH,
+    "/opt/node24/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+  );
+  assert.equal(commandEnvironment.MARKER, "preserved");
+});
+
 test("restores the usable runtime when candidate validation fails", async () => {
   const releaseModule = await import(moduleUrl);
   const root = await mkdtemp(join(tmpdir(), "cofco-runtime-publish-rollback-"));
