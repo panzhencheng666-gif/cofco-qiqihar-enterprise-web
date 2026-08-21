@@ -39,17 +39,12 @@ const FOCUSED_ANALYSIS_SPECS = [
 const EXCLUDED_TOP_LEVEL_PATHS = new Set([
   ".git",
   ".worktrees",
+  "coverage",
   "evidence",
   "node_modules",
   "playwright-report",
   "test-results",
 ]);
-const DEPLOYABLE_TOP_LEVEL_FILES = new Set([
-  "package-lock.json",
-  "package.json",
-  "vite.config.ts",
-]);
-const DEPLOYABLE_SCRIPT_FILES = new Set(["local-runtime-smoke.mjs"]);
 
 function portablePath(path) {
   return path.split(sep).join("/");
@@ -67,16 +62,11 @@ function shouldDeploy(sourceRoot, sourcePath) {
   const relativePath = relative(sourceRoot, sourcePath);
   if (relativePath === "") return true;
   const [topLevel] = relativePath.split(sep);
-  if (topLevel === "dist") return true;
-  if (topLevel === "scripts") {
-    return (
-      relativePath === "scripts" ||
-      DEPLOYABLE_SCRIPT_FILES.has(relativePath.split(sep)[1] ?? "")
-    );
+  if (EXCLUDED_TOP_LEVEL_PATHS.has(topLevel)) return false;
+  if (topLevel === ".env" || topLevel.startsWith(".env.")) {
+    return topLevel === ".env.example";
   }
-  return (
-    !relativePath.includes(sep) && DEPLOYABLE_TOP_LEVEL_FILES.has(relativePath)
-  );
+  return true;
 }
 
 async function listManifestFiles(root, directory = root) {

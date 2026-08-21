@@ -125,7 +125,10 @@ test("prepares a standalone candidate with an auditable SHA-256 manifest", async
   await assert.rejects(access(join(candidateRoot, "evidence")));
   await assert.rejects(access(join(candidateRoot, ".env.local")));
   await assert.rejects(access(join(candidateRoot, "coverage")));
-  await assert.rejects(access(join(candidateRoot, "src")));
+  assert.equal(
+    await readFile(join(candidateRoot, "src", "main.js"), "utf8"),
+    "export const live = true;\n",
+  );
   assert.equal(manifest.algorithm, "sha256");
   assert.equal(manifest.sourceDirectory, "source");
   assert.equal(Object.hasOwn(manifest, "sourceRoot"), false);
@@ -136,6 +139,7 @@ test("prepares a standalone candidate with an auditable SHA-256 manifest", async
       "package-lock.json",
       "package.json",
       "scripts/local-runtime-smoke.mjs",
+      "src/main.js",
       "vite.config.ts",
     ],
   );
