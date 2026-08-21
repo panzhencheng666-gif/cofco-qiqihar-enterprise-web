@@ -6,6 +6,7 @@ import type {
   BusinessRecordListInput,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 import type { OperationalScope } from "../core/operationalScope";
 import { fixtureOperationalIdentity } from "../formalEnterpriseData";
@@ -181,6 +182,50 @@ function contractField(
 }
 
 describe("product production collection workspace", () => {
+  it("adopts the latest approved survey year instead of hiding records behind the calendar year", async () => {
+    const listProduction = vi
+      .fn<RealtimeBusinessRepository["listProduction"]>()
+      .mockResolvedValue({
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
+      });
+    const approvedYearMasterData = vi.fn().mockResolvedValue({
+      products: [{ code: "CORN", name: "玉米" }],
+      periods: [],
+      regions: [],
+      approvedSurveyYears: [2024],
+    });
+
+    render(
+      <ProductProductionCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={
+          {
+            listProduction,
+            loadMasterData: approvedYearMasterData,
+            loadProductionDefinition: productionDefinition,
+          } as unknown as RealtimeBusinessRepository
+        }
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(listProduction.mock.lastCall?.[0].filters?.surveyYear).toBe(
+        "2024",
+      ),
+    );
+    expect(screen.getByRole("combobox", { name: "数据年份" })).toHaveValue(
+      "2024",
+    );
+  });
+
   it("queries by mandatory survey year, optional month, real filling dates and status", async () => {
     const user = userEvent.setup();
     const listProduction = vi
@@ -210,6 +255,9 @@ describe("product production collection workspace", () => {
     );
 
     await screen.findByRole("combobox", { name: "数据年份" });
+    expect(
+      screen.queryByRole("option", { name: "填写中" }),
+    ).not.toBeInTheDocument();
     await user.selectOptions(
       screen.getByRole("combobox", { name: "数据月份" }),
       "8",
@@ -313,11 +361,13 @@ describe("product production collection workspace", () => {
             PROD_SUBJECT_NAME: "克山县第一调查点",
             PROD_OBJECT_TYPE: "农户",
             PROD_REGION: "克山县",
+            PROD_CULTIVAR_NAME: "圆粒粳稻",
             PROD_AREA_MU: "320 亩",
             PROD_YIELD_PER_MU: "510 公斤/亩",
             PROD_ESTIMATED_OUTPUT: "163200 公斤",
             PROD_REPORTER_NAME: "张三",
-            PROD_REPORTER_PHONE: "13800000000",
+            PROD_SURVEYOR_NAME: "王雷",
+            PROD_SURVEYOR_PHONE: "13800000000",
             PROD_SAMPLE_CONTACT: "13900000000",
             PROD_SAMPLE_LATITUDE: "47.3543",
             PROD_SAMPLE_LONGITUDE: "123.9182",
@@ -392,9 +442,10 @@ describe("product production collection workspace", () => {
     expect(
       screen.getByRole("columnheader", { name: "样本点类型" }),
     ).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "调研人" })).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "具体品种" }),
-    ).toBeVisible();
+      screen.queryByRole("columnheader", { name: "具体品种" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: "销售数量" }),
     ).toBeVisible();
@@ -415,8 +466,13 @@ describe("product production collection workspace", () => {
     ).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "填报人" })).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "样本点联系方式" }),
+      screen.getByRole("columnheader", { name: "调研人联系方式" }),
     ).toBeVisible();
+    expect(screen.getByText("王雷")).toBeVisible();
+    expect(screen.queryByText("圆粒粳稻")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "填报人联系方式" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("张三")).toBeVisible();
     expect(screen.getByText("47.3543")).toBeVisible();
     expect(screen.getByText("2026年8月")).toBeVisible();
@@ -475,14 +531,194 @@ describe("product production collection workspace", () => {
       ),
     );
     expect(
-      await screen.findByText("导入完成：1 行已保存到填报草稿，失败 0 行。"),
+      await screen.findByText(
+        "导入完成：1 行已处理，合格行已自动提交审核，失败 0 行。",
+      ),
     ).toBeVisible();
-    expect(listProduction).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(3));
     await user.click(screen.getByRole("button", { name: "新建调查记录" }));
     expect(onCreateRecord).toHaveBeenCalledWith("CORN");
     await user.click(screen.getByRole("button", { name: "查看记录" }));
     expect(onEditRecord).toHaveBeenCalledWith("CORN", "PROD-DB-001");
     await user.click(screen.getByRole("button", { name: "查看照片" }));
     expect(onEditRecord).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not expose the internal import recovery store as a business draft workflow", async () => {
+    const listPendingImportDrafts = vi.fn();
+    const listProduction = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 1,
+    });
+    const repository = {
+      listProduction,
+      listPendingImportDrafts,
+      loadProductionDefinition: productionDefinition,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductProductionCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={scope}
+        section="corn-collection"
+      />,
+    );
+
+    await waitFor(() => expect(listProduction).toHaveBeenCalled());
+    expect(listPendingImportDrafts).not.toHaveBeenCalled();
+    expect(screen.queryByText(/导入草稿/u)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "全部提交审核" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the safe server explanation when a workbook structure is invalid", async () => {
+    const user = userEvent.setup();
+    const listProduction = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const importProductionCsv = vi.fn().mockRejectedValue(
+      new RealtimeApiError({
+        code: "INVALID_IMPORT_FORMAT",
+        message: "文件多出第 39 列，请删除模板之外的列后重试。",
+        status: 400,
+      }),
+    );
+    const repository = {
+      listProduction,
+      importProductionCsv,
+      loadMasterData,
+      loadProductionDefinition: productionDefinition,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductProductionCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    const file = new File(["xlsx"], "production.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    await user.upload(await screen.findByLabelText("批量导入产情记录"), file);
+
+    expect(
+      await screen.findByText("文件多出第 39 列，请删除模板之外的列后重试。"),
+    ).toBeVisible();
+  });
+
+  it("keeps durable production import history out of the collection ledger", async () => {
+    const listProduction = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const listImportJobs = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 5,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    const repository = {
+      listProduction,
+      listImportJobs,
+      loadMasterData,
+      loadProductionDefinition: productionDefinition,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductProductionCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    await waitFor(() => expect(listProduction).toHaveBeenCalled());
+    expect(listImportJobs).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("region", { name: "导入任务记录" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps ordinary production import separate from real returned-record correction", async () => {
+    const user = userEvent.setup();
+    const listProduction = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 100,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const importReturnedCorrectionWorkbook = vi.fn().mockResolvedValue({
+      id: "production-correction-1",
+      domainCode: "PRODUCTION",
+      statusCode: "COMPLETED",
+      importedRows: 1,
+      failedRows: 0,
+    });
+    const repository = {
+      listProduction,
+      loadProductionDefinition: productionDefinition,
+      downloadReturnedCorrectionWorkbook: vi
+        .fn()
+        .mockResolvedValue(new Blob(["correction"])),
+      importReturnedCorrectionWorkbook,
+      getReturnedCorrectionJob: vi.fn(),
+      downloadReturnedCorrectionErrors: vi.fn(),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductProductionCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={scope}
+        section="corn-collection"
+      />,
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "下载退回记录修正表" }),
+    ).toBeEnabled();
+    const file = new File(["correction"], "玉米产情退回记录修正表.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    await user.upload(screen.getByLabelText("批量导入产情退回修正结果"), file);
+    await waitFor(() =>
+      expect(importReturnedCorrectionWorkbook).toHaveBeenCalledWith(
+        "production",
+        file,
+        "CORN",
+      ),
+    );
+    expect(
+      await screen.findByText(
+        "批量修正完成：1 条原单已重新进入待审核，失败 0 条。",
+      ),
+    ).toBeVisible();
+    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
   });
 });

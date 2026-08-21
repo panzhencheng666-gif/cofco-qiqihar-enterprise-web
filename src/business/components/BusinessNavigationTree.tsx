@@ -11,6 +11,7 @@ const sectionIcons: Partial<Record<string, EnterpriseIconName>> = {
   review: "review",
   exceptions: "exception",
   completed: "history",
+  imports: "upload",
   operations: "overview",
   risks: "exception",
   duty: "review",
@@ -46,7 +47,7 @@ const visibleSectionsByApplication: Readonly<
   supply: ["balance"],
   reporting: ["compose", "comprehensive"],
   // 待填报、待审核、退回与异常统一进入“待我处理”工作台，旧路由仍可兼容访问。
-  work: ["tasks", "completed"],
+  work: ["tasks", "completed", "imports"],
   overview: ["map"],
 };
 

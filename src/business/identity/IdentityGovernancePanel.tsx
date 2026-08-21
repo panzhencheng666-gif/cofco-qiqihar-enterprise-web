@@ -54,11 +54,8 @@ function grantTypeLabel(value: string): string {
 function roleLabel(value: string): string {
   return (
     {
-      SYSTEM_ADMIN: "系统管理员",
-      IDENTITY_ADMIN: "身份与权限管理员",
-      ACCESS_REVIEWER: "权限复核负责人",
-      BUSINESS_OPERATOR: "业务填报员",
-      BUSINESS_REVIEWER: "业务审核员",
+      BUSINESS_OPERATOR: "填报员",
+      BUSINESS_REVIEWER: "管理员",
       UNIT_MANAGER: "单位负责人",
       REPORT_OPERATOR: "报表业务员",
     }[value] ?? "已分配业务角色"
@@ -246,11 +243,12 @@ function AssignmentEditor({
             <label key={option.code}>
               <input
                 checked={draft.roleCodes.includes(option.code)}
-                type="checkbox"
+                name="business-role"
+                type="radio"
                 onChange={() =>
                   onChange({
                     ...draft,
-                    roleCodes: toggle(draft.roleCodes, option.code),
+                    roleCodes: [option.code],
                   })
                 }
               />
@@ -625,12 +623,12 @@ export function IdentityGovernancePanel({
               <article>
                 <span>员工</span>
                 <strong>{session.displayName}</strong>
-                <small>企业员工身份已认证</small>
+                <small>员工账号 {session.subjectId}</small>
               </article>
               <article>
                 <span>工作单位</span>
                 <strong>{session.workUnitName}</strong>
-                <small>当前登录账号所属单位</small>
+                <small>单位编码 {session.workUnitCode}</small>
               </article>
               <article>
                 <span>主岗位</span>
@@ -1053,6 +1051,9 @@ export function IdentityGovernancePanel({
                     <div>
                       <strong>{row.actorDisplayName}</strong>
                       <span>{row.actorSubjectId}</span>
+                      <span>
+                        {row.workUnitName}（{row.workUnitCode}）
+                      </span>
                     </div>
                     <div>
                       <strong>

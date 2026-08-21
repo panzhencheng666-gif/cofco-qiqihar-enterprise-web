@@ -108,6 +108,7 @@ export function readOperationalScope(
     "unknown-or-unauthorized-product",
     issues,
     (value) => (coordinates.productId = value),
+    identity.authorization.serverAuthoritative === true,
   );
   readAuthorizedParameter(
     parameters,
@@ -164,10 +165,11 @@ function readAuthorizedParameter(
   >,
   issues: OperationalScopeIssue[],
   assign: (value: string) => void,
+  serverAuthoritative = false,
 ) {
   const value = parameters.get(key);
   if (!value) return;
-  if (!authorizedValues.includes(value)) {
+  if (!serverAuthoritative && !authorizedValues.includes(value)) {
     issues.push({ code, value });
     return;
   }

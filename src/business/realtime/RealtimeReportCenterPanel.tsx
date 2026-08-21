@@ -10,8 +10,29 @@ import {
 } from "@/platform/api/realtimeBusinessRepository";
 
 import { RealtimeRegionCascadePicker } from "./RealtimeRegionCascadePicker";
+import {
+  defaultReportPeriod,
+  defaultReportRegionCode,
+  groupReportDefinitions,
+  reportCoverage,
+  reportFrequency,
+  reportPeriodLabel,
+  weeklyPeriodCode,
+  weeklyPeriodParts,
+} from "./realtimeReportCenterModel";
 
-const reportDomains = new Set(["PRODUCTION", "MARKET", "LOGISTICS", "SUPPLY"]);
+function shanghaiToday(): string {
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+  return `${value.year}-${value.month}-${value.day}`;
+}
 
 function saveReport(blob: Blob, filename: string): void {
   const href = URL.createObjectURL(blob);
@@ -32,8 +53,6 @@ export function RealtimeReportCenterPanel({
   const [master, setMaster] = useState<MasterDataSnapshot | null>(null);
   const [options, setOptions] = useState<ReportParameterOptions | null>(null);
   const [definitionCode, setDefinitionCode] = useState("");
-  const [productCode, setProductCode] = useState("");
-  const [cultivarCode, setCultivarCode] = useState("");
   const [regionCode, setRegionCode] = useState("");
   const [periodCode, setPeriodCode] = useState("");
   const [formatCode, setFormatCode] = useState("CSV");
@@ -42,6 +61,7 @@ export function RealtimeReportCenterPanel({
   const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [downloadFailed, setDownloadFailed] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -57,15 +77,20 @@ export function RealtimeReportCenterPanel({
     ])
       .then(([nextMaster, nextOptions]) => {
         if (cancelled) return;
-        const definitions = nextOptions.definitions.filter((definition) =>
-          reportDomains.has(definition.businessDomain),
-        );
+        const definitions = groupReportDefinitions(
+          nextOptions.definitions,
+        ).flatMap(({ definitions: items }) => items);
         setMaster(nextMaster);
         setOptions({ ...nextOptions, definitions });
-        setDefinitionCode(definitions[0]?.code ?? "");
-        setProductCode(nextMaster.products[0]?.code ?? "");
-        setRegionCode(nextMaster.regions[0]?.code ?? "");
-        setPeriodCode(nextMaster.periods[0]?.code ?? "");
+        const initialDefinition = definitions[0];
+        setDefinitionCode(initialDefinition?.code ?? "");
+        setRegionCode(defaultReportRegionCode(nextMaster.regions));
+        setPeriodCode(
+          defaultReportPeriod(
+            reportFrequency(initialDefinition?.frequencyCode),
+            shanghaiToday(),
+          ),
+        );
         setFormatCode(nextOptions.formats[0]?.code ?? "CSV");
       })
       .catch(() => {
@@ -83,12 +108,31 @@ export function RealtimeReportCenterPanel({
     () => master?.regions.find((region) => region.code === regionCode),
     [master, regionCode],
   );
-  const selectedPeriod = master?.periods.find(
-    (period) => period.code === periodCode,
+  const selectedDefinition = options?.definitions.find(
+    (definition) => definition.code === definitionCode,
   );
+  const definitionGroups = useMemo(
+    () => groupReportDefinitions(options?.definitions ?? []),
+    [options?.definitions],
+  );
+  const selectedFrequency = reportFrequency(selectedDefinition?.frequencyCode);
+  const selectedTimeLabel = reportPeriodLabel(selectedFrequency, periodCode);
+  const weeklyFallback = defaultReportPeriod("WEEKLY", shanghaiToday());
+  const weeklyParts = weeklyPeriodParts(periodCode, weeklyFallback);
+  const currentYear = Number(shanghaiToday().slice(0, 4));
+  const reportYears = Array.from({ length: 8 }, (_, index) =>
+    String(currentYear + 1 - index),
+  );
+  if (!reportYears.includes(weeklyParts.year))
+    reportYears.push(weeklyParts.year);
+  reportYears.sort((left, right) => Number(right) - Number(left));
   const ready = Boolean(
-    definitionCode && productCode && selectedRegion && periodCode && formatCode,
+    definitionCode && selectedRegion && periodCode && formatCode,
   );
+  const canExport = permissions.includes("REPORT_EXPORT");
+  const canPreview = permissions.includes("REPORT_PREVIEW");
+  const coverage = preview ? reportCoverage(preview.lines) : null;
+  const previewProducts = preview?.products ?? [];
 
   function changeScope(action: () => void): void {
     previewSequence.current += 1;
@@ -99,17 +143,20 @@ export function RealtimeReportCenterPanel({
     setPublishedPreviewId("");
     setPreviewing(false);
     setExporting(false);
+    setDownloadFailed(false);
     setPublishing(false);
     setError("");
     setNotice("");
   }
 
-  async function createPreview(): Promise<void> {
+  async function createPreview(downloadAfterCreation = false): Promise<void> {
     if (!ready || !selectedRegion) return;
     const sequence = ++previewSequence.current;
-    exportSequence.current += 1;
+    const downloadSequence = ++exportSequence.current;
+    const requestedFormat = formatCode;
     setPreviewing(true);
     setExporting(false);
+    setDownloadFailed(false);
     setPublishing(false);
     setPreview(null);
     setReportExport(null);
@@ -119,13 +166,19 @@ export function RealtimeReportCenterPanel({
     try {
       const created = await repository.createReportPreview({
         definitionCode,
-        productCode,
-        ...(cultivarCode ? { cultivarCode } : {}),
         regionLevel: selectedRegion.level,
         regionCode,
         periodCode,
       });
-      if (sequence === previewSequence.current) setPreview(created);
+      if (sequence !== previewSequence.current) return;
+      setPreview(created);
+      setPreviewing(false);
+      if (
+        downloadAfterCreation &&
+        downloadSequence === exportSequence.current
+      ) {
+        await exportPreview(created, downloadSequence, requestedFormat);
+      }
     } catch {
       if (sequence === previewSequence.current)
         setError("当前范围暂无可生成报告的已核定数据，请调整筛选条件。");
@@ -134,24 +187,36 @@ export function RealtimeReportCenterPanel({
     }
   }
 
-  async function exportPreview(): Promise<void> {
-    if (!preview) return;
-    const sequence = ++exportSequence.current;
-    const previewId = preview.id;
+  async function exportPreview(
+    targetPreview: ReportPreview | null = preview,
+    sequence = ++exportSequence.current,
+    requestedFormat = formatCode,
+  ): Promise<void> {
+    if (!targetPreview || sequence !== exportSequence.current) return;
+    const previewId = targetPreview.id;
     setExporting(true);
+    setDownloadFailed(false);
+    setReportExport(null);
+    setPublishedPreviewId("");
     setError("");
+    setNotice("");
     try {
-      const task = await repository.createReportExport(previewId, formatCode);
+      const task = await repository.createReportExport(
+        previewId,
+        requestedFormat,
+      );
       if (sequence !== exportSequence.current || task.previewId !== previewId)
         return;
       const blob = await repository.downloadReportExport(task.id);
       if (sequence !== exportSequence.current) return;
       setReportExport(task);
-      saveReport(blob, task.filename || `${preview.title}.csv`);
+      saveReport(blob, task.filename || `${targetPreview.title}.csv`);
       setNotice("报告文件已生成并开始下载，可继续执行正式发布。");
     } catch {
-      if (sequence === exportSequence.current)
-        setError("当前报告导出未完成，请重新生成预览后再试。");
+      if (sequence === exportSequence.current) {
+        setDownloadFailed(true);
+        setError("报告预览已生成，但文件下载未完成，请重试下载。");
+      }
     } finally {
       if (sequence === exportSequence.current) setExporting(false);
     }
@@ -193,7 +258,9 @@ export function RealtimeReportCenterPanel({
       </div>
       <header className="enterprise-ledger-title">
         <h1>业务报告</h1>
-        <p>按业务类型、地区、品种和时间形成报告，确认预览后导出当前范围</p>
+        <p>
+          按日、周、月生成一份综合经营报告，三品种四业务域使用同一审核后数据快照
+        </p>
       </header>
 
       {loading ? (
@@ -201,199 +268,351 @@ export function RealtimeReportCenterPanel({
           正在读取报告范围……
         </p>
       ) : (
-        <section
-          aria-label="业务报告筛选条件"
-          className="enterprise-ledger-query"
-          role="search"
-        >
-          {(options?.definitions.length ?? 0) > 1 && (
-            <label>
-              <span>报告类型</span>
-              <select
-                aria-label="报告类型"
-                value={definitionCode}
-                onChange={(event) =>
-                  changeScope(() => setDefinitionCode(event.target.value))
-                }
-              >
-                {options?.definitions.map((definition) => (
-                  <option key={definition.code} value={definition.code}>
-                    {definition.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {(master?.products.length ?? 0) > 1 && (
-            <label>
-              <span>产品或作物</span>
-              <select
-                aria-label="产品或作物"
-                value={productCode}
-                onChange={(event) =>
-                  changeScope(() => {
-                    setProductCode(event.target.value);
-                    setCultivarCode("");
-                  })
-                }
-              >
-                {master?.products.map((product) => (
-                  <option key={product.code} value={product.code}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label>
-            <span>具体品种</span>
-            <input
-              aria-label="具体品种"
-              placeholder="全部具体品种"
-              type="text"
-              value={cultivarCode}
-              onChange={(event) =>
-                changeScope(() => setCultivarCode(event.target.value))
-              }
-            />
-          </label>
-          <RealtimeRegionCascadePicker
-            ariaLabel="统计地区"
-            onChange={(nextRegionCode) =>
-              changeScope(() => setRegionCode(nextRegionCode))
-            }
-            regions={master?.regions ?? []}
-            requireVillage={false}
-            value={regionCode}
-          />
-          {(master?.periods.length ?? 0) > 1 && (
-            <label>
-              <span>统计时间</span>
-              <select
-                aria-label="统计时间"
-                value={periodCode}
-                onChange={(event) =>
-                  changeScope(() => setPeriodCode(event.target.value))
-                }
-              >
-                {master?.periods.map((period) => (
-                  <option key={period.code} value={period.code}>
-                    {period.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {(options?.formats.length ?? 0) > 1 && (
-            <label>
-              <span>导出格式</span>
-              <select
-                aria-label="导出格式"
-                value={formatCode}
-                onChange={(event) => {
-                  exportSequence.current += 1;
-                  setExporting(false);
-                  setPublishing(false);
-                  setFormatCode(event.target.value);
-                  setReportExport(null);
-                  setNotice("");
-                  setError("");
-                }}
-              >
-                {options?.formats.map((format) => (
-                  <option key={format.code} value={format.code}>
-                    {format.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <p className="enterprise-ledger-query__summary">
-            当前范围：
-            {options?.definitions.find(({ code }) => code === definitionCode)
-              ?.name ?? "尚无报告类型"}
-            {" · "}
-            {master?.products.find(({ code }) => code === productCode)?.name ??
-              "尚无产品"}
-            {" · "}
-            {master?.periods.find(({ code }) => code === periodCode)?.name ??
-              "尚无统计时间"}
-          </p>
-          {permissions.includes("REPORT_PREVIEW") && (
-            <button
-              disabled={!ready || previewing}
-              onClick={() => void createPreview()}
-              type="button"
-            >
-              {previewing ? "正在生成……" : "生成报告预览"}
-            </button>
-          )}
-        </section>
-      )}
-
-      {error && (
-        <div className="market-task6-alert" role="alert">
-          {error}
-        </div>
-      )}
-      {notice && (
-        <p className="realtime-business-success" role="status">
-          {notice}
-        </p>
-      )}
-
-      {preview && (
-        <section
-          aria-label="报告预览"
-          className="realtime-report-center__preview"
-        >
-          <header>
-            <div>
-              <span>当前筛选范围</span>
-              <h2>{preview.title}</h2>
-              <p>统计时间：{selectedPeriod?.name ?? "当前所选时间"}</p>
+        <>
+          <nav
+            aria-label="综合报告目录"
+            className="realtime-report-center__catalog"
+          >
+            <div className="realtime-report-center__section-heading">
+              <span>步骤 1</span>
+              <div>
+                <h2>选择业务报告</h2>
+                <p>报告目录由服务端维护，仅提供综合经营日报、周报和月报。</p>
+              </div>
             </div>
-            <div className="realtime-report-center__actions">
-              {permissions.includes("REPORT_EXPORT") && (
+            <div className="realtime-report-center__catalog-grid">
+              {definitionGroups.map((group) => (
+                <section key={group.code}>
+                  <header>
+                    <h3>{group.label}</h3>
+                    <p>{group.description}</p>
+                  </header>
+                  <div>
+                    {group.definitions.map((definition) => (
+                      <button
+                        aria-pressed={definition.code === definitionCode}
+                        className={
+                          definition.code === definitionCode ? "is-active" : ""
+                        }
+                        key={definition.code}
+                        onClick={() => {
+                          const nextFrequency = reportFrequency(
+                            definition.frequencyCode,
+                          );
+                          changeScope(() => {
+                            setDefinitionCode(definition.code);
+                            if (nextFrequency !== selectedFrequency)
+                              setPeriodCode(
+                                defaultReportPeriod(
+                                  nextFrequency,
+                                  shanghaiToday(),
+                                ),
+                              );
+                          });
+                        }}
+                        type="button"
+                      >
+                        {definition.name}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </nav>
+
+          <section
+            aria-label="报告范围与交付"
+            className="realtime-report-center__scope"
+          >
+            <div className="realtime-report-center__section-heading">
+              <span>步骤 2</span>
+              <div>
+                <h2>确定报告范围与交付格式</h2>
+                <p>地区、时间和文件格式共同确定本次不可变报告快照。</p>
+              </div>
+            </div>
+            <div className="realtime-report-center__scope-grid">
+              <RealtimeRegionCascadePicker
+                ariaLabel="统计地区"
+                onChange={(nextRegionCode) =>
+                  changeScope(() => setRegionCode(nextRegionCode))
+                }
+                regions={master?.regions ?? []}
+                requireVillage={false}
+                value={regionCode}
+              />
+              {selectedFrequency === "WEEKLY" ? (
+                <div
+                  aria-label="报告周次"
+                  className="realtime-report-center__week-fields"
+                  role="group"
+                >
+                  <label>
+                    <span>报告年份</span>
+                    <select
+                      aria-label="报告年份"
+                      value={weeklyParts.year}
+                      onChange={(event) =>
+                        changeScope(() =>
+                          setPeriodCode(
+                            weeklyPeriodCode(
+                              event.target.value,
+                              weeklyParts.week,
+                            ),
+                          ),
+                        )
+                      }
+                    >
+                      {reportYears.map((year) => (
+                        <option key={year} value={year}>
+                          {year}年
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>周次</span>
+                    <select
+                      aria-label="周次"
+                      value={weeklyParts.week}
+                      onChange={(event) =>
+                        changeScope(() =>
+                          setPeriodCode(
+                            weeklyPeriodCode(
+                              weeklyParts.year,
+                              event.target.value,
+                            ),
+                          ),
+                        )
+                      }
+                    >
+                      {Array.from({ length: 53 }, (_, index) => {
+                        const week = String(index + 1).padStart(2, "0");
+                        return (
+                          <option key={week} value={week}>
+                            第{index + 1}周
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                </div>
+              ) : (
+                <label>
+                  <span>
+                    {selectedFrequency === "MONTHLY" ? "报告月份" : "报告日期"}
+                  </span>
+                  <input
+                    aria-label={
+                      selectedFrequency === "MONTHLY" ? "报告月份" : "报告日期"
+                    }
+                    type={selectedFrequency === "MONTHLY" ? "month" : "date"}
+                    value={periodCode}
+                    onChange={(event) =>
+                      changeScope(() => setPeriodCode(event.target.value))
+                    }
+                  />
+                </label>
+              )}
+              {(options?.formats.length ?? 0) > 1 && (
+                <label>
+                  <span>导出格式</span>
+                  <select
+                    aria-label="导出格式"
+                    value={formatCode}
+                    onChange={(event) => {
+                      exportSequence.current += 1;
+                      setExporting(false);
+                      setDownloadFailed(false);
+                      setPublishing(false);
+                      setFormatCode(event.target.value);
+                      setReportExport(null);
+                      setNotice("");
+                      setError("");
+                    }}
+                  >
+                    {options?.formats.map((format) => (
+                      <option key={format.code} value={format.code}>
+                        {format.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+            <div className="realtime-report-center__scope-action">
+              <p>
+                <span>当前任务</span>
+                <strong>
+                  {selectedDefinition?.name ?? "尚无报告类型"}
+                  {" · "}
+                  玉米、大豆、稻谷
+                  {" · "}
+                  {selectedTimeLabel}
+                </strong>
+              </p>
+              {canPreview ? (
                 <button
-                  disabled={exporting || publishing}
-                  onClick={() => void exportPreview()}
+                  disabled={!ready || previewing || exporting}
+                  onClick={() => void createPreview(canExport)}
                   type="button"
                 >
-                  {exporting ? "正在导出……" : "导出当前报告"}
+                  {previewing
+                    ? "正在生成报告……"
+                    : exporting
+                      ? "正在下载报告……"
+                      : canExport
+                        ? "生成并下载报告"
+                        : "生成报告预览"}
                 </button>
+              ) : (
+                <p className="realtime-report-center__permission">
+                  当前岗位无报告编制权限
+                </p>
               )}
-              {permissions.includes("REPORT_PUBLISH") &&
-                reportExport?.previewId === preview.id &&
-                publishedPreviewId !== preview.id && (
+            </div>
+          </section>
+        </>
+      )}
+
+      <section
+        aria-label="报告生成结果"
+        className="realtime-report-center__result"
+      >
+        <div className="realtime-report-center__section-heading">
+          <span>步骤 3</span>
+          <div>
+            <h2>报告生成结果</h2>
+            <p>预览、下载和正式发布始终关联同一份核定数据快照。</p>
+          </div>
+        </div>
+        {error && (
+          <div className="market-task6-alert" role="alert">
+            {error}
+          </div>
+        )}
+        {notice && (
+          <p className="realtime-business-success" role="status">
+            {notice}
+          </p>
+        )}
+        {preview ? (
+          <div className="realtime-report-center__preview">
+            <header>
+              <div>
+                <span>当前核定报告</span>
+                <h2>{preview.title}</h2>
+                <p>统计时间：{selectedTimeLabel}</p>
+              </div>
+              <div className="realtime-report-center__actions">
+                {permissions.includes("REPORT_EXPORT") && (
                   <button
                     disabled={exporting || publishing}
-                    onClick={() => void publishPreview()}
+                    onClick={() => void exportPreview()}
                     type="button"
                   >
-                    {publishing ? "正在发布……" : "正式发布报告"}
+                    {exporting
+                      ? "正在导出……"
+                      : downloadFailed
+                        ? "重试下载报告"
+                        : reportExport?.previewId === preview.id
+                          ? "重新下载报告"
+                          : "下载当前报告"}
                   </button>
                 )}
+                {permissions.includes("REPORT_PUBLISH") &&
+                  reportExport?.previewId === preview.id &&
+                  publishedPreviewId !== preview.id && (
+                    <button
+                      disabled={exporting || publishing}
+                      onClick={() => void publishPreview()}
+                      type="button"
+                    >
+                      {publishing ? "正在发布……" : "正式发布报告"}
+                    </button>
+                  )}
+              </div>
+            </header>
+            {coverage ? (
+              <p
+                className={`realtime-report-center__coverage is-${coverage.status.toLowerCase()}`}
+              >
+                {coverage.message}
+              </p>
+            ) : null}
+            <div className="realtime-report-center__metrics">
+              {preview.lines
+                .slice(0, previewProducts.length ? 3 : undefined)
+                .map((line) => (
+                  <article key={line.label}>
+                    <span>{line.label}</span>
+                    <strong>{line.value}</strong>
+                    {line.note ? <small>{line.note}</small> : null}
+                  </article>
+                ))}
             </div>
-          </header>
-          <div className="realtime-report-center__metrics">
-            {preview.lines.map((line) => (
-              <article key={line.label}>
-                <span>{line.label}</span>
-                <strong>{line.value}</strong>
-              </article>
-            ))}
+            {previewProducts.length ? (
+              <div
+                aria-label="三品种审核后数据"
+                className="realtime-report-center__products"
+                role="region"
+              >
+                {previewProducts.map((product) => (
+                  <article key={product.code}>
+                    <header>
+                      <h3>{product.label}</h3>
+                      <span>
+                        已审核{" "}
+                        {product.domains.reduce(
+                          (total, domain) => total + domain.approvedRecordCount,
+                          0,
+                        )}{" "}
+                        条
+                      </span>
+                    </header>
+                    <div>
+                      {product.domains.map((domain) => (
+                        <section key={domain.code}>
+                          <header>
+                            <h4>{domain.label}</h4>
+                            <span>已审核 {domain.approvedRecordCount} 条</span>
+                          </header>
+                          <small>数据截止：{domain.dataCutoff}</small>
+                          <dl>
+                            {domain.metrics.map((metric) => (
+                              <div key={metric.label}>
+                                <dt>{metric.label}</dt>
+                                <dd>{metric.value}</dd>
+                                {metric.note ? (
+                                  <small>{metric.note}</small>
+                                ) : null}
+                              </div>
+                            ))}
+                          </dl>
+                        </section>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            <div className="realtime-report-center__sections">
+              {preview.sections.map((section) => (
+                <article key={section.code}>
+                  <h3>{section.title}</h3>
+                  <p>{section.body}</p>
+                </article>
+              ))}
+            </div>
           </div>
-          <div className="realtime-report-center__sections">
-            {preview.sections.map((section) => (
-              <article key={section.code}>
-                <h3>{section.title}</h3>
-                <p>{section.body}</p>
-              </article>
-            ))}
+        ) : (
+          <div className="realtime-report-center__placeholder">
+            <strong>选择报告范围后可一键生成正式报告</strong>
+            <p>系统只使用当前范围内的核定业务数据；无数据时不会生成空文件。</p>
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </div>
   );
 }

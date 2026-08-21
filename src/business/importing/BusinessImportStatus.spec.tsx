@@ -7,43 +7,11 @@ import { BusinessImportStatus } from "./BusinessImportStatus";
 afterEach(cleanup);
 
 describe("business import status", () => {
-  it("shows independently stored rows and submits only a complete draft", async () => {
-    const user = userEvent.setup();
-    const onSubmitDraft = vi.fn();
+  it("reports that valid rows entered review without exposing a draft workflow", () => {
     render(
       <BusinessImportStatus
         busy={false}
         className="business-alert"
-        drafts={[
-          {
-            id: "draft-1",
-            domainCode: "LOGISTICS",
-            productCode: "CORN",
-            sampleName: "铁路样本点",
-            regionCode: "230208",
-            surveyPeriod: "2026-08",
-            missingFields: [],
-            completenessPercent: 100,
-            stateCode: "DRAFT",
-            canonicalRecordId: null,
-            sourceRowNumber: 2,
-            version: 1,
-          },
-          {
-            id: "draft-2",
-            domainCode: "LOGISTICS",
-            productCode: "CORN",
-            sampleName: "公路样本点",
-            regionCode: "",
-            surveyPeriod: null,
-            missingFields: ["地区"],
-            completenessPercent: 50,
-            stateCode: "DRAFT",
-            canonicalRecordId: null,
-            sourceRowNumber: 3,
-            version: 1,
-          },
-        ]}
         job={{
           id: "import-1",
           domainCode: "LOGISTICS",
@@ -53,19 +21,16 @@ describe("business import status", () => {
         }}
         onDownloadErrors={vi.fn()}
         onRetry={vi.fn()}
-        onSubmitDraft={onSubmitDraft}
       />,
     );
 
-    expect(screen.getByText(/第 2 行 · 铁路样本点/u)).toHaveTextContent(
-      "已保存为草稿（当前完整度 100%）",
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "导入完成：2 行已处理，合格行已自动提交审核，失败 0 行。",
     );
-    expect(screen.getByText(/第 3 行 · 公路样本点/u)).toHaveTextContent(
-      "已保存为草稿（当前完整度 50%）",
-    );
-    expect(screen.getAllByRole("button", { name: "提交审核" })).toHaveLength(2);
-    await user.click(screen.getAllByRole("button", { name: "提交审核" })[0]!);
-    expect(onSubmitDraft).toHaveBeenCalledWith("draft-1");
+    expect(screen.queryByText(/草稿/u)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "提交审核" }),
+    ).not.toBeInTheDocument();
   });
 
   it("offers the durable error receipt and retry action for a failed job", async () => {
@@ -96,5 +61,48 @@ describe("business import status", () => {
     await user.click(screen.getByRole("button", { name: "重试导入" }));
     expect(onDownloadErrors).toHaveBeenCalledTimes(1);
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers the error receipt and failed-row retry after a partially successful import", async () => {
+    const user = userEvent.setup();
+    const onDownloadErrors = vi.fn();
+    const onRetry = vi.fn();
+    render(
+      <BusinessImportStatus
+        busy={false}
+        className="business-alert"
+        job={{
+          id: "import-partial-1",
+          domainCode: "PRODUCTION",
+          statusCode: "COMPLETED_WITH_ERRORS",
+          importedRows: 1,
+          failedRows: 2,
+        }}
+        onDownloadErrors={onDownloadErrors}
+        onRetry={onRetry}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "导入完成：1 行已处理，合格行已自动提交审核，失败 2 行。请下载错误清单核对。",
+    );
+    await user.click(screen.getByRole("button", { name: "下载错误清单" }));
+    await user.click(screen.getByRole("button", { name: "仅重试待修正行" }));
+    expect(onDownloadErrors).toHaveBeenCalledTimes(1);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders nothing before an import job exists", () => {
+    const { container } = render(
+      <BusinessImportStatus
+        busy={false}
+        className="business-alert"
+        job={null}
+        onDownloadErrors={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
   });
 });

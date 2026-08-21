@@ -5,11 +5,32 @@ import type {
   ObservableAnalysisSnapshot,
 } from "@/platform/api/observableAnalysisContract";
 import {
+  ALL_AUTHORIZED_REGION_CODE,
+  observableAnalysisLineageKey,
+} from "@/platform/api/observableAnalysisContract";
+import {
   realtimeBusinessRepository,
   type MasterDataSnapshot,
   type RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { ObservableAnalysisFilters } from "./ObservableAnalysisFilters";
+import {
+  AnalysisBarChart,
+  AnalysisDashboardGrid,
+  AnalysisGroupedBarCharts,
+  AnalysisGroupedRangeCharts,
+  AnalysisGroupedVerticalBarCharts,
+  AnalysisMetricBand,
+  AnalysisReportSection,
+  AnalysisScopeStrip,
+  AnalysisTrendChart,
+  buildAnalysisRangeSeries,
+  hasAvailableMetrics,
+  type AnalysisMetric,
+  type AnalysisTrendLine,
+} from "./ObservableAnalysisReport";
+import { useObservableAnalysisSeries } from "./useObservableAnalysisSeries";
+import type { ObservableAnalysisSeriesPoint } from "./useObservableAnalysisSeries";
 import { useObservableAnalysisSnapshot } from "./useObservableAnalysisSnapshot";
 
 type Metric = ObservableAnalysisSnapshot["production"]["metrics"][number];
@@ -25,8 +46,8 @@ const stateLabels = {
 export function ProductionAnalysisPanel({
   repository = realtimeBusinessRepository,
   productCode = "CORN",
-  regionCode = "230200",
-  surveyYear = new Date().getFullYear(),
+  regionCode = ALL_AUTHORIZED_REGION_CODE,
+  surveyYear,
   authorizedRegionCodes = ["*"],
 }: {
   repository?: RealtimeBusinessRepository;
@@ -36,7 +57,11 @@ export function ProductionAnalysisPanel({
   authorizedRegionCodes?: readonly string[];
 }) {
   const defaultQuery = useMemo<ObservableAnalysisQuery>(
-    () => ({ productCode, regionCode, surveyYear }),
+    () => ({
+      productCode,
+      regionCode,
+      surveyYear: surveyYear ?? new Date().getFullYear(),
+    }),
     [productCode, regionCode, surveyYear],
   );
   const [query, setQuery] = useState(defaultQuery);
@@ -48,7 +73,14 @@ export function ProductionAnalysisPanel({
     void repository
       .loadMasterData()
       .then((next) => {
-        if (active) setMasterData(next);
+        if (!active) return;
+        setMasterData(next);
+        if (surveyYear == null && next.approvedSurveyYears?.length) {
+          setQuery((current) => ({
+            ...current,
+            surveyYear: next.approvedSurveyYears?.[0] ?? current.surveyYear,
+          }));
+        }
       })
       .catch(() => {
         if (active) setMasterError("分析筛选项暂时无法读取，请稍后重试。");
@@ -56,7 +88,18 @@ export function ProductionAnalysisPanel({
     return () => {
       active = false;
     };
-  }, [repository]);
+  }, [repository, surveyYear]);
+
+  const resolvedDefaultQuery = useMemo(
+    () => ({
+      ...defaultQuery,
+      surveyYear:
+        surveyYear ??
+        masterData?.approvedSurveyYears?.[0] ??
+        defaultQuery.surveyYear,
+    }),
+    [defaultQuery, masterData?.approvedSurveyYears, surveyYear],
+  );
 
   const { snapshot, status, error, refresh } = useObservableAnalysisSnapshot({
     query,
@@ -64,33 +107,54 @@ export function ProductionAnalysisPanel({
   });
 
   return (
-    <div className="enterprise-ledger-workbench observable-analysis-page">
-      <div className="enterprise-ledger-workbench__breadcrumb">产情监测 / 产情分析</div>
-      <header className="enterprise-ledger-title observable-analysis-title">
-        <div>
-          <h1>产情分析</h1>
-          <p>按生产问题查看当前核定填报数据、自动勾稽结果和数据来源</p>
-        </div>
-        <button disabled={status === "loading"} type="button" onClick={refresh}>
-          刷新分析
-        </button>
-      </header>
+    <div
+      className="enterprise-ledger-workbench observable-analysis-page"
+      data-dashboard="production"
+    >
+      <div className="enterprise-ledger-workbench__breadcrumb">
+        产情监测 / 产情分析
+      </div>
+      <div
+        className="observable-analysis-dashboard__masthead"
+        data-layout="compact"
+      >
+        <header className="enterprise-ledger-title observable-analysis-title">
+          <div>
+            <h1>产情分析</h1>
+            <p>核定产情结果与生产结构</p>
+          </div>
+          <button
+            disabled={status === "loading"}
+            type="button"
+            onClick={refresh}
+          >
+            刷新分析
+          </button>
+        </header>
 
-      {masterData ? (
-        <ObservableAnalysisFilters
-          authorizedRegionCodes={authorizedRegionCodes}
-          defaultQuery={defaultQuery}
-          masterData={masterData}
-          query={query}
-          onChange={setQuery}
-        />
-      ) : (
-        <p>正在读取分析范围…</p>
-      )}
+        {masterData ? (
+          <ObservableAnalysisFilters
+            authorizedRegionCodes={authorizedRegionCodes}
+            defaultQuery={resolvedDefaultQuery}
+            masterData={masterData}
+            query={query}
+            onChange={setQuery}
+          />
+        ) : (
+          <p>正在读取分析范围…</p>
+        )}
+      </div>
       {masterError ? <p role="alert">{masterError}</p> : null}
       {error ? <p role="alert">{error.message}</p> : null}
       {status === "loading" && !snapshot ? <p>正在汇总核定产情数据…</p> : null}
-      {snapshot ? <ProductionResult snapshot={snapshot} realtimeStatus={status} /> : null}
+      {snapshot ? (
+        <ProductionResult
+          query={query}
+          realtimeStatus={status}
+          repository={repository}
+          snapshot={snapshot}
+        />
+      ) : null}
     </div>
   );
 }
@@ -98,183 +162,346 @@ export function ProductionAnalysisPanel({
 function ProductionResult({
   snapshot,
   realtimeStatus,
+  query,
+  repository,
 }: {
   snapshot: ObservableAnalysisSnapshot;
   realtimeStatus: string;
+  query: ObservableAnalysisQuery;
+  repository: RealtimeBusinessRepository;
 }) {
-  const metrics = new Map(snapshot.production.metrics.map((metric) => [metric.code, metric]));
+  const metrics = new Map(
+    snapshot.production.metrics.map((metric) => [metric.code, metric]),
+  );
   const version = snapshot.analysisVersion;
   const overview = select(metrics, [
     "CULTIVATED_AREA",
-    "HARVEST_AREA",
     "WEIGHTED_YIELD_PER_MU",
     "EXPECTED_OUTPUT",
+    "EXPECTED_HARVEST_RATE",
   ]);
-  const damage = select(metrics, ["AFFECTED_AREA"]);
-  const intention = select(metrics, ["INTENDED_AREA", "CULTIVATED_AREA"]);
+  const damage = select(metrics, ["AFFECTED_AREA", "AFFECTED_AREA_RATE"]);
+  const quality = snapshot.production.metrics.filter(({ code }) =>
+    code.startsWith("QUALITY_"),
+  );
+  const costs = snapshot.production.metrics.filter(
+    ({ code }) =>
+      code.startsWith("COST_") ||
+      ["COMPLETE_COST_PER_MU", "INSURANCE_AMOUNT", "SUBSIDY_AMOUNT"].includes(
+        code,
+      ),
+  );
+  const intention = select(metrics, [
+    "INTENDED_AREA",
+    "INTENDED_AREA_CHANGE",
+    "INTENDED_AREA_CHANGE_RATE",
+  ]);
+  const areaStructure = select(metrics, [
+    "CULTIVATED_AREA",
+    "HARVEST_AREA",
+    "AFFECTED_AREA",
+    "INTENDED_AREA",
+  ]);
+  const qualityRanges = buildAnalysisRangeSeries(quality, "QUALITY_");
+  const unitCost = costs.filter(({ unit }) => unit === "元/亩");
+  const productionSources = snapshot.lineage.filter(
+    ({ sourceDomain }) => sourceDomain === "PRODUCTION",
+  );
+  const coveredRegionCount = new Set(
+    productionSources.map(({ regionLabel }) => regionLabel),
+  ).size;
+  const subjectCount = new Set(
+    productionSources.map(({ subjectLabel }) => subjectLabel),
+  ).size;
+  const series = useObservableAnalysisSeries({
+    query,
+    refreshKey: `${snapshot.analysisVersion}|${snapshot.generatedAt}`,
+    repository,
+  });
+  const areaTrendLines = [
+    productionTrend("CULTIVATED_AREA", "核定播种面积", "亩"),
+    productionTrend("HARVEST_AREA", "预计收获面积", "亩", "comparison"),
+  ];
+  const outputTrendLines = [
+    productionTrend("EXPECTED_OUTPUT", "预计总产", "吨"),
+  ];
+  const hasMonthlyTrend =
+    hasAtLeastTwoValues(series.points, areaTrendLines) ||
+    hasAtLeastTwoValues(series.points, outputTrendLines);
+  const inventoryAndUse: readonly AnalysisMetric[] = [
+    snapshotMetric(
+      "OPENING_OBSERVABLE_INVENTORY",
+      "期初可观测库存",
+      snapshot.supply.calculation.openingObservableInventoryTonnes,
+      productionSources.length,
+    ),
+    snapshotMetric(
+      "SELF_USE",
+      "自用数量",
+      snapshot.supply.calculation.selfUseTonnes,
+      productionSources.length,
+    ),
+    snapshotMetric(
+      "ENDING_OBSERVABLE_INVENTORY",
+      "期末可观测库存",
+      snapshot.supply.calculation.endingObservableInventoryTonnes,
+      productionSources.length,
+    ),
+  ];
+  const hasAreaStructure = hasAvailableMetrics(areaStructure);
+  const hasDamageAndIntention = hasAvailableMetrics([...damage, ...intention]);
+  const hasQuality = qualityRanges.length > 0;
+  const hasProductionOutcomes =
+    hasAreaStructure || hasDamageAndIntention || hasQuality;
+  const hasCosts = hasAvailableMetrics(costs);
+  const hasInventoryAndUse = hasAvailableMetrics(inventoryAndUse);
+  const hasProductionResources = hasCosts || hasInventoryAndUse;
 
   return (
     <>
-      <section className="observable-analysis-status" data-analysis-version={version}>
+      <section
+        className="observable-analysis-status"
+        data-analysis-version={version}
+      >
         <strong>{stateLabels[snapshot.qualityState]}</strong>
-        <span>{realtimeStatus === "reconnecting" ? "实时连接正在恢复，保留当前结果" : "核定数据变化后自动刷新"}</span>
+        <span>
+          {realtimeStatus === "reconnecting"
+            ? "实时连接正在恢复，保留当前结果"
+            : "核定数据变化后自动刷新"}
+        </span>
         <span>数据截止：{formatDate(snapshot.dataCutoffAt)}</span>
-        <span>{snapshot.coverage.recordCount} 条核定记录</span>
+        <AnalysisScopeStrip
+          recordCount={productionSources.length}
+          regionCount={coveredRegionCount}
+          subjectCount={subjectCount}
+        />
       </section>
 
-      <AnalysisSection
-        description="回答种了多少、预计收获多少、单产和总产分别是多少。"
-        metrics={overview}
-        title="生产概况"
-        version={version}
-      >
-        <MetricBars metrics={overview} name="生产概况指标图" />
-        <MetricTable metrics={overview} name="生产概况等价数据表" />
-        <p className="observable-analysis-summary">{overviewSummary(metrics)}</p>
-      </AnalysisSection>
+      {productionSources.length || snapshot.production.metrics.length ? (
+        <>
+          <AnalysisMetricBand metrics={overview} />
 
-      <AnalysisSection
-        description="回答当前模板能够核定的灾损情况；没有核定值时明确标为缺失。"
-        metrics={damage}
-        title="长势与灾损"
-        version={version}
-      />
+          {hasProductionOutcomes || hasProductionResources ? (
+            <AnalysisDashboardGrid variant="primary">
+              {hasProductionOutcomes ? (
+                <div
+                  className="observable-analysis-dashboard__stack"
+                  data-business-flow="production-outcomes"
+                >
+                  {hasAreaStructure ? (
+                    <AnalysisReportSection
+                      analysisVersion={version}
+                      description="播种、收获、灾损和下年意向采用同一面积口径。"
+                      title="面积与产出"
+                    >
+                      <AnalysisGroupedVerticalBarCharts
+                        metrics={areaStructure}
+                        title="面积结构对比"
+                      />
+                    </AnalysisReportSection>
+                  ) : null}
 
-      <AnalysisSection
-        description="用生产填报的库存、销售和自用数据解释余粮去向，并展示自动勾稽。"
-        metrics={[]}
-        title="余粮与去向"
-        version={version}
-      >
-        <dl className="observable-analysis-metric-grid">
-          <SnapshotAmount label="期初可观测库存" value={snapshot.supply.calculation.openingObservableInventoryTonnes} />
-          <SnapshotAmount label="自用数量" value={snapshot.supply.calculation.selfUseTonnes} />
-          <SnapshotAmount label="期末可观测库存" value={snapshot.supply.calculation.endingObservableInventoryTonnes} />
-          <SnapshotAmount label="主体勾稽记录" value={String(snapshot.production.sourceBalances.length)} unit="条" />
-        </dl>
-      </AnalysisSection>
+                  {hasDamageAndIntention ? (
+                    <AnalysisReportSection
+                      analysisVersion={version}
+                      description="按亩数和比例分别对照灾损与下年度种植意向。"
+                      title="灾损与下年意向"
+                    >
+                      <AnalysisGroupedVerticalBarCharts
+                        metrics={[...damage, ...intention]}
+                        title="灾损与意向"
+                      />
+                    </AnalysisReportSection>
+                  ) : null}
 
-      <AnalysisSection
-        description="只展示当前填报模板中实际存在且已核定的质量、成本、补贴和保险事实。"
-        metrics={[]}
-        title="质量与成本"
-        version={version}
-      >
-        <p className="observable-analysis-empty">当前核定模板未提供可汇总的质量与成本事实，不以其他字段替代。</p>
-      </AnalysisSection>
+                  {hasQuality ? (
+                    <AnalysisReportSection
+                      analysisVersion={version}
+                      description="显示本期核定质量字段的最低、平均与最高值。"
+                      title="质量区间"
+                    >
+                      <AnalysisGroupedRangeCharts
+                        series={qualityRanges}
+                        title="产情质量区间"
+                      />
+                    </AnalysisReportSection>
+                  ) : null}
+                </div>
+              ) : null}
 
-      <AnalysisSection
-        description="将下年度意向面积与当前核定播种面积并列，观察计划调整。"
-        metrics={intention}
-        title="下年种植意向"
-        version={version}
-      >
-        <MetricBars metrics={intention} name="种植意向对比图" />
-      </AnalysisSection>
+              {hasProductionResources ? (
+                <div
+                  className="observable-analysis-dashboard__stack"
+                  data-business-flow="production-resources"
+                >
+                  {hasCosts ? (
+                    <AnalysisReportSection
+                      analysisVersion={version}
+                      description="各项投入均按本期核定成本字段汇总。"
+                      title="成本与保障"
+                    >
+                      <AnalysisBarChart
+                        metrics={unitCost}
+                        title="亩均成本构成"
+                      />
+                      <AnalysisGroupedBarCharts
+                        metrics={costs.filter(({ unit }) => unit !== "元/亩")}
+                        title="成本与保障"
+                      />
+                    </AnalysisReportSection>
+                  ) : null}
 
-      <section className="observable-analysis-section" data-analysis-version={version}>
-        <header>
-          <div>
-            <h2>核定数据来源</h2>
-            <p>本页结论仅来自当前范围实际采用的产情记录。</p>
-          </div>
-        </header>
-        <div className="realtime-supply-table-wrap">
-          <table aria-label="产情核定数据来源">
-            <thead><tr><th>调查对象</th><th>地区</th><th>期间</th><th>核定时间</th></tr></thead>
-            <tbody>
-              {snapshot.lineage.filter(({ sourceDomain }) => sourceDomain === "PRODUCTION").map((item) => (
-                <tr key={`${item.subjectLabel}-${item.regionLabel}-${item.periodLabel}`}>
-                  <td>{item.subjectLabel}</td><td>{item.regionLabel}</td><td>{item.periodLabel}</td><td>{formatDate(item.approvedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                  {hasInventoryAndUse ? (
+                    <AnalysisReportSection
+                      analysisVersion={version}
+                      description="库存和自用取自本次核定结果。"
+                      title="库存与自用"
+                    >
+                      <AnalysisGroupedVerticalBarCharts
+                        metrics={inventoryAndUse}
+                        title="库存与自用数量"
+                      />
+                    </AnalysisReportSection>
+                  ) : null}
+                </div>
+              ) : null}
+            </AnalysisDashboardGrid>
+          ) : null}
+
+          {hasMonthlyTrend ? (
+            <AnalysisReportSection
+              analysisVersion={version}
+              aside={
+                series.failedMonthCount > 0
+                  ? `${series.failedMonthCount} 个月数据暂缺`
+                  : undefined
+              }
+              description="仅当同一字段至少有两个有效月份时展示；缺失月份不补零。"
+              title="跨月变化"
+            >
+              <div className="observable-analysis-report__chart-grid">
+                <AnalysisTrendChart
+                  lines={areaTrendLines}
+                  points={series.points}
+                  title="播种与收获面积变化"
+                />
+                <AnalysisTrendChart
+                  lines={outputTrendLines}
+                  points={series.points}
+                  title="预计总产变化"
+                />
+              </div>
+            </AnalysisReportSection>
+          ) : null}
+
+          <AnalysisReportSection
+            analysisVersion={version}
+            description="本页结论仅来自当前范围实际采用的产情记录。"
+            title="核定数据来源"
+          >
+            <div
+              className="realtime-supply-table-wrap observable-analysis-report__lineage-viewport"
+              data-layout="business-ledger"
+            >
+              <table aria-label="产情核定数据来源">
+                <thead>
+                  <tr>
+                    <th>调查对象</th>
+                    <th>地区</th>
+                    <th>期间</th>
+                    <th>核定时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productionSources.map((item) => (
+                    <tr key={observableAnalysisLineageKey(item)}>
+                      <td>{item.subjectLabel}</td>
+                      <td>{item.regionLabel}</td>
+                      <td>{item.periodLabel}</td>
+                      <td>{formatDate(item.approvedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </AnalysisReportSection>
+        </>
+      ) : (
+        <Empty>当前范围暂无已审核的产情分析数据。</Empty>
+      )}
     </>
   );
 }
 
-function AnalysisSection({
-  title,
-  description,
-  metrics,
-  version,
-  children,
-}: {
-  title: string;
-  description: string;
-  metrics: readonly Metric[];
-  version: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <section className="observable-analysis-section" data-analysis-version={version}>
-      <header><div><h2>{title}</h2><p>{description}</p></div></header>
-      {metrics.length ? <MetricCards metrics={metrics} /> : null}
-      {children}
-    </section>
-  );
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p className="observable-analysis-empty">{children}</p>;
 }
 
-function MetricCards({ metrics }: { metrics: readonly Metric[] }) {
-  return (
-    <dl className="observable-analysis-metric-grid">
-      {metrics.map((metric) => (
-        <div key={metric.code}><dt>{metric.label}</dt><dd>{metricValue(metric)}</dd><small>{metric.sourceCount} 条来源</small></div>
-      ))}
-    </dl>
-  );
+function snapshotMetric(
+  code: string,
+  label: string,
+  value: string | null,
+  sourceCount: number,
+): AnalysisMetric {
+  return {
+    code,
+    label,
+    value,
+    unit: "吨",
+    aggregation: "SUM",
+    sourceCount: value === null ? 0 : sourceCount,
+    missingReason: value === null ? "缺少核定数据" : null,
+  };
 }
 
-function MetricBars({ metrics, name }: { metrics: readonly Metric[]; name: string }) {
-  const present = metrics.filter((metric) => metric.value !== null);
-  const maximum = Math.max(...present.map((metric) => Number(metric.value)), 1);
-  return (
-    <figure className="observable-analysis-bars" role="img" aria-label={name}>
-      {metrics.map((metric) => (
-        <div key={metric.code}><span>{metric.label}</span><i style={{ width: metric.value === null ? "0" : `${Math.max((Number(metric.value) / maximum) * 100, 2)}%` }} /><strong>{metricValue(metric)}</strong></div>
-      ))}
-    </figure>
-  );
+function productionTrend(
+  code: string,
+  label: string,
+  unit: string,
+  tone: "primary" | "comparison" = "primary",
+) {
+  return {
+    key: code,
+    label,
+    unit,
+    tone,
+    value: (snapshot: ObservableAnalysisSnapshot) =>
+      snapshot.production.metrics.find((metric) => metric.code === code)
+        ?.value ?? null,
+  } as const;
 }
 
-function MetricTable({ metrics, name }: { metrics: readonly Metric[]; name: string }) {
-  return (
-    <table className="observable-analysis-equivalent-table" aria-label={name}>
-      <thead><tr><th>项目</th><th>核定结果</th><th>来源数</th></tr></thead>
-      <tbody>{metrics.map((metric) => <tr key={metric.code}><td>{metric.label}</td><td>{metricValue(metric)}</td><td>{metric.sourceCount}</td></tr>)}</tbody>
-    </table>
-  );
+function formatDate(value: string | null): string {
+  if (value === null) return "暂无核定数据";
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
 }
 
-function SnapshotAmount({ label, value, unit = "吨" }: { label: string; value: string | null; unit?: string }) {
-  return <div><dt>{label}</dt><dd>{value === null ? "缺少核定数据" : `${formatNumber(value)} ${unit}`}</dd></div>;
-}
-
-function metricValue(metric: Metric): string {
-  return metric.value === null ? (metric.missingReason ?? "缺少核定数据") : `${formatNumber(metric.value)} ${metric.unit}`;
-}
-
-function formatNumber(value: string): string {
-  return Number(value).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-}
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
-}
-
-function select(metrics: ReadonlyMap<string, Metric>, codes: readonly string[]): readonly Metric[] {
+function select(
+  metrics: ReadonlyMap<string, Metric>,
+  codes: readonly string[],
+): readonly Metric[] {
   return codes.flatMap((code) => {
     const metric = metrics.get(code);
     return metric ? [metric] : [];
   });
 }
 
-function overviewSummary(metrics: ReadonlyMap<string, Metric>): string {
-  const cultivated = metrics.get("CULTIVATED_AREA")?.value;
-  const harvest = metrics.get("HARVEST_AREA")?.value;
-  if (!cultivated || !harvest || Number(cultivated) === 0) return "当前核定数据不足，暂不能形成面积关系摘要。";
-  return `预计收获面积为播种面积的 ${((Number(harvest) / Number(cultivated)) * 100).toFixed(1)}%。`;
+function hasAtLeastTwoValues(
+  points: readonly ObservableAnalysisSeriesPoint[],
+  lines: readonly AnalysisTrendLine[],
+): boolean {
+  return lines.some(
+    (line) =>
+      points.filter((point) => {
+        const value = point.snapshot ? line.value(point.snapshot) : null;
+        return value !== null && Number.isFinite(Number(value));
+      }).length >= 2,
+  );
 }

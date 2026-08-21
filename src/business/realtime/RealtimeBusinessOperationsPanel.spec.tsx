@@ -14,6 +14,10 @@ import type {
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+import {
+  PRODUCTION_SURVEY_CONTRACT_DIGEST,
+  PRODUCTION_SURVEY_CONTRACT_VERSION,
+} from "@/platform/api/productionSurveyContract";
 import { RealtimeBusinessOperationsPanel } from "./RealtimeBusinessOperationsPanel";
 
 afterEach(cleanup);
@@ -134,9 +138,8 @@ function productionDefinition() {
   return {
     productCode: "CORN",
     objectTypeCode: "FARMER",
-    contractVersion: "production-survey-fields-v1" as const,
-    contractDigest:
-      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32" as const,
+    contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
+    contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
     fields: [
       productionContractField(
         "objectTypeCode",
@@ -162,14 +165,6 @@ function productionDefinition() {
           controlType: "REGION",
           required: true,
         },
-      ),
-      productionContractField(
-        "PROD_CULTIVAR_NAME",
-        "具体品种",
-        "CONTEXT",
-        "基础信息",
-        10,
-        30,
       ),
       productionContractField(
         "surveyDate",
@@ -220,15 +215,20 @@ function productionDefinition() {
         },
       ),
       productionContractField(
-        "PROD_REPORTER_PHONE",
-        "填报人联系方式",
+        "PROD_SURVEYOR_NAME",
+        "调研人",
         "SUBJECT",
         "调查对象与联系",
         20,
         40,
-        {
-          required: true,
-        },
+      ),
+      productionContractField(
+        "PROD_SURVEYOR_PHONE",
+        "调研人联系方式",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        50,
       ),
       productionContractField(
         "PROD_SAMPLE_CONTACT",
@@ -236,7 +236,7 @@ function productionDefinition() {
         "SUBJECT",
         "调查对象与联系",
         20,
-        50,
+        60,
         {
           required: true,
         },
@@ -392,6 +392,8 @@ function repository() {
   const createProduction = vi.fn();
   const getProduction = vi.fn();
   const transitionProduction = vi.fn();
+  const importProductionCsv = vi.fn();
+  const retryImportJob = vi.fn();
   const uploadEvidencePhoto = vi.fn(() =>
     Promise.resolve({
       id: "photo-1",
@@ -494,12 +496,16 @@ function repository() {
     createMarket: vi.fn(),
     updateMarket: vi.fn(),
     transitionMarket: vi.fn(),
+    importProductionCsv,
+    retryImportJob,
     uploadEvidencePhoto,
   } as unknown as RealtimeBusinessRepository;
   return {
     api,
     createProduction,
     getProduction,
+    importProductionCsv,
+    retryImportJob,
     transitionProduction,
     uploadEvidencePhoto,
   };
@@ -518,9 +524,6 @@ function fillRequiredProductionFields() {
   fireEvent.change(screen.getByRole("combobox", { name: "行政村" }), {
     target: { value: "230221101001" },
   });
-  fireEvent.change(screen.getByRole("textbox", { name: "具体品种" }), {
-    target: { value: "龙单86" },
-  });
   fireEvent.change(screen.getByLabelText("数据年份"), {
     target: { value: "2026" },
   });
@@ -533,7 +536,10 @@ function fillRequiredProductionFields() {
   fireEvent.change(screen.getByLabelText("预计单产"), {
     target: { value: "650" },
   });
-  fireEvent.change(screen.getByLabelText("填报人联系方式"), {
+  fireEvent.change(screen.getByLabelText("调研人"), {
+    target: { value: "王雷" },
+  });
+  fireEvent.change(screen.getByLabelText("调研人联系方式"), {
     target: { value: "13800000000" },
   });
   fireEvent.change(screen.getByLabelText("样本点联系方式"), {
@@ -548,6 +554,96 @@ function fillRequiredProductionFields() {
 }
 
 describe("RealtimeBusinessOperationsPanel", () => {
+  it("reloads records and notifies downstream consumers after a successful import", async () => {
+    const { api, importProductionCsv } = repository();
+    const listProduction = vi.spyOn(api, "listProduction");
+    const onRecordsChanged = vi.fn();
+    importProductionCsv.mockResolvedValue({
+      id: "production-import-1",
+      domainCode: "PRODUCTION",
+      statusCode: "COMPLETED",
+      importedRows: 1,
+      failedRows: 0,
+    });
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="产情填报员"
+        domain="production"
+        lockedProductCode="CORN"
+        onRecordsChanged={onRecordsChanged}
+        repository={api}
+      />,
+    );
+
+    const input = await screen.findByLabelText("导入 XLSX");
+    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["workbook"], "产情导入.xlsx", {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+        ],
+      },
+    });
+
+    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(3));
+    expect(onRecordsChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("reloads records and notifies downstream consumers after a successful import retry", async () => {
+    const { api, importProductionCsv, retryImportJob } = repository();
+    const listProduction = vi.spyOn(api, "listProduction");
+    const onRecordsChanged = vi.fn();
+    importProductionCsv.mockResolvedValue({
+      id: "production-import-retry-1",
+      domainCode: "PRODUCTION",
+      statusCode: "FAILED",
+      importedRows: 0,
+      failedRows: 1,
+      failureMessage: "文件暂时无法处理",
+    });
+    retryImportJob.mockResolvedValue({
+      id: "production-import-retry-2",
+      domainCode: "PRODUCTION",
+      statusCode: "COMPLETED",
+      importedRows: 1,
+      failedRows: 0,
+      retryOf: "production-import-retry-1",
+    });
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="产情填报员"
+        domain="production"
+        lockedProductCode="CORN"
+        onRecordsChanged={onRecordsChanged}
+        repository={api}
+      />,
+    );
+
+    const input = await screen.findByLabelText("导入 XLSX");
+    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["workbook"], "产情导入.xlsx", {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+        ],
+      },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "重试导入" }));
+
+    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(3));
+    expect(retryImportJob).toHaveBeenCalledWith(
+      "production",
+      "production-import-retry-1",
+    );
+    expect(onRecordsChanged).toHaveBeenCalledTimes(1);
+  });
+
   it("voids an editable production draft and leaves the terminal record read-only", async () => {
     const { api, getProduction, transitionProduction } = repository();
     const draft = {
@@ -969,7 +1065,8 @@ describe("RealtimeBusinessOperationsPanel", () => {
       subsidies: {},
       submissionMetadata: {
         PROD_REPORTER_NAME: "产情填报员",
-        PROD_REPORTER_PHONE: "13800000000",
+        PROD_SURVEYOR_NAME: "王雷",
+        PROD_SURVEYOR_PHONE: "13800000000",
         PROD_SAMPLE_CONTACT: "13900000000",
         PROD_SAMPLE_LATITUDE: "47.3543",
         PROD_SAMPLE_LONGITUDE: "123.9182",
@@ -1235,7 +1332,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(screen.queryByLabelText("测产轮次")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("入库数量")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("损耗数量")).not.toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "具体品种" })).toBeVisible();
+    expect(
+      screen.queryByRole("textbox", { name: "具体品种" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "品种" }),
     ).not.toBeInTheDocument();
@@ -1268,7 +1367,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
         status: 200,
         details: {
           reason: "INVALID_PRODUCTION_FIELD_BOUNDARY",
-          missingRequiredCodes: ["PROD_REPORTER_PHONE"],
+          missingRequiredCodes: ["PROD_SURVEYOR_PHONE"],
         },
       }),
     );
@@ -1392,9 +1491,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
       insurance: {},
       subsidies: {},
       submissionMetadata: {
-        PROD_CULTIVAR_NAME: "龙单86",
         PROD_REPORTER_NAME: "张三",
-        PROD_REPORTER_PHONE: "13800000000",
+        PROD_SURVEYOR_NAME: "王雷",
+        PROD_SURVEYOR_PHONE: "13800000000",
         PROD_SAMPLE_CONTACT: "13900000000",
         PROD_SAMPLE_LATITUDE: "47.3543",
         PROD_SAMPLE_LONGITUDE: "123.9182",
@@ -1434,9 +1533,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
       cultivarCode: null,
       regionCode: "230221101001",
       evidencePhotoIds: [],
-      submissionMetadata: {
-        PROD_CULTIVAR_NAME: "龙单86",
-      },
     });
+    expect(created?.submissionMetadata).not.toHaveProperty(
+      "PROD_CULTIVAR_NAME",
+    );
   });
 });

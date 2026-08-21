@@ -4,6 +4,7 @@ import type {
   ObservableAnalysisQuery,
   ObservableAnalysisSnapshot,
 } from "@/platform/api/observableAnalysisContract";
+import { ALL_AUTHORIZED_REGION_CODE } from "@/platform/api/observableAnalysisContract";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import type {
   BusinessNotificationRow,
@@ -17,12 +18,7 @@ type ObservableAnalysisRepository = Pick<
   | "subscribeBusinessEvents"
 >;
 
-type SnapshotStatus =
-  | "loading"
-  | "ready"
-  | "empty"
-  | "error"
-  | "reconnecting";
+type SnapshotStatus = "loading" | "ready" | "empty" | "error" | "reconnecting";
 
 interface SnapshotError {
   kind: "access" | "contract" | "network";
@@ -101,7 +97,9 @@ export function useObservableAnalysisSnapshot({
   useEffect(() => {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
-    const related = new Set(regionKey ? regionKey.split("|") : [query.regionCode]);
+    const related = new Set(
+      regionKey ? regionKey.split("|") : [query.regionCode],
+    );
     const subscribe = (afterSequence: number) => {
       if (cancelled) return;
       lastSequence.current = afterSequence;
@@ -119,7 +117,10 @@ export function useObservableAnalysisSnapshot({
           lastSequence.current = event.sequence;
           if (matchesScope(event, query.productCode, related)) refresh();
         },
-        () => setStatus((current) => (current === "error" ? current : "reconnecting")),
+        () =>
+          setStatus((current) =>
+            current === "error" ? current : "reconnecting",
+          ),
       );
     };
     void repository
@@ -156,7 +157,14 @@ function matchesScope(
 ): boolean {
   if (!isAnalysisInvalidatingAction(event.actionCode)) return false;
   if (event.productCode !== productCode) return false;
-  if (!event.regionCodes.some((regionCode) => relatedRegions.has(regionCode))) {
+  const allAuthorizedRegions =
+    relatedRegions.has(ALL_AUTHORIZED_REGION_CODE) ||
+    relatedRegions.has("") ||
+    relatedRegions.has("*");
+  if (
+    !allAuthorizedRegions &&
+    !event.regionCodes.some((regionCode) => relatedRegions.has(regionCode))
+  ) {
     return false;
   }
   return ["PRODUCTION_RECORD", "MARKET_RECORD", "LOGISTICS_RECORD"].includes(
@@ -165,9 +173,7 @@ function matchesScope(
 }
 
 function isAnalysisInvalidatingAction(actionCode: string): boolean {
-  return ["_APPROVED", "_VOIDED"].some((suffix) =>
-    actionCode.endsWith(suffix),
-  );
+  return ["_APPROVED", "_VOIDED"].some((suffix) => actionCode.endsWith(suffix));
 }
 
 function toSnapshotError(cause: unknown): SnapshotError {

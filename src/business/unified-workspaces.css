@@ -4330,7 +4330,14 @@
   font-size: 11px;
 }
 
-.my-work-task5-ledger-region > header > strong {
+.my-work-task5-batch-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.my-work-task5-batch-actions > strong {
   flex: 0 0 auto;
   color: #176d66;
   font-size: 13px;
@@ -4507,6 +4514,11 @@
   background: #eaf6f4;
 }
 
+.my-work-task5-row-action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .my-work-task5-empty {
   padding: 24px 16px;
   color: #617884;
@@ -4580,6 +4592,11 @@
   .my-work-task5-ledger-region > header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .my-work-task5-batch-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 /* enterprise-task5-my-work:end */

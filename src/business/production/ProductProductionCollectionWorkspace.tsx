@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import type {
-  BusinessImportDraft,
   BusinessRecordListItem,
   ProductionImportJob,
   RealtimeBusinessRepository,
@@ -43,8 +42,10 @@ import {
   type ProductionDocumentDraft,
 } from "./ProductionDocumentWorkbench";
 import { BusinessImportStatus } from "../importing/BusinessImportStatus";
+import { ReturnedCorrectionStatus } from "../importing/ReturnedCorrectionStatus";
 import {
   awaitBusinessImport,
+  awaitImportJob,
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
 import { RealtimeRegionFilterSelect } from "../realtime/RealtimeRegionFilterSelect";
@@ -87,8 +88,9 @@ interface ProductionCollectionRow {
   objectTypeId: ProductionBusinessObjectTypeId;
   region: string;
   cultivar: string;
+  surveyor: string;
   reporter: string;
-  reporterPhone: string;
+  surveyorPhone: string;
   subjectContact: string;
   latitude: string;
   longitude: string;
@@ -341,6 +343,7 @@ export function ProductProductionCollectionWorkspace({
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
   const [realtimeRegionCode, setRealtimeRegionCode] = useState("");
   const [surveyYear, setSurveyYear] = useState(currentSurveyYear);
+  const [surveyYearWasSelected, setSurveyYearWasSelected] = useState(false);
   const [surveyMonth, setSurveyMonth] = useState("");
   const [fillingDateFrom, setFillingDateFrom] = useState("");
   const [fillingDateTo, setFillingDateTo] = useState("");
@@ -357,12 +360,23 @@ export function ProductProductionCollectionWorkspace({
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
-  const [importDrafts, setImportDrafts] = useState<
-    readonly BusinessImportDraft[]
-  >([]);
+  const [correcting, setCorrecting] = useState(false);
+  const [correctionJob, setCorrectionJob] =
+    useState<ProductionImportJob | null>(null);
   const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
   const { masterData, masterDataError } =
     useRealtimeMasterData(realtimeRepository);
+  useEffect(() => {
+    if (surveyYearWasSelected || !masterData?.approvedSurveyYears?.length)
+      return;
+    if (!masterData.approvedSurveyYears.includes(Number(surveyYear))) {
+      const approvedYear = String(masterData.approvedSurveyYears[0]);
+      queueMicrotask(() => {
+        setSurveyYear(approvedYear);
+        setPageNumber(0);
+      });
+    }
+  }, [masterData, surveyYear, surveyYearWasSelected]);
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -408,8 +422,9 @@ export function ProductProductionCollectionWorkspace({
       objectTypeId: productionObjectTypeId(item),
       region: item.regionLabel,
       cultivar: fieldValue(item.workId, "cultivar"),
+      surveyor: fieldValue(item.workId, "surveyor"),
       reporter: fieldValue(item.workId, "reporter"),
-      reporterPhone: fieldValue(item.workId, "reporterPhone"),
+      surveyorPhone: fieldValue(item.workId, "surveyorPhone"),
       subjectContact: fieldValue(item.workId, "subjectContact"),
       latitude: fieldValue(item.workId, "latitude"),
       longitude: fieldValue(item.workId, "longitude"),
@@ -455,6 +470,8 @@ export function ProductProductionCollectionWorkspace({
   );
   useEffect(() => {
     if (!realtimeRepository) return;
+    if (typeof realtimeRepository.loadMasterData === "function" && !masterData)
+      return;
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
@@ -512,6 +529,7 @@ export function ProductProductionCollectionWorkspace({
     context.productId,
     fillingDateFrom,
     fillingDateTo,
+    masterData,
     objectType,
     pageNumber,
     realtimeRefreshToken,
@@ -528,7 +546,6 @@ export function ProductProductionCollectionWorkspace({
     setImporting(true);
     setRecordsError("");
     setImportJob(null);
-    setImportDrafts([]);
     try {
       const productCode =
         context.productId === "corn"
@@ -550,13 +567,16 @@ export function ProductProductionCollectionWorkspace({
         onUpdate: setImportJob,
       });
       if (terminal.statusCode !== "FAILED") {
-        const drafts =
-          (await realtimeRepository.listImportDrafts?.(terminal.id)) ?? [];
-        setImportDrafts(drafts);
         setImportPhotos([]);
+        setPageNumber(0);
+        setRecordsRevision((value) => value + 1);
       }
-    } catch {
-      setRecordsError("产情记录导入失败，请核对文件内容后重试。");
+    } catch (error) {
+      setRecordsError(
+        error instanceof RealtimeApiError && error.clientMessage
+          ? error.clientMessage
+          : "产情记录导入失败，请核对文件内容后重试。",
+      );
     } finally {
       setImporting(false);
     }
@@ -578,34 +598,11 @@ export function ProductProductionCollectionWorkspace({
         onUpdate: setImportJob,
       });
       if (terminal.statusCode !== "FAILED") {
-        setImportDrafts(
-          (await realtimeRepository.listImportDrafts?.(terminal.id)) ?? [],
-        );
+        setPageNumber(0);
+        setRecordsRevision((value) => value + 1);
       }
     } catch {
       setRecordsError("产情导入任务重试失败，请稍后重试。");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const submitImportDraft = async (draftId: string) => {
-    if (!realtimeRepository?.submitImportDraft) return;
-    setImporting(true);
-    setRecordsError("");
-    try {
-      const submitted = await realtimeRepository.submitImportDraft(draftId);
-      setImportDrafts((current) =>
-        current.map((draft) => (draft.id === submitted.id ? submitted : draft)),
-      );
-      setRecordsRevision((value) => value + 1);
-    } catch (reason) {
-      setRecordsError(
-        reason instanceof RealtimeApiError &&
-          reason.code === "IMPORT_DRAFT_INCOMPLETE"
-          ? "该行已保留为草稿；请在 XLSX 中补充正式审核所需基础信息后重新导入。"
-          : "导入草稿提交审核失败，请稍后重试。",
-      );
     } finally {
       setImporting(false);
     }
@@ -658,6 +655,76 @@ export function ProductProductionCollectionWorkspace({
     }
   };
 
+  const downloadReturnedCorrectionWorkbook = async () => {
+    if (!realtimeRepository?.downloadReturnedCorrectionWorkbook) return;
+    setRecordsError("");
+    try {
+      const blob = await realtimeRepository.downloadReturnedCorrectionWorkbook(
+        "production",
+        productCode,
+      );
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `${context.productLabel}产情退回记录修正表.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setRecordsError("退回记录修正表下载失败，请稍后重试。");
+    }
+  };
+
+  const correctReturnedRecords = async (file: File | undefined) => {
+    if (!file || !realtimeRepository?.importReturnedCorrectionWorkbook) return;
+    setCorrecting(true);
+    setRecordsError("");
+    setCorrectionJob(null);
+    try {
+      const initial = await realtimeRepository.importReturnedCorrectionWorkbook(
+        "production",
+        file,
+        productCode,
+      );
+      const terminal = await awaitImportJob({
+        initial,
+        onUpdate: setCorrectionJob,
+        loadJob: realtimeRepository.getReturnedCorrectionJob
+          ? (importJobId) =>
+              realtimeRepository.getReturnedCorrectionJob!(
+                "production",
+                importJobId,
+              )
+          : undefined,
+      });
+      if (terminal.statusCode !== "FAILED") {
+        setPageNumber(0);
+        setRecordsRevision((value) => value + 1);
+      }
+    } catch {
+      setRecordsError("退回记录批量修正失败，请重新核对并下载最新修正表。");
+    } finally {
+      setCorrecting(false);
+    }
+  };
+
+  const downloadReturnedCorrectionErrors = async () => {
+    if (!realtimeRepository?.downloadReturnedCorrectionErrors || !correctionJob)
+      return;
+    setRecordsError("");
+    try {
+      saveImportErrorFile(
+        await realtimeRepository.downloadReturnedCorrectionErrors(
+          "production",
+          correctionJob.id,
+        ),
+        "production",
+        correctionJob.id,
+      );
+    } catch {
+      setRecordsError("修正错误清单下载失败，请稍后重试。");
+    }
+  };
+
   const persistedRows: readonly ProductionCollectionRow[] =
     persistedRecords.map((record, index) => {
       const rawObjectType = persistedValue(record, "PROD_OBJECT_TYPE");
@@ -682,9 +749,10 @@ export function ProductProductionCollectionWorkspace({
           )?.label ?? rawObjectType,
         objectTypeId: normalizeProductionObjectType(rawObjectType),
         region: persistedValue(record, "PROD_REGION"),
-        cultivar: persistedValue(record, "PROD_CULTIVAR"),
+        cultivar: persistedValue(record, "PROD_CULTIVAR_NAME", "PROD_CULTIVAR"),
+        surveyor: persistedValue(record, "PROD_SURVEYOR_NAME"),
         reporter: persistedValue(record, "PROD_REPORTER_NAME"),
-        reporterPhone: persistedValue(record, "PROD_REPORTER_PHONE"),
+        surveyorPhone: persistedValue(record, "PROD_SURVEYOR_PHONE"),
         subjectContact: persistedValue(record, "PROD_SAMPLE_CONTACT"),
         latitude: persistedValue(record, "PROD_SAMPLE_LATITUDE"),
         longitude: persistedValue(record, "PROD_SAMPLE_LONGITUDE"),
@@ -825,15 +893,23 @@ export function ProductProductionCollectionWorkspace({
             required
             value={surveyYear}
             onChange={(event) => {
+              setSurveyYearWasSelected(true);
               setSurveyYear(event.target.value);
               setPageNumber(0);
             }}
           >
-            {surveyYearOptions.map((year) => (
-              <option key={year} value={year}>
-                {year} 年
-              </option>
-            ))}
+            {[
+              ...new Set([
+                ...(masterData?.approvedSurveyYears ?? []).map(String),
+                ...surveyYearOptions,
+              ]),
+            ]
+              .sort((left, right) => Number(right) - Number(left))
+              .map((year) => (
+                <option key={year} value={year}>
+                  {year} 年
+                </option>
+              ))}
           </select>
         </label>
         <label>
@@ -975,18 +1051,13 @@ export function ProductProductionCollectionWorkspace({
             }}
           >
             <option value="">全部状态</option>
-            {[
-              "填写中",
-              "退回待补充",
-              "审核退回",
-              "待审核",
-              "已核定",
-              "已作废",
-            ].map((label) => (
-              <option key={label} value={label}>
-                {label}
-              </option>
-            ))}
+            {["退回待补充", "审核退回", "待审核", "已核定", "已作废"].map(
+              (label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ),
+            )}
           </select>
         </label>
         <div className="enterprise-ledger-query__actions">
@@ -1041,11 +1112,15 @@ export function ProductProductionCollectionWorkspace({
       <BusinessImportStatus
         busy={importing}
         className="production-task5-alert"
-        drafts={importDrafts}
         job={importJob}
         onDownloadErrors={() => void downloadImportErrors()}
         onRetry={() => void retryImport()}
-        onSubmitDraft={(draftId) => void submitImportDraft(draftId)}
+      />
+      <ReturnedCorrectionStatus
+        busy={correcting}
+        className="production-task5-alert"
+        job={correctionJob}
+        onDownloadErrors={() => void downloadReturnedCorrectionErrors()}
       />
 
       <header className="enterprise-ledger-title">
@@ -1090,10 +1165,38 @@ export function ProductProductionCollectionWorkspace({
                     }}
                   />
                 </label>
+                <button
+                  disabled={
+                    importing ||
+                    correcting ||
+                    !realtimeRepository.downloadReturnedCorrectionWorkbook
+                  }
+                  type="button"
+                  onClick={() => void downloadReturnedCorrectionWorkbook()}
+                >
+                  下载退回记录修正表
+                </button>
                 <label className="realtime-business-file-action">
-                  附加照片（可选）
+                  {correcting ? "正在修正" : "批量导入修正结果"}
                   <input
-                    accept="image/jpeg,image/png,image/webp"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    aria-label="批量导入产情退回修正结果"
+                    disabled={
+                      importing ||
+                      correcting ||
+                      !realtimeRepository.importReturnedCorrectionWorkbook
+                    }
+                    type="file"
+                    onChange={(event) => {
+                      void correctReturnedRecords(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+                <label className="realtime-business-file-action">
+                  随本次 XLSX 一并上传照片（已选 {importPhotos.length} 张）
+                  <input
+                    accept="image/jpeg,image/png"
                     aria-label="附加产情照片"
                     disabled={importing}
                     multiple
@@ -1121,7 +1224,7 @@ export function ProductProductionCollectionWorkspace({
                   <th rowSpan={2}>样本点名称</th>
                   <th rowSpan={2}>样本点类型</th>
                   <th rowSpan={2}>地区</th>
-                  <th rowSpan={2}>具体品种</th>
+                  <th rowSpan={2}>调研人</th>
                   <th colSpan={5}>填报与定位</th>
                   <th colSpan={5}>面积与长势</th>
                   <th colSpan={3}>测产与产量</th>
@@ -1138,7 +1241,7 @@ export function ProductProductionCollectionWorkspace({
                 </tr>
                 <tr>
                   <th>填报人</th>
-                  <th>填报人联系方式</th>
+                  <th>调研人联系方式</th>
                   <th>样本点联系方式</th>
                   <th>纬度</th>
                   <th>经度</th>
@@ -1182,9 +1285,9 @@ export function ProductProductionCollectionWorkspace({
                     <th scope="row">{row.subject}</th>
                     <td>{row.objectType}</td>
                     <td>{row.region}</td>
-                    <td>{row.cultivar}</td>
+                    <td>{row.surveyor}</td>
                     <td>{row.reporter}</td>
-                    <td>{row.reporterPhone}</td>
+                    <td>{row.surveyorPhone}</td>
                     <td>{row.subjectContact}</td>
                     <td className="is-operational">{row.latitude}</td>
                     <td className="is-operational">{row.longitude}</td>
@@ -1266,7 +1369,7 @@ export function ProductProductionCollectionWorkspace({
                   <tr>
                     <td
                       className="enterprise-ledger-table__empty"
-                      colSpan={39 + qualityFields.length}
+                      colSpan={40 + qualityFields.length}
                     >
                       当前范围暂无{context.productLabel}产情调查记录
                     </td>

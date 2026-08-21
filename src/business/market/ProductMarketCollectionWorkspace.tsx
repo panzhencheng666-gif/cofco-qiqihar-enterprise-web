@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import type {
-  BusinessImportDraft,
   BusinessRecordListItem,
   MarketDefinition,
   MasterObjectType,
@@ -53,6 +52,7 @@ import {
 import { BusinessImportStatus } from "../importing/BusinessImportStatus";
 import {
   awaitBusinessImport,
+  awaitImportJob,
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
 import { RealtimeRegionFilterSelect } from "../realtime/RealtimeRegionFilterSelect";
@@ -68,6 +68,7 @@ import {
 } from "../realtime/explicitRecordTime";
 import { useRealtimeMasterData } from "../realtime/useRealtimeMasterData";
 import { WorkspacePagination } from "../UnifiedWorkspacePrimitives";
+import { MarketReturnedCorrectionStatus } from "./MarketReturnedCorrectionStatus";
 
 const collectionPageSize = 20;
 
@@ -96,7 +97,8 @@ interface MarketCollectionRow {
   objectTypeId: MarketBusinessObjectTypeId;
   county: string;
   reporter: string;
-  reporterPhone: string;
+  surveyor: string;
+  surveyorPhone: string;
   sampleContact: string;
   latitude: string;
   longitude: string;
@@ -494,10 +496,10 @@ export function ProductMarketCollectionWorkspace({
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
-  const [importDrafts, setImportDrafts] = useState<
-    readonly BusinessImportDraft[]
-  >([]);
   const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
+  const [correcting, setCorrecting] = useState(false);
+  const [correctionJob, setCorrectionJob] =
+    useState<ProductionImportJob | null>(null);
   const { masterData, masterDataError } =
     useRealtimeMasterData(realtimeRepository);
   const usesFormalObjectTypes =
@@ -590,7 +592,8 @@ export function ProductMarketCollectionWorkspace({
         objectTypeId: itemObjectTypeId,
         county: businessRegionLabel(item),
         reporter: fieldValue(item.workId, "reporter"),
-        reporterPhone: fieldValue(item.workId, "reporterPhone"),
+        surveyor: fieldValue(item.workId, "surveyor"),
+        surveyorPhone: fieldValue(item.workId, "surveyorPhone"),
         sampleContact: fieldValue(item.workId, "sampleContact"),
         latitude: fieldValue(item.workId, "latitude"),
         longitude: fieldValue(item.workId, "longitude"),
@@ -716,7 +719,8 @@ export function ProductMarketCollectionWorkspace({
         objectTypeId: itemObjectTypeId,
         county: record.values.MKT_REGION ?? "—",
         reporter: record.values.MKT_REPORTER_NAME ?? "—",
-        reporterPhone: record.values.MKT_REPORTER_PHONE ?? "—",
+        surveyor: record.values.MKT_SURVEYOR_NAME ?? "—",
+        surveyorPhone: record.values.MKT_SURVEYOR_PHONE ?? "—",
         sampleContact: record.values.MKT_SAMPLE_CONTACT ?? "—",
         latitude: record.values.MKT_SAMPLE_LATITUDE ?? "—",
         longitude: record.values.MKT_SAMPLE_LONGITUDE ?? "—",
@@ -817,7 +821,6 @@ export function ProductMarketCollectionWorkspace({
     setImporting(true);
     setRecordsError("");
     setImportJob(null);
-    setImportDrafts([]);
     try {
       const productCode =
         context.productId === "corn"
@@ -839,13 +842,16 @@ export function ProductMarketCollectionWorkspace({
         onUpdate: setImportJob,
       });
       if (terminal.statusCode !== "FAILED") {
-        setImportDrafts(
-          (await realtimeRepository.listImportDrafts?.(terminal.id)) ?? [],
-        );
         setImportPhotos([]);
+        setPageNumber(0);
+        setRecordsRevision((value) => value + 1);
       }
-    } catch {
-      setRecordsError("市场采集记录导入失败，请核对文件内容后重试。");
+    } catch (reason) {
+      setRecordsError(
+        reason instanceof RealtimeApiError && reason.clientMessage
+          ? reason.clientMessage
+          : "市场采集记录导入失败，请核对文件内容后重试。",
+      );
     } finally {
       setImporting(false);
     }
@@ -867,33 +873,14 @@ export function ProductMarketCollectionWorkspace({
         onUpdate: setImportJob,
       });
       if (terminal.statusCode !== "FAILED") {
-        setImportDrafts(
-          (await realtimeRepository.listImportDrafts?.(terminal.id)) ?? [],
-        );
+        setPageNumber(0);
+        setRecordsRevision((value) => value + 1);
       }
-    } catch {
-      setRecordsError("市场导入任务重试失败，请稍后重试。");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const submitImportDraft = async (draftId: string) => {
-    if (!realtimeRepository?.submitImportDraft) return;
-    setImporting(true);
-    setRecordsError("");
-    try {
-      const submitted = await realtimeRepository.submitImportDraft(draftId);
-      setImportDrafts((current) =>
-        current.map((draft) => (draft.id === submitted.id ? submitted : draft)),
-      );
-      setRecordsRevision((value) => value + 1);
     } catch (reason) {
       setRecordsError(
-        reason instanceof RealtimeApiError &&
-          reason.code === "IMPORT_DRAFT_INCOMPLETE"
-          ? "该行已保留为草稿；请在 XLSX 中补充正式审核所需基础信息后重新导入。"
-          : "导入草稿提交审核失败，请稍后重试。",
+        reason instanceof RealtimeApiError && reason.clientMessage
+          ? reason.clientMessage
+          : "市场导入任务重试失败，请稍后重试。",
       );
     } finally {
       setImporting(false);
@@ -937,6 +924,87 @@ export function ProductMarketCollectionWorkspace({
       URL.revokeObjectURL(href);
     } catch {
       setRecordsError("XLSX 模板下载失败，请稍后重试。");
+    }
+  };
+
+  const downloadReturnedCorrectionWorkbook = async () => {
+    if (!realtimeRepository?.downloadMarketReturnedCorrectionWorkbook) return;
+    setRecordsError("");
+    try {
+      const blob =
+        await realtimeRepository.downloadMarketReturnedCorrectionWorkbook(
+          productCode,
+        );
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `${context.productLabel}市场退回记录修正表.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+    } catch (reason) {
+      setRecordsError(
+        reason instanceof RealtimeApiError && reason.clientMessage
+          ? reason.clientMessage
+          : "退回记录修正表下载失败，请稍后重试。",
+      );
+    }
+  };
+
+  const correctReturnedRecords = async (file: File | undefined) => {
+    if (!file || !realtimeRepository?.importMarketReturnedCorrectionWorkbook)
+      return;
+    setCorrecting(true);
+    setRecordsError("");
+    setCorrectionJob(null);
+    try {
+      const initial =
+        await realtimeRepository.importMarketReturnedCorrectionWorkbook(
+          file,
+          productCode,
+        );
+      const terminal = await awaitImportJob({
+        initial,
+        onUpdate: setCorrectionJob,
+        loadJob: realtimeRepository.getMarketReturnedCorrectionJob
+          ? (importJobId) =>
+              realtimeRepository.getMarketReturnedCorrectionJob!(importJobId)
+          : undefined,
+      });
+      if (terminal.statusCode !== "FAILED") {
+        setPageNumber(0);
+        setRecordsRevision((value) => value + 1);
+      }
+    } catch (reason) {
+      setRecordsError(
+        reason instanceof RealtimeApiError && reason.clientMessage
+          ? reason.clientMessage
+          : "退回记录批量修正失败，请重新核对并下载最新修正表。",
+      );
+    } finally {
+      setCorrecting(false);
+    }
+  };
+
+  const downloadReturnedCorrectionErrors = async () => {
+    if (
+      !realtimeRepository?.downloadMarketReturnedCorrectionErrors ||
+      !correctionJob
+    )
+      return;
+    setRecordsError("");
+    try {
+      const blob =
+        await realtimeRepository.downloadMarketReturnedCorrectionErrors(
+          correctionJob.id,
+        );
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `${context.productLabel}市场退回记录修正错误清单.csv`;
+      anchor.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      setRecordsError("修正错误清单下载失败，请稍后重试。");
     }
   };
 
@@ -1085,7 +1153,6 @@ export function ProductMarketCollectionWorkspace({
             }}
           >
             <option value="">全部状态</option>
-            <option value="填写中">填写中</option>
             <option value="待审核">待审核</option>
             <option value="已核定">已核定</option>
             <option value="需补充">需补充</option>
@@ -1144,11 +1211,15 @@ export function ProductMarketCollectionWorkspace({
       <BusinessImportStatus
         busy={importing}
         className="market-task6-alert"
-        drafts={importDrafts}
         job={importJob}
         onDownloadErrors={() => void downloadImportErrors()}
         onRetry={() => void retryImport()}
-        onSubmitDraft={(draftId) => void submitImportDraft(draftId)}
+      />
+      <MarketReturnedCorrectionStatus
+        busy={correcting}
+        className="market-task6-alert"
+        job={correctionJob}
+        onDownloadErrors={() => void downloadReturnedCorrectionErrors()}
       />
 
       <header className="enterprise-ledger-title">
@@ -1193,10 +1264,36 @@ export function ProductMarketCollectionWorkspace({
                     }}
                   />
                 </label>
+                <button
+                  disabled={
+                    correcting ||
+                    !realtimeRepository.downloadMarketReturnedCorrectionWorkbook
+                  }
+                  type="button"
+                  onClick={() => void downloadReturnedCorrectionWorkbook()}
+                >
+                  下载退回记录修正表
+                </button>
                 <label className="realtime-business-file-action">
-                  附加照片（可选）
+                  {correcting ? "正在修正" : "批量导入修正结果"}
                   <input
-                    accept="image/jpeg,image/png,image/webp"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    aria-label="批量导入市场退回修正结果"
+                    disabled={
+                      correcting ||
+                      !realtimeRepository.importMarketReturnedCorrectionWorkbook
+                    }
+                    type="file"
+                    onChange={(event) => {
+                      void correctReturnedRecords(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+                <label className="realtime-business-file-action">
+                  随本次 XLSX 一并上传照片（已选 {importPhotos.length} 张）
+                  <input
+                    accept="image/jpeg,image/png"
                     aria-label="附加市场照片"
                     disabled={importing}
                     multiple
@@ -1223,7 +1320,7 @@ export function ProductMarketCollectionWorkspace({
                 <th rowSpan={2}>样本点名称</th>
                 <th rowSpan={2}>样本点类型</th>
                 <th rowSpan={2}>地区</th>
-                <th colSpan={5}>填报与定位</th>
+                <th colSpan={6}>填报与定位</th>
                 {displayedGroups.map((group) => (
                   <th colSpan={group.fields.length} key={group.id}>
                     {group.label}
@@ -1234,7 +1331,8 @@ export function ProductMarketCollectionWorkspace({
               </tr>
               <tr>
                 <th>填报人</th>
-                <th>填报人联系方式</th>
+                <th>调研人</th>
+                <th>调研人联系方式</th>
                 <th>样本点联系方式</th>
                 <th>纬度</th>
                 <th>经度</th>
@@ -1255,7 +1353,8 @@ export function ProductMarketCollectionWorkspace({
                   <td>{row.objectType}</td>
                   <td>{row.county}</td>
                   <td>{row.reporter}</td>
-                  <td>{row.reporterPhone}</td>
+                  <td>{row.surveyor}</td>
+                  <td>{row.surveyorPhone}</td>
                   <td>{row.sampleContact}</td>
                   <td className="is-operational">{row.latitude}</td>
                   <td className="is-operational">{row.longitude}</td>
@@ -1309,7 +1408,7 @@ export function ProductMarketCollectionWorkspace({
                 <tr>
                   <td
                     className="enterprise-ledger-table__empty"
-                    colSpan={13 + displayedFields.length}
+                    colSpan={14 + displayedFields.length}
                   >
                     当前范围暂无{context.productLabel}市场采集记录
                   </td>

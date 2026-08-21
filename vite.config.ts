@@ -288,6 +288,8 @@ export default defineConfig({
       "scripts/stage-nine-core.spec.mjs",
       "scripts/stage-nine-postgres.spec.mjs",
       "scripts/verify-runtime.spec.mjs",
+      "scripts/local-runtime-publish.spec.mjs",
+      "scripts/local-runtime-smoke.spec.mjs",
     ],
     restoreMocks: true,
     clearMocks: true,

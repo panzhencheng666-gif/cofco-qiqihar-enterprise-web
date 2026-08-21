@@ -136,6 +136,9 @@ test("keeps product-owned entry and workbook contracts aligned across business d
   await expect(
     productionPanel.getByRole("combobox", { name: "品种" }),
   ).toHaveCount(0);
+  await expect(
+    productionPanel.getByRole("textbox", { name: "具体品种" }),
+  ).toHaveCount(0);
   await productionPanel
     .getByRole("combobox", { name: "地级市" })
     .selectOption("230200");
@@ -148,9 +151,6 @@ test("keeps product-owned entry and workbook contracts aligned across business d
   await productionPanel
     .getByRole("combobox", { name: "行政村" })
     .selectOption("230221101001");
-  await productionPanel
-    .getByRole("textbox", { name: "具体品种" })
-    .fill("黑农84");
   await productionPanel
     .getByRole("combobox", { name: "数据年份" })
     .selectOption("2026");
@@ -166,7 +166,10 @@ test("keeps product-owned entry and workbook contracts aligned across business d
   await productionPanel.getByLabel("销售数量").fill("4");
   await productionPanel.getByLabel("自用数量").fill("2");
   await productionPanel.getByLabel("期末余粮").fill("12");
-  await productionPanel.getByLabel("填报人联系方式").fill("13800000000");
+  await productionPanel
+    .getByRole("textbox", { name: "调研人", exact: true })
+    .fill("李敏");
+  await productionPanel.getByLabel("调研人联系方式").fill("13800000000");
   await productionPanel.getByLabel("样本点联系方式").fill("13900000000");
   await productionPanel.getByLabel("纬度").fill("47.3543");
   await productionPanel.getByLabel("经度").fill("123.9182");
@@ -178,7 +181,9 @@ test("keeps product-owned entry and workbook contracts aligned across business d
   await productionPanel.getByRole("button", { name: "保存业务记录" }).click();
   await expect(productionDialog).toHaveCount(0);
   await expect(
-    page.getByRole("table", { name: "大豆产情调查表" }).getByText("黑农84"),
+    page
+      .getByRole("table", { name: "大豆产情调查表" })
+      .getByText("通齐村第一调查户"),
   ).toBeVisible();
   await expect(
     page
@@ -198,7 +203,7 @@ test("keeps product-owned entry and workbook contracts aligned across business d
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("SOYBEAN-WORKBOOK"),
   });
-  await expect(page.getByText(/导入完成：成功 1 条/)).toBeVisible();
+  await expect(page.getByText(/导入完成：1 行已处理.*失败 0 行/)).toBeVisible();
 
   await page.goto("/#/市场监测/大豆市场采集");
   const marketDownload = page.waitForEvent("download");
@@ -210,7 +215,7 @@ test("keeps product-owned entry and workbook contracts aligned across business d
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("SOYBEAN-WORKBOOK"),
   });
-  await expect(page.getByText(/导入完成：成功 1 条/)).toBeVisible();
+  await expect(page.getByText(/导入完成：1 行已处理.*失败 0 行/)).toBeVisible();
 
   await page.goto("/#/市场监测/大豆物流监测");
   const logisticsDownload = page.waitForEvent("download");
@@ -222,9 +227,7 @@ test("keeps product-owned entry and workbook contracts aligned across business d
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("SOYBEAN-WORKBOOK"),
   });
-  await expect(
-    page.getByText("导入完成：成功 1 条，失败 0 条。"),
-  ).toBeVisible();
+  await expect(page.getByText(/导入完成：1 行已处理.*失败 0 行/)).toBeVisible();
 
   const response = await request.get(`${controlledApiBaseUrl}/__e2e/state`);
   expect(response.ok()).toBe(true);
@@ -247,7 +250,8 @@ test("keeps product-owned entry and workbook contracts aligned across business d
         surveyYear: "2026",
         surveyMonth: "8",
         submissionMetadata: expect.objectContaining({
-          PROD_CULTIVAR_NAME: "黑农84",
+          PROD_SURVEYOR_NAME: "李敏",
+          PROD_SURVEYOR_PHONE: "13800000000",
           PROD_OPENING_INVENTORY: "18",
         }),
       }),

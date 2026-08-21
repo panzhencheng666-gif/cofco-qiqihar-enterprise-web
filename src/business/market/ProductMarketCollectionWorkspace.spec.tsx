@@ -6,6 +6,7 @@ import type {
   BusinessRecordListInput,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 import type { OperationalScope } from "../core/operationalScope";
 import { fixtureOperationalIdentity } from "../formalEnterpriseData";
@@ -133,6 +134,9 @@ describe("product market collection workspace", () => {
     );
 
     await screen.findByRole("combobox", { name: "数据年份" });
+    expect(
+      screen.queryByRole("option", { name: "填写中" }),
+    ).not.toBeInTheDocument();
     await user.selectOptions(
       screen.getByRole("combobox", { name: "数据月份" }),
       "8",
@@ -233,7 +237,8 @@ describe("product market collection workspace", () => {
             MKT_FILLING_AT: "2026-08-09T08:30:00+08:00",
             MKT_REGION: "克山县",
             MKT_REPORTER_NAME: "李四",
-            MKT_REPORTER_PHONE: "13800000001",
+            MKT_SURVEYOR_NAME: "赵敏",
+            MKT_SURVEYOR_PHONE: "13800000001",
             MKT_SAMPLE_CONTACT: "13900000001",
             MKT_SAMPLE_LATITUDE: "47.3543",
             MKT_SAMPLE_LONGITUDE: "123.9182",
@@ -388,8 +393,9 @@ describe("product market collection workspace", () => {
       screen.getByRole("columnheader", { name: "填报与定位" }),
     ).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "填报人" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "调研人" })).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "填报人联系方式" }),
+      screen.getByRole("columnheader", { name: "调研人联系方式" }),
     ).toBeVisible();
     expect(
       screen.getByRole("columnheader", { name: "样本点联系方式" }),
@@ -397,6 +403,10 @@ describe("product market collection workspace", () => {
     expect(screen.getByRole("columnheader", { name: "纬度" })).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "经度" })).toBeVisible();
     expect(screen.getByText("李四")).toBeVisible();
+    expect(screen.getByText("赵敏")).toBeVisible();
+    expect(
+      screen.queryByRole("columnheader", { name: "填报人联系方式" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("13900000001")).toBeVisible();
     expect(
       screen.getByRole("columnheader", { name: "采集对象收购价格" }),
@@ -468,9 +478,11 @@ describe("product market collection workspace", () => {
       ),
     );
     expect(
-      await screen.findByText("导入完成：2 行已保存到填报草稿，失败 0 行。"),
+      await screen.findByText(
+        "导入完成：2 行已处理，合格行已自动提交审核，失败 0 行。",
+      ),
     ).toBeVisible();
-    expect(listMarket).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(3));
     await user.click(screen.getByRole("button", { name: "新建采集记录" }));
     expect(onCreateRecord).toHaveBeenCalledWith("CORN");
     await user.click(screen.getByRole("button", { name: "查看记录" }));
@@ -478,4 +490,250 @@ describe("product market collection workspace", () => {
     await user.click(screen.getByRole("button", { name: "查看照片" }));
     expect(onEditRecord).toHaveBeenCalledTimes(2);
   });
+
+  it("shows an actionable business reason when market XLSX import is rejected", async () => {
+    const user = userEvent.setup();
+    const repository = {
+      listMarket: vi.fn().mockResolvedValue({
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
+      }),
+      loadMasterData,
+      loadMarketDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        objectTypeCode: "TRADER",
+        coreFields: [],
+        groups: [],
+      }),
+      importMarketWorkbook: vi.fn().mockRejectedValue(
+        new RealtimeApiError({
+          code: "INVALID_IMPORT_FORMAT",
+          message: "包装形态只能选择“包粮”或“散粮”，请修正后重新导入。",
+          status: 400,
+        }),
+      ),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductMarketCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={scope}
+        section="corn-collection"
+      />,
+    );
+
+    await screen.findByLabelText("批量导入市场采集记录");
+    const file = new File(["market"], "market.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    await user.upload(screen.getByLabelText("批量导入市场采集记录"), file);
+
+    expect(
+      await screen.findByText(
+        "包装形态只能选择“包粮”或“散粮”，请修正后重新导入。",
+      ),
+    ).toHaveAttribute("role", "alert");
+  });
+
+  it("keeps ordinary creation and returned-record correction clearly separated", async () => {
+    const user = userEvent.setup();
+    const listMarket = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const importMarketWorkbook = vi.fn();
+    const importMarketReturnedCorrectionWorkbook = vi.fn().mockResolvedValue({
+      id: "correction-1",
+      domainCode: "MARKET",
+      statusCode: "COMPLETED_WITH_ERRORS",
+      importedRows: 2,
+      failedRows: 1,
+    });
+    const downloadMarketReturnedCorrectionErrors = vi
+      .fn()
+      .mockResolvedValue(new Blob(["errors"]));
+    const repository = {
+      listMarket,
+      loadMasterData,
+      loadMarketDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        objectTypeCode: "TRADER",
+        coreFields: [],
+        groups: [],
+      }),
+      importMarketWorkbook,
+      downloadMarketXlsxTemplate: vi.fn().mockResolvedValue(new Blob(["new"])),
+      downloadMarketReturnedCorrectionWorkbook: vi
+        .fn()
+        .mockResolvedValue(new Blob(["correction"])),
+      importMarketReturnedCorrectionWorkbook,
+      getMarketReturnedCorrectionJob: vi.fn(),
+      downloadMarketReturnedCorrectionErrors,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductMarketCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={scope}
+        section="corn-collection"
+      />,
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "下载 XLSX 模板" }),
+    ).toBeEnabled();
+    expect(screen.getByLabelText("批量导入市场采集记录")).toHaveAttribute(
+      "accept",
+      ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    expect(
+      screen.getByRole("button", { name: "下载退回记录修正表" }),
+    ).toBeEnabled();
+    expect(screen.getByText("批量导入修正结果")).toBeVisible();
+    const correctionInput = screen.getByLabelText("批量导入市场退回修正结果");
+    expect(correctionInput).toHaveAttribute(
+      "accept",
+      ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+
+    const file = new File(["correction"], "玉米市场退回记录修正表.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    await user.upload(correctionInput, file);
+
+    await waitFor(() =>
+      expect(importMarketReturnedCorrectionWorkbook).toHaveBeenCalledWith(
+        file,
+        "CORN",
+      ),
+    );
+    expect(importMarketWorkbook).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(
+        "批量修正完成：2 条原单已重新进入待审核，失败 1 条。",
+      ),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "下载修正错误清单" }));
+    expect(downloadMarketReturnedCorrectionErrors).toHaveBeenCalledWith(
+      "correction-1",
+    );
+    await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/草稿/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/新建导入/u)).not.toBeInTheDocument();
+  });
+
+  it("keeps durable market import history out of the collection ledger", async () => {
+    const listMarket = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const listImportJobs = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 5,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    const repository = {
+      listMarket,
+      listImportJobs,
+      loadMasterData,
+      loadMarketDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        objectTypeCode: "TRADER",
+        coreFields: [],
+        groups: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductMarketCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    await waitFor(() => expect(listMarket).toHaveBeenCalled());
+    expect(listImportJobs).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("region", { name: "导入任务记录" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["corn-collection", "CORN", "玉米市场退回记录修正表.xlsx"],
+    ["soybean-collection", "SOYBEAN", "大豆市场退回记录修正表.xlsx"],
+    ["paddy-collection", "RICE", "稻谷市场退回记录修正表.xlsx"],
+  ] as const)(
+    "binds %s correction downloads to %s",
+    async (section, productCode, filename) => {
+      const user = userEvent.setup();
+      const downloaded: string[] = [];
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+        function captureDownload(this: HTMLAnchorElement) {
+          downloaded.push(this.download);
+        },
+      );
+      const downloadMarketReturnedCorrectionWorkbook = vi
+        .fn()
+        .mockResolvedValue(new Blob([productCode]));
+      const repository = {
+        listMarket: vi.fn().mockResolvedValue({
+          items: [],
+          pageNumber: 0,
+          pageSize: 20,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+        loadMasterData,
+        loadMarketDefinition: vi.fn().mockResolvedValue({
+          productCode,
+          objectTypeCode: "TRADER",
+          coreFields: [],
+          groups: [],
+        }),
+        downloadMarketReturnedCorrectionWorkbook,
+      } as unknown as RealtimeBusinessRepository;
+
+      render(
+        <ProductMarketCollectionWorkspace
+          onScopeChange={vi.fn()}
+          onSelectionChange={vi.fn()}
+          queryAllowed
+          realtimeRepository={repository}
+          scope={scope}
+          section={section}
+        />,
+      );
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: "下载退回记录修正表",
+        }),
+      );
+      expect(downloadMarketReturnedCorrectionWorkbook).toHaveBeenCalledWith(
+        productCode,
+      );
+      expect(downloaded).toContain(filename);
+    },
+  );
 });

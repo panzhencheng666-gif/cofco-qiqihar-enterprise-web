@@ -1,0 +1,158 @@
+.business-import-history {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  color: #15384a;
+}
+
+.business-import-history__header,
+.business-import-history__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.business-import-history__header {
+  min-height: 54px;
+  padding: 0 16px;
+  border-top: 1px solid #d8e3e8;
+  border-bottom: 1px solid #d8e3e8;
+}
+
+.business-import-history__empty {
+  margin: 16px 0 0;
+  color: #678292;
+}
+
+.business-import-history button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #80a9ac;
+  border-radius: 6px;
+  background: #fff;
+  color: #136b68;
+  font: inherit;
+  cursor: pointer;
+}
+
+.business-import-history button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.business-import-history__table-wrap {
+  overflow-x: auto;
+}
+
+.business-import-history table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.business-import-history th,
+.business-import-history td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e1e9ed;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.business-import-history thead th {
+  background: #f4f7f8;
+  color: #526f7e;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.business-import-history tbody th {
+  color: #15384a;
+  font-weight: 700;
+}
+
+.business-import-history tbody tr:hover,
+.business-import-history tbody tr.business-import-history__selected {
+  background: #edf7f6;
+}
+
+.business-import-history tbody tr.business-import-history__selected th {
+  box-shadow: inset 3px 0 #136b68;
+}
+
+.business-import-history__number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.business-import-history__completed {
+  color: #18766c;
+}
+
+.business-import-history__pending {
+  color: #a0522d;
+}
+
+.business-import-history__detail-row:hover,
+.business-import-history__detail-row {
+  background: #f8fbfc;
+}
+
+.business-import-history__detail-row > td {
+  padding: 0;
+  border-bottom: 2px solid #9bb8c0;
+}
+
+.business-import-history__status-icon {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #647e8a;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  place-items: center;
+}
+
+.business-import-history__status-icon--completed {
+  background: #18766c;
+}
+
+.business-import-history__status-icon--completed_with_errors {
+  background: #b6652e;
+}
+
+.business-import-history__status-icon--failed {
+  background: #a44836;
+}
+
+.business-import-history__error {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid #d8a98c;
+  background: #fff7f2;
+  color: #934329;
+}
+
+.business-import-history__pagination {
+  min-height: 56px;
+  padding: 0 16px;
+  color: #607d8c;
+}
+
+.business-import-history__pagination > div {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .business-import-history__header,
+  .business-import-history__pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

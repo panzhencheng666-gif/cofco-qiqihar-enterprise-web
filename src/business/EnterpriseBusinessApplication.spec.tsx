@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   EnterpriseBusinessApplication as RuntimeEnterpriseBusinessApplication,
+  loadAllWorkItems,
   type EnterpriseBusinessApplicationProps,
 } from "./EnterpriseBusinessApplication";
 import type { OperationalScopeIdentity } from "./core/operationalScope";
@@ -25,6 +26,10 @@ import type {
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+import {
+  PRODUCTION_SURVEY_CONTRACT_DIGEST,
+  PRODUCTION_SURVEY_CONTRACT_VERSION,
+} from "@/platform/api/productionSurveyContract";
 import { createFixtureBusinessReportSeeds } from "./businessReportWorkflow";
 
 const fixtureBusinessReportStorageKey =
@@ -96,9 +101,8 @@ function productionDefinitionFixture(): ProductionDefinition {
   return {
     productCode: "CORN",
     objectTypeCode: "FARMER",
-    contractVersion: "production-survey-fields-v1",
-    contractDigest:
-      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
+    contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
+    contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
     fields: [
       field("surveyDate", "调查日期", "CONTEXT", "基础信息", 10, 10, {
         valueType: "DATE",
@@ -181,6 +185,123 @@ afterEach(() => {
 });
 
 describe("formal enterprise prototype", () => {
+  it("loads every server work-item page instead of truncating the queue at 100", async () => {
+    const listWorkItems = vi.fn(({ page = 0 }: { page?: number }) =>
+      Promise.resolve({
+        items: [{ id: `work-${page}` }],
+        pageNumber: page,
+        pageSize: 100,
+        totalElements: 201,
+        totalPages: 3,
+      }),
+    );
+    const repository = {
+      listWorkItems,
+    } as unknown as RealtimeBusinessRepository;
+
+    const rows = await loadAllWorkItems(repository, "PENDING");
+
+    expect(rows.map(({ id }) => id)).toEqual(["work-0", "work-1", "work-2"]);
+    expect(listWorkItems).toHaveBeenNthCalledWith(1, {
+      scope: "PENDING",
+      page: 0,
+      pageSize: 100,
+    });
+    expect(listWorkItems).toHaveBeenNthCalledWith(3, {
+      scope: "PENDING",
+      page: 2,
+      pageSize: 100,
+    });
+  });
+
+  it("keeps a server-authoritative product filter selected and filters the real work rows", async () => {
+    const user = userEvent.setup();
+    const rows = [
+      ["corn-work", "玉米产情审核任务", "CORN", "玉米"],
+      ["soybean-work", "大豆产情审核任务", "SOYBEAN", "大豆"],
+      ["rice-work", "稻谷产情审核任务", "RICE", "稻谷"],
+    ].map(([id, task, product, productLabel]) => ({
+      id,
+      task,
+      domain: "PRODUCTION",
+      regionCode: "230225",
+      region: "甘南县",
+      product,
+      businessPeriodCode: "2026-W32",
+      businessPeriod: "2026年第32周",
+      dueAt: null,
+      workflowNode: "审核",
+      statusCode: "PENDING_REVIEW",
+      status: "待审核",
+      responsiblePartyCode: "admin-1",
+      responsibleParty: "管理员",
+      sourceType: "PRODUCTION",
+      sourceId: `${id}-source`,
+      productLabel,
+    }));
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.resolve(
+          apiSession({
+            roleCodes: ["PLATFORM_ADMIN"],
+            permissions: ["BUSINESS_READ", "BUSINESS_APPROVE"],
+            regionCodes: [],
+          }),
+        ),
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [
+            { code: "CORN", name: "玉米" },
+            { code: "SOYBEAN", name: "大豆" },
+            { code: "RICE", name: "稻谷" },
+          ],
+          periods: [
+            {
+              code: "2026-W32",
+              name: "2026年第32周",
+              startsOn: "2026-08-03",
+              endsOn: "2026-08-09",
+            },
+          ],
+          regions: [
+            {
+              code: "230225",
+              name: "甘南县",
+              parentCode: "230200",
+              level: "COUNTY",
+            },
+          ],
+        }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: rows,
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: rows.length,
+          totalPages: 1,
+        }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <EnterpriseBusinessApplication
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+
+    const product = await screen.findByRole("combobox", {
+      name: "产品或作物",
+    });
+    await user.selectOptions(product, "soybean");
+
+    expect(product).toHaveValue("soybean");
+    expect(screen.getByText("1 项")).toBeVisible();
+    expect(screen.getAllByText("大豆产情审核任务").length).toBeGreaterThan(0);
+    expect(screen.queryByText("玉米产情审核任务")).not.toBeInTheDocument();
+    expect(screen.queryByText("稻谷产情审核任务")).not.toBeInTheDocument();
+  });
+
   it("fails closed at the enterprise login boundary when no session exists", async () => {
     const loadMasterData = vi.fn();
     const listWorkItems = vi.fn();
@@ -731,26 +852,85 @@ describe("formal enterprise prototype", () => {
     ).toBeVisible();
     const workItemCallsBeforeEvent = listWorkItems.mock.calls.length;
     if (!receiveBusinessEvent) throw new Error("event stream not subscribed");
+    const businessEvent: BusinessNotificationRow = {
+      id: "event-1",
+      sequence: 1,
+      aggregateType: "PRODUCTION_RECORD",
+      aggregateId: "production-1",
+      actionCode: "PRODUCTION_RECORD_CREATED",
+      productCode: "CORN",
+      regionCodes: ["230200"],
+      occurredAt: "2026-08-09T10:00:00Z",
+      read: false,
+    };
+    act(() => receiveBusinessEvent?.(businessEvent));
+    await new Promise((resolve) => setTimeout(resolve, 50));
     act(() =>
       receiveBusinessEvent?.({
-        id: "event-1",
-        sequence: 1,
-        aggregateType: "PRODUCTION_RECORD",
-        aggregateId: "production-1",
-        actionCode: "PRODUCTION_RECORD_CREATED",
-        productCode: "CORN",
-        regionCodes: ["230200"],
-        occurredAt: "2026-08-09T10:00:00Z",
-        read: false,
+        ...businessEvent,
+        id: "event-2",
+        sequence: 2,
       }),
     );
-    await waitFor(() => {
-      expect(listNotifications).toHaveBeenCalledTimes(2);
-      expect(listWorkItems).toHaveBeenCalledTimes(workItemCallsBeforeEvent + 1);
-    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    act(() =>
+      receiveBusinessEvent?.({
+        ...businessEvent,
+        id: "event-3",
+        sequence: 3,
+      }),
+    );
+    await waitFor(
+      () => {
+        expect(listNotifications).toHaveBeenCalledTimes(2);
+        expect(listWorkItems).toHaveBeenCalledTimes(
+          workItemCallsBeforeEvent + 1,
+        );
+      },
+      { timeout: 2_000 },
+    );
 
     unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the embedded overview own realtime refresh without opening a duplicate outer stream", async () => {
+    const loadMasterData = vi.fn(() =>
+      Promise.resolve({ products: [], periods: [], regions: [] }),
+    );
+    const listNotifications = vi.fn(() =>
+      Promise.resolve({ items: [], unreadCount: 0 }),
+    );
+    const subscribeBusinessEvents = vi.fn(() => vi.fn());
+    const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession()),
+      loadMasterData,
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      listNotifications,
+      subscribeBusinessEvents,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <EnterpriseBusinessApplication
+        dataMode="api"
+        initialSearch="?page=overview&section=map"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByTitle("齐齐哈尔粮食商情总览监测地图"),
+    ).toBeVisible();
+    await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(1));
+    expect(listNotifications).not.toHaveBeenCalled();
+    expect(subscribeBusinessEvents).not.toHaveBeenCalled();
   });
 
   it("shows the production ledger without mounting the entry form by default", async () => {
@@ -1094,10 +1274,10 @@ describe("formal enterprise prototype", () => {
         Promise.resolve({
           definitions: [
             {
-              code: "PRODUCTION_DAILY",
-              name: "产情日报",
-              businessDomain: "PRODUCTION",
-              businessSubtype: "MONITORING",
+              code: "COMPREHENSIVE_DAILY",
+              name: "综合经营日报",
+              businessDomain: "COMPREHENSIVE",
+              businessSubtype: "MANAGEMENT",
               frequencyCode: "DAILY",
               sections: [],
             },
@@ -1126,9 +1306,20 @@ describe("formal enterprise prototype", () => {
       await screen.findByRole("heading", { name: "业务报告" }),
     ).toBeVisible();
     expect(await screen.findByText("王洋")).toBeVisible();
-    expect(screen.getByRole("button", { name: "生成报告预览" })).toBeVisible();
+    expect(
+      await screen.findByRole("button", { name: "生成并下载报告" }),
+    ).toBeVisible();
     expect(document.body).not.toHaveTextContent("第31周粮食商情周报");
-    expect(screen.queryByText(/综合经营/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "按日、周、月生成一份综合经营报告，三品种四业务域使用同一审核后数据快照",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "报告目录由服务端维护，仅提供综合经营日报、周报和月报。",
+      ),
+    ).toBeVisible();
 
     await user.type(
       screen.getByRole("searchbox", { name: "全局搜索" }),
@@ -1224,6 +1415,91 @@ describe("formal enterprise prototype", () => {
     expect(document.body).not.toHaveTextContent("齐齐哈尔市玉米市场运行周填报");
   });
 
+  it("clears a transient business-data error after the event stream recovers", async () => {
+    let receiveBusinessEvent:
+      ((event: BusinessNotificationRow) => void) | undefined;
+    const masterData = {
+      products: [{ code: "CORN", name: "玉米" }],
+      periods: [
+        {
+          code: "2026-W32",
+          name: "2026 年第 32 周",
+          startsOn: "2026-08-03",
+          endsOn: "2026-08-09",
+        },
+      ],
+      regions: [],
+    };
+    const loadMasterData = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("短暂不可用"))
+      .mockResolvedValue(masterData);
+    const listWorkItems = vi.fn(() =>
+      Promise.resolve({
+        items: [],
+        pageNumber: 0,
+        pageSize: 100,
+        totalElements: 0,
+        totalPages: 0,
+      }),
+    );
+    const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession()),
+      loadMasterData,
+      listWorkItems,
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: (
+        _afterSequence: number,
+        onChange: (event: BusinessNotificationRow) => void,
+      ) => {
+        receiveBusinessEvent = onChange;
+        return vi.fn();
+      },
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <EnterpriseBusinessApplication
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("alert", { name: "业务数据状态" }),
+    ).toHaveTextContent("业务数据读取失败");
+    expect(
+      screen.getByRole("alert", { name: "工作状态恢复提示" }),
+    ).toHaveTextContent("业务数据读取失败");
+    if (!receiveBusinessEvent) throw new Error("event stream not subscribed");
+    act(() =>
+      receiveBusinessEvent?.({
+        id: "event-recovery",
+        sequence: 1,
+        aggregateType: "PRODUCTION_RECORD",
+        aggregateId: "production-1",
+        actionCode: "PRODUCTION_RECORD_APPROVED",
+        productCode: "CORN",
+        regionCodes: ["230200"],
+        occurredAt: "2026-08-09T10:00:00Z",
+        read: false,
+      }),
+    );
+
+    await waitFor(
+      () => {
+        expect(loadMasterData).toHaveBeenCalledTimes(2);
+        expect(
+          screen.queryByRole("alert", { name: "业务数据状态" }),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.queryByRole("alert", { name: "工作状态恢复提示" }),
+        ).not.toBeInTheDocument();
+      },
+      { timeout: 2_000 },
+    );
+  });
+
   it("keeps developer terminology and internal identifiers off business screens", async () => {
     const user = userEvent.setup();
     render(
@@ -1256,7 +1532,8 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(16);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(17);
+    expect(within(navigation).getByText("导入任务")).toBeVisible();
     expect(within(navigation).getByText("玉米产情填报")).toBeVisible();
     expect(within(navigation).getByText("大豆产情填报")).toBeVisible();
     expect(within(navigation).getByText("稻谷产情填报")).toBeVisible();
@@ -1627,7 +1904,7 @@ describe("formal enterprise prototype", () => {
     render(
       <EnterpriseBusinessApplication initialSearch="?page=reporting&section=compose" />,
     );
-    await user.click(screen.getByLabelText("选择地区"));
+    await user.click(await screen.findByLabelText("选择地区"));
     expect(
       within(screen.getByLabelText("地市选项")).getByRole("button", {
         name: "黑河市",

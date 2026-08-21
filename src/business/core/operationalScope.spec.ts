@@ -52,6 +52,23 @@ describe("operational scope", () => {
     expect(invalidScope.queryAllowed).toBe(false);
   });
 
+  it("keeps a product selected from server-authoritative work items", () => {
+    const realtimeIdentity = {
+      ...authorization,
+      authorization: {
+        ...authorization.authorization,
+        serverAuthoritative: true,
+        authorizedProductIds: [],
+      },
+    } as const;
+
+    const result = readOperationalScope("?product=soybean", realtimeIdentity);
+
+    expect(result.scope.coordinates.productId).toBe("soybean");
+    expect(result.issues).toEqual([]);
+    expect(result.queryAllowed).toBe(true);
+  });
+
   it("ignores business coordinates injected into every visible application URL", () => {
     const invalidQueries = [
       ["businessSubtype", "not-authorized"],

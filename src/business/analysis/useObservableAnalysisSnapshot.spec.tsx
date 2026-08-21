@@ -95,6 +95,72 @@ describe("observable analysis realtime state", () => {
     expect(source.unsubscribe).toHaveBeenCalledTimes(1);
   });
 
+  it("refetches after approved and voided production, market, and logistics events", async () => {
+    const source = repository();
+    renderHook(() =>
+      useObservableAnalysisSnapshot({ query, repository: source.api }),
+    );
+    await waitFor(() =>
+      expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(1),
+    );
+
+    const formalEvents = [
+      ["PRODUCTION_RECORD", "PRODUCTION_RECORD_APPROVED"],
+      ["MARKET_RECORD", "MARKET_RECORD_APPROVED"],
+      ["LOGISTICS_RECORD", "LOGISTICS_RECORD_APPROVED"],
+      ["PRODUCTION_RECORD", "PRODUCTION_RECORD_VOIDED"],
+      ["MARKET_RECORD", "MARKET_RECORD_VOIDED"],
+      ["LOGISTICS_RECORD", "LOGISTICS_RECORD_VOIDED"],
+    ] as const;
+    for (const [index, [aggregateType, actionCode]] of formalEvents.entries()) {
+      act(() =>
+        source.emit(
+          event(13 + index, "CORN", ["230200"], aggregateType, actionCode),
+        ),
+      );
+      await waitFor(() =>
+        expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(
+          index + 2,
+        ),
+      );
+    }
+  });
+
+  it("does not refetch for submitted or returned records", async () => {
+    const source = repository();
+    renderHook(() =>
+      useObservableAnalysisSnapshot({ query, repository: source.api }),
+    );
+    await waitFor(() =>
+      expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(1),
+    );
+
+    act(() =>
+      source.emit(
+        event(
+          13,
+          "CORN",
+          ["230200"],
+          "MARKET_RECORD",
+          "MARKET_RECORD_SUBMITTED",
+        ),
+      ),
+    );
+    act(() =>
+      source.emit(
+        event(
+          14,
+          "CORN",
+          ["230200"],
+          "PRODUCTION_RECORD",
+          "PRODUCTION_RECORD_RETURNED",
+        ),
+      ),
+    );
+    await Promise.resolve();
+    expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(1);
+  });
+
   it("distinguishes an approved empty result from a failed request", async () => {
     const source = repository();
     source.loadObservableAnalysisSnapshot.mockResolvedValueOnce({
@@ -114,13 +180,15 @@ function event(
   sequence: number,
   productCode: string,
   regionCodes: readonly string[],
+  aggregateType = "PRODUCTION_RECORD",
+  actionCode = "PRODUCTION_RECORD_APPROVED",
 ): BusinessNotificationRow {
   return {
     id: `event-${sequence}`,
     sequence,
-    aggregateType: "PRODUCTION_RECORD",
+    aggregateType,
     aggregateId: `record-${sequence}`,
-    actionCode: "PRODUCTION_RECORD_APPROVED",
+    actionCode,
     productCode,
     regionCodes,
     occurredAt: "2026-08-16T12:00:00+08:00",

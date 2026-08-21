@@ -29,11 +29,10 @@ export function isPendingBusinessImport(job: ProductionImportJob) {
   return pendingStatuses.has(job.statusCode);
 }
 
-export async function awaitBusinessImport(input: {
-  repository: RealtimeBusinessRepository;
-  domain: BusinessImportDomain;
+export async function awaitImportJob(input: {
   initial: ProductionImportJob;
   onUpdate: (job: ProductionImportJob) => void;
+  loadJob?: (importJobId: string) => Promise<ProductionImportJob>;
   signal?: AbortSignal;
   wait?: Wait;
   pollIntervalMs?: number;
@@ -43,7 +42,7 @@ export async function awaitBusinessImport(input: {
   const maximumPolls = input.maximumPolls ?? 900;
   let current = input.initial;
   input.onUpdate(current);
-  if (isPendingBusinessImport(current) && !input.repository.getImportJob) {
+  if (isPendingBusinessImport(current) && !input.loadJob) {
     throw new Error("IMPORT_STATUS_NOT_CONFIGURED");
   }
   for (let poll = 0; isPendingBusinessImport(current); poll += 1) {
@@ -51,10 +50,34 @@ export async function awaitBusinessImport(input: {
       throw new Error("IMPORT_STATUS_TIMEOUT");
     }
     await wait(input.pollIntervalMs ?? 1_000, input.signal);
-    current = await input.repository.getImportJob!(input.domain, current.id);
+    current = await input.loadJob!(current.id);
     input.onUpdate(current);
   }
   return current;
+}
+
+export function awaitBusinessImport(input: {
+  repository: RealtimeBusinessRepository;
+  domain: BusinessImportDomain;
+  initial: ProductionImportJob;
+  onUpdate: (job: ProductionImportJob) => void;
+  signal?: AbortSignal;
+  wait?: Wait;
+  pollIntervalMs?: number;
+  maximumPolls?: number;
+}) {
+  return awaitImportJob({
+    initial: input.initial,
+    onUpdate: input.onUpdate,
+    loadJob: input.repository.getImportJob
+      ? (importJobId) =>
+          input.repository.getImportJob!(input.domain, importJobId)
+      : undefined,
+    signal: input.signal,
+    wait: input.wait,
+    pollIntervalMs: input.pollIntervalMs,
+    maximumPolls: input.maximumPolls,
+  });
 }
 
 export function businessImportMessage(job: ProductionImportJob) {
@@ -64,9 +87,9 @@ export function businessImportMessage(job: ProductionImportJob) {
     case "PROCESSING":
       return "批量数据正在导入，请稍候。";
     case "COMPLETED":
-      return `导入完成：${job.importedRows} 行已保存到填报草稿，失败 ${job.failedRows} 行。`;
+      return `导入完成：${job.importedRows} 行已处理，合格行已自动提交审核，失败 ${job.failedRows} 行。`;
     case "COMPLETED_WITH_ERRORS":
-      return `导入完成：${job.importedRows} 行已保存到填报草稿，失败 ${job.failedRows} 行。请下载错误清单核对。`;
+      return `导入完成：${job.importedRows} 行已处理，合格行已自动提交审核，失败 ${job.failedRows} 行。请下载错误清单核对。`;
     case "FAILED":
       return `导入未完成：${job.failureMessage || "请核对文件内容后重试。"}`;
   }

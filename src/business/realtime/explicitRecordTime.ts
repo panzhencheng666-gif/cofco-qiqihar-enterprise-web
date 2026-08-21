@@ -34,13 +34,34 @@ export function formatRealFillingTime(
   const fillingAt = values.fillingDate ?? values[`${prefix}_FILLING_AT`];
   if (!fillingAt) return "—";
 
+  const parsed = new Date(fillingAt);
+  const businessTime = Number.isNaN(parsed.getTime())
+    ? fillingAt
+    : formatChinaBusinessTime(parsed);
+
   const basis = values[`${prefix}_FILLING_TIME_BASIS`];
-  if (basis === "SUBMITTED_AT") return `${fillingAt}（提交）`;
-  if (basis === "DRAFT_CREATED_AT") return `${fillingAt}（草稿创建）`;
+  if (basis === "SUBMITTED_AT") return `${businessTime}（提交）`;
+  if (basis === "DRAFT_CREATED_AT") return `${businessTime}（草稿创建）`;
   if (basis === "CREATED_AT_NO_SUBMISSION_AUDIT") {
-    return `${fillingAt}（创建时间，提交审计缺失）`;
+    return `${businessTime}（创建时间，提交审计缺失）`;
   }
-  return fillingAt;
+  return businessTime;
+}
+
+function formatChinaBusinessTime(value: Date): string {
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+  return `${part("year")}年${part("month")}月${part("day")}日 ${part("hour")}:${part("minute")}:${part("second")}`;
 }
 
 export function matchesSurveyPeriod(

@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import type { ObservableAnalysisQuery } from "@/platform/api/observableAnalysisContract";
+import {
+  ALL_AUTHORIZED_REGION_CODE,
+  type ObservableAnalysisQuery,
+} from "@/platform/api/observableAnalysisContract";
 import type {
   MasterDataSnapshot,
   MasterRegion,
@@ -24,20 +27,15 @@ export function ObservableAnalysisFilters({
   onChange,
   disabled = false,
 }: ObservableAnalysisFiltersProps) {
-  const [productSearch, setProductSearch] = useState("");
-  const products = useMemo(() => {
-    const normalized = productSearch.trim().toLocaleLowerCase();
-    return masterData.products.filter(
-      (product) =>
-        !normalized || product.name.toLocaleLowerCase().includes(normalized),
-    );
-  }, [masterData.products, productSearch]);
   const regions = useMemo(
     () => relatedAuthorizedRegions(masterData.regions, authorizedRegionCodes),
     [authorizedRegionCodes, masterData.regions],
   );
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, index) => currentYear - index);
+  const years = [
+    ...(masterData.approvedSurveyYears ?? []),
+    ...Array.from({ length: 5 }, (_, index) => currentYear - index),
+  ];
   if (!years.includes(query.surveyYear)) years.push(query.surveyYear);
 
   return (
@@ -46,15 +44,9 @@ export function ObservableAnalysisFilters({
       <div className="observable-analysis-filter-grid">
         <label>
           <span>产品或作物</span>
-          <input
-            aria-label="搜索产品"
-            placeholder="搜索产品名称"
-            type="search"
-            value={productSearch}
-            onChange={(event) => setProductSearch(event.target.value)}
-          />
           <select
             aria-label="产品或作物"
+            data-scrollable-menu="true"
             value={query.productCode}
             onChange={(event) =>
               onChange({
@@ -64,7 +56,7 @@ export function ObservableAnalysisFilters({
               })
             }
           >
-            {products.map((product) => (
+            {masterData.products.map((product) => (
               <option key={product.code} value={product.code}>
                 {product.name}
               </option>
@@ -75,12 +67,13 @@ export function ObservableAnalysisFilters({
           <span>调查年份</span>
           <select
             aria-label="调查年份"
+            data-scrollable-menu="true"
             value={query.surveyYear}
             onChange={(event) =>
               onChange({ ...query, surveyYear: Number(event.target.value) })
             }
           >
-            {years
+            {[...new Set(years)]
               .sort((left, right) => right - left)
               .map((year) => (
                 <option key={year} value={year}>
@@ -93,6 +86,7 @@ export function ObservableAnalysisFilters({
           <span>调查月份</span>
           <select
             aria-label="调查月份"
+            data-scrollable-menu="true"
             value={query.surveyMonth ?? ""}
             onChange={(event) =>
               onChange({
@@ -115,6 +109,16 @@ export function ObservableAnalysisFilters({
           </select>
         </label>
       </div>
+      <button
+        aria-pressed={query.regionCode === ALL_AUTHORIZED_REGION_CODE}
+        className="observable-analysis-all-regions"
+        type="button"
+        onClick={() =>
+          onChange({ ...query, regionCode: ALL_AUTHORIZED_REGION_CODE })
+        }
+      >
+        全部授权地区
+      </button>
       <RealtimeRegionCascadePicker
         ariaLabel="责任地区"
         disabled={disabled}
@@ -123,13 +127,13 @@ export function ObservableAnalysisFilters({
         }}
         regions={regions}
         requireVillage={false}
+        searchable={false}
         value={query.regionCode}
       />
       <div className="observable-analysis-filter-actions">
         <button
           type="button"
           onClick={() => {
-            setProductSearch("");
             onChange({ ...defaultQuery });
           }}
         >

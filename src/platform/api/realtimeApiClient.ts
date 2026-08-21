@@ -7,6 +7,11 @@ export interface RealtimeApiClientOptions {
   cookieSource?: () => string;
 }
 
+export interface RealtimeApiRequestOptions {
+  timeoutMs?: number;
+  headers?: Readonly<Record<string, string>>;
+}
+
 export interface ApiErrorShape {
   code: string;
   message: string;
@@ -15,11 +20,32 @@ export interface ApiErrorShape {
   details?: unknown;
 }
 
+function safeClientMessage(message: string): string | undefined {
+  const normalized = message.replace(/\s+/gu, " ").trim();
+  if (
+    !normalized ||
+    normalized.length > 200 ||
+    !/\p{Script=Han}/u.test(normalized)
+  ) {
+    return undefined;
+  }
+  if (
+    /[A-Z][A-Z0-9]+_[A-Z0-9_]+/u.test(normalized) ||
+    /\b(?:SQL|PostgreSQL|Exception|stack\s+trace|SELECT|INSERT|UPDATE|DELETE)\b/iu.test(
+      normalized,
+    )
+  ) {
+    return undefined;
+  }
+  return normalized;
+}
+
 export class RealtimeApiError extends Error {
   readonly code: string;
   readonly status: number;
   readonly traceId?: string;
   readonly details?: unknown;
+  readonly clientMessage?: string;
 
   constructor(error: ApiErrorShape) {
     super(error.message);
@@ -28,6 +54,7 @@ export class RealtimeApiError extends Error {
     this.status = error.status;
     this.traceId = error.traceId;
     this.details = error.details;
+    this.clientMessage = safeClientMessage(error.message);
   }
 }
 
@@ -36,8 +63,16 @@ export interface RealtimeApiClient {
     path: string,
     query?: Record<string, string | number | undefined>,
   ): Promise<T>;
-  post<T>(path: string, body?: unknown): Promise<T>;
-  put<T>(path: string, body?: unknown): Promise<T>;
+  post<T>(
+    path: string,
+    body?: unknown,
+    options?: RealtimeApiRequestOptions,
+  ): Promise<T>;
+  put<T>(
+    path: string,
+    body?: unknown,
+    options?: RealtimeApiRequestOptions,
+  ): Promise<T>;
   upload<T>(
     path: string,
     body: FormData,
@@ -150,9 +185,11 @@ export function createRealtimeApiClient(
     path: string,
     query?: Record<string, string | number | undefined>,
     body?: unknown,
+    requestOptions: RealtimeApiRequestOptions = {},
   ): Promise<T> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const requestTimeoutMs = requestOptions.timeoutMs ?? timeoutMs;
+    const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
     try {
       const response = await fetcher(
         `${joinUrl(baseUrl, path)}${query ? queryString(query) : ""}`,
@@ -165,6 +202,7 @@ export function createRealtimeApiClient(
             ...(body === undefined
               ? {}
               : { "Content-Type": "application/json" }),
+            ...withoutBrowserIdentityHeaders(requestOptions.headers ?? {}),
             ...csrfHeaders(method),
             "X-Client": "qiqihar-enterprise-web",
           },
@@ -269,8 +307,9 @@ export function createRealtimeApiClient(
           credentials: "include",
           signal: controller.signal,
           headers: {
-            Accept:
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            // This client downloads XLSX, CSV, PDF and DOCX files and must also
+            // allow the backend to return its governed JSON error envelope.
+            Accept: "*/*",
             "X-Client": "qiqihar-enterprise-web",
           },
         },
@@ -292,8 +331,10 @@ export function createRealtimeApiClient(
 
   return {
     get: (path, query) => request("GET", path, query),
-    post: (path, body) => request("POST", path, undefined, body),
-    put: (path, body) => request("PUT", path, undefined, body),
+    post: (path, body, requestOptions) =>
+      request("POST", path, undefined, body, requestOptions),
+    put: (path, body, requestOptions) =>
+      request("PUT", path, undefined, body, requestOptions),
     upload,
     download,
   };

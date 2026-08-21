@@ -1,0 +1,124 @@
+.business-import-task-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.business-import-task-workspace__domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #d4e0e5;
+}
+
+.business-import-task-workspace__domains button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #80a9ac;
+  border-radius: 6px;
+  background: #fff;
+  color: #136b68;
+  font: inherit;
+  cursor: pointer;
+}
+
+.business-import-task-workspace__domains button[aria-pressed="true"] {
+  border-color: #136b68;
+  background: #136b68;
+  color: #fff;
+}
+
+.business-import-task-workspace__detail {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 18px;
+}
+
+.business-import-task-workspace__result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  color: #244b5b;
+}
+
+.business-import-task-workspace__completed-count,
+.business-import-task-workspace__pending-count {
+  font-weight: 700;
+}
+
+.business-import-task-workspace__completed-count {
+  color: #18766c;
+}
+
+.business-import-task-workspace__pending-count {
+  color: #a0522d;
+}
+
+.business-import-task-workspace__message {
+  padding: 10px 12px;
+  border-left: 3px solid #a44836;
+  background: #fff7f2;
+  color: #934329;
+}
+
+.business-import-task-workspace__result button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #80a9ac;
+  border-radius: 5px;
+  background: #fff;
+  color: #136b68;
+  font: inherit;
+  cursor: pointer;
+}
+
+.business-import-task-workspace .business-import-history {
+  margin-bottom: 0;
+}
+
+.business-import-task-workspace__photos {
+  display: grid;
+  gap: 9px;
+  padding-top: 14px;
+  border-top: 1px solid #d8e3e8;
+}
+
+.business-import-task-workspace__photos p {
+  margin: 0;
+}
+
+.business-import-task-workspace__photo-summary {
+  font-weight: 700;
+  color: #244b5b;
+}
+
+.business-import-task-workspace__photo-picker {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  color: #173f4e;
+}
+
+.business-import-task-workspace__photos button {
+  justify-self: start;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid #136b68;
+  border-radius: 6px;
+  background: #136b68;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.business-import-task-workspace__photos button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.business-import-task-workspace__photo-message {
+  font-weight: 700;
+  color: #136b68 !important;
+}

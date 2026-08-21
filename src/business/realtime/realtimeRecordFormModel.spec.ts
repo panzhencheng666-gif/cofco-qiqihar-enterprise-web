@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PRODUCTION_SURVEY_CONTRACT_DIGEST,
+  PRODUCTION_SURVEY_CONTRACT_VERSION,
+} from "@/platform/api/productionSurveyContract";
+
+import {
   definitionFields,
   marketFields,
   marketPayloadFromValues,
@@ -19,9 +24,9 @@ describe("realtime record form model", () => {
       "PROD_SAMPLE_NAME",
       "objectTypeCode",
       "regionCode",
-      "PROD_CULTIVAR_NAME",
       "PROD_REPORTER_NAME",
-      "PROD_REPORTER_PHONE",
+      "PROD_SURVEYOR_NAME",
+      "PROD_SURVEYOR_PHONE",
       "PROD_SAMPLE_CONTACT",
       "PROD_SAMPLE_LATITUDE",
       "PROD_SAMPLE_LONGITUDE",
@@ -78,7 +83,8 @@ describe("realtime record form model", () => {
         cultivatedAreaMu: "10",
         yieldPerMuKilograms: "500",
         PROD_REPORTER_NAME: "张三",
-        PROD_REPORTER_PHONE: "13800000000",
+        PROD_SURVEYOR_NAME: "王雷",
+        PROD_SURVEYOR_PHONE: "13800000000",
         PROD_SAMPLE_CONTACT: "13900000000",
         PROD_SAMPLE_LATITUDE: "47.35",
         PROD_SAMPLE_LONGITUDE: "123.92",
@@ -93,14 +99,15 @@ describe("realtime record form model", () => {
       cultivatedAreaMu: "10",
       yieldPerMuKilograms: "500",
       submissionMetadata: {
-        PROD_CULTIVAR_NAME: "先玉335",
         PROD_REPORTER_NAME: "张三",
-        PROD_REPORTER_PHONE: "13800000000",
+        PROD_SURVEYOR_NAME: "王雷",
+        PROD_SURVEYOR_PHONE: "13800000000",
         PROD_SAMPLE_CONTACT: "13900000000",
         PROD_SAMPLE_LATITUDE: "47.35",
         PROD_SAMPLE_LONGITUDE: "123.92",
       },
     });
+    expect(payload.submissionMetadata).not.toHaveProperty("PROD_CULTIVAR_NAME");
     expect(payload).not.toHaveProperty("surveyDate");
     expect(
       productionPayloadFromValues(
@@ -233,7 +240,8 @@ describe("realtime record form model", () => {
         marketCoreField("MKT_CULTIVAR_NAME", "具体品种"),
         marketCoreField("MKT_SAMPLE_NAME", "采集对象"),
         marketCoreField("MKT_REPORTER_NAME", "填报人"),
-        marketCoreField("MKT_REPORTER_PHONE", "填报人联系方式"),
+        marketCoreField("MKT_SURVEYOR_NAME", "调研人"),
+        marketCoreField("MKT_SURVEYOR_PHONE", "调研人联系方式"),
         marketCoreField("MKT_SAMPLE_CONTACT", "样本点联系方式"),
         marketCoreField("MKT_SAMPLE_LATITUDE", "样本点纬度"),
         marketCoreField("MKT_SAMPLE_LONGITUDE", "样本点经度"),
@@ -269,7 +277,8 @@ describe("realtime record form model", () => {
         "样本点类型",
         "地区",
         "填报人",
-        "填报人联系方式",
+        "调研人",
+        "调研人联系方式",
         "样本点联系方式",
         "纬度",
         "经度",
@@ -283,7 +292,8 @@ describe("realtime record form model", () => {
         .map(({ code }) => code),
     ).toEqual([
       "MKT_REPORTER_NAME",
-      "MKT_REPORTER_PHONE",
+      "MKT_SURVEYOR_NAME",
+      "MKT_SURVEYOR_PHONE",
       "MKT_SAMPLE_CONTACT",
       "MKT_SAMPLE_LATITUDE",
       "MKT_SAMPLE_LONGITUDE",
@@ -300,7 +310,8 @@ describe("realtime record form model", () => {
         MKT_SAMPLE_NAME: "第一样本点",
         MKT_REGION: "230202",
         MKT_REPORTER_NAME: "当前登录人员",
-        MKT_REPORTER_PHONE: "13800000000",
+        MKT_SURVEYOR_NAME: "王雷",
+        MKT_SURVEYOR_PHONE: "13800000000",
         MKT_SAMPLE_CONTACT: "13900000000",
         MKT_SAMPLE_LATITUDE: "47.35",
         MKT_SAMPLE_LONGITUDE: "123.92",
@@ -316,7 +327,8 @@ describe("realtime record form model", () => {
     expect(payload.coreValues).toMatchObject({
       MKT_SAMPLE_NAME: "第一样本点",
       MKT_REPORTER_NAME: "当前登录人员",
-      MKT_REPORTER_PHONE: "13800000000",
+      MKT_SURVEYOR_NAME: "王雷",
+      MKT_SURVEYOR_PHONE: "13800000000",
       MKT_SAMPLE_CONTACT: "13900000000",
       MKT_SAMPLE_LATITUDE: "47.35",
       MKT_SAMPLE_LONGITUDE: "123.92",
@@ -371,9 +383,8 @@ function productionDefinition() {
   return {
     productCode: "CORN",
     objectTypeCode: "FARMER",
-    contractVersion: "production-survey-fields-v1" as const,
-    contractDigest:
-      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32" as const,
+    contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
+    contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
     fields: [
       productionField("objectTypeCode", "样本点类型", "CONTEXT", "基础信息", {
         controlType: "SELECT",
@@ -415,12 +426,18 @@ function productionDefinition() {
         },
       ),
       productionField(
-        "PROD_REPORTER_PHONE",
-        "填报人联系方式",
+        "PROD_SURVEYOR_NAME",
+        "调研人",
+        "SUBJECT",
+        "调查对象与联系",
+      ),
+      productionField(
+        "PROD_SURVEYOR_PHONE",
+        "调研人联系方式",
         "SUBJECT",
         "调查对象与联系",
         {
-          required: true,
+          required: false,
         },
       ),
       productionField(

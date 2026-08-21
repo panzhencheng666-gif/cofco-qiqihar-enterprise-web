@@ -32,6 +32,7 @@ export function RealtimeRegionCascadePicker({
   ariaLabel = "所在地区",
   requireVillage = true,
   disabled = false,
+  searchable = true,
 }: {
   regions: readonly MasterRegion[];
   value: string;
@@ -39,6 +40,7 @@ export function RealtimeRegionCascadePicker({
   ariaLabel?: string;
   requireVillage?: boolean;
   disabled?: boolean;
+  searchable?: boolean;
 }) {
   const [queries, setQueries] = useState<Record<string, string>>({});
   const selectedPath = useMemo(() => pathTo(regions, value), [regions, value]);
@@ -72,21 +74,24 @@ export function RealtimeRegionCascadePicker({
               {level.label}
               {requireVillage && level.code === "VILLAGE" ? " *" : ""}
             </span>
-            <input
-              aria-label={`搜索${level.label}`}
-              disabled={disabled || !enabled}
-              placeholder={`搜索${level.label}名称`}
-              type="search"
-              value={queries[level.code] ?? ""}
-              onChange={(event) =>
-                setQueries((current) => ({
-                  ...current,
-                  [level.code]: event.target.value,
-                }))
-              }
-            />
+            {searchable ? (
+              <input
+                aria-label={`搜索${level.label}`}
+                disabled={disabled || !enabled}
+                placeholder={`搜索${level.label}名称`}
+                type="search"
+                value={queries[level.code] ?? ""}
+                onChange={(event) =>
+                  setQueries((current) => ({
+                    ...current,
+                    [level.code]: event.target.value,
+                  }))
+                }
+              />
+            ) : null}
             <select
               aria-label={level.label}
+              data-scrollable-menu="true"
               disabled={disabled || !enabled}
               required={requireVillage && level.code === "VILLAGE"}
               value={selected}

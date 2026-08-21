@@ -64,7 +64,10 @@ function statusOf(
           ? "in-progress"
           : "on-time",
     qualityStatus: "passed",
-    releaseStatus: approved ? "published" : "pending",
+    // The governed workflow publishes immediately after approval.  A record
+    // that is still waiting for review therefore has no separate publisher
+    // step and must remain unreleased until the review succeeds.
+    releaseStatus: approved ? "published" : "unreleased",
   };
 }
 

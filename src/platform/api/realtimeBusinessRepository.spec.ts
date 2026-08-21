@@ -49,6 +49,8 @@ function client(
           level: "PREFECTURE",
         },
       ]);
+    if (path.endsWith("/overview/options"))
+      return Promise.resolve({ years: [2024] });
     if (path.endsWith("/work-items"))
       return Promise.resolve({
         items: [],
@@ -119,6 +121,70 @@ function client(
 }
 
 describe("realtime business repository", () => {
+  it("uses server identity governance contracts and preserves the upload idempotency key", async () => {
+    const { api, get, post, upload, download } = client();
+    get.mockResolvedValueOnce([] as never);
+    post.mockResolvedValueOnce({ draftId: "draft-1" } as never);
+    upload.mockResolvedValueOnce({ jobId: "merge-job-1" } as never);
+    const repository = createRealtimeBusinessRepository(api);
+    const workbook = new File(["xlsx"], "身份治理.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    await repository.listSampleIdentityReviews!();
+    await repository.decideSampleIdentityReview!(
+      "draft/1",
+      "LINK_EXISTING",
+      "point-1",
+      2,
+      "核验一致",
+    );
+    await repository.downloadSampleIdentityMergeWorkbook!();
+    await repository.uploadSampleIdentityMergeWorkbook!(
+      workbook,
+      "identity-job-key-1",
+    );
+
+    expect(get).toHaveBeenCalledWith("/api/v1/sample-point-identities/reviews");
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/sample-point-identities/reviews/draft%2F1/decisions",
+      {
+        decision: "LINK_EXISTING",
+        targetSamplePointId: "point-1",
+        expectedVersion: 2,
+        reason: "核验一致",
+      },
+    );
+    expect(download).toHaveBeenCalledWith(
+      "/api/v1/sample-point-identities/merge-export",
+    );
+    expect(upload).toHaveBeenCalledWith(
+      "/api/v1/sample-point-identities/merge-jobs",
+      expect.any(FormData),
+      { "Idempotency-Key": "identity-job-key-1" },
+    );
+  });
+
+  it("sends the caller idempotency key when retrying failed coordinate rows", async () => {
+    const { api, post } = client();
+    post.mockResolvedValueOnce({ jobId: "job-2" } as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.retrySamplePointCoordinateCorrectionJob!(
+      "job/1",
+      "retry-key-1",
+    );
+
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/sample-point-coordinate-corrections/jobs/job%2F1/retry",
+      undefined,
+      {
+        headers: { "Idempotency-Key": "retry-key-1" },
+        timeoutMs: 300_000,
+      },
+    );
+  });
+
   it("loads one strictly parsed observable snapshot with only allowed query parameters", async () => {
     const { api, get } = client();
     get.mockResolvedValueOnce(validSnapshot() as never);
@@ -233,7 +299,7 @@ describe("realtime business repository", () => {
       parseProductionDefinition({
         ...definition,
         fields: definition.fields.filter(
-          ({ code }) => code !== "PROD_REPORTER_PHONE",
+          ({ code }) => code !== "PROD_SURVEYOR_PHONE",
         ),
       }),
     ).toThrowError(
@@ -249,12 +315,11 @@ describe("realtime business repository", () => {
   it("binds the parsed public contract to its digest and rejects unapproved fields", () => {
     const definition = {
       ...productionDefinition(),
-      contractDigest:
-        "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
+      contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
     };
 
     expect(parseProductionDefinition(definition)).toMatchObject({
-      contractVersion: "production-survey-fields-v1",
+      contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
       contractDigest: definition.contractDigest,
     });
     expect(() =>
@@ -305,7 +370,7 @@ describe("realtime business repository", () => {
       "FARMER",
     );
 
-    expect(definition.contractVersion).toBe("production-survey-fields-v1");
+    expect(definition.contractVersion).toBe(PRODUCTION_SURVEY_CONTRACT_VERSION);
     expect(definition.fields.map(({ code }) => code)).not.toContain(
       "PROD_SAMPLE_SUBJECT_CODE",
     );
@@ -631,7 +696,8 @@ describe("realtime business repository", () => {
     expect(result.products).toEqual([{ code: "CORN", name: "玉米" }]);
     expect(result.periods).toEqual([]);
     expect(result.regions[0]?.code).toBe("230200");
-    expect(get).toHaveBeenCalledTimes(3);
+    expect(result.approvedSurveyYears).toEqual([2024]);
+    expect(get).toHaveBeenCalledTimes(4);
   });
 
   it("loads governed supply survey years and nullable quarters", async () => {
@@ -781,6 +847,27 @@ describe("realtime business repository", () => {
     );
   });
 
+  it("sends one governed batch approval request for the selected work-item scope", async () => {
+    const { api, post } = client();
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.batchApproveWorkItems?.({
+      domain: "PRODUCTION",
+      regionId: "230225",
+      productCode: "CORN",
+    });
+
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/work-items/batch-approve",
+      {
+        domain: "PRODUCTION",
+        regionId: "230225",
+        productCode: "CORN",
+      },
+      { timeoutMs: 300_000 },
+    );
+  });
+
   it("uses optimistic-lock versions for workflow transitions", async () => {
     const { api, post } = client();
     const repository = createRealtimeBusinessRepository(api);
@@ -927,6 +1014,105 @@ describe("realtime business repository", () => {
     expect((productionForm.get("photos") as File).name).toBe("样本点一.jpg");
   });
 
+  it("uses only the dedicated returned-correction workbook endpoints", async () => {
+    const { api, download, get, upload } = client();
+    get.mockResolvedValueOnce({
+      id: "correction/job-1",
+      domainCode: "MARKET",
+      statusCode: "PROCESSING",
+      importedRows: 0,
+      failedRows: 0,
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+    const workbook = new File(["xlsx"], "玉米市场退回记录修正表.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    await repository.downloadMarketReturnedCorrectionWorkbook?.("CORN");
+    await repository.importMarketReturnedCorrectionWorkbook?.(workbook, "CORN");
+    await repository.getMarketReturnedCorrectionJob?.("correction/job-1");
+    await repository.downloadMarketReturnedCorrectionErrors?.(
+      "correction/job-1",
+    );
+
+    expect(download).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/imports/market/returned-corrections/template",
+      { productCode: "CORN" },
+    );
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(upload.mock.calls[0]?.[0]).toBe(
+      "/api/v1/imports/market/returned-corrections?productCode=CORN",
+    );
+    expect(upload.mock.calls[0]?.[1]).toBeInstanceOf(FormData);
+    expect(upload.mock.calls[0]?.[2]?.["Idempotency-Key"]).toMatch(
+      /^[0-9a-f-]{36}$/u,
+    );
+    const form = upload.mock.calls[0]?.[1];
+    if (!(form instanceof FormData)) throw new Error("expected multipart form");
+    expect(Array.from(form.keys())).toEqual(["file"]);
+    expect((form.get("file") as File).name).toBe("玉米市场退回记录修正表.xlsx");
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/imports/market/returned-corrections/correction%2Fjob-1",
+    );
+    expect(download).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/imports/market/returned-corrections/correction%2Fjob-1/errors",
+    );
+    expect(upload.mock.calls[0]?.[0]).not.toBe("/api/v1/imports/market");
+  });
+
+  it("routes production and logistics corrections to their dedicated original-record endpoints", async () => {
+    const { api, download, get, upload } = client();
+    get.mockResolvedValue({
+      id: "correction/job-1",
+      domainCode: "PRODUCTION",
+      statusCode: "PROCESSING",
+      importedRows: 0,
+      failedRows: 0,
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+    const workbook = new File(["xlsx"], "退回记录修正表.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    for (const domain of ["production", "logistics"] as const) {
+      await repository.downloadReturnedCorrectionWorkbook?.(domain, "CORN");
+      await repository.importReturnedCorrectionWorkbook?.(
+        domain,
+        workbook,
+        "CORN",
+      );
+      await repository.getReturnedCorrectionJob?.(domain, "correction/job-1");
+      await repository.downloadReturnedCorrectionErrors?.(
+        domain,
+        "correction/job-1",
+      );
+    }
+
+    for (const [index, domain] of ["production", "logistics"].entries()) {
+      expect(download).toHaveBeenNthCalledWith(
+        index * 2 + 1,
+        `/api/v1/imports/${domain}/returned-corrections/template`,
+        { productCode: "CORN" },
+      );
+      const uploadCall = upload.mock.calls[index];
+      expect(uploadCall?.[0]).toBe(
+        `/api/v1/imports/${domain}/returned-corrections?productCode=CORN`,
+      );
+      expect(uploadCall?.[1]).toBeInstanceOf(FormData);
+      expect(uploadCall?.[2]?.["Idempotency-Key"]).toMatch(/^[0-9a-f-]{36}$/u);
+      expect(get).toHaveBeenNthCalledWith(
+        index + 1,
+        `/api/v1/imports/${domain}/returned-corrections/correction%2Fjob-1`,
+      );
+      expect(download).toHaveBeenNthCalledWith(
+        index * 2 + 2,
+        `/api/v1/imports/${domain}/returned-corrections/correction%2Fjob-1/errors`,
+      );
+    }
+  });
+
   it("lists imported rows and submits one draft to formal review", async () => {
     const { api, get, post } = client();
     get.mockResolvedValueOnce([] as never);
@@ -943,6 +1129,29 @@ describe("realtime business repository", () => {
       importJobId: "job/1",
     });
     expect(post).toHaveBeenCalledWith("/api/v1/import-drafts/draft%2F1/submit");
+  });
+
+  it("restores pending product drafts and submits one import job as a batch", async () => {
+    const { api, get, post } = client();
+    get.mockResolvedValueOnce([] as never);
+    post.mockResolvedValueOnce({
+      importJobId: "job/1",
+      submittedRows: 2,
+      remainingDraftRows: 0,
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.listPendingImportDrafts?.("PRODUCTION", "CORN");
+    await repository.submitImportDraftJob?.("job/1");
+
+    expect(get).toHaveBeenCalledWith("/api/v1/import-drafts", {
+      domainCode: "PRODUCTION",
+      productCode: "CORN",
+      stateCode: "DRAFT",
+    });
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/import-drafts/jobs/job%2F1/submit",
+    );
   });
 
   it("reads, retries and downloads the durable result of every background import", async () => {
@@ -976,6 +1185,54 @@ describe("realtime business repository", () => {
     );
   });
 
+  it("lists the current account and unit import history for one business domain", async () => {
+    const { api, get } = client();
+    get.mockResolvedValueOnce({
+      items: [],
+      pageNumber: 1,
+      pageSize: 10,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.listImportJobs!("market", 1, 10);
+
+    expect(get).toHaveBeenCalledWith("/api/v1/imports/market", {
+      pageNumber: 1,
+      pageSize: 10,
+    });
+  });
+
+  it("reads an import photo manifest and supplements one file at a time against the original job", async () => {
+    const { api, get, upload } = client();
+    get.mockResolvedValueOnce({
+      totalFileCount: 2,
+      eligibleFileCount: 1,
+      deferredFileCount: 1,
+      totalTargetAttachments: 2,
+      attachedTargetAttachments: 0,
+      files: [],
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+    const photo = new File(["photo"], "现场照片.png", { type: "image/png" });
+
+    await repository.getProductionImportPhotoManifest!("import/1");
+    await repository.supplementProductionImportPhoto!("import/1", photo);
+
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/imports/production/import%2F1/photo-manifest",
+    );
+    const [path, body] = upload.mock.calls.at(-1) ?? [];
+    expect(path).toBe("/api/v1/imports/production/import%2F1/photos");
+    expect(body).toBeInstanceOf(FormData);
+    expect((body as FormData).get("file")).toBeInstanceOf(File);
+    expect((body as FormData).get("file")).toHaveProperty(
+      "name",
+      "现场照片.png",
+    );
+  });
+
   it("creates a scoped report preview before exporting and publishing its immutable result", async () => {
     const { api, download, get, post } = client();
     get.mockImplementationOnce(
@@ -986,7 +1243,7 @@ describe("realtime business repository", () => {
         () =>
           Promise.resolve({
             id: "preview-1",
-            title: "齐齐哈尔市玉米产情日报",
+            title: "齐齐哈尔市综合经营日报",
           }) as never,
       )
       .mockImplementationOnce(
@@ -1005,9 +1262,7 @@ describe("realtime business repository", () => {
 
     await repository.loadReportParameterOptions();
     const preview = await repository.createReportPreview({
-      definitionCode: "PRODUCTION_DAILY",
-      productCode: "CORN",
-      cultivarCode: "XIAN_YU_335",
+      definitionCode: "COMPREHENSIVE_DAILY",
       regionLevel: "PREFECTURE",
       regionCode: "230200",
       periodCode: "2026-W32",
@@ -1018,9 +1273,7 @@ describe("realtime business repository", () => {
 
     expect(get).toHaveBeenCalledWith("/api/v1/reports/parameter-options");
     expect(post).toHaveBeenNthCalledWith(1, "/api/v1/reports/previews", {
-      definitionCode: "PRODUCTION_DAILY",
-      productCode: "CORN",
-      cultivarCode: "XIAN_YU_335",
+      definitionCode: "COMPREHENSIVE_DAILY",
       regionLevel: "PREFECTURE",
       regionCode: "230200",
       periodCode: "2026-W32",
@@ -1094,13 +1347,11 @@ function productionDefinition(
   return {
     productCode,
     objectTypeCode,
-    contractVersion: "production-survey-fields-v1",
-    contractDigest:
-      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
+    contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
+    contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
     fields: [
       field("objectTypeCode", { controlType: "SELECT", required: true }),
       field("regionCode", { controlType: "REGION", required: true }),
-      field("PROD_CULTIVAR_NAME"),
       field("surveyYear", {
         label: "数据年份",
         controlType: "SELECT",
@@ -1127,21 +1378,28 @@ function productionDefinition(
         readOnly: true,
         importable: false,
       }),
-      ...["PROD_REPORTER_PHONE", "PROD_SAMPLE_CONTACT"].map((code, index) =>
+      ...["PROD_SURVEYOR_NAME", "PROD_SURVEYOR_PHONE"].map((code, index) =>
         field(code, {
           groupCode: "SUBJECT",
           groupLabel: "填报与定位",
           groupOrder: 20,
           sortOrder: 30 + index * 10,
-          required: true,
+          required: false,
         }),
       ),
+      field("PROD_SAMPLE_CONTACT", {
+        groupCode: "SUBJECT",
+        groupLabel: "填报与定位",
+        groupOrder: 20,
+        sortOrder: 50,
+        required: true,
+      }),
       ...["PROD_SAMPLE_LATITUDE", "PROD_SAMPLE_LONGITUDE"].map((code, index) =>
         field(code, {
           groupCode: "SUBJECT",
           groupLabel: "填报与定位",
           groupOrder: 20,
-          sortOrder: 50 + index * 10,
+          sortOrder: 60 + index * 10,
           valueType: "DECIMAL",
           controlType: "DECIMAL",
           required: true,

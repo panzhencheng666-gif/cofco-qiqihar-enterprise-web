@@ -28,6 +28,7 @@ describe("formal enterprise route model", () => {
       ["work", "review", "#/我的工作/待我审核"],
       ["work", "exceptions", "#/我的工作/退回与异常"],
       ["work", "completed", "#/我的工作/已办事项"],
+      ["work", "imports", "#/我的工作/导入任务"],
       ["overview", "operations", "#/经营总览/经营运行"],
       ["overview", "risks", "#/经营总览/风险关注"],
       ["overview", "duty", "#/经营总览/履责情况"],
@@ -294,6 +295,11 @@ describe("formal enterprise sample data", () => {
     expect(reportingNavigation.flatMap((group) => group.items)).toEqual([
       expect.objectContaining({ key: "compose" }),
     ]);
+    const work = formalApplicationDefinitions.find(({ key }) => key === "work");
+    expect(work?.navigation).toContainEqual({
+      route: createFormalRoute("work", "imports"),
+      label: "导入任务",
+    });
   });
 
   it("lists three product-owned logistics menus without a generic product switcher", () => {

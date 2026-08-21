@@ -141,9 +141,7 @@ export function ProductionMonitoringWorkspace({
     );
   }
   if (section === "analysis" && realtimeRepository) {
-    return (
-      <ProductionAnalysisPanel repository={realtimeRepository} />
-    );
+    return <ProductionAnalysisPanel repository={realtimeRepository} />;
   }
   return (
     <ProductionAnalysisWorkspace

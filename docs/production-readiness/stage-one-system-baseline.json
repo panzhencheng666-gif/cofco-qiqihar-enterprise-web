@@ -221,6 +221,18 @@
     },
     {
       "application": "work",
+      "section": "imports",
+      "label": "导入任务",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
+        "cofco-qiqihar-enterprise-web:src/business/importing/BusinessImportTaskWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "work",
       "section": "obligations",
       "label": "填报履职周报",
       "implementationLocations": [
@@ -500,7 +512,7 @@
   "uiInteractionInventory": {
     "path": "docs/production-readiness/stage-one-ui-inventory.json",
     "sourceBoundary": "src/business 下全部非测试 TSX",
-    "itemCount": 383,
+    "itemCount": 419,
     "ownerRepository": "cofco-qiqihar-enterprise-web",
     "status": "IMPLEMENTED",
     "verificationStage": "阶段二/三",
@@ -994,7 +1006,10 @@
         "docs/superpowers/plans/2026-08-08-market-submission-evidence-import.md",
         "docs/superpowers/plans/2026-08-17-xlsx-photo-batch-import.md",
         "docs/superpowers/specs/2026-08-08-market-logistics-submission-evidence-import-design.md",
-        "docs/superpowers/specs/2026-08-17-xlsx-photo-batch-import-design.md"
+        "docs/superpowers/specs/2026-08-17-xlsx-photo-batch-import-design.md",
+        "docs/superpowers/specs/2026-08-19-incremental-supply-inventory-design.md",
+        "docs/superpowers/specs/2026-08-19-returned-market-batch-correction-design.md",
+        "docs/superpowers/specs/2026-08-20-sample-identity-deduplication-governance-design.md"
       ]
     },
     {
@@ -1012,7 +1027,9 @@
         "docs/superpowers/specs/2026-08-03-overview-golden-rebuild-design.md",
         "docs/superpowers/specs/2026-08-03-overview-spatial-narration-design.md",
         "docs/superpowers/specs/2026-08-04-township-map-and-region-directory-design.md",
-        "docs/superpowers/specs/2026-08-11-county-sample-point-icons-design.md"
+        "docs/superpowers/specs/2026-08-11-county-sample-point-icons-design.md",
+        "docs/superpowers/specs/2026-08-18-business-directory-linked-overview-design.md",
+        "docs/superpowers/specs/2026-08-21-overview-map-and-sample-point-supersession.md"
       ]
     },
     {
@@ -1062,7 +1079,10 @@
         "docs/superpowers/specs/2026-08-09-enterprise-production-readiness-and-go-live-design.md",
         "docs/superpowers/specs/2026-08-13-stage-nine-observability-dr-design.md",
         "docs/superpowers/specs/2026-08-13-stage-seven-performance-resilience-design.md",
-        "docs/superpowers/specs/2026-08-16-current-template-observable-balance-and-analysis-design.md"
+        "docs/superpowers/specs/2026-08-16-current-template-observable-balance-and-analysis-design.md",
+        "docs/superpowers/specs/2026-08-21-analysis-dashboard-clarity-upgrade-design.md",
+        "docs/superpowers/specs/2026-08-21-business-analysis-report-and-import-ledger-design.md",
+        "docs/superpowers/specs/2026-08-21-field-backed-analysis-dashboard-visual-redesign.md"
       ]
     }
   ],

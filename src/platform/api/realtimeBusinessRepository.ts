@@ -64,6 +64,7 @@ export interface MasterDataSnapshot {
   products: readonly MasterProduct[];
   periods: readonly MasterPeriod[];
   regions: readonly MasterRegion[];
+  approvedSurveyYears?: readonly number[];
 }
 
 export function productionDefinitionCacheKey(
@@ -112,7 +113,8 @@ export interface AnnualComparisonDefinition {
 export interface ReportDefinition {
   code: string;
   name: string;
-  businessDomain: "PRODUCTION" | "MARKET" | "LOGISTICS" | "SUPPLY";
+  businessDomain:
+    "COMPREHENSIVE" | "PRODUCTION" | "MARKET" | "LOGISTICS" | "SUPPLY";
   businessSubtype: string;
   frequencyCode: string;
   sections: readonly { code: string; title: string; sortOrder: number }[];
@@ -136,6 +138,17 @@ export interface ReportPreview {
   dataCutoffLabel: string;
   lines: readonly { label: string; value: string; note: string }[];
   sections: readonly { code: string; title: string; body: string }[];
+  products: readonly {
+    code: string;
+    label: string;
+    domains: readonly {
+      code: string;
+      label: string;
+      approvedRecordCount: number;
+      dataCutoff: string;
+      metrics: readonly { label: string; value: string; note: string }[];
+    }[];
+  }[];
   expiresAt: string;
   version: number;
   legacyReadOnly: boolean;
@@ -252,6 +265,7 @@ export interface BusinessAuditRow {
   actorSubjectId: string;
   actorDisplayName: string;
   workUnitCode: string;
+  workUnitName: string;
   occurredAt: string;
   detailJson: string;
 }
@@ -364,6 +378,25 @@ export interface WorkItemRow {
   responsibleParty: string;
   sourceType: string | null;
   sourceId: string | null;
+}
+
+export interface BatchReviewWorkItemsInput {
+  domain?: "PRODUCTION" | "MARKET" | "LOGISTICS";
+  regionId?: string;
+  productCode?: string;
+}
+
+export interface BatchReviewFailure {
+  sourceType: string;
+  sourceId: string;
+  reason: string;
+}
+
+export interface BatchReviewWorkItemsResult {
+  requestedCount: number;
+  approvedCount: number;
+  failedCount: number;
+  failures: readonly BatchReviewFailure[];
 }
 
 export interface Page<T> {
@@ -584,11 +617,14 @@ export interface SupplyInputSetRow {
 
 export interface ProductionImportJob {
   id: string;
+  actionJobId?: string;
   domainCode: string;
   statusCode:
     "QUEUED" | "PROCESSING" | "COMPLETED" | "COMPLETED_WITH_ERRORS" | "FAILED";
   importedRows: number;
   failedRows: number;
+  productCodes?: readonly string[];
+  surveyPeriods?: readonly string[];
   retryOf?: string | null;
   createdAt?: string;
   startedAt?: string | null;
@@ -598,10 +634,159 @@ export interface ProductionImportJob {
   failureMessage?: string | null;
 }
 
+export interface ProductionImportPhotoManifest {
+  totalFileCount: number;
+  eligibleFileCount: number;
+  deferredFileCount: number;
+  totalTargetAttachments: number;
+  attachedTargetAttachments: number;
+  files: readonly {
+    filename: string;
+    referencedRows: readonly number[];
+    targetRecords: readonly string[];
+    failedRows: readonly number[];
+    attachedRecords: readonly string[];
+  }[];
+}
+
+export interface ProductionImportPhotoSupplementResult {
+  filename: string;
+  statusCode: "ATTACHED" | "ALREADY_ATTACHED" | "DEFERRED_NO_RECORD";
+  referencedRows: number;
+  targetRecords: number;
+  failedRows: number;
+  newAttachments: number;
+  alreadyAttached: number;
+}
+
+export interface SamplePointCoordinateCorrectionRowResult {
+  rowNumber: number;
+  samplePointId: string;
+  outcomeCode: "NO_CHANGE" | "PENDING_REVIEW" | "ERROR";
+  errorCode: string | null;
+  message: string;
+  requestId: string | null;
+}
+
+export interface SamplePointCoordinateCorrectionJob {
+  jobId: string;
+  batchId: string;
+  requestedBy: string;
+  workUnitCode: string;
+  statusCode: "PENDING_REVIEW" | "COMPLETED" | "COMPLETED_WITH_ERRORS";
+  totalRows: number;
+  pendingReviewRows: number;
+  failedRows: number;
+  retryOf: string | null;
+  createdAt: string;
+  completedAt: string;
+  rowResults: readonly SamplePointCoordinateCorrectionRowResult[];
+}
+
+export interface SamplePointCoordinateCorrectionRequest {
+  requestId: string;
+  samplePointId: string;
+  canonicalName: string;
+  regionCode: string;
+  originalLongitude: number;
+  originalLatitude: number;
+  correctedLongitude: number;
+  correctedLatitude: number;
+  coordinateSource: string;
+  correctionNote: string;
+  requestedBy: string;
+  createdAt: string;
+  statusCode: "PENDING_REVIEW" | "APPLIED" | "REJECTED";
+  reviewedBy: string | null;
+  reviewReason: string | null;
+  reviewedAt: string | null;
+}
+
+export interface SampleIdentityCandidate {
+  samplePointId: string;
+  canonicalName: string;
+  sampleContact: string;
+  regionCode: string;
+  longitude: number;
+  latitude: number;
+  approvedRecordCount: number;
+  effectiveFrom: string;
+}
+
+export interface SampleIdentityReviewItem {
+  draftId: string;
+  version: number;
+  domainCode: "PRODUCTION" | "MARKET";
+  productCode: string;
+  sampleName: string;
+  sampleContact: string;
+  regionCode: string;
+  longitude: number;
+  latitude: number;
+  surveyPeriod: string;
+  reasonCode: string;
+  reasonMessage: string;
+  createdBy: string;
+  createdAt: string;
+  candidates: readonly SampleIdentityCandidate[];
+}
+
+export interface SampleIdentityDecision {
+  draftId: string;
+  decision: "LINK_EXISTING" | "CONFIRM_DISTINCT" | "RETURN_FOR_CORRECTION";
+  targetSamplePointId: string | null;
+  reason: string;
+  decidedBy: string;
+  decidedAt: string;
+  stateCode: string;
+  canonicalRecordId: string | null;
+  version: number;
+  privilegedSelfReview: boolean;
+}
+
+export interface SampleIdentityMergeRowResult {
+  rowNumber: number;
+  sourceRecordId: string;
+  outcomeCode: "NO_CHANGE" | "PENDING_REVIEW" | "ERROR";
+  message: string;
+}
+
+export interface SampleIdentityMergeJob {
+  jobId: string;
+  batchId: string;
+  statusCode: "PENDING_REVIEW" | "COMPLETED" | "COMPLETED_WITH_ERRORS";
+  acceptedRows: number;
+  pendingRequests: number;
+  skippedRows: number;
+  failedRows: number;
+  idempotencyKey: string;
+  createdAt: string;
+  rowResults: readonly SampleIdentityMergeRowResult[];
+}
+
+export interface SampleIdentityMergeRequest {
+  requestId: string;
+  sourceDomain: "PRODUCTION" | "MARKET";
+  sourceRecordId: string;
+  currentSamplePointId: string;
+  targetSamplePointId: string;
+  regionCode: string;
+  reviewBasis: string;
+  requestedBy: string;
+  statusCode: "PENDING_REVIEW" | "APPLIED" | "REJECTED";
+  reviewedBy: string | null;
+  reviewReason: string | null;
+  reviewedAt: string | null;
+  resolutionBatchId: string | null;
+  privilegedSelfReview: boolean;
+}
+
 export type BusinessImportDomain = "production" | "market" | "logistics";
+export type OperationalReturnedCorrectionDomain = "production" | "logistics";
 
 export interface BusinessImportDraft {
   id: string;
+  importJobId?: string;
   domainCode: "PRODUCTION" | "MARKET" | "LOGISTICS";
   productCode: string;
   sampleName: string;
@@ -798,7 +983,6 @@ export function parseProductionDefinition(
   const requiredPublicBoundaries = [
     ["objectTypeCode", { controlType: "SELECT", required: true }],
     ["regionCode", { controlType: "REGION", required: true }],
-    ["PROD_CULTIVAR_NAME", {}],
     ["surveyYear", { controlType: "SELECT", required: true }],
     ["surveyMonth", { controlType: "SELECT", required: false }],
     ["PROD_SAMPLE_NAME", { readOnly: false }],
@@ -811,7 +995,8 @@ export function parseProductionDefinition(
         importable: false,
       },
     ],
-    ["PROD_REPORTER_PHONE", { required: true, readOnly: false }],
+    ["PROD_SURVEYOR_NAME", { required: false, readOnly: false }],
+    ["PROD_SURVEYOR_PHONE", { required: false, readOnly: false }],
     ["PROD_SAMPLE_CONTACT", { required: true, readOnly: false }],
     ["PROD_SAMPLE_LATITUDE", { controlType: "DECIMAL", required: true }],
     ["PROD_SAMPLE_LONGITUDE", { controlType: "DECIMAL", required: true }],
@@ -1012,7 +1197,7 @@ export interface RealtimeBusinessRepository {
   loadReportParameterOptions(): Promise<ReportParameterOptions>;
   createReportPreview(input: {
     definitionCode: string;
-    productCode: string;
+    productCode?: string;
     cultivarCode?: string;
     regionLevel: string;
     regionCode: string;
@@ -1056,6 +1241,9 @@ export interface RealtimeBusinessRepository {
     regionId?: string;
     productCode?: string;
   }): Promise<Page<WorkItemRow>>;
+  batchApproveWorkItems?(
+    input: BatchReviewWorkItemsInput,
+  ): Promise<BatchReviewWorkItemsResult>;
   listProduction(
     input: BusinessRecordListInput,
   ): Promise<Page<BusinessRecordListItem>>;
@@ -1127,6 +1315,53 @@ export interface RealtimeBusinessRepository {
     expectedDecisionVersion: number;
     publish: boolean;
   }): Promise<SupplyAccountRow>;
+  downloadSamplePointCoordinateCorrectionWorkbook?(): Promise<Blob>;
+  uploadSamplePointCoordinateCorrectionWorkbook?(
+    file: File,
+    idempotencyKey: string,
+  ): Promise<SamplePointCoordinateCorrectionJob>;
+  listSamplePointCoordinateCorrectionJobs?(): Promise<
+    readonly SamplePointCoordinateCorrectionJob[]
+  >;
+  getSamplePointCoordinateCorrectionJob?(
+    jobId: string,
+  ): Promise<SamplePointCoordinateCorrectionJob>;
+  downloadSamplePointCoordinateCorrectionErrors?(jobId: string): Promise<Blob>;
+  retrySamplePointCoordinateCorrectionJob?(
+    jobId: string,
+    idempotencyKey: string,
+  ): Promise<SamplePointCoordinateCorrectionJob>;
+  listSamplePointCoordinateCorrectionRequests?(): Promise<
+    readonly SamplePointCoordinateCorrectionRequest[]
+  >;
+  reviewSamplePointCoordinateCorrection?(
+    requestId: string,
+    decision: "APPROVE" | "REJECT",
+    reason: string,
+  ): Promise<SamplePointCoordinateCorrectionRequest>;
+  listSampleIdentityReviews?(): Promise<readonly SampleIdentityReviewItem[]>;
+  decideSampleIdentityReview?(
+    draftId: string,
+    decision: "LINK_EXISTING" | "CONFIRM_DISTINCT" | "RETURN_FOR_CORRECTION",
+    targetSamplePointId: string | null,
+    expectedVersion: number,
+    reason: string,
+  ): Promise<SampleIdentityDecision>;
+  downloadSampleIdentityMergeWorkbook?(): Promise<Blob>;
+  uploadSampleIdentityMergeWorkbook?(
+    file: File,
+    idempotencyKey: string,
+  ): Promise<SampleIdentityMergeJob>;
+  listSampleIdentityMergeJobs?(): Promise<readonly SampleIdentityMergeJob[]>;
+  getSampleIdentityMergeJob?(jobId: string): Promise<SampleIdentityMergeJob>;
+  listSampleIdentityMergeRequests?(): Promise<
+    readonly SampleIdentityMergeRequest[]
+  >;
+  reviewSampleIdentityMergeRequest?(
+    requestId: string,
+    decision: "APPROVE" | "REJECT",
+    reason: string,
+  ): Promise<SampleIdentityMergeRequest>;
   importProductionCsv(
     file: File,
     productCode: string,
@@ -1147,6 +1382,32 @@ export interface RealtimeBusinessRepository {
     productCode: string,
     objectTypeCode: string,
   ): Promise<Blob>;
+  downloadMarketReturnedCorrectionWorkbook?(productCode: string): Promise<Blob>;
+  importMarketReturnedCorrectionWorkbook?(
+    file: File,
+    productCode: string,
+  ): Promise<ProductionImportJob>;
+  getMarketReturnedCorrectionJob?(
+    importJobId: string,
+  ): Promise<ProductionImportJob>;
+  downloadMarketReturnedCorrectionErrors?(importJobId: string): Promise<Blob>;
+  downloadReturnedCorrectionWorkbook?(
+    domain: OperationalReturnedCorrectionDomain,
+    productCode: string,
+  ): Promise<Blob>;
+  importReturnedCorrectionWorkbook?(
+    domain: OperationalReturnedCorrectionDomain,
+    file: File,
+    productCode: string,
+  ): Promise<ProductionImportJob>;
+  getReturnedCorrectionJob?(
+    domain: OperationalReturnedCorrectionDomain,
+    importJobId: string,
+  ): Promise<ProductionImportJob>;
+  downloadReturnedCorrectionErrors?(
+    domain: OperationalReturnedCorrectionDomain,
+    importJobId: string,
+  ): Promise<Blob>;
   importLogisticsWorkbook?(
     file: File,
     productCode: string,
@@ -1157,6 +1418,11 @@ export interface RealtimeBusinessRepository {
     domain: BusinessImportDomain,
     importJobId: string,
   ): Promise<ProductionImportJob>;
+  listImportJobs?(
+    domain: BusinessImportDomain,
+    pageNumber?: number,
+    pageSize?: number,
+  ): Promise<Page<ProductionImportJob>>;
   retryImportJob?(
     domain: BusinessImportDomain,
     importJobId: string,
@@ -1165,10 +1431,26 @@ export interface RealtimeBusinessRepository {
     domain: BusinessImportDomain,
     importJobId: string,
   ): Promise<Blob>;
+  getProductionImportPhotoManifest?(
+    importJobId: string,
+  ): Promise<ProductionImportPhotoManifest>;
+  supplementProductionImportPhoto?(
+    importJobId: string,
+    file: File,
+  ): Promise<ProductionImportPhotoSupplementResult>;
   listImportDrafts?(
     importJobId: string,
   ): Promise<readonly BusinessImportDraft[]>;
   submitImportDraft?(draftId: string): Promise<BusinessImportDraft>;
+  listPendingImportDrafts?(
+    domainCode: "PRODUCTION" | "MARKET" | "LOGISTICS",
+    productCode: string,
+  ): Promise<readonly BusinessImportDraft[]>;
+  submitImportDraftJob?(importJobId: string): Promise<{
+    importJobId: string;
+    submittedRows: number;
+    remainingDraftRows: number;
+  }>;
   loadLogisticsDefinition(productCode: string): Promise<LogisticsDefinition>;
   listLogistics(
     input: BusinessRecordListInput,
@@ -1334,12 +1616,18 @@ export function createRealtimeBusinessRepository(
       return client.upload<EvidencePhotoRow>("/api/v1/evidence-photos", form);
     },
     async loadMasterData() {
-      const [products, periods, regions] = await Promise.all([
+      const [products, periods, regions, overviewOptions] = await Promise.all([
         client.get<MasterProduct[]>("/api/v1/master-data/products"),
         client.get<MasterPeriod[]>("/api/v1/master-data/business-periods"),
         client.get<MasterRegion[]>("/api/v1/master-data/regions"),
+        client.get<{ years: readonly number[] }>("/api/v1/overview/options"),
       ]);
-      return { products, periods, regions };
+      return {
+        products,
+        periods,
+        regions,
+        approvedSurveyYears: overviewOptions.years,
+      };
     },
     listProducts: (domain, pageKind) =>
       client.get<readonly MasterProduct[]>("/api/v1/master-data/products", {
@@ -1436,6 +1724,12 @@ export function createRealtimeBusinessRepository(
         regionId: input.regionId,
         productCode: input.productCode,
       }),
+    batchApproveWorkItems: (input) =>
+      client.post<BatchReviewWorkItemsResult>(
+        "/api/v1/work-items/batch-approve",
+        input,
+        { timeoutMs: 300_000 },
+      ),
     listProduction: (input) =>
       client.get<Page<BusinessRecordListItem>>(
         "/api/v1/production-records",
@@ -1499,6 +1793,90 @@ export function createRealtimeBusinessRepository(
       ),
     runSupplyAccount: (input) =>
       client.post<SupplyAccountRow>("/api/v1/supply-accounts/runs", input),
+    downloadSamplePointCoordinateCorrectionWorkbook: () =>
+      client.download("/api/v1/sample-point-coordinate-corrections/export"),
+    uploadSamplePointCoordinateCorrectionWorkbook: (file, idempotencyKey) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return client.upload<SamplePointCoordinateCorrectionJob>(
+        "/api/v1/sample-point-coordinate-corrections",
+        form,
+        { "Idempotency-Key": idempotencyKey },
+      );
+    },
+    listSamplePointCoordinateCorrectionJobs: () =>
+      client.get<readonly SamplePointCoordinateCorrectionJob[]>(
+        "/api/v1/sample-point-coordinate-corrections/history",
+      ),
+    getSamplePointCoordinateCorrectionJob: (jobId) =>
+      client.get<SamplePointCoordinateCorrectionJob>(
+        `/api/v1/sample-point-coordinate-corrections/jobs/${encodeURIComponent(jobId)}`,
+      ),
+    downloadSamplePointCoordinateCorrectionErrors: (jobId) =>
+      client.download(
+        `/api/v1/sample-point-coordinate-corrections/jobs/${encodeURIComponent(jobId)}/errors`,
+      ),
+    retrySamplePointCoordinateCorrectionJob: (jobId, idempotencyKey) =>
+      client.post<SamplePointCoordinateCorrectionJob>(
+        `/api/v1/sample-point-coordinate-corrections/jobs/${encodeURIComponent(jobId)}/retry`,
+        undefined,
+        {
+          headers: { "Idempotency-Key": idempotencyKey },
+          timeoutMs: 300_000,
+        },
+      ),
+    listSamplePointCoordinateCorrectionRequests: () =>
+      client.get<readonly SamplePointCoordinateCorrectionRequest[]>(
+        "/api/v1/sample-point-coordinate-corrections/requests",
+      ),
+    reviewSamplePointCoordinateCorrection: (requestId, decision, reason) =>
+      client.post<SamplePointCoordinateCorrectionRequest>(
+        `/api/v1/sample-point-coordinate-corrections/requests/${encodeURIComponent(requestId)}/review`,
+        { decision, reason },
+      ),
+    listSampleIdentityReviews: () =>
+      client.get<readonly SampleIdentityReviewItem[]>(
+        "/api/v1/sample-point-identities/reviews",
+      ),
+    decideSampleIdentityReview: (
+      draftId,
+      decision,
+      targetSamplePointId,
+      expectedVersion,
+      reason,
+    ) =>
+      client.post<SampleIdentityDecision>(
+        `/api/v1/sample-point-identities/reviews/${encodeURIComponent(draftId)}/decisions`,
+        { decision, targetSamplePointId, expectedVersion, reason },
+      ),
+    downloadSampleIdentityMergeWorkbook: () =>
+      client.download("/api/v1/sample-point-identities/merge-export"),
+    uploadSampleIdentityMergeWorkbook: (file, idempotencyKey) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return client.upload<SampleIdentityMergeJob>(
+        "/api/v1/sample-point-identities/merge-jobs",
+        form,
+        { "Idempotency-Key": idempotencyKey },
+      );
+    },
+    listSampleIdentityMergeJobs: () =>
+      client.get<readonly SampleIdentityMergeJob[]>(
+        "/api/v1/sample-point-identities/merge-jobs",
+      ),
+    getSampleIdentityMergeJob: (jobId) =>
+      client.get<SampleIdentityMergeJob>(
+        `/api/v1/sample-point-identities/merge-jobs/${encodeURIComponent(jobId)}`,
+      ),
+    listSampleIdentityMergeRequests: () =>
+      client.get<readonly SampleIdentityMergeRequest[]>(
+        "/api/v1/sample-point-identities/merge-requests",
+      ),
+    reviewSampleIdentityMergeRequest: (requestId, decision, reason) =>
+      client.post<SampleIdentityMergeRequest>(
+        `/api/v1/sample-point-identities/merge-requests/${encodeURIComponent(requestId)}/review`,
+        { decision, reason },
+      ),
     importProductionCsv: (file, productCode, _objectTypeCode, photos = []) => {
       const form = new FormData();
       form.append("file", file, file.name);
@@ -1533,6 +1911,49 @@ export function createRealtimeBusinessRepository(
         format: "xlsx",
         productCode,
       }),
+    downloadMarketReturnedCorrectionWorkbook: (productCode) =>
+      client.download("/api/v1/imports/market/returned-corrections/template", {
+        productCode,
+      }),
+    importMarketReturnedCorrectionWorkbook: (file, productCode) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return client.upload<ProductionImportJob>(
+        `/api/v1/imports/market/returned-corrections?productCode=${encodeURIComponent(productCode)}`,
+        form,
+        { "Idempotency-Key": crypto.randomUUID() },
+      );
+    },
+    getMarketReturnedCorrectionJob: (importJobId) =>
+      client.get<ProductionImportJob>(
+        `/api/v1/imports/market/returned-corrections/${encodeURIComponent(importJobId)}`,
+      ),
+    downloadMarketReturnedCorrectionErrors: (importJobId) =>
+      client.download(
+        `/api/v1/imports/market/returned-corrections/${encodeURIComponent(importJobId)}/errors`,
+      ),
+    downloadReturnedCorrectionWorkbook: (domain, productCode) =>
+      client.download(
+        `/api/v1/imports/${domain}/returned-corrections/template`,
+        { productCode },
+      ),
+    importReturnedCorrectionWorkbook: (domain, file, productCode) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return client.upload<ProductionImportJob>(
+        `/api/v1/imports/${domain}/returned-corrections?productCode=${encodeURIComponent(productCode)}`,
+        form,
+        { "Idempotency-Key": crypto.randomUUID() },
+      );
+    },
+    getReturnedCorrectionJob: (domain, importJobId) =>
+      client.get<ProductionImportJob>(
+        `/api/v1/imports/${domain}/returned-corrections/${encodeURIComponent(importJobId)}`,
+      ),
+    downloadReturnedCorrectionErrors: (domain, importJobId) =>
+      client.download(
+        `/api/v1/imports/${domain}/returned-corrections/${encodeURIComponent(importJobId)}/errors`,
+      ),
     importLogisticsWorkbook: (file, productCode, photos = []) => {
       const form = new FormData();
       form.append("file", file, file.name);
@@ -1549,6 +1970,11 @@ export function createRealtimeBusinessRepository(
       client.get<ProductionImportJob>(
         `/api/v1/imports/${domain}/${encodeURIComponent(importJobId)}`,
       ),
+    listImportJobs: (domain, pageNumber = 0, pageSize = 10) =>
+      client.get<Page<ProductionImportJob>>(`/api/v1/imports/${domain}`, {
+        pageNumber,
+        pageSize,
+      }),
     retryImportJob: (domain, importJobId) =>
       client.post<ProductionImportJob>(
         `/api/v1/imports/${domain}/${encodeURIComponent(importJobId)}/retries`,
@@ -1557,6 +1983,18 @@ export function createRealtimeBusinessRepository(
       client.download(
         `/api/v1/imports/${domain}/${encodeURIComponent(importJobId)}/errors`,
       ),
+    getProductionImportPhotoManifest: (importJobId) =>
+      client.get<ProductionImportPhotoManifest>(
+        `/api/v1/imports/production/${encodeURIComponent(importJobId)}/photo-manifest`,
+      ),
+    supplementProductionImportPhoto: (importJobId, file) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return client.upload<ProductionImportPhotoSupplementResult>(
+        `/api/v1/imports/production/${encodeURIComponent(importJobId)}/photos`,
+        form,
+      );
+    },
     listImportDrafts: (importJobId) =>
       client.get<BusinessImportDraft[]>("/api/v1/import-drafts", {
         importJobId,
@@ -1564,6 +2002,20 @@ export function createRealtimeBusinessRepository(
     submitImportDraft: (draftId) =>
       client.post<BusinessImportDraft>(
         `/api/v1/import-drafts/${encodeURIComponent(draftId)}/submit`,
+      ),
+    listPendingImportDrafts: (domainCode, productCode) =>
+      client.get<BusinessImportDraft[]>("/api/v1/import-drafts", {
+        domainCode,
+        productCode,
+        stateCode: "DRAFT",
+      }),
+    submitImportDraftJob: (importJobId) =>
+      client.post<{
+        importJobId: string;
+        submittedRows: number;
+        remainingDraftRows: number;
+      }>(
+        `/api/v1/import-drafts/jobs/${encodeURIComponent(importJobId)}/submit`,
       ),
     loadLogisticsDefinition: (productCode) =>
       client.get<LogisticsDefinition>("/api/v1/logistics-record-definitions", {

@@ -50,6 +50,73 @@ describe("realtime API client", () => {
     expect(new Headers(init?.headers).get("X-XSRF-TOKEN")).toBe("csrf-token-1");
   });
 
+  it("sends governed command headers without trusting browser identity headers", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ data: { jobId: "job-2" } }), {
+        status: 200,
+      }),
+    );
+    const client = createRealtimeApiClient({
+      baseUrl: "",
+      fetcher,
+      cookieSource: () => "XSRF-TOKEN=csrf-token-2",
+    });
+
+    await client.post(
+      "/api/v1/sample-point-coordinate-corrections/jobs/job-1/retry",
+      undefined,
+      {
+        timeoutMs: 300_000,
+        headers: {
+          "Idempotency-Key": "retry-key-1",
+          "X-Actor": "browser-asserted-user",
+          Authorization: "Bearer browser-asserted-token",
+        },
+      },
+    );
+
+    const [, init] = fetcher.mock.calls[0] ?? [];
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Idempotency-Key")).toBe("retry-key-1");
+    expect(headers.has("X-Actor")).toBe(false);
+    expect(headers.has("Authorization")).toBe(false);
+    expect(headers.get("X-XSRF-TOKEN")).toBe("csrf-token-2");
+  });
+
+  it("lets a governed long-running command override the ordinary request timeout", async () => {
+    const fetcher = vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise((resolve, reject) => {
+          const responseTimer = setTimeout(
+            () =>
+              resolve(
+                new Response(JSON.stringify({ data: { approvedCount: 401 } }), {
+                  status: 200,
+                }),
+              ),
+            40,
+          );
+          init?.signal?.addEventListener("abort", () => {
+            clearTimeout(responseTimer);
+            reject(new DOMException("aborted", "AbortError"));
+          });
+        }),
+    );
+    const client = createRealtimeApiClient({
+      baseUrl: "",
+      fetcher,
+      timeoutMs: 10,
+    });
+
+    await expect(
+      client.post(
+        "/api/v1/work-items/batch-approve",
+        { domain: "PRODUCTION" },
+        { timeoutMs: 200 },
+      ),
+    ).resolves.toEqual({ approvedCount: 401 });
+  });
+
   it("strips browser identity headers and adds CSRF to uploads", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
@@ -100,6 +167,9 @@ describe("realtime API client", () => {
     expect(fetcher.mock.calls[0]?.[0]).toBe(
       "/api/v1/imports/production/template?format=xlsx&productCode=CORN&objectTypeCode=FARMER",
     );
+    expect(new Headers(fetcher.mock.calls[0]?.[1]?.headers).get("Accept")).toBe(
+      "*/*",
+    );
   });
 
   it("normalizes backend validation errors and retains trace ids", async () => {
@@ -124,7 +194,19 @@ describe("realtime API client", () => {
       status: 400,
       traceId: "trace-2",
       message: "缺少地区",
+      clientMessage: "缺少地区",
     });
+  });
+
+  it("does not expose technical backend messages as client-facing copy", () => {
+    const error = new RealtimeApiError({
+      code: "IMPORT_WRITE_FAILED",
+      message:
+        "duplicate key violates PostgreSQL constraint market_record_pkey",
+      status: 500,
+    });
+
+    expect(error.clientMessage).toBeUndefined();
   });
 
   it("fails closed when the response has no data envelope", async () => {

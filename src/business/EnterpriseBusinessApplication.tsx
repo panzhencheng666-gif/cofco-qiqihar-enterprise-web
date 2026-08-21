@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type {
+  OperationalScope,
   OperationalScopeIdentity,
   OperationalScopeIssue,
 } from "./core/operationalScope";
@@ -20,11 +21,13 @@ import {
 } from "./businessReportWorkflow";
 import { EnterpriseShell } from "./EnterpriseShell";
 import { IdentityGovernancePanel } from "./identity/IdentityGovernancePanel";
+import { SamplePointCoordinateGovernancePanel } from "./samplepoint/SamplePointCoordinateGovernancePanel";
+import { SamplePointIdentityGovernancePanel } from "./samplepoint/SamplePointIdentityGovernancePanel";
+import { BusinessImportTaskWorkspace } from "./importing/BusinessImportTaskWorkspace";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
 import { FormalMyWorkWorkspace } from "./MyWorkWorkspace";
 import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
-import { FormalReportCenterWorkspace } from "./ReportCenterWorkspace";
 import { FormalSupplyDemandWorkspace } from "./SupplyDemandWorkspace";
 import { useFormalEnterpriseLocation } from "./useFormalEnterpriseLocation";
 import {
@@ -45,14 +48,17 @@ import {
 } from "./application/realtimeWorkItemProjection";
 import { realtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+import { ALL_AUTHORIZED_REGION_CODE } from "@/platform/api/observableAnalysisContract";
 import {
   enterpriseLoginPath,
   enterpriseLogoutPath,
 } from "@/platform/api/browserSession";
 import type {
+  BatchReviewWorkItemsResult,
   BusinessNotificationRow,
   CurrentSession,
   RealtimeBusinessRepository,
+  WorkItemRow,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeBusinessOperationsPanel } from "./realtime/RealtimeBusinessOperationsPanel";
 import { RealtimeSupplyBalancePanel } from "./realtime/RealtimeSupplyBalancePanel";
@@ -75,6 +81,55 @@ const FormalMarketMonitoringWorkspace = lazy(() =>
     default: module.FormalMarketMonitoringWorkspace,
   })),
 );
+
+const FormalReportCenterWorkspace = lazy(() =>
+  import("./ReportCenterWorkspace").then((module) => ({
+    default: module.FormalReportCenterWorkspace,
+  })),
+);
+
+export async function loadAllWorkItems(
+  repository: RealtimeBusinessRepository,
+  scope: "PENDING" | "COMPLETED",
+): Promise<readonly WorkItemRow[]> {
+  const first = await repository.listWorkItems({
+    scope,
+    page: 0,
+    pageSize: 100,
+  });
+  const rows = [...first.items];
+  for (let page = 1; page < first.totalPages; page += 1) {
+    const next = await repository.listWorkItems({ scope, page, pageSize: 100 });
+    rows.push(...next.items);
+  }
+  return [...new Map(rows.map((row) => [row.id, row])).values()];
+}
+
+function batchReviewDomains(
+  scope: OperationalScope,
+): readonly ("PRODUCTION" | "MARKET" | "LOGISTICS")[] {
+  if (scope.coordinates.businessDomainId === "production") {
+    return ["PRODUCTION"];
+  }
+  if (scope.coordinates.businessDomainId === "market") {
+    if (scope.coordinates.businessSubtypeId === "market.logistics") {
+      return ["LOGISTICS"];
+    }
+    if (scope.coordinates.businessSubtypeId === "market.quote-trade") {
+      return ["MARKET"];
+    }
+    return ["MARKET", "LOGISTICS"];
+  }
+  return ["PRODUCTION", "MARKET", "LOGISTICS"];
+}
+
+function batchReviewProductCode(
+  productId: string | undefined,
+): string | undefined {
+  if (!productId) return undefined;
+  if (productId.toLowerCase() === "paddy") return "RICE";
+  return productId.toUpperCase();
+}
 
 export interface EnterpriseBusinessApplicationProps {
   initialSearch?: string;
@@ -222,7 +277,6 @@ const scopeIssueLabels: Readonly<
 };
 
 const localBackendRegionCodes: Readonly<Record<string, string>> = {
-  "authorized-all": "230200",
   "qiqihar-all": "230200",
   "qiqihar-longsha": "230202",
   "qiqihar-jianhua": "230203",
@@ -248,8 +302,8 @@ function realtimeSupplyProductCode(section: string): string {
   return "CORN";
 }
 
-function realtimeSupplyRegionCode(regionId: string): string {
-  return localBackendRegionCodes[regionId] ?? "230200";
+export function resolveRealtimeAnalysisRegionCode(regionId: string): string {
+  return localBackendRegionCodes[regionId] ?? ALL_AUTHORIZED_REGION_CODE;
 }
 
 function realtimeSupplyPeriodCode(periodKey: string | undefined): string {
@@ -489,6 +543,10 @@ export function EnterpriseBusinessApplication({
   const notificationsConfigured =
     sessionReady &&
     realtimeMode &&
+    !(
+      location.route.application === "overview" &&
+      location.route.section === "map"
+    ) &&
     typeof repository.listNotifications === "function" &&
     typeof repository.subscribeBusinessEvents === "function";
   const [realtimeEntryDomain, setRealtimeEntryDomain] = useState<
@@ -611,20 +669,19 @@ export function EnterpriseBusinessApplication({
     let cancelled = false;
     void Promise.all([
       repository.loadMasterData(),
-      repository.listWorkItems({
-        scope: realtimeWorkItemScope(
+      loadAllWorkItems(
+        repository,
+        realtimeWorkItemScope(
           location.route.application === "work"
             ? location.route.section
             : "tasks",
         ),
-        page: 0,
-        pageSize: 100,
-      }),
+      ),
     ])
-      .then(([masterData, workPage]) => {
+      .then(([masterData, workRows]) => {
         if (cancelled) return;
         const workItems = projectRealtimeWorkItems(
-          workPage.items,
+          workRows,
           masterData.products,
           masterData.periods,
           masterData.regions,
@@ -633,9 +690,11 @@ export function EnterpriseBusinessApplication({
         setRealtimeStatus(
           masterData.periods.length === 0 ? "empty" : "connected",
         );
-        if (masterData.periods.length === 0) {
-          setPersistenceMessage("当前没有可用业务期间或待办记录。");
-        }
+        setPersistenceMessage(
+          masterData.periods.length === 0
+            ? "当前没有可用业务期间或待办记录。"
+            : "",
+        );
       })
       .catch(() => {
         if (cancelled) return;
@@ -658,10 +717,15 @@ export function EnterpriseBusinessApplication({
     if (!notificationsConfigured || !sessionReady) return;
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const subscribeFrom = (afterSequence: number) => {
       if (cancelled) return;
       unsubscribe = repository.subscribeBusinessEvents(afterSequence, () => {
-        setRealtimeRefreshToken((value) => value + 1);
+        if (refreshTimer !== undefined) clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => {
+          refreshTimer = undefined;
+          if (!cancelled) setRealtimeRefreshToken((value) => value + 1);
+        }, 500);
       });
     };
     void repository
@@ -685,6 +749,7 @@ export function EnterpriseBusinessApplication({
       });
     return () => {
       cancelled = true;
+      if (refreshTimer !== undefined) clearTimeout(refreshTimer);
       unsubscribe?.();
     };
   }, [notificationsConfigured, repository, sessionReady]);
@@ -782,6 +847,78 @@ export function EnterpriseBusinessApplication({
     setPersistenceBlocked(false);
     setPersistenceMessage("");
   };
+
+  const reviewCurrentWorkItem = async (
+    item: BusinessWorkItem,
+    action: "approve" | "return",
+    reason?: string,
+  ): Promise<void> => {
+    if (item.subject.kind !== "monitoring-object") {
+      throw new Error("当前事项不属于可直接审核的业务记录。");
+    }
+    const recordId = item.subject.objectId;
+    const sourceType = item.subject.objectTypeId.toUpperCase();
+    if (sourceType === "PRODUCTION") {
+      const record = await repository.getProduction(recordId);
+      await repository.transitionProduction(
+        recordId,
+        action,
+        record.version,
+        reason,
+      );
+    } else if (sourceType === "MARKET") {
+      const record = await repository.getMarket(recordId);
+      await repository.transitionMarket(
+        recordId,
+        action,
+        record.version,
+        reason,
+      );
+    } else if (sourceType === "LOGISTICS") {
+      const record = await repository.getLogistics(recordId);
+      await repository.transitionLogistics(
+        recordId,
+        action,
+        record.version,
+        reason,
+      );
+    } else {
+      throw new Error("当前事项缺少可识别的业务类型，暂不能审核。");
+    }
+    setRealtimeRefreshToken((value) => value + 1);
+  };
+
+  const batchApproveCurrentWorkScope =
+    async (): Promise<BatchReviewWorkItemsResult> => {
+      if (!repository.batchApproveWorkItems) {
+        throw new Error("当前服务尚未启用批量审核");
+      }
+      const regionId =
+        scope.coordinates.regionId === "authorized-all"
+          ? undefined
+          : scope.coordinates.regionId;
+      const productCode = batchReviewProductCode(scope.coordinates.productId);
+      const results: BatchReviewWorkItemsResult[] = [];
+      for (const domain of batchReviewDomains(scope)) {
+        results.push(
+          await repository.batchApproveWorkItems({
+            domain,
+            regionId,
+            productCode,
+          }),
+        );
+      }
+      setRealtimeRefreshToken((value) => value + 1);
+      return results.reduce<BatchReviewWorkItemsResult>(
+        (combined, result) => ({
+          requestedCount: combined.requestedCount + result.requestedCount,
+          approvedCount: combined.approvedCount + result.approvedCount,
+          failedCount: combined.failedCount + result.failedCount,
+          failures: [...combined.failures, ...result.failures],
+        }),
+        { requestedCount: 0, approvedCount: 0, failedCount: 0, failures: [] },
+      );
+    };
 
   const workspace = (() => {
     switch (location.route.application) {
@@ -906,7 +1043,9 @@ export function EnterpriseBusinessApplication({
               authorizedRegionCodes={currentSession?.regionCodes ?? ["*"]}
               permissions={currentSession?.permissions ?? []}
               productCode={realtimeSupplyProductCode(location.route.section)}
-              regionCode={realtimeSupplyRegionCode(scope.coordinates.regionId)}
+              regionCode={resolveRealtimeAnalysisRegionCode(
+                scope.coordinates.regionId,
+              )}
               periodCode={realtimeSupplyPeriodCode(scope.coordinates.periodKey)}
               onPeriodCodeChange={(periodKey) =>
                 updateCoordinates({ periodKey })
@@ -976,6 +1115,32 @@ export function EnterpriseBusinessApplication({
             section={location.route.section}
             onOpenBusiness={openBusinessWork}
             workItems={currentWorkItems}
+            canBatchApprove={
+              realtimeMode &&
+              Boolean(currentSession?.permissions.includes("BUSINESS_APPROVE"))
+            }
+            onBatchApprove={
+              realtimeMode ? batchApproveCurrentWorkScope : undefined
+            }
+            onReviewItem={realtimeMode ? reviewCurrentWorkItem : undefined}
+            coordinateGovernance={
+              realtimeMode &&
+              (currentSession?.permissions.includes("BUSINESS_IMPORT") ||
+                currentSession?.permissions.includes("BUSINESS_APPROVE")) ? (
+                <>
+                  <SamplePointCoordinateGovernancePanel
+                    repository={repository}
+                  />
+                  <SamplePointIdentityGovernancePanel repository={repository} />
+                </>
+              ) : undefined
+            }
+            importTasks={
+              realtimeMode &&
+              currentSession?.permissions.includes("BUSINESS_IMPORT") ? (
+                <BusinessImportTaskWorkspace repository={repository} />
+              ) : undefined
+            }
           />
         );
     }
@@ -1164,7 +1329,7 @@ export function EnterpriseBusinessApplication({
           </div>
         </section>
       )}
-      <Suspense fallback={<div role="status">正在加载市场监测工作区</div>}>
+      <Suspense fallback={<div role="status">正在加载业务工作区</div>}>
         {workspace}
       </Suspense>
       {realtimeEntry}

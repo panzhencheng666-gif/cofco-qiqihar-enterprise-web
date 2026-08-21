@@ -264,4 +264,13 @@ describe("native Node gate isolation", () => {
       ]),
     );
   });
+
+  it("keeps the local runtime publisher node:test suites out of Vitest collection", () => {
+    expect(enterpriseConfig.test?.exclude).toEqual(
+      expect.arrayContaining([
+        "scripts/local-runtime-publish.spec.mjs",
+        "scripts/local-runtime-smoke.spec.mjs",
+      ]),
+    );
+  });
 });

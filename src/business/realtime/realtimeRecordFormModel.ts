@@ -43,14 +43,7 @@ const productionLabels: Readonly<Record<string, string>> = {
 };
 
 function productionSection(code: string): string {
-  if (
-    [
-      "objectTypeCode",
-      "regionCode",
-      "PROD_CULTIVAR_NAME",
-      "PROD_SAMPLE_NAME",
-    ].includes(code)
-  )
+  if (["objectTypeCode", "regionCode", "PROD_SAMPLE_NAME"].includes(code))
     return "基础信息";
   if (
     code.startsWith("PROD_REPORTER_") ||
@@ -169,7 +162,8 @@ const marketBaseOrder = [
   "MKT_OBJECT_TYPE",
   "MKT_REGION",
   "MKT_REPORTER_NAME",
-  "MKT_REPORTER_PHONE",
+  "MKT_SURVEYOR_NAME",
+  "MKT_SURVEYOR_PHONE",
   "MKT_SAMPLE_CONTACT",
   "MKT_SAMPLE_LATITUDE",
   "MKT_SAMPLE_LONGITUDE",
@@ -179,7 +173,8 @@ const marketLabels: Readonly<Record<string, string>> = {
   MKT_REGION: "地区",
   MKT_SAMPLE_NAME: "样本点名称",
   MKT_REPORTER_NAME: "填报人",
-  MKT_REPORTER_PHONE: "填报人联系方式",
+  MKT_SURVEYOR_NAME: "调研人",
+  MKT_SURVEYOR_PHONE: "调研人联系方式",
   MKT_SAMPLE_CONTACT: "样本点联系方式",
   MKT_SAMPLE_LATITUDE: "纬度",
   MKT_SAMPLE_LONGITUDE: "经度",
@@ -194,7 +189,8 @@ function marketSection(code: string): string {
   if (
     [
       "MKT_REPORTER_NAME",
-      "MKT_REPORTER_PHONE",
+      "MKT_SURVEYOR_NAME",
+      "MKT_SURVEYOR_PHONE",
       "MKT_SAMPLE_CONTACT",
       "MKT_SAMPLE_LATITUDE",
       "MKT_SAMPLE_LONGITUDE",

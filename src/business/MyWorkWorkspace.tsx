@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import {
   projectMyWork,
@@ -26,10 +26,21 @@ import {
   WorkspaceHeader,
   WorkspacePagination,
 } from "./UnifiedWorkspacePrimitives";
+import type { BatchReviewWorkItemsResult } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+
+type MyWorkLedgerSection = Exclude<WorkSection, "imports">;
+
+function reviewErrorMessage(error: unknown): string {
+  if (error instanceof RealtimeApiError && error.clientMessage) {
+    return error.clientMessage;
+  }
+  return "审核操作未完成，请稍后重试。";
+}
 
 const myWorkViews: Readonly<
   Record<
-    WorkSection,
+    MyWorkLedgerSection,
     {
       label: string;
       groups: readonly BusinessWorkProjection["savedViewGroup"][];
@@ -403,6 +414,16 @@ function Filters({
   const showAdvanced =
     classificationOptions.length > 1 || classificationInvalid;
 
+  if (
+    !showDomain &&
+    !showRegion &&
+    !showProduct &&
+    !showPeriod &&
+    !showAdvanced
+  ) {
+    return null;
+  }
+
   return (
     <section aria-label="我的工作筛选" className="my-work-task5-filter-surface">
       <div className="my-work-task5-filter-grid my-work-task5-filter-grid--primary">
@@ -572,12 +593,26 @@ export function FormalMyWorkWorkspace({
   onScopeChange,
   onOpenBusiness,
   workItems = businessWorkFixtures,
+  canBatchApprove = false,
+  onBatchApprove,
+  onReviewItem,
+  coordinateGovernance,
+  importTasks,
 }: {
   section: WorkSection;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems?: readonly BusinessWorkItem[];
+  canBatchApprove?: boolean;
+  coordinateGovernance?: ReactNode;
+  importTasks?: ReactNode;
+  onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
+  onReviewItem?: (
+    item: BusinessWorkItem,
+    action: "approve" | "return",
+    reason?: string,
+  ) => Promise<void>;
 }) {
   return (
     <FormalWorkspaceScopeProvider
@@ -591,6 +626,11 @@ export function FormalMyWorkWorkspace({
         scope={scope}
         section={section}
         workItems={workItems}
+        canBatchApprove={canBatchApprove}
+        onBatchApprove={onBatchApprove}
+        onReviewItem={onReviewItem}
+        coordinateGovernance={coordinateGovernance}
+        importTasks={importTasks}
       />
     </FormalWorkspaceScopeProvider>
   );
@@ -602,13 +642,43 @@ export function MyWorkWorkspace({
   onScopeChange,
   onOpenBusiness,
   workItems = businessWorkFixtures,
+  canBatchApprove = false,
+  onBatchApprove,
+  onReviewItem,
+  coordinateGovernance,
+  importTasks,
 }: {
   section: WorkSection;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems?: readonly BusinessWorkItem[];
+  canBatchApprove?: boolean;
+  coordinateGovernance?: ReactNode;
+  importTasks?: ReactNode;
+  onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
+  onReviewItem?: (
+    item: BusinessWorkItem,
+    action: "approve" | "return",
+    reason?: string,
+  ) => Promise<void>;
 }) {
+  if (section === "imports") {
+    return (
+      <div className="unified-workspace my-work-import-task-workspace">
+        <WorkspaceHeader
+          eyebrow="统一工作门户 / 我的工作"
+          title="导入任务"
+          summary="查看导入结果并处理失败数据。"
+        />
+        {importTasks ?? (
+          <div className="my-work-task5-alert" role="status">
+            当前账号没有可查看的导入任务权限。
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <MyWorkLedger
       section={section}
@@ -616,6 +686,10 @@ export function MyWorkWorkspace({
       onScopeChange={onScopeChange}
       scope={scope}
       workItems={workItems}
+      canBatchApprove={canBatchApprove}
+      onBatchApprove={onBatchApprove}
+      onReviewItem={onReviewItem}
+      coordinateGovernance={coordinateGovernance}
     />
   );
 }
@@ -626,14 +700,36 @@ function MyWorkLedger({
   onScopeChange,
   onOpenBusiness,
   workItems,
+  canBatchApprove,
+  onBatchApprove,
+  onReviewItem,
+  coordinateGovernance,
 }: {
-  section: WorkSection;
+  section: MyWorkLedgerSection;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems: readonly BusinessWorkItem[];
+  canBatchApprove: boolean;
+  coordinateGovernance?: ReactNode;
+  onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
+  onReviewItem?: (
+    item: BusinessWorkItem,
+    action: "approve" | "return",
+    reason?: string,
+  ) => Promise<void>;
 }) {
   const [page, setPage] = useState(1);
+  const [batchReviewStatus, setBatchReviewStatus] = useState<
+    "idle" | "running"
+  >("idle");
+  const [batchReviewMessage, setBatchReviewMessage] = useState("");
+  const [activeReviewWorkId, setActiveReviewWorkId] = useState<string | null>(
+    null,
+  );
+  const [returningWorkId, setReturningWorkId] = useState<string | null>(null);
+  const [returnReason, setReturnReason] = useState("");
+  const [reviewMessage, setReviewMessage] = useState("");
   const domainOptions = workDomainOptions(workItems);
   const regionOptions = workRegionOptions(workItems);
   const productOptions = workProductOptions(workItems);
@@ -658,11 +754,69 @@ function MyWorkLedger({
   const visible = projections.filter(({ savedViewGroup }) =>
     view.groups.includes(savedViewGroup),
   );
+  const reviewableCount = visible.filter(
+    ({ savedViewGroup, item }) =>
+      savedViewGroup === "待审核" &&
+      (item.domain === "production" || item.domain === "market"),
+  ).length;
   const pageSize = 10;
   const pages = Math.max(1, Math.ceil(visible.length / pageSize));
   const currentPage = Math.min(page, pages);
   const startIndex = (currentPage - 1) * pageSize;
   const pageRows = visible.slice(startIndex, startIndex + pageSize);
+  const approveVisibleRecords = async () => {
+    if (!onBatchApprove) return;
+    const confirmed =
+      typeof window === "undefined" ||
+      window.confirm(
+        `确认审核通过当前筛选下的 ${reviewableCount} 条待审核业务记录吗？审核后将自动发布并进入总揽监测、分析和供需平衡。`,
+      );
+    if (!confirmed) return;
+    setBatchReviewStatus("running");
+    setBatchReviewMessage("");
+    try {
+      const result = await onBatchApprove();
+      setBatchReviewMessage(
+        result.failedCount === 0
+          ? `批量审核完成：${result.approvedCount} 条已审核通过并自动发布。`
+          : `批量审核完成：${result.approvedCount} 条通过，${result.failedCount} 条因规则校验未通过并保留在待审核列表。${result.failures[0]?.reason ? ` 首条原因：${result.failures[0].reason}` : ""}`,
+      );
+    } catch {
+      setBatchReviewMessage(
+        "批量审核未完成，请保留当前页面并联系管理员核查，系统没有跳过审核规则。",
+      );
+    } finally {
+      setBatchReviewStatus("idle");
+    }
+  };
+  const reviewOne = async (
+    item: BusinessWorkItem,
+    action: "approve" | "return",
+  ) => {
+    if (!onReviewItem) return;
+    const reason = returnReason.trim();
+    if (action === "return" && !reason) return;
+    setActiveReviewWorkId(item.workId);
+    setReviewMessage("");
+    try {
+      await onReviewItem(
+        item,
+        action,
+        action === "return" ? reason : undefined,
+      );
+      setReviewMessage(
+        action === "approve"
+          ? "该记录已审核通过并自动发布。"
+          : "该记录已驳回并通知填报人修改。",
+      );
+      setReturningWorkId(null);
+      setReturnReason("");
+    } catch (error) {
+      setReviewMessage(reviewErrorMessage(error));
+    } finally {
+      setActiveReviewWorkId(null);
+    }
+  };
 
   return (
     <div className="unified-workspace my-work-task5-workspace">
@@ -671,6 +825,17 @@ function MyWorkLedger({
         title={view.label}
         summary="统一汇总本人待填报、待审核、退回、异常与逾期事项，按截止时间和风险排序，并直达原业务单据。"
       />
+      {coordinateGovernance && (
+        <details className="my-work-coordinate-governance-entry">
+          <summary>
+            <span>样本点治理</span>
+            <small>坐标修正、身份核验、历史归并与独立审核</small>
+          </summary>
+          <div className="my-work-coordinate-governance-entry__body">
+            {coordinateGovernance}
+          </div>
+        </details>
+      )}
       <Filters
         availableClassificationOptions={classificationOptions}
         domainOptions={domainOptions}
@@ -700,8 +865,34 @@ function MyWorkLedger({
               汇总待填报、待审核、退回、异常和逾期事项；同一业务事项只保留一个当前处理节点。
             </p>
           </div>
-          <strong>{visible.length} 项</strong>
+          <div className="my-work-task5-batch-actions">
+            <strong>{visible.length} 项</strong>
+            {canBatchApprove && onBatchApprove && reviewableCount > 0 && (
+              <button
+                className="my-work-task5-row-action"
+                disabled={batchReviewStatus === "running"}
+                type="button"
+                onClick={() => {
+                  void approveVisibleRecords();
+                }}
+              >
+                {batchReviewStatus === "running"
+                  ? "正在批量审核…"
+                  : `一键审核当前筛选（${reviewableCount} 项）`}
+              </button>
+            )}
+          </div>
         </header>
+        {batchReviewMessage && (
+          <div className="my-work-task5-alert" role="status">
+            {batchReviewMessage}
+          </div>
+        )}
+        {reviewMessage && (
+          <div className="my-work-task5-alert" role="status">
+            {reviewMessage}
+          </div>
+        )}
         <div
           aria-label="本人工作台账横向滚动区域"
           className="my-work-task5-ledger-scroll"
@@ -724,6 +915,11 @@ function MyWorkLedger({
             <tbody>
               {pageRows.map((projection) => {
                 const { item } = projection;
+                const reviewable =
+                  canBatchApprove &&
+                  projection.savedViewGroup === "待审核" &&
+                  (item.domain === "production" || item.domain === "market") &&
+                  Boolean(onReviewItem);
                 const cultivars = governedCultivarNames(item);
                 const states = [
                   ["义务状态", obligationLabels[item.obligationStatus]],
@@ -799,18 +995,84 @@ function MyWorkLedger({
                       </details>
                     </td>
                     <td>
-                      <button
-                        className="my-work-task5-row-action"
-                        type="button"
-                        onClick={() =>
-                          onOpenBusiness(
-                            projection.destination.route,
-                            projection.destination.selection,
-                          )
-                        }
-                      >
-                        {projection.actionLabel}
-                      </button>
+                      <span className="my-work-task5-cell-stack">
+                        <button
+                          className="my-work-task5-row-action"
+                          type="button"
+                          onClick={() =>
+                            onOpenBusiness(
+                              projection.destination.route,
+                              projection.destination.selection,
+                            )
+                          }
+                        >
+                          {projection.actionLabel}
+                        </button>
+                        {reviewable && (
+                          <>
+                            <button
+                              className="my-work-task5-row-action"
+                              disabled={activeReviewWorkId !== null}
+                              type="button"
+                              onClick={() => {
+                                void reviewOne(item, "approve");
+                              }}
+                            >
+                              审核通过
+                            </button>
+                            <button
+                              className="my-work-task5-row-action"
+                              disabled={activeReviewWorkId !== null}
+                              type="button"
+                              onClick={() => {
+                                setReturningWorkId(item.workId);
+                                setReturnReason("");
+                                setReviewMessage("");
+                              }}
+                            >
+                              驳回
+                            </button>
+                            {returningWorkId === item.workId && (
+                              <div className="my-work-task5-return-form">
+                                <label>
+                                  驳回原因
+                                  <textarea
+                                    aria-label="驳回原因"
+                                    value={returnReason}
+                                    onChange={(event) =>
+                                      setReturnReason(event.target.value)
+                                    }
+                                  />
+                                </label>
+                                <button
+                                  className="my-work-task5-row-action"
+                                  disabled={
+                                    !returnReason.trim() ||
+                                    activeReviewWorkId !== null
+                                  }
+                                  type="button"
+                                  onClick={() => {
+                                    void reviewOne(item, "return");
+                                  }}
+                                >
+                                  确认驳回
+                                </button>
+                                <button
+                                  className="my-work-task5-row-action"
+                                  disabled={activeReviewWorkId !== null}
+                                  type="button"
+                                  onClick={() => {
+                                    setReturningWorkId(null);
+                                    setReturnReason("");
+                                  }}
+                                >
+                                  取消
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </span>
                     </td>
                   </tr>
                 );

@@ -17,6 +17,7 @@ import type {
   WorkSection,
 } from "./formalEnterpriseModel";
 import { fixtureOperationalIdentity } from "./formalEnterpriseData";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 afterEach(cleanup);
 
@@ -77,6 +78,9 @@ function MyWorkHarness({
   onCoordinateChange = vi.fn(),
   onOpenBusiness = vi.fn(),
   workItems = businessWorkFixtures,
+  canBatchApprove = false,
+  onBatchApprove,
+  onReviewItem,
 }: {
   initialSection?: WorkSection;
   initialCoordinates?: Partial<OperationalScope["coordinates"]>;
@@ -85,6 +89,18 @@ function MyWorkHarness({
   onCoordinateChange?: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness?: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems?: readonly BusinessWorkItem[];
+  canBatchApprove?: boolean;
+  onBatchApprove?: () => Promise<{
+    requestedCount: number;
+    approvedCount: number;
+    failedCount: number;
+    failures: readonly [];
+  }>;
+  onReviewItem?: (
+    item: BusinessWorkItem,
+    action: "approve" | "return",
+    reason?: string,
+  ) => Promise<void>;
 }) {
   const [scope, setScope] = useState<OperationalScope>({
     ...fixtureOperationalIdentity,
@@ -112,11 +128,125 @@ function MyWorkHarness({
       }}
       onOpenBusiness={onOpenBusiness}
       workItems={workItems}
+      canBatchApprove={canBatchApprove}
+      onBatchApprove={onBatchApprove}
+      onReviewItem={onReviewItem}
     />
   );
 }
 
 describe("enterprise portal workspaces", () => {
+  it("offers administrators one confirmed batch review for every visible pending record", async () => {
+    const user = userEvent.setup();
+    const pending = businessWorkFixtures.find(
+      ({ domain, reviewStatus }) =>
+        domain === "production" && reviewStatus === "pending",
+    );
+    if (!pending) throw new Error("missing pending production fixture");
+    const workItems = [pending, { ...pending, workId: `${pending.workId}-2` }];
+    const onBatchApprove = vi.fn().mockResolvedValue({
+      requestedCount: 2,
+      approvedCount: 2,
+      failedCount: 0,
+      failures: [],
+    });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(
+      <MyWorkHarness
+        authorization={{ serverAuthoritative: true }}
+        canBatchApprove
+        onBatchApprove={onBatchApprove}
+        workItems={workItems}
+      />,
+    );
+
+    expect(screen.getByText("2 项")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "一键审核当前筛选（2 项）" }),
+    );
+
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining("2 条待审核业务记录"),
+    );
+    expect(onBatchApprove).toHaveBeenCalledTimes(1);
+    expect(
+      await screen.findByText("批量审核完成：2 条已审核通过并自动发布。"),
+    ).toBeVisible();
+  });
+
+  it("requires a reason when a reviewer returns one pending record", async () => {
+    const user = userEvent.setup();
+    const pending = businessWorkFixtures.find(
+      ({ domain, reviewStatus }) =>
+        domain === "production" && reviewStatus === "pending",
+    );
+    if (!pending) throw new Error("missing pending production fixture");
+    const onReviewItem = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <MyWorkHarness
+        authorization={{ serverAuthoritative: true }}
+        canBatchApprove
+        onReviewItem={onReviewItem}
+        workItems={[pending]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "驳回" }));
+    const confirmReturn = screen.getByRole("button", { name: "确认驳回" });
+    expect(confirmReturn).toBeDisabled();
+    await user.type(screen.getByLabelText("驳回原因"), "联系方式需要核实");
+    await user.click(confirmReturn);
+
+    expect(onReviewItem).toHaveBeenCalledWith(
+      pending,
+      "return",
+      "联系方式需要核实",
+    );
+    expect(
+      await screen.findByText("该记录已驳回并通知填报人修改。"),
+    ).toBeVisible();
+  });
+
+  it("does not expose an English backend error when one record cannot be returned", async () => {
+    const user = userEvent.setup();
+    const pending = businessWorkFixtures.find(
+      ({ domain, reviewStatus }) =>
+        domain === "market" && reviewStatus === "pending",
+    );
+    if (!pending) throw new Error("missing pending market fixture");
+    const onReviewItem = vi.fn().mockRejectedValue(
+      new RealtimeApiError({
+        code: "SELF_RETURN_FORBIDDEN",
+        message: "The submitting employee cannot return the same record",
+        status: 403,
+      }),
+    );
+
+    render(
+      <MyWorkHarness
+        authorization={{ serverAuthoritative: true }}
+        canBatchApprove
+        onReviewItem={onReviewItem}
+        workItems={[pending]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "驳回" }));
+    await user.type(screen.getByLabelText("驳回原因"), "经纬度与地区不匹配");
+    await user.click(screen.getByRole("button", { name: "确认驳回" }));
+
+    expect(
+      await screen.findByText("审核操作未完成，请稍后重试。"),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(
+        "The submitting employee cannot return the same record",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it("builds the realtime executive filters only from visible workflow records and never presents prototype metrics", () => {
     const source = businessWorkFixtures.find(
       ({ workId }) => workId === "WORK-PRODUCTION-FILL-W31",
@@ -797,6 +927,34 @@ describe("enterprise portal workspaces", () => {
         screen.queryByRole("combobox", { name: label }),
       ).not.toBeInTheDocument();
     }
+  });
+
+  it("removes the empty filter surface and restores real filters when live work items arrive", () => {
+    const first = businessWorkFixtures[0];
+    const second: BusinessWorkItem = {
+      ...first,
+      workId: `${first.workId}-live`,
+      regionId: "230281",
+      regionLabel: "讷河市",
+      productId: "soybean",
+      productLabel: "大豆",
+    };
+
+    const { rerender } = render(<MyWorkHarness workItems={[]} />);
+
+    expect(
+      screen.queryByRole("region", { name: "我的工作筛选" }),
+    ).not.toBeInTheDocument();
+
+    rerender(<MyWorkHarness workItems={[first, second]} />);
+
+    const filters = screen.getByRole("region", { name: "我的工作筛选" });
+    expect(
+      within(filters).getByRole("combobox", { name: "业务地区" }),
+    ).toBeVisible();
+    expect(
+      within(filters).getByRole("combobox", { name: "产品或作物" }),
+    ).toBeVisible();
   });
 
   it("shows a governed empty state for unauthorized My Work coordinates without fallback", () => {

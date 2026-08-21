@@ -12,7 +12,7 @@ export function validSnapshot(): ObservableAnalysisSnapshot {
     },
     analysisVersion:
       "sha256:2c1ff60eabc1e2d8d88c3d9275a917753b23da3bbf36f8d11cbe234c4be4f616",
-    methodologyVersion: "OBSERVABLE_ANALYSIS_V1",
+    methodologyVersion: "OBSERVABLE_ANALYSIS_V3",
     dataCutoffAt: "2026-08-16T12:00:00+08:00",
     generatedAt: "2026-08-16T12:01:00+08:00",
     qualityState: "AVAILABLE",
@@ -23,6 +23,7 @@ export function validSnapshot(): ObservableAnalysisSnapshot {
       uniqueSubjectCount: 1,
       coveredRegionCount: 1,
       excludedRecordCount: 1,
+      pendingReviewRecordCount: 2,
     },
     production: {
       metrics: [
@@ -74,7 +75,23 @@ export function validSnapshot(): ObservableAnalysisSnapshot {
         outflowTonnes: "15.0000",
         endingObservableInventoryTonnes: "25.0000",
         inferredOtherAbsorptionTonnes: "20.0000",
+        totalSupplyTonnes: "65.0000",
+        totalUseTonnes: "40.0000",
         issues: [],
+      },
+      inventory: {
+        productionOpeningTonnes: "6.0000",
+        enterpriseOpeningTonnes: "4.0000",
+        productionEndingTonnes: "15.0000",
+        enterpriseEndingTonnes: "10.0000",
+        openingComplete: true,
+        endingComplete: true,
+        adoptedRecordCount: 2,
+        reviewGroupCount: 0,
+        enterpriseOpeningObservedFrom: "2026-07-31",
+        enterpriseOpeningObservedThrough: "2026-07-31",
+        enterpriseEndingObservedFrom: "2026-08-10",
+        enterpriseEndingObservedThrough: "2026-08-31",
       },
     },
     lineage: [

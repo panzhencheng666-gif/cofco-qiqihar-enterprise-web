@@ -33,7 +33,8 @@ const publicLogisticsFields = [
   logisticsField("LOG_SAMPLE_NAME", "物流样本点名称"),
   logisticsField("LOG_REGION", "地区"),
   logisticsField("LOG_REPORTER", "填报人"),
-  logisticsField("LOG_REPORTER_PHONE", "填报人联系方式"),
+  logisticsField("LOG_SURVEYOR_NAME", "调研人", "TEXT", false),
+  logisticsField("LOG_SURVEYOR_PHONE", "调研人联系方式", "TEXT", false),
   logisticsField("LOG_SAMPLE_CONTACT", "物流样本点联系方式"),
   logisticsField("LOG_SAMPLE_LATITUDE", "纬度"),
   logisticsField("LOG_SAMPLE_LONGITUDE", "经度"),
@@ -51,7 +52,8 @@ const publicEditableValues = {
   LOG_SAMPLE_NAME: "齐齐哈尔物流样本点",
   LOG_REGION: "230200",
   LOG_REPORTER: "物流填报员",
-  LOG_REPORTER_PHONE: "13800000000",
+  LOG_SURVEYOR_NAME: "王雷",
+  LOG_SURVEYOR_PHONE: "13800000000",
   LOG_SAMPLE_CONTACT: "13900000000",
   LOG_SAMPLE_LATITUDE: "47.354300",
   LOG_SAMPLE_LONGITUDE: "123.918200",
@@ -171,7 +173,8 @@ describe("RealtimeLogisticsOperationsPanel", () => {
           field("LOG_SAMPLE_NAME", "物流样本点名称"),
           field("LOG_REGION", "地区"),
           field("LOG_REPORTER", "填报人"),
-          field("LOG_REPORTER_PHONE", "填报人联系方式"),
+          field("LOG_SURVEYOR_NAME", "调研人"),
+          field("LOG_SURVEYOR_PHONE", "调研人联系方式"),
           field("LOG_SAMPLE_CONTACT", "物流样本点联系方式"),
           field("LOG_SAMPLE_LATITUDE", "纬度"),
           field("LOG_SAMPLE_LONGITUDE", "经度"),
@@ -207,7 +210,9 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     expect(screen.getByLabelText("车板价")).toBeVisible();
     expect(screen.getByLabelText("物流运价（不含车板价）")).toBeVisible();
     expect(screen.getByLabelText("填报人")).toHaveTextContent("物流测试员");
-    expect(screen.getByLabelText("填报人联系方式")).toBeVisible();
+    expect(screen.getByLabelText("调研人")).toBeVisible();
+    expect(screen.getByLabelText("调研人联系方式")).toBeVisible();
+    expect(screen.queryByLabelText("填报人联系方式")).not.toBeInTheDocument();
     expect(screen.getByLabelText("物流样本点联系方式")).toBeVisible();
     expect(screen.queryByLabelText("物流监测期")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("物流采集期")).not.toBeInTheDocument();
@@ -678,9 +683,9 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     );
     expect(importWorkbook).toHaveBeenCalledWith(expect.any(File), "CORN", []);
     expect(await screen.findByLabelText("批量导入处理结果")).toHaveTextContent(
-      "导入完成：2 行已保存到填报草稿，失败 0 行。",
+      "导入完成：2 行已处理，合格行已自动提交审核，失败 0 行。",
     );
-    expect(listLogistics).toHaveBeenCalledTimes(1);
+    expect(listLogistics).toHaveBeenCalledTimes(2);
 
     createObjectUrl.mockRestore();
     revokeObjectUrl.mockRestore();

@@ -34,10 +34,37 @@ describe("realtime work item projection", () => {
     expect(item.effectivePeriod).toBe("2026年第31周");
     expect(item.documentStatus).toBe("submitted");
     expect(item.reviewStatus).toBe("pending");
+    expect(item.releaseStatus).toBe("unreleased");
     expect(item.subject).toMatchObject({
       kind: "monitoring-object",
       objectId: "production-record-17",
     });
+  });
+
+  it("publishes approved backend work without creating a separate publisher task", () => {
+    const item = projectRealtimeWorkItem(
+      {
+        id: "WI-APPROVED",
+        task: "玉米产情审核完成",
+        domain: "PRODUCTION",
+        regionCode: "230221",
+        region: "龙江县",
+        product: "玉米",
+        businessPeriod: "2026-W31",
+        dueAt: null,
+        workflowNode: "完成",
+        statusCode: "APPROVED",
+        status: "已审核",
+        responsiblePartyCode: "production-reviewer",
+        responsibleParty: "管理员",
+        sourceType: "PRODUCTION",
+        sourceId: "production-approved-1",
+      },
+      [{ code: "CORN", name: "玉米" }],
+    );
+
+    expect(item.reviewStatus).toBe("approved");
+    expect(item.releaseStatus).toBe("published");
   });
 
   it("keeps fill work editable instead of treating it as review work", () => {

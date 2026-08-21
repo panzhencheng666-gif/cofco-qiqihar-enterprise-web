@@ -23,7 +23,7 @@ const session: CurrentSession = {
   workUnitName: "齐齐哈尔经营部",
   accountStatus: "ACTIVE",
   employmentStatus: "ACTIVE",
-  roleCodes: ["IDENTITY_ADMIN", "ACCESS_REVIEWER"],
+  roleCodes: ["BUSINESS_REVIEWER"],
   positions: [
     { code: "UNIT_MANAGER", name: "单位负责人", primaryPosition: true },
   ],
@@ -44,7 +44,7 @@ function repository() {
     workUnitName: "齐齐哈尔经营部",
     accountStatus: "ACTIVE",
     employmentStatus: "ACTIVE",
-    roles: [{ code: "BUSINESS_OPERATOR", name: "业务填报员" }],
+    roles: [{ code: "BUSINESS_OPERATOR", name: "填报员" }],
     positions: [
       {
         code: "REGIONAL_REPORTER",
@@ -80,7 +80,10 @@ function repository() {
     loadAssignmentOptions: vi.fn(() =>
       Promise.resolve({
         workUnits: [{ code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" }],
-        roles: [{ code: "BUSINESS_OPERATOR", name: "业务填报员" }],
+        roles: [
+          { code: "BUSINESS_OPERATOR", name: "填报员" },
+          { code: "BUSINESS_REVIEWER", name: "管理员" },
+        ],
         positions: [{ code: "REGIONAL_REPORTER", name: "区域填报专员" }],
         regionCodes: ["230202", "230208"],
       }),
@@ -118,6 +121,7 @@ function repository() {
             actorSubjectId: "identity-admin",
             actorDisplayName: "李主任",
             workUnitCode: "QIQIHAR_BUSINESS",
+            workUnitName: "齐齐哈尔经营部",
             occurredAt: "2026-08-10T01:02:03Z",
             detailJson: "{}",
           },
@@ -178,13 +182,13 @@ describe("IdentityGovernancePanel", () => {
 
     const dialog = screen.getByRole("dialog", { name: "账号与权限" });
     expect(within(dialog).getByText("李主任")).toBeVisible();
+    expect(within(dialog).getByText("员工账号 identity-admin")).toBeVisible();
     expect(within(dialog).getByText("齐齐哈尔经营部")).toBeVisible();
+    expect(within(dialog).getByText("单位编码 QIQIHAR_BUSINESS")).toBeVisible();
     expect(within(dialog).getAllByText("单位负责人")).toHaveLength(2);
     expect(within(dialog).getByText("230200")).toBeVisible();
     expect(within(dialog).getByText("在职 · 账号正常")).toBeVisible();
-    expect(
-      within(dialog).getByText("身份与权限管理员、权限复核负责人"),
-    ).toBeVisible();
+    expect(within(dialog).getByText("管理员")).toBeVisible();
     expect(
       within(dialog).queryByText("IDENTITY_ADMIN"),
     ).not.toBeInTheDocument();
@@ -231,7 +235,8 @@ describe("IdentityGovernancePanel", () => {
     await user.click(screen.getByRole("button", { name: "邀请员工" }));
     await user.type(screen.getByLabelText("员工账号"), "employee-88");
     await user.type(screen.getByLabelText("员工姓名"), "赵蕾");
-    await user.click(screen.getByRole("checkbox", { name: "业务填报员" }));
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    await user.click(screen.getByRole("radio", { name: "填报员" }));
     await user.click(screen.getByRole("checkbox", { name: "区域填报专员" }));
     await user.click(screen.getByRole("checkbox", { name: "责任地区 230202" }));
     await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
@@ -305,6 +310,9 @@ describe("IdentityGovernancePanel", () => {
 
     expect(await screen.findByText("调整员工账号")).toBeVisible();
     expect(screen.getByText("业务编号 employee-1")).toBeVisible();
+    expect(
+      screen.getByText("齐齐哈尔经营部（QIQIHAR_BUSINESS）"),
+    ).toBeVisible();
     await user.selectOptions(
       screen.getByLabelText("审计业务对象"),
       "SECURITY_USER",
@@ -342,6 +350,7 @@ describe("IdentityGovernancePanel", () => {
             actorSubjectId: "identity-admin",
             actorDisplayName: "李主任",
             workUnitCode: "QIQIHAR_BUSINESS",
+            workUnitName: "齐齐哈尔经营部",
             occurredAt: "2026-08-10T01:02:03Z",
             detailJson: "{}",
           },

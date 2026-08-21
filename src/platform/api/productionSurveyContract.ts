@@ -1,17 +1,17 @@
 export const PRODUCTION_SURVEY_CONTRACT_VERSION =
-  "production-survey-fields-v1" as const;
+  "production-survey-fields-v4" as const;
 
 export const PRODUCTION_SURVEY_CONTRACT_DIGEST =
-  "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32" as const;
+  "sha256:07806fbda70354ee29b243020cd5508db52271f8d7c88ac540379a7c1c3297fe" as const;
 
 /** Public fields accepted by the production survey boundary. */
 export const PRODUCTION_PUBLIC_FIELD_ORDER = [
   "PROD_SAMPLE_NAME",
   "objectTypeCode",
   "regionCode",
-  "PROD_CULTIVAR_NAME",
   "PROD_REPORTER_NAME",
-  "PROD_REPORTER_PHONE",
+  "PROD_SURVEYOR_NAME",
+  "PROD_SURVEYOR_PHONE",
   "PROD_SAMPLE_CONTACT",
   "PROD_SAMPLE_LATITUDE",
   "PROD_SAMPLE_LONGITUDE",

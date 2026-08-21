@@ -17,9 +17,19 @@ const masterData: MasterDataSnapshot = {
   ],
   periods: [],
   regions: [
-    { code: "230200", name: "齐齐哈尔市", parentCode: null, level: "PREFECTURE" },
+    {
+      code: "230200",
+      name: "齐齐哈尔市",
+      parentCode: null,
+      level: "PREFECTURE",
+    },
     { code: "230221", name: "龙江县", parentCode: "230200", level: "COUNTY" },
-    { code: "230221101", name: "龙江镇", parentCode: "230221", level: "TOWNSHIP" },
+    {
+      code: "230221101",
+      name: "龙江镇",
+      parentCode: "230221",
+      level: "TOWNSHIP",
+    },
     {
       code: "230221101001",
       name: "新城村",
@@ -27,7 +37,12 @@ const masterData: MasterDataSnapshot = {
       level: "VILLAGE",
     },
     { code: "231100", name: "黑河市", parentCode: null, level: "PREFECTURE" },
-    { code: "150700", name: "呼伦贝尔市", parentCode: null, level: "PREFECTURE" },
+    {
+      code: "150700",
+      name: "呼伦贝尔市",
+      parentCode: null,
+      level: "PREFECTURE",
+    },
   ],
 };
 
@@ -58,22 +73,16 @@ function Harness() {
 }
 
 describe("observable analysis filters", () => {
-  it("uses searchable governed products and responsibility-region cascades", async () => {
-    const user = userEvent.setup();
-    render(<Harness />);
+  it("keeps the analysis scope as one compact select toolbar without paired search inputs", () => {
+    const { container } = render(<Harness />);
 
-    await user.type(screen.getByRole("searchbox", { name: "搜索产品" }), "大豆");
-    expect(screen.getByRole("combobox", { name: "产品或作物" })).toHaveTextContent(
-      "大豆",
-    );
-    expect(screen.getByRole("combobox", { name: "产品或作物" })).not.toHaveTextContent(
-      "玉米",
-    );
-
-    expect(screen.getByRole("searchbox", { name: "搜索地级市" })).toBeEnabled();
-    expect(screen.getByRole("searchbox", { name: "搜索区县" })).toBeEnabled();
-    expect(screen.getByRole("searchbox", { name: "搜索乡镇" })).toBeEnabled();
-    expect(screen.getByRole("searchbox", { name: "搜索行政村" })).toBeEnabled();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "产品或作物" }),
+    ).toHaveTextContent("玉米");
+    expect(
+      screen.getByRole("combobox", { name: "产品或作物" }),
+    ).toHaveTextContent("大豆");
     expect(screen.getByRole("combobox", { name: "地级市" })).toHaveTextContent(
       "齐齐哈尔市",
     );
@@ -83,19 +92,29 @@ describe("observable analysis filters", () => {
     expect(screen.getByRole("combobox", { name: "地级市" })).toHaveTextContent(
       "呼伦贝尔市",
     );
+    expect(
+      container.querySelectorAll('select[data-scrollable-menu="true"]'),
+    ).toHaveLength(7);
+    expect(screen.queryByLabelText("数据来源")).not.toBeInTheDocument();
   });
 
   it("clears invalid descendants when a parent changes and resets to the last approved scope", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "地级市" }), "231100");
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "地级市" }),
+      "231100",
+    );
     expect(screen.getByRole("status", { name: "当前筛选" })).toHaveTextContent(
       '"regionCode":"231100"',
     );
     expect(screen.getByRole("combobox", { name: "区县" })).toHaveValue("");
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "调查年份" }), "2025");
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "调查年份" }),
+      "2025",
+    );
     await user.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(screen.getByRole("status", { name: "当前筛选" })).toHaveTextContent(
       '"regionCode":"230200"',

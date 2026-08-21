@@ -193,9 +193,9 @@ function productionDefinition(productCode, objectTypeCode) {
   return {
     productCode,
     objectTypeCode,
-    contractVersion: "production-survey-fields-v1",
+    contractVersion: "production-survey-fields-v4",
     contractDigest:
-      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
+      "sha256:07806fbda70354ee29b243020cd5508db52271f8d7c88ac540379a7c1c3297fe",
     fields: [
       surveyField(
         "objectTypeCode",
@@ -234,24 +234,6 @@ function productionDefinition(productCode, objectTypeCode) {
         0,
         0,
         "完整行政区划路径或有效地区代码",
-      ),
-      surveyField(
-        "PROD_CULTIVAR_NAME",
-        "具体品种",
-        "CONTEXT",
-        "基础信息",
-        10,
-        30,
-        "TEXT",
-        "TEXT",
-        null,
-        false,
-        false,
-        false,
-        true,
-        true,
-        0,
-        0,
       ),
       surveyField(
         "surveyYear",
@@ -330,8 +312,8 @@ function productionDefinition(productCode, objectTypeCode) {
         "由登录账号自动记录",
       ),
       surveyField(
-        "PROD_REPORTER_PHONE",
-        "填报人联系方式",
+        "PROD_SURVEYOR_NAME",
+        "调研人",
         "SUBJECT",
         "调查对象与联系",
         20,
@@ -339,7 +321,25 @@ function productionDefinition(productCode, objectTypeCode) {
         "TEXT",
         "TEXT",
         null,
+        false,
+        false,
+        false,
         true,
+        true,
+        0,
+        0,
+      ),
+      surveyField(
+        "PROD_SURVEYOR_PHONE",
+        "调研人联系方式",
+        "SUBJECT",
+        "调查对象与联系",
+        20,
+        50,
+        "TEXT",
+        "TEXT",
+        null,
+        false,
         false,
         false,
         true,
@@ -518,12 +518,12 @@ const PRODUCTION_PRIVATE_CODES = new Set([
 const PRODUCTION_FIXED_CODES = new Set([
   "objectTypeCode",
   "regionCode",
-  "PROD_CULTIVAR_NAME",
   "surveyDate",
   "PROD_SAMPLE_SUBJECT_CODE",
   "PROD_SAMPLE_NAME",
   "PROD_REPORTER_NAME",
-  "PROD_REPORTER_PHONE",
+  "PROD_SURVEYOR_NAME",
+  "PROD_SURVEYOR_PHONE",
   "PROD_SAMPLE_CONTACT",
   "PROD_SAMPLE_LATITUDE",
   "PROD_SAMPLE_LONGITUDE",
@@ -968,7 +968,6 @@ function productionListItem(record) {
       PROD_SURVEY_YEAR: record.surveyYear,
       PROD_SURVEY_MONTH: record.surveyMonth,
       PROD_FILLING_AT: record.fillingDate,
-      PROD_CULTIVAR: record.submissionMetadata.PROD_CULTIVAR_NAME,
       PROD_AREA_MU: record.cultivatedAreaMu,
       PROD_YIELD_PER_MU: record.yieldPerMuKilograms,
       PROD_ESTIMATED_OUTPUT: record.estimatedOutputKilograms,
@@ -1093,6 +1092,10 @@ const server = createServer(async (request, response) => {
   }
   if (method === "GET" && url.pathname === "/api/v1/master-data/regions") {
     data(response, empty ? [] : regions);
+    return;
+  }
+  if (method === "GET" && url.pathname === "/api/v1/overview/options") {
+    data(response, { years: empty ? [] : [2026] });
     return;
   }
   if (method === "GET" && url.pathname === "/api/v1/work-items") {

@@ -45,4 +45,31 @@ describe("BusinessNavigationTree", () => {
       createFormalRoute("production", "soybean-collection"),
     );
   });
+
+  it("keeps the independent import task route visible under My Work", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const application = formalApplicationDefinitions.find(
+      ({ key }) => key === "work",
+    );
+    if (!application) throw new Error("missing work application");
+
+    render(
+      <BusinessNavigationTree
+        application={application}
+        currentRoute={createFormalRoute("work", "tasks")}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    const navigation = screen.getByRole("navigation", {
+      name: "我的工作模块",
+    });
+    await user.click(
+      within(navigation).getByRole("button", { name: "导入任务" }),
+    );
+    expect(onNavigate).toHaveBeenCalledWith(
+      createFormalRoute("work", "imports"),
+    );
+  });
 });

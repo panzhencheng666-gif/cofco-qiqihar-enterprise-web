@@ -98,6 +98,9 @@ describe("logistics monitoring workspace", () => {
               fillingDate: "2026-08-13T08:00:00Z",
               LOG_SAMPLE_NAME: "齐齐哈尔物流样本点",
               LOG_REGION: "230202",
+              LOG_REPORTER: "吴雨桐",
+              LOG_SURVEYOR_NAME: "孙强",
+              LOG_SURVEYOR_PHONE: "13800000002",
               LOG_TRANSPORT_MODE: "RAIL",
               LOG_DIRECTION: "INFLOW",
               LOG_ROUTE_VOLUME: "12.5000",
@@ -163,6 +166,11 @@ describe("logistics monitoring workspace", () => {
     expect(
       screen.getByRole("columnheader", { name: "填报日期" }),
     ).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "调研人" })).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "调研人联系方式" }),
+    ).toBeVisible();
+    expect(screen.getByText("孙强")).toBeVisible();
     expect(
       screen.getByRole("columnheader", {
         name: "物流运价（不含车板价）（元/吨）",
@@ -210,6 +218,9 @@ describe("logistics monitoring workspace", () => {
     );
 
     await screen.findByRole("combobox", { name: "调查年份" });
+    expect(
+      screen.queryByRole("option", { name: "填写中" }),
+    ).not.toBeInTheDocument();
     await user.selectOptions(
       screen.getByRole("combobox", { name: "调查月份" }),
       "8",
@@ -329,5 +340,114 @@ describe("logistics monitoring workspace", () => {
       regionCode: "230202",
       surveyYear: "2026",
     });
+  });
+
+  it("keeps ordinary logistics import separate from real returned-record correction", async () => {
+    const user = userEvent.setup();
+    const listLogistics = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const importReturnedCorrectionWorkbook = vi.fn().mockResolvedValue({
+      id: "logistics-correction-1",
+      domainCode: "LOGISTICS",
+      statusCode: "COMPLETED",
+      importedRows: 1,
+      failedRows: 0,
+    });
+    const repository = {
+      listLogistics,
+      loadMasterData,
+      loadLogisticsDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        fields: [],
+        actions: [],
+      }),
+      downloadReturnedCorrectionWorkbook: vi
+        .fn()
+        .mockResolvedValue(new Blob(["correction"])),
+      importReturnedCorrectionWorkbook,
+      getReturnedCorrectionJob: vi.fn(),
+      downloadReturnedCorrectionErrors: vi.fn(),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <LogisticsMonitoringWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        productCode="CORN"
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "下载退回记录修正表" }),
+    ).toBeEnabled();
+    const file = new File(["correction"], "玉米物流退回记录修正表.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    await user.upload(screen.getByLabelText("批量导入物流退回修正结果"), file);
+    await waitFor(() =>
+      expect(importReturnedCorrectionWorkbook).toHaveBeenCalledWith(
+        "logistics",
+        file,
+        "CORN",
+      ),
+    );
+    expect(
+      await screen.findByText(
+        "批量修正完成：1 条原单已重新进入待审核，失败 0 条。",
+      ),
+    ).toBeVisible();
+    await waitFor(() => expect(listLogistics).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps durable logistics import history out of the monitoring ledger", async () => {
+    const listLogistics = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const listImportJobs = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 5,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    const repository = {
+      listLogistics,
+      listImportJobs,
+      loadMasterData,
+      loadLogisticsDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        fields: [],
+        actions: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <LogisticsMonitoringWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        productCode="CORN"
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+      />,
+    );
+
+    await waitFor(() => expect(listLogistics).toHaveBeenCalled());
+    expect(listImportJobs).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("region", { name: "导入任务记录" }),
+    ).not.toBeInTheDocument();
   });
 });
