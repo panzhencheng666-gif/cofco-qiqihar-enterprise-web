@@ -271,3 +271,46 @@ test("runs quality gates before activating and validating a prepared runtime", a
     await releaseModule.verifyRuntimeManifest(runtimeRoot),
   );
 });
+
+test("accepts a control timeout only after the managed health gate succeeds", async () => {
+  const releaseModule = await import(moduleUrl);
+  const commands = [];
+
+  await releaseModule.restartManagedRuntime(
+    "/runtime/web",
+    {},
+    {
+      execute: async (command, args) => {
+        commands.push([command, ...args]);
+        if (args.at(-1) === "restart") throw new Error("control timeout");
+      },
+      pause: async () => {},
+      healthAttempts: 2,
+    },
+  );
+
+  assert.equal(commands.length, 2);
+  assert.match(commands[1].at(-1), /healthcheck-local\.sh$/u);
+});
+
+test("rejects a control timeout when bounded managed health never succeeds", async () => {
+  const releaseModule = await import(moduleUrl);
+  let calls = 0;
+
+  await assert.rejects(
+    releaseModule.restartManagedRuntime(
+      "/runtime/web",
+      {},
+      {
+        execute: async () => {
+          calls += 1;
+          throw new Error(calls === 1 ? "control timeout" : "still unhealthy");
+        },
+        pause: async () => {},
+        healthAttempts: 2,
+      },
+    ),
+    /restart failed and managed health did not recover/u,
+  );
+  assert.equal(calls, 3);
+});

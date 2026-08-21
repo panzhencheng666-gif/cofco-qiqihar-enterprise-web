@@ -361,7 +361,14 @@ export async function runQualityGates(
   );
 }
 
-async function restartManagedRuntime(runtimeRoot, commandEnvironment) {
+const pause = (milliseconds) =>
+  new Promise((resolvePause) => setTimeout(resolvePause, milliseconds));
+
+export async function restartManagedRuntime(
+  runtimeRoot,
+  commandEnvironment,
+  { execute = runCommand, pause: wait = pause, healthAttempts = 15 } = {},
+) {
   const runtimeWorkspace = dirname(runtimeRoot);
   const backendControl = join(
     runtimeWorkspace,
@@ -375,14 +382,42 @@ async function restartManagedRuntime(runtimeRoot, commandEnvironment) {
     "scripts",
     "healthcheck-local.sh",
   );
-  await runCommand("/bin/bash", [backendControl, "restart"], {
-    cwd: runtimeWorkspace,
-    env: commandEnvironment,
-  });
-  await runCommand("/bin/bash", [backendHealth], {
-    cwd: runtimeWorkspace,
-    env: commandEnvironment,
-  });
+  let restartFailure;
+  try {
+    await execute("/bin/bash", [backendControl, "restart"], {
+      cwd: runtimeWorkspace,
+      env: commandEnvironment,
+    });
+  } catch (error) {
+    restartFailure = error;
+  }
+
+  let healthFailure;
+  for (let attempt = 1; attempt <= healthAttempts; attempt += 1) {
+    try {
+      await execute("/bin/bash", [backendHealth], {
+        cwd: runtimeWorkspace,
+        env: commandEnvironment,
+      });
+      if (restartFailure) {
+        console.warn(
+          "[WARN] managed restart control timed out, but the bounded ownership and health gate succeeded",
+        );
+      }
+      return;
+    } catch (error) {
+      healthFailure = error;
+      if (attempt < healthAttempts) await wait(1_000);
+    }
+  }
+  if (restartFailure) {
+    throw new AggregateError(
+      [restartFailure, healthFailure],
+      "Managed restart failed and managed health did not recover.",
+      { cause: healthFailure },
+    );
+  }
+  throw healthFailure;
 }
 
 async function validateManagedRuntime(runtimeRoot, commandEnvironment) {
