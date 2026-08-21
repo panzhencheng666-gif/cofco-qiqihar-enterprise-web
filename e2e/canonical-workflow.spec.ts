@@ -25,7 +25,8 @@ test("reads service-owned work and opens its canonical business route", async ({
   await expect(
     dialog.getByRole("heading", { name: "市场采集", exact: true }),
   ).toBeVisible();
-  await expect(dialog.getByLabel("服务端采集价格")).toHaveValue("2410.00");
+  await expect(dialog.getByLabel("采集对象收购价格")).toHaveValue("2410.00");
+  await expect(dialog.getByLabel("采集对象销售价格")).toHaveValue("2430.00");
   await expect(
     dialog.getByRole("button", { name: "保存业务记录" }),
   ).toBeVisible();
@@ -61,8 +62,10 @@ test("persists a market record and returns to its service-owned list", async ({
   const dialog = page.getByRole("dialog", { name: "新建市场填报" });
   const panel = dialog.getByRole("region", { name: "市场采集" });
   await expect(panel.getByText("已加载业务填报规则")).toBeVisible();
+  await panel.getByRole("combobox", { name: "数据年份" }).selectOption("2026");
+  await panel.getByRole("combobox", { name: "数据月份" }).selectOption("8");
   await panel
-    .getByRole("combobox", { name: "对象类型" })
+    .getByRole("combobox", { name: "样本点类型" })
     .selectOption("TRADER");
   await panel.getByRole("combobox", { name: "地级市" }).selectOption("230200");
   await panel.getByRole("combobox", { name: "区县" }).selectOption("230221");
@@ -70,7 +73,8 @@ test("persists a market record and returns to its service-owned list", async ({
   await panel
     .getByRole("combobox", { name: "行政村" })
     .selectOption("230221101001");
-  await panel.getByRole("textbox", { name: "服务端采集价格" }).fill("2418.50");
+  await panel.getByLabel("采集对象收购价格").fill("2418.50");
+  await panel.getByLabel("采集对象销售价格").fill("2438.50");
   await panel.getByLabel("现场水印照片").setInputFiles({
     name: "market-scene.png",
     mimeType: "image/png",
@@ -100,9 +104,12 @@ test("persists a market record and returns to its service-owned list", async ({
   ]);
   expect(payload.data.writes[0]?.body).toMatchObject({
     productCode: "CORN",
+    surveyYear: "2026",
+    surveyMonth: "8",
     coreValues: {
       MKT_OBJECT_TYPE: "TRADER",
-      MKT_PRICE: "2418.50",
+      MKT_PURCHASE_BASE_PRICE: "2418.50",
+      MKT_SALE_BASE_PRICE: "2438.50",
       MKT_REGION: "230221101001",
     },
   });
@@ -144,20 +151,25 @@ test("keeps product-owned entry and workbook contracts aligned across business d
   await productionPanel
     .getByRole("textbox", { name: "具体品种" })
     .fill("黑农84");
-  await productionPanel.getByLabel("调查日期").fill("2026-08-09");
-  await productionPanel.getByLabel("种植面积").fill("120");
-  await productionPanel.getByLabel("权威采用单产").fill("310");
   await productionPanel
-    .getByRole("textbox", { name: "填报对象名称", exact: true })
+    .getByRole("combobox", { name: "数据年份" })
+    .selectOption("2026");
+  await productionPanel
+    .getByRole("combobox", { name: "数据月份" })
+    .selectOption("8");
+  await productionPanel.getByLabel("播种面积").fill("120");
+  await productionPanel.getByLabel("预计单产").fill("310");
+  await productionPanel
+    .getByRole("textbox", { name: "样本点名称", exact: true })
     .fill("通齐村第一调查户");
   await productionPanel.getByLabel("期初库存").fill("18");
   await productionPanel.getByLabel("销售数量").fill("4");
   await productionPanel.getByLabel("自用数量").fill("2");
   await productionPanel.getByLabel("期末余粮").fill("12");
   await productionPanel.getByLabel("填报人联系方式").fill("13800000000");
-  await productionPanel.getByLabel("填报对象联系方式").fill("13900000000");
-  await productionPanel.getByLabel("填报对象纬度").fill("47.3543");
-  await productionPanel.getByLabel("填报对象经度").fill("123.9182");
+  await productionPanel.getByLabel("样本点联系方式").fill("13900000000");
+  await productionPanel.getByLabel("纬度").fill("47.3543");
+  await productionPanel.getByLabel("经度").fill("123.9182");
   await productionPanel.getByLabel("现场水印照片").setInputFiles({
     name: "soybean-scene.png",
     mimeType: "image/png",
@@ -175,7 +187,7 @@ test("keeps product-owned entry and workbook contracts aligned across business d
   ).toBeVisible();
 
   await page
-    .getByRole("combobox", { name: "对象类型" })
+    .getByRole("combobox", { name: "样本点类型" })
     .selectOption({ label: "农户" });
   const productionDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "下载 XLSX 模板" }).click();
@@ -232,6 +244,8 @@ test("keeps product-owned entry and workbook contracts aligned across business d
       action: "create-production",
       body: expect.objectContaining({
         productCode: "SOYBEAN",
+        surveyYear: "2026",
+        surveyMonth: "8",
         submissionMetadata: expect.objectContaining({
           PROD_CULTIVAR_NAME: "黑农84",
           PROD_OPENING_INVENTORY: "18",

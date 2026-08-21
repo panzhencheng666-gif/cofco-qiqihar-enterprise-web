@@ -16,8 +16,8 @@ export function formatExplicitSurveyPeriod(
   prefix: "PROD" | "MKT" | "LOG",
   legacyCode: string,
 ): string {
-  const year = values[`${prefix}_SURVEY_YEAR`];
-  const month = values[`${prefix}_SURVEY_MONTH`];
+  const year = values.surveyYear ?? values[`${prefix}_SURVEY_YEAR`];
+  const month = values.surveyMonth ?? values[`${prefix}_SURVEY_MONTH`];
   const governanceState = values[`${prefix}_SURVEY_PERIOD_GOVERNANCE_STATE`];
   if (!year) return values[legacyCode] ?? "—";
 
@@ -31,7 +31,7 @@ export function formatRealFillingTime(
   values: RecordValues,
   prefix: "PROD" | "MKT" | "LOG",
 ): string {
-  const fillingAt = values[`${prefix}_FILLING_AT`];
+  const fillingAt = values.fillingDate ?? values[`${prefix}_FILLING_AT`];
   if (!fillingAt) return "—";
 
   const basis = values[`${prefix}_FILLING_TIME_BASIS`];

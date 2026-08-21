@@ -1409,8 +1409,8 @@ function marketView(context: string): ModuleWorkspaceView {
       },
       {
         id: "logistics-notice-3",
-        title: "运输分段尚未闭合",
-        detail: "2 个任务缺少到达节点",
+        title: "物流方向待确认",
+        detail: "2 个任务缺少地区或运输方向",
         tone: "warning",
       },
     ],

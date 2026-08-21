@@ -21,7 +21,6 @@ import {
   type MarketBusinessObjectTypeId,
 } from "../core/businessApplicability";
 import type { OperationalScope } from "../core/operationalScope";
-import { getApplicableCultivars } from "../core/platformMasterData";
 import {
   getProductWorkspaceContext,
   type ProductWorkspaceContext,
@@ -94,6 +93,11 @@ interface MarketCollectionRow {
   objectType: string;
   objectTypeId: MarketBusinessObjectTypeId;
   county: string;
+  reporter: string;
+  reporterPhone: string;
+  sampleContact: string;
+  latitude: string;
+  longitude: string;
   cultivar: string;
   purchasePrice: string;
   transactionPrice: string;
@@ -214,10 +218,21 @@ const marketFieldCodeByCapability: Readonly<Record<string, string>> = {
   purchaseVolume: "PURCHASE_VOLUME",
   salesVolume: "SALES_VOLUME",
   inventory: "ENDING_INVENTORY",
+  inventoryLocation: "MKT_STORAGE_REGION_CODE",
   transactionVolume: "PURCHASE_VOLUME",
   moisture: "MOISTURE",
   testWeight: "TEST_WEIGHT",
+  toxin: "TOXIN",
+  impurity: "IMPURITY",
+  imperfectGrain: "IMPERFECT_GRAIN",
   mildew: "MILDEW",
+  protein: "PROTEIN",
+  oilYield: "OIL_YIELD",
+  milledRiceRate: "MILLING_YIELD",
+  brownRiceRate: "BROWN_RICE_YIELD",
+  wagonPrice: "MKT_CARRIAGE_BOARD_AMOUNT",
+  freight: "MKT_FREIGHT_AMOUNT",
+  packaging: "MKT_PACKAGING_FORM",
 };
 
 const marketObjectTypeCode: Readonly<
@@ -469,8 +484,6 @@ export function ProductMarketCollectionWorkspace({
     realtimeRepository !== undefined,
   );
   const [recordsError, setRecordsError] = useState("");
-  const [marketDefinition, setMarketDefinition] =
-    useState<MarketDefinition | null>(null);
   const [formalObjectTypeSnapshot, setFormalObjectTypeSnapshot] = useState<{
     productCode: string;
     repository: RealtimeBusinessRepository;
@@ -528,9 +541,6 @@ export function ProductMarketCollectionWorkspace({
     ...(governedRegion.countyId === lowerRegion.countyId ? lowerRegion : {}),
   };
   const activeRegionId = selectedRegionId(regionValue);
-  const authorizedCultivars = getApplicableCultivars(context.productId).filter(
-    ({ id }) => scope.authorization.authorizedCultivarIds.includes(id),
-  );
   const productItems = workItems.filter(
     (item) =>
       queryAllowed &&
@@ -573,6 +583,11 @@ export function ProductMarketCollectionWorkspace({
         objectType: itemObjectType,
         objectTypeId: itemObjectTypeId,
         county: businessRegionLabel(item),
+        reporter: fieldValue(item.workId, "reporter"),
+        reporterPhone: fieldValue(item.workId, "reporterPhone"),
+        sampleContact: fieldValue(item.workId, "sampleContact"),
+        latitude: fieldValue(item.workId, "latitude"),
+        longitude: fieldValue(item.workId, "longitude"),
         cultivar:
           fieldValue(item.workId, "cultivar") !== "—"
             ? fieldValue(item.workId, "cultivar")
@@ -694,6 +709,11 @@ export function ProductMarketCollectionWorkspace({
           )?.label ?? rawObjectType,
         objectTypeId: itemObjectTypeId,
         county: record.values.MKT_REGION ?? "—",
+        reporter: record.values.MKT_REPORTER_NAME ?? "—",
+        reporterPhone: record.values.MKT_REPORTER_PHONE ?? "—",
+        sampleContact: record.values.MKT_SAMPLE_CONTACT ?? "—",
+        latitude: record.values.MKT_SAMPLE_LATITUDE ?? "—",
+        longitude: record.values.MKT_SAMPLE_LONGITUDE ?? "—",
         cultivar:
           record.values.MKT_CULTIVAR_NAME ?? record.values.MKT_CULTIVAR ?? "—",
         purchasePrice: persistedMarketValue(record, "purchasePrice"),
@@ -706,7 +726,20 @@ export function ProductMarketCollectionWorkspace({
         transactionVolume: persistedMarketValue(record, "transactionVolume"),
         salesVolume: persistedMarketValue(record, "salesVolume"),
         state: persistedMarketState(record.values.MKT_STATUS),
-        values: record.values,
+        values: Object.fromEntries(
+          getMarketCapabilityGroups(context.productId, itemObjectTypeId)
+            .flatMap(({ fields }) => fields)
+            .map(({ id }) => {
+              if (id === "inventoryLocation") {
+                const regionCode = persistedMarketValue(record, id);
+                const regionName = masterData?.regions.find(
+                  ({ code }) => code === regionCode,
+                )?.name;
+                return [id, regionName ?? "—"];
+              }
+              return [id, persistedMarketValue(record, id)];
+            }),
+        ),
       };
     },
   );
@@ -767,38 +800,10 @@ export function ProductMarketCollectionWorkspace({
   ).length;
   const displayedObjectType: MarketBusinessObjectTypeId =
     objectType || rows[0]?.objectTypeId || objectTypes[0]?.id || "trader";
-  useEffect(() => {
-    if (!realtimeRepository) return;
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) setMarketDefinition(null);
-    });
-    const productCode =
-      context.productId === "corn"
-        ? "CORN"
-        : context.productId === "soybean"
-          ? "SOYBEAN"
-          : "RICE";
-    const objectTypeCode = marketObjectTypeCode[displayedObjectType];
-    void realtimeRepository
-      .loadMarketDefinition(productCode, objectTypeCode)
-      .then((definition) => {
-        if (!cancelled) setMarketDefinition(definition);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setMarketDefinition(null);
-          setRecordsError("当前市场字段规则暂时无法读取，请稍后重试。");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [context.productId, displayedObjectType, realtimeRepository]);
-  const displayedGroups =
-    realtimeRepository && marketDefinition
-      ? marketDefinitionListGroups(marketDefinition)
-      : getMarketCapabilityGroups(context.productId, displayedObjectType);
+  const displayedGroups = getMarketCapabilityGroups(
+    context.productId,
+    displayedObjectType,
+  );
   const displayedFields = displayedGroups.flatMap(({ fields }) => fields);
 
   const importRecords = async (file: File | undefined) => {
@@ -908,9 +913,9 @@ export function ProductMarketCollectionWorkspace({
         role="search"
       >
         <label>
-          <span>调查年份</span>
+          <span>数据年份</span>
           <select
-            aria-label="调查年份"
+            aria-label="数据年份"
             required
             value={surveyYear}
             onChange={(event) => {
@@ -926,9 +931,9 @@ export function ProductMarketCollectionWorkspace({
           </select>
         </label>
         <label>
-          <span>调查月份</span>
+          <span>数据月份</span>
           <select
-            aria-label="调查月份"
+            aria-label="数据月份"
             value={surveyMonth}
             onChange={(event) => {
               setSurveyMonth(event.target.value);
@@ -987,9 +992,9 @@ export function ProductMarketCollectionWorkspace({
           </label>
         )}
         <label>
-          <span>对象类型</span>
+          <span>样本点类型</span>
           <select
-            aria-label="对象类型"
+            aria-label="样本点类型"
             value={objectType}
             onChange={(event) => {
               setPageNumber(0);
@@ -998,7 +1003,7 @@ export function ProductMarketCollectionWorkspace({
               );
             }}
           >
-            <option value="">全部适用对象</option>
+            <option value="">全部适用样本点</option>
             {objectTypes.map(({ id, label }) => (
               <option key={id} value={id}>
                 {label}
@@ -1006,29 +1011,6 @@ export function ProductMarketCollectionWorkspace({
             ))}
           </select>
         </label>
-        {!realtimeRepository &&
-          (authorizedCultivars.length > 0 || scope.coordinates.cultivarId) && (
-            <label>
-              <span>具体品种</span>
-              <select
-                aria-label="具体品种"
-                value={scope.coordinates.cultivarId ?? ""}
-                onChange={(event) => {
-                  setPageNumber(0);
-                  onScopeChange({
-                    cultivarId: event.target.value || undefined,
-                  });
-                }}
-              >
-                <option value="">全部{context.productLabel}品种</option>
-                {authorizedCultivars.map(({ id, label }) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
         <label>
           <span>填报日期起</span>
           <input
@@ -1141,7 +1123,7 @@ export function ProductMarketCollectionWorkspace({
           <strong>
             {recordsLoading
               ? "正在读取市场采集记录"
-              : `共 ${rows.length} 个采集对象，当前显示 ${rows.length > 0 ? 1 : 0}–${rows.length}`}
+              : `共 ${rows.length} 个样本点，当前显示 ${rows.length > 0 ? 1 : 0}–${rows.length}`}
           </strong>
           <div>
             {realtimeRepository && (
@@ -1182,12 +1164,12 @@ export function ProductMarketCollectionWorkspace({
             <thead>
               <tr>
                 <th rowSpan={2}>序号</th>
-                <th rowSpan={2}>调查期间</th>
+                <th rowSpan={2}>数据时间</th>
                 <th rowSpan={2}>填报日期</th>
-                <th rowSpan={2}>采集对象</th>
-                <th rowSpan={2}>对象类型</th>
-                <th rowSpan={2}>行政区划</th>
-                <th rowSpan={2}>具体品种</th>
+                <th rowSpan={2}>样本点名称</th>
+                <th rowSpan={2}>样本点类型</th>
+                <th rowSpan={2}>地区</th>
+                <th colSpan={5}>填报与定位</th>
                 {displayedGroups.map((group) => (
                   <th colSpan={group.fields.length} key={group.id}>
                     {group.label}
@@ -1197,6 +1179,11 @@ export function ProductMarketCollectionWorkspace({
                 <th rowSpan={2}>操作</th>
               </tr>
               <tr>
+                <th>填报人</th>
+                <th>填报人联系方式</th>
+                <th>样本点联系方式</th>
+                <th>纬度</th>
+                <th>经度</th>
                 {displayedFields.map((field) => (
                   <th aria-label={field.label} key={field.id}>
                     {fieldHeader(field)}
@@ -1213,7 +1200,11 @@ export function ProductMarketCollectionWorkspace({
                   <th scope="row">{row.subject}</th>
                   <td>{row.objectType}</td>
                   <td>{row.county}</td>
-                  <td>{row.cultivar}</td>
+                  <td>{row.reporter}</td>
+                  <td>{row.reporterPhone}</td>
+                  <td>{row.sampleContact}</td>
+                  <td className="is-operational">{row.latitude}</td>
+                  <td className="is-operational">{row.longitude}</td>
                   {displayedFields.map(({ id }) => (
                     <td className="is-operational" key={id}>
                       {row.values[id] ?? "—"}
@@ -1239,7 +1230,23 @@ export function ProductMarketCollectionWorkspace({
                         });
                       }}
                     >
-                      查看
+                      查看记录
+                    </button>
+                    <button
+                      className="enterprise-ledger-row-action"
+                      type="button"
+                      onClick={() => {
+                        if (realtimeRepository && onEditRecord) {
+                          onEditRecord(productCode, row.workId);
+                          return;
+                        }
+                        onSelectionChange({
+                          type: "work-item",
+                          id: row.workId,
+                        });
+                      }}
+                    >
+                      查看照片
                     </button>
                   </td>
                 </tr>
@@ -1248,7 +1255,7 @@ export function ProductMarketCollectionWorkspace({
                 <tr>
                   <td
                     className="enterprise-ledger-table__empty"
-                    colSpan={9 + displayedFields.length}
+                    colSpan={13 + displayedFields.length}
                   >
                     当前范围暂无{context.productLabel}市场采集记录
                   </td>

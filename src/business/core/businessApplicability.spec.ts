@@ -119,12 +119,13 @@ describe("grain business applicability", () => {
         ({ id }) => id === "procurement",
       );
       expect(procurement?.fields.map(({ label }) => label)).toEqual([
-        "对象采购价格",
-        "对象销售价格",
+        "采集对象收购价格",
+        "采集对象销售价格",
         "采购量",
         "车板价",
         "运费",
         "包装形态",
+        ...(objectType === "trader" ? ["销售量"] : []),
       ]);
     }
   });
@@ -152,18 +153,18 @@ describe("grain business applicability", () => {
     }
   });
 
-  it("adds specialist capability groups without removing common procurement", () => {
+  it("keeps specialist objects on the governed procurement, quality and inventory surface", () => {
     expect(
       getMarketCapabilityGroups("soybean", "deep-processing").map(
         ({ id }) => id,
       ),
-    ).toEqual(["procurement", "quality", "processing", "inventory"]);
+    ).toEqual(["procurement", "quality", "inventory"]);
     expect(
       getMarketCapabilityGroups("corn", "breeding-farm").map(({ id }) => id),
-    ).toEqual(["procurement", "quality", "direct-use", "inventory"]);
+    ).toEqual(["procurement", "quality", "inventory"]);
     expect(
       getMarketCapabilityGroups("corn", "feed-mill").map(({ id }) => id),
-    ).toEqual(["procurement", "quality", "processing", "inventory"]);
+    ).toEqual(["procurement", "quality", "inventory"]);
   });
 
   it("normalizes legacy object codes to governed business labels", () => {

@@ -102,28 +102,16 @@ const grainQualityFields: Readonly<
 };
 
 const procurementFields: readonly ApplicableBusinessField[] = [
-  { id: "purchasePrice", label: "对象采购价格", unit: "元/吨" },
-  { id: "salesPrice", label: "对象销售价格", unit: "元/吨" },
+  { id: "purchasePrice", label: "采集对象收购价格", unit: "元/吨" },
+  { id: "salesPrice", label: "采集对象销售价格", unit: "元/吨" },
   { id: "purchaseVolume", label: "采购量", unit: "吨" },
   { id: "wagonPrice", label: "车板价", unit: "元/吨" },
   { id: "freight", label: "运费", unit: "元/吨" },
   { id: "packaging", label: "包装形态" },
 ];
 
-const processingFields: readonly ApplicableBusinessField[] = [
-  { id: "dailyInput", label: "加工投入量", unit: "吨/日" },
-  { id: "mainOutput", label: "主产品产出量", unit: "吨/日" },
-  { id: "byproductOutput", label: "副产品产出量", unit: "吨/日" },
-  { id: "processingLoss", label: "加工损耗", unit: "吨/日" },
-  { id: "operatingRate", label: "开机率", unit: "%" },
-];
-
-const directUseFields: readonly ApplicableBusinessField[] = [
-  { id: "directUseVolume", label: "直接饲用量", unit: "吨" },
-];
-
 const inventoryFields: readonly ApplicableBusinessField[] = [
-  { id: "inventory", label: "期末库存", unit: "吨" },
+  { id: "inventory", label: "现有库存", unit: "吨" },
 ];
 
 const salesFields: readonly ApplicableBusinessField[] = [
@@ -131,15 +119,11 @@ const salesFields: readonly ApplicableBusinessField[] = [
 ];
 
 const allInTransactionFields: readonly ApplicableBusinessField[] = [
-  { id: "purchasePrice", label: "对象采购价格", unit: "元/吨" },
-  { id: "salesPrice", label: "对象销售价格", unit: "元/吨" },
+  { id: "purchasePrice", label: "采集对象收购价格", unit: "元/吨" },
+  { id: "salesPrice", label: "采集对象销售价格", unit: "元/吨" },
   { id: "wagonPrice", label: "车板价", unit: "元/吨" },
   { id: "freight", label: "运费", unit: "元/吨" },
   { id: "packaging", label: "包装形态" },
-];
-
-const movementFields: readonly ApplicableBusinessField[] = [
-  { id: "stockOutflow", label: "出库量", unit: "吨" },
 ];
 
 export function getProductionObjectTypeOptions(): readonly BusinessOption<ProductionBusinessObjectTypeId>[] {
@@ -191,7 +175,7 @@ export function getMarketCapabilityGroups(
 ): readonly ApplicableBusinessFieldGroup[] {
   const procurement: ApplicableBusinessFieldGroup = {
     id: "procurement",
-    label: "对象采购与销售",
+    label: "交易信息",
     fields: procurementFields,
   };
   const quality: ApplicableBusinessFieldGroup = {
@@ -206,10 +190,9 @@ export function getMarketCapabilityGroups(
   };
   if (objectTypeId === "trader") {
     return [
-      procurement,
+      { ...procurement, fields: [...procurement.fields, ...salesFields] },
       quality,
       inventory,
-      { id: "sales", label: "销售", fields: salesFields },
     ];
   }
   if (
@@ -217,26 +200,16 @@ export function getMarketCapabilityGroups(
     objectTypeId === "rice-mill" ||
     objectTypeId === "feed-mill"
   ) {
-    return [
-      procurement,
-      quality,
-      { id: "processing", label: "加工生产", fields: processingFields },
-      inventory,
-    ];
+    return [procurement, quality, inventory];
   }
   if (objectTypeId === "breeding-farm") {
-    return [
-      procurement,
-      quality,
-      { id: "direct-use", label: "饲用", fields: directUseFields },
-      inventory,
-    ];
+    return [procurement, quality, inventory];
   }
   if (objectTypeId === "wholesale-market") {
     return [
       {
         id: "sales",
-        label: "销售与成交",
+        label: "交易信息",
         fields: [...salesFields, ...allInTransactionFields],
       },
       quality,
@@ -246,15 +219,10 @@ export function getMarketCapabilityGroups(
   return [
     {
       id: "prices",
-      label: "对象报价",
+      label: "交易信息",
       fields: allInTransactionFields,
     },
     quality,
-    {
-      id: "movement",
-      label: "库存收支",
-      fields: movementFields,
-    },
     inventory,
   ];
 }

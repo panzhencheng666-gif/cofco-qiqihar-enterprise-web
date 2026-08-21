@@ -6,6 +6,62 @@ import { RealtimeLogisticsOperationsPanel } from "./RealtimeLogisticsOperationsP
 
 afterEach(cleanup);
 
+function logisticsField(
+  code: string,
+  label: string,
+  controlType = "TEXT",
+  required = true,
+) {
+  return {
+    code,
+    label,
+    controlType,
+    unit: null,
+    precision: null,
+    scale: null,
+    required,
+    readOnly: controlType.startsWith("READONLY"),
+    sortOrder: 10,
+    options: [],
+  };
+}
+
+const publicLogisticsFields = [
+  logisticsField("surveyYear", "数据年份"),
+  logisticsField("surveyMonth", "数据月份", "TEXT", false),
+  logisticsField("fillingDate", "填报日期", "READONLY_DATETIME", false),
+  logisticsField("LOG_SAMPLE_NAME", "物流样本点名称"),
+  logisticsField("LOG_REGION", "地区"),
+  logisticsField("LOG_REPORTER", "填报人"),
+  logisticsField("LOG_REPORTER_PHONE", "填报人联系方式"),
+  logisticsField("LOG_SAMPLE_CONTACT", "物流样本点联系方式"),
+  logisticsField("LOG_SAMPLE_LATITUDE", "纬度"),
+  logisticsField("LOG_SAMPLE_LONGITUDE", "经度"),
+  logisticsField("LOG_TRANSPORT_MODE", "运输方式"),
+  logisticsField("LOG_DIRECTION", "运输方向"),
+  logisticsField("LOG_ROUTE_VOLUME", "运输数量"),
+  logisticsField("LOG_FREIGHT_RATE", "物流运价（不含车板价）"),
+  logisticsField("LOG_BOARD_PRICE", "车板价"),
+  logisticsField("LOG_STATUS", "填报状态", "READONLY_STATUS", false),
+];
+
+const publicEditableValues = {
+  surveyYear: "2026",
+  surveyMonth: "8",
+  LOG_SAMPLE_NAME: "齐齐哈尔物流样本点",
+  LOG_REGION: "230200",
+  LOG_REPORTER: "物流填报员",
+  LOG_REPORTER_PHONE: "13800000000",
+  LOG_SAMPLE_CONTACT: "13900000000",
+  LOG_SAMPLE_LATITUDE: "47.354300",
+  LOG_SAMPLE_LONGITUDE: "123.918200",
+  LOG_TRANSPORT_MODE: "RAIL",
+  LOG_DIRECTION: "INFLOW",
+  LOG_ROUTE_VOLUME: "12.5000",
+  LOG_FREIGHT_RATE: "80.2500",
+  LOG_BOARD_PRICE: "2650.0000",
+};
+
 function repository(): RealtimeBusinessRepository {
   return {
     loadCurrentSession: vi.fn(),
@@ -60,59 +116,7 @@ function repository(): RealtimeBusinessRepository {
     loadLogisticsDefinition: vi.fn(() =>
       Promise.resolve({
         productCode: "CORN",
-        fields: [
-          {
-            code: "LOG_PERIOD",
-            label: "物流监测期",
-            controlType: "SELECT",
-            unit: null,
-            precision: null,
-            scale: null,
-            required: true,
-            readOnly: false,
-            sortOrder: 10,
-            options: [
-              { value: "2026-W32", label: "2026年第32周", sortOrder: 1 },
-              { value: "2026-W33", label: "2026年第33周", sortOrder: 2 },
-            ],
-          },
-          {
-            code: "LOG_REPORTER",
-            label: "物流填报人",
-            controlType: "TEXT",
-            unit: null,
-            precision: null,
-            scale: null,
-            required: true,
-            readOnly: false,
-            sortOrder: 20,
-            options: [],
-          },
-          {
-            code: "LOG_REPORTED_AT",
-            label: "物流填报时间",
-            controlType: "READONLY_DATETIME",
-            unit: null,
-            precision: null,
-            scale: null,
-            required: false,
-            readOnly: true,
-            sortOrder: 30,
-            options: [],
-          },
-          {
-            code: "LOG_STATUS",
-            label: "物流状态",
-            controlType: "READONLY_STATUS",
-            unit: null,
-            precision: null,
-            scale: null,
-            required: false,
-            readOnly: true,
-            sortOrder: 40,
-            options: [],
-          },
-        ],
+        fields: publicLogisticsFields,
         actions: [],
       }),
     ),
@@ -133,14 +137,98 @@ function repository(): RealtimeBusinessRepository {
 }
 
 describe("RealtimeLogisticsOperationsPanel", () => {
+  it("renders only the approved logistics business contract even when backend metadata adds internal fields", async () => {
+    const field = (
+      code: string,
+      label: string,
+      options: readonly {
+        value: string;
+        label: string;
+        sortOrder: number;
+      }[] = [],
+      readOnly = false,
+    ) => ({
+      code,
+      label,
+      controlType: readOnly ? "READONLY_DATETIME" : "TEXT",
+      unit: null,
+      precision: null,
+      scale: null,
+      required: !readOnly,
+      readOnly,
+      sortOrder: 10,
+      options,
+    });
+    const service = {
+      ...repository(),
+      loadLogisticsDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        fields: [
+          field("surveyYear", "数据年份"),
+          field("surveyMonth", "数据月份"),
+          field("fillingDate", "填报日期", [], true),
+          field("LOG_SAMPLE_NAME", "物流样本点名称"),
+          field("LOG_REGION", "地区"),
+          field("LOG_REPORTER", "填报人"),
+          field("LOG_REPORTER_PHONE", "填报人联系方式"),
+          field("LOG_SAMPLE_CONTACT", "物流样本点联系方式"),
+          field("LOG_SAMPLE_LATITUDE", "纬度"),
+          field("LOG_SAMPLE_LONGITUDE", "经度"),
+          field("LOG_TRANSPORT_MODE", "运输方式"),
+          field("LOG_DIRECTION", "运输方向"),
+          field("LOG_ROUTE_VOLUME", "运输数量"),
+          field("LOG_FREIGHT_RATE", "物流运价（不含车板价）"),
+          field("LOG_BOARD_PRICE", "车板价"),
+          field("LOG_PERIOD", "物流监测期"),
+          field("LOG_COLLECTION_DATE", "物流采集期"),
+          field("LOG_ORIGIN", "物流起运节点"),
+          field("LOG_DESTINATION", "物流到达节点"),
+          field("LOG_TRANSIT_TIME", "物流在途时间"),
+          field("LOG_INTERNAL_LOCATION_KEY", "内部位置键"),
+        ],
+        actions: [],
+      }),
+    };
+
+    render(
+      <RealtimeLogisticsOperationsPanel
+        actorName="物流测试员"
+        editorOnly
+        repository={service}
+      />,
+    );
+
+    expect(await screen.findByLabelText("数据年份")).toBeVisible();
+    expect(screen.getByLabelText("数据月份")).toBeVisible();
+    expect(screen.getByLabelText("填报日期")).toHaveTextContent(
+      "保存后由系统生成",
+    );
+    expect(screen.getByLabelText("车板价")).toBeVisible();
+    expect(screen.getByLabelText("物流运价（不含车板价）")).toBeVisible();
+    expect(screen.getByLabelText("填报人")).toHaveTextContent("物流测试员");
+    expect(screen.getByLabelText("填报人联系方式")).toBeVisible();
+    expect(screen.getByLabelText("物流样本点联系方式")).toBeVisible();
+    expect(screen.queryByLabelText("物流监测期")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("物流采集期")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("物流起运节点")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("物流到达节点")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("物流在途时间")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("内部位置键")).not.toBeInTheDocument();
+  });
+
   it("voids an editable logistics draft and leaves the terminal record read-only", async () => {
     const user = userEvent.setup();
     const draft = {
       id: "LOG-3C-VOID-001",
       productCode: "CORN",
-      values: { LOG_PERIOD: "2026-W32", LOG_REPORTER: "物流填报员" },
+      values: {
+        surveyYear: "2026",
+        surveyMonth: "8",
+        LOG_REPORTER: "物流填报员",
+      },
       displayValues: {
-        LOG_PERIOD: "2026年第32周",
+        surveyYear: "2026",
+        surveyMonth: "8",
         LOG_REPORTER: "物流填报员",
       },
       status: "DRAFT",
@@ -177,7 +265,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       undefined,
     );
     await screen.findByText(/作废成功/);
-    expect(screen.getByLabelText("物流状态")).toHaveTextContent("已作废");
+    expect(screen.getByLabelText("填报状态")).toHaveTextContent("已作废");
     expect(
       screen.queryByRole("button", { name: "保存物流记录" }),
     ).not.toBeInTheDocument();
@@ -195,15 +283,17 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       id: "LOG-REVIEW-001",
       productCode: "CORN",
       values: {
-        LOG_PERIOD: "2026-W32",
+        surveyYear: "2026",
+        surveyMonth: "8",
         LOG_REPORTER: "物流填报员",
-        LOG_REPORTED_AT: "2026-08-09T13:00:00Z",
+        fillingDate: "2026-08-09T13:00:00Z",
         LOG_STATUS: "PENDING_REVIEW",
       },
       displayValues: {
-        LOG_PERIOD: "2026年第32周",
+        surveyYear: "2026",
+        surveyMonth: "8",
         LOG_REPORTER: "物流填报员",
-        LOG_REPORTED_AT: "2026-08-09 21:00",
+        fillingDate: "2026-08-09 21:00",
         LOG_STATUS: "待审核",
       },
       status: "PENDING_REVIEW",
@@ -241,7 +331,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     expect(
       await screen.findByRole("heading", { name: "物流监测单据审核" }),
     ).toBeVisible();
-    expect(screen.getByLabelText(/物流监测期/)).toBeDisabled();
+    expect(screen.getByLabelText(/数据年份/)).toBeDisabled();
     expect(
       screen.queryByRole("button", { name: "保存物流记录" }),
     ).not.toBeInTheDocument();
@@ -264,9 +354,14 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     const record = {
       id: "LOG-REVIEW-002",
       productCode: "CORN",
-      values: { LOG_PERIOD: "2026-W32", LOG_REPORTER: "物流填报员" },
+      values: {
+        surveyYear: "2026",
+        surveyMonth: "8",
+        LOG_REPORTER: "物流填报员",
+      },
       displayValues: {
-        LOG_PERIOD: "2026年第32周",
+        surveyYear: "2026",
+        surveyMonth: "8",
         LOG_REPORTER: "物流填报员",
       },
       status: "PENDING_REVIEW",
@@ -302,9 +397,14 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     const record = {
       id: "LOG-PENDING-LOCKED-001",
       productCode: "CORN",
-      values: { LOG_PERIOD: "2026-W32", LOG_REPORTER: "物流填报员" },
+      values: {
+        surveyYear: "2026",
+        surveyMonth: "8",
+        LOG_REPORTER: "物流填报员",
+      },
       displayValues: {
-        LOG_PERIOD: "2026年第32周",
+        surveyYear: "2026",
+        surveyMonth: "8",
         LOG_REPORTER: "物流填报员",
       },
       status: "PENDING_REVIEW",
@@ -326,7 +426,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       />,
     );
 
-    expect(await screen.findByLabelText(/物流监测期/)).toBeDisabled();
+    expect(await screen.findByLabelText(/数据年份/)).toBeDisabled();
     expect(
       screen.queryByRole("button", { name: "保存物流记录" }),
     ).not.toBeInTheDocument();
@@ -339,9 +439,14 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     const first = {
       id: "LOG-LIVE-001",
       productCode: "CORN",
-      values: { LOG_PERIOD: "2026-W32", LOG_REPORTER: "物流填报员" },
+      values: {
+        surveyYear: "2026",
+        surveyMonth: "8",
+        LOG_REPORTER: "物流填报员",
+      },
       displayValues: {
-        LOG_PERIOD: "2026年第32周",
+        surveyYear: "2026",
+        surveyMonth: "8",
         LOG_REPORTER: "物流填报员",
       },
       status: "DRAFT",
@@ -351,10 +456,10 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     } as const;
     const second = {
       ...first,
-      values: { ...first.values, LOG_PERIOD: "2026-W33" },
+      values: { ...first.values, surveyMonth: "9" },
       displayValues: {
         ...first.displayValues,
-        LOG_PERIOD: "2026年第33周",
+        surveyMonth: "9",
       },
       version: 2,
     } as const;
@@ -372,7 +477,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
         repository={service}
       />,
     );
-    expect(await screen.findByLabelText(/物流监测期/)).toHaveValue("2026-W32");
+    expect(await screen.findByLabelText(/数据月份/)).toHaveValue("8");
 
     view.rerender(
       <RealtimeLogisticsOperationsPanel
@@ -385,7 +490,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     );
 
     await waitFor(() => expect(getLogistics).toHaveBeenCalledTimes(2));
-    expect(screen.getByLabelText(/物流监测期/)).toHaveValue("2026-W33");
+    expect(screen.getByLabelText(/数据月份/)).toHaveValue("9");
   });
 
   it("does not overwrite unsaved logistics edits when a business event arrives", async () => {
@@ -394,15 +499,15 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       id: "LOG-LIVE-DIRTY-001",
       productCode: "CORN",
       values: {
-        LOG_PERIOD: "2026-W32",
-        LOG_SOURCE_ORGANIZATION: "原物流来源单位",
+        ...publicEditableValues,
+        LOG_SAMPLE_NAME: "原物流样本点",
       },
       displayValues: {
-        LOG_PERIOD: "2026年第32周",
-        LOG_SOURCE_ORGANIZATION: "原物流来源单位",
+        ...publicEditableValues,
+        LOG_SAMPLE_NAME: "原物流样本点",
       },
       status: "RETURNED",
-      returnReason: "请补充来源单位",
+      returnReason: "请补充物流样本点名称",
       allowedActions: ["SAVE", "SUBMIT"],
       version: 2,
     } as const;
@@ -411,48 +516,16 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       ...record,
       values: {
         ...record.values,
-        LOG_SOURCE_ORGANIZATION: "已补充物流来源单位",
+        LOG_SAMPLE_NAME: "已补充物流样本点",
       },
       displayValues: {
         ...record.displayValues,
-        LOG_SOURCE_ORGANIZATION: "已补充物流来源单位",
+        LOG_SAMPLE_NAME: "已补充物流样本点",
       },
       version: 3,
     });
     const service = {
       ...repository(),
-      loadLogisticsDefinition: vi.fn().mockResolvedValue({
-        productCode: "CORN",
-        fields: [
-          {
-            code: "LOG_PERIOD",
-            label: "物流监测期",
-            controlType: "SELECT",
-            unit: null,
-            precision: null,
-            scale: null,
-            required: true,
-            readOnly: false,
-            sortOrder: 10,
-            options: [
-              { value: "2026-W32", label: "2026年第32周", sortOrder: 1 },
-            ],
-          },
-          {
-            code: "LOG_SOURCE_ORGANIZATION",
-            label: "物流来源单位",
-            controlType: "TEXT",
-            unit: null,
-            precision: null,
-            scale: null,
-            required: true,
-            readOnly: false,
-            sortOrder: 20,
-            options: [],
-          },
-        ],
-        actions: [],
-      }),
       getLogistics,
       updateLogistics,
     };
@@ -466,9 +539,9 @@ describe("RealtimeLogisticsOperationsPanel", () => {
         repository={service}
       />,
     );
-    const source = await screen.findByLabelText(/物流来源单位/);
+    const source = await screen.findByLabelText(/物流样本点名称/);
     await user.clear(source);
-    await user.type(source, "已补充物流来源单位");
+    await user.type(source, "已补充物流样本点");
 
     view.rerender(
       <RealtimeLogisticsOperationsPanel
@@ -482,16 +555,16 @@ describe("RealtimeLogisticsOperationsPanel", () => {
 
     await waitFor(() => expect(listLogistics).toHaveBeenCalledTimes(2));
     expect(getLogistics).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText(/物流来源单位/)).toHaveValue(
-      "已补充物流来源单位",
+    expect(screen.getByLabelText(/物流样本点名称/)).toHaveValue(
+      "已补充物流样本点",
     );
 
     await user.click(screen.getByRole("button", { name: "保存物流记录" }));
     expect(updateLogistics).toHaveBeenCalledWith(record.id, {
       productCode: "CORN",
       values: {
-        LOG_PERIOD: "2026-W32",
-        LOG_SOURCE_ORGANIZATION: "已补充物流来源单位",
+        ...publicEditableValues,
+        LOG_SAMPLE_NAME: "已补充物流样本点",
       },
       version: 2,
     });
@@ -503,15 +576,15 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       id: "LOG-E2E-001",
       productCode: "CORN",
       values: {
-        LOG_PERIOD: "2026-W32",
+        ...publicEditableValues,
         LOG_REPORTER: "物流测试员",
-        LOG_REPORTED_AT: "2026-08-09T13:00:00Z",
+        fillingDate: "2026-08-09T13:00:00Z",
         LOG_STATUS: "RETURNED",
       },
       displayValues: {
-        LOG_PERIOD: "2026年第32周",
+        ...publicEditableValues,
         LOG_REPORTER: "物流测试员",
-        LOG_REPORTED_AT: "2026-08-09 21:00",
+        fillingDate: "2026-08-09 21:00",
         LOG_STATUS: "退回补充",
       },
       status: "RETURNED",
@@ -541,7 +614,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     expect(updateLogistics).toHaveBeenCalledWith(record.id, {
       productCode: "CORN",
       values: {
-        LOG_PERIOD: "2026-W32",
+        ...publicEditableValues,
         LOG_REPORTER: "物流测试员",
       },
       version: 2,
@@ -631,7 +704,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     interval.mockRestore();
   });
 
-  it("renders backend-owned logistics definitions and an empty real list", async () => {
+  it("renders the fixed public logistics definition and no legacy fields", async () => {
     render(
       <RealtimeLogisticsOperationsPanel
         actorName="物流测试员"
@@ -642,19 +715,20 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     expect(
       await screen.findByRole("heading", { name: "物流监测填报" }),
     ).toBeVisible();
-    expect(screen.getByLabelText(/物流监测期/)).toBeVisible();
-    expect(screen.getByLabelText("物流填报人")).toHaveTextContent("物流测试员");
-    expect(screen.getByLabelText("物流填报时间")).toHaveTextContent(
+    expect(screen.getByLabelText(/数据年份/)).toBeVisible();
+    expect(screen.getByLabelText("填报人")).toHaveTextContent("物流测试员");
+    expect(screen.getByLabelText("填报日期")).toHaveTextContent(
       "保存后由系统生成",
     );
-    expect(screen.getByLabelText("物流状态")).toHaveTextContent(
+    expect(screen.getByLabelText("填报状态")).toHaveTextContent(
       "保存后由系统生成",
     );
     expect(
-      screen.queryByRole("textbox", { name: "物流填报时间" }),
+      screen.queryByRole("textbox", { name: "填报日期" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("textbox", { name: "物流状态" }),
+      screen.queryByRole("textbox", { name: "填报状态" }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("物流监测期")).not.toBeInTheDocument();
   });
 });

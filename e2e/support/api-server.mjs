@@ -64,10 +64,14 @@ const workItems = [
 const marketWorkRecord = {
   id: "E2E-MARKET-WORK-001",
   productCode: "CORN",
+  surveyYear: "2026",
+  surveyMonth: "8",
+  fillingDate: "2026-08-09",
   coreValues: {
     MKT_OBJECT_TYPE: "TRADER",
     MKT_REGION: "230221101001",
-    MKT_PRICE: "2410.00",
+    MKT_PURCHASE_BASE_PRICE: "2410.00",
+    MKT_SALE_BASE_PRICE: "2430.00",
     MKT_REPORTER_NAME: "已认证用户",
   },
   facts: {},
@@ -81,12 +85,28 @@ const marketObjectTypes = [
 ];
 const productionObjectTypes = [
   { code: "FARMER", name: "农户", domain: "PRODUCTION" },
+  { code: "VILLAGE_COMMITTEE", name: "村委会", domain: "PRODUCTION" },
+  {
+    code: "AGRICULTURAL_TECH_STATION",
+    name: "农技站",
+    domain: "PRODUCTION",
+  },
 ];
 const cultivars = [
   {
     code: "E2E-CORN-CULTIVAR",
     name: "服务端试验品种",
     productCode: "CORN",
+  },
+  {
+    code: "E2E-SOYBEAN-CULTIVAR",
+    name: "服务端大豆试验品种",
+    productCode: "SOYBEAN",
+  },
+  {
+    code: "E2E-RICE-CULTIVAR",
+    name: "服务端稻谷试验品种",
+    productCode: "RICE",
   },
 ];
 const marketDefinition = {
@@ -120,8 +140,8 @@ const marketDefinition = {
       options: [],
     },
     {
-      code: "MKT_PRICE",
-      label: "服务端采集价格",
+      code: "MKT_PURCHASE_BASE_PRICE",
+      label: "采集对象收购价格",
       controlType: "DECIMAL",
       unit: "元/吨",
       description: null,
@@ -130,6 +150,19 @@ const marketDefinition = {
       precision: 12,
       scale: 2,
       sortOrder: 3,
+      options: [],
+    },
+    {
+      code: "MKT_SALE_BASE_PRICE",
+      label: "采集对象销售价格",
+      controlType: "DECIMAL",
+      unit: "元/吨",
+      description: null,
+      capability: null,
+      required: true,
+      precision: 12,
+      scale: 2,
+      sortOrder: 4,
       options: [],
     },
     {
@@ -142,7 +175,7 @@ const marketDefinition = {
       required: true,
       precision: null,
       scale: null,
-      sortOrder: 4,
+      sortOrder: 5,
       options: [],
     },
   ],
@@ -151,10 +184,18 @@ const marketDefinition = {
 
 function productionDefinition(productCode, objectTypeCode) {
   const groups = productionFactGroups(productCode);
+  const publicGroups = groups.map((group) => ({
+    ...group,
+    fields: group.fields.filter(
+      (field) => !PRODUCTION_PRIVATE_CODES.has(field.code),
+    ),
+  }));
   return {
     productCode,
     objectTypeCode,
     contractVersion: "production-survey-fields-v1",
+    contractDigest:
+      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
     fields: [
       surveyField(
         "objectTypeCode",
@@ -213,42 +254,42 @@ function productionDefinition(productCode, objectTypeCode) {
         0,
       ),
       surveyField(
-        "surveyDate",
-        "调查日期",
+        "surveyYear",
+        "数据年份",
         "CONTEXT",
         "基础信息",
         10,
         40,
-        "DATE",
-        "DATE",
+        "INTEGER",
+        "SELECT",
         null,
         true,
         false,
         false,
         true,
         true,
+        4,
         0,
-        0,
-        "格式 YYYY-MM-DD",
+        "调查年份",
       ),
       surveyField(
-        "PROD_SAMPLE_SUBJECT_CODE",
-        "稳定主体码",
-        "SUBJECT",
-        "调查对象与联系",
-        20,
+        "surveyMonth",
+        "数据月份",
+        "CONTEXT",
+        "基础信息",
         10,
-        "TEXT",
-        "READONLY_SUBJECT",
+        50,
+        "INTEGER",
+        "SELECT",
         null,
         false,
-        true,
         false,
         false,
         true,
+        true,
+        2,
         0,
-        0,
-        "仅由权威映射回填；未映射时明确显示 EXT-007 待处理",
+        "调查月份",
       ),
       surveyField(
         "PROD_SAMPLE_NAME",
@@ -435,7 +476,7 @@ function productionDefinition(productCode, objectTypeCode) {
         0,
         0,
       ),
-      ...groups.flatMap((group, groupIndex) =>
+      ...publicGroups.flatMap((group, groupIndex) =>
         group.fields
           .filter((field) => !PRODUCTION_FIXED_CODES.has(field.code))
           .map((field) =>
@@ -460,28 +501,19 @@ function productionDefinition(productCode, objectTypeCode) {
             ),
           ),
       ),
-      surveyField(
-        "evidencePhotoId",
-        "现场水印照片编号",
-        "EVIDENCE",
-        "佐证材料",
-        90,
-        10,
-        "UUID",
-        "EVIDENCE",
-        null,
-        true,
-        false,
-        false,
-        true,
-        false,
-        0,
-        0,
-      ),
     ],
-    groups,
+    groups: publicGroups,
   };
 }
+
+const PRODUCTION_PRIVATE_CODES = new Set([
+  "PROD_SAMPLE_SUBJECT_CODE",
+  "PROD_SURPLUS_SUBJECT_CODE",
+  "PROD_SURPLUS_CUTOFF_DATE",
+  "sample_point_id",
+  "evidencePhotoId",
+  "surveyDate",
+]);
 
 const PRODUCTION_FIXED_CODES = new Set([
   "objectTypeCode",
@@ -917,6 +949,9 @@ function listItem(record) {
     values: {
       ...record.coreValues,
       ...record.facts,
+      MKT_SURVEY_YEAR: record.surveyYear,
+      MKT_SURVEY_MONTH: record.surveyMonth,
+      MKT_FILLING_AT: record.fillingDate,
       MKT_STATUS: record.status,
     },
     allowedActions: record.allowedActions,
@@ -930,7 +965,9 @@ function productionListItem(record) {
     values: {
       PROD_OBJECT_TYPE: record.objectTypeCode,
       PROD_REGION: record.regionCode,
-      PROD_SURVEY_DATE: record.surveyDate,
+      PROD_SURVEY_YEAR: record.surveyYear,
+      PROD_SURVEY_MONTH: record.surveyMonth,
+      PROD_FILLING_AT: record.fillingDate,
       PROD_CULTIVAR: record.submissionMetadata.PROD_CULTIVAR_NAME,
       PROD_AREA_MU: record.cultivatedAreaMu,
       PROD_YIELD_PER_MU: record.yieldPerMuKilograms,
@@ -1037,7 +1074,14 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (method === "GET" && url.pathname === "/api/v1/master-data/products") {
-    data(response, empty ? [] : products);
+    const domain = url.searchParams.get("domain");
+    const pageKind = url.searchParams.get("pageKind");
+    const pageScoped = domain !== null || pageKind !== null;
+    const enabled =
+      pageScoped && (domain !== "PRODUCTION" || pageKind !== "MONITORING")
+        ? []
+        : products;
+    data(response, empty ? [] : enabled);
     return;
   }
   if (
@@ -1154,7 +1198,9 @@ const server = createServer(async (request, response) => {
       objectTypeCode: body.objectTypeCode,
       regionCode: body.regionCode,
       cultivarCode: null,
-      surveyDate: body.surveyDate,
+      surveyYear: body.surveyYear,
+      surveyMonth: body.surveyMonth,
+      fillingDate: "2026-08-09",
       cultivatedAreaMu: body.cultivatedAreaMu,
       yieldPerMuKilograms: body.yieldPerMuKilograms,
       estimatedOutputKilograms: String(
@@ -1209,6 +1255,9 @@ const server = createServer(async (request, response) => {
     const record = {
       id: `E2E-MARKET-${marketRecords.length + 1}`,
       productCode: body.productCode,
+      surveyYear: body.surveyYear,
+      surveyMonth: body.surveyMonth,
+      fillingDate: "2026-08-09",
       coreValues: body.coreValues,
       facts: body.facts,
       status: "DRAFT",

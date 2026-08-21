@@ -6,6 +6,11 @@ import {
   type RealtimeApiClient,
 } from "./realtimeApiClient";
 import { enterpriseSessionPath } from "./browserSession";
+import {
+  PRODUCTION_PUBLIC_FIELD_CODES,
+  PRODUCTION_SURVEY_CONTRACT_DIGEST,
+  PRODUCTION_SURVEY_CONTRACT_VERSION,
+} from "./productionSurveyContract";
 
 export interface MasterProduct {
   code: string;
@@ -54,6 +59,19 @@ export interface MasterDataSnapshot {
   products: readonly MasterProduct[];
   periods: readonly MasterPeriod[];
   regions: readonly MasterRegion[];
+}
+
+export function productionDefinitionCacheKey(
+  productCode: string,
+  objectTypeCode: string | null | undefined,
+  contractDigest: string,
+): string {
+  return [
+    "production-definition",
+    productCode,
+    objectTypeCode ?? "*",
+    contractDigest,
+  ].join("|");
 }
 
 export interface AnnualComparisonPoint {
@@ -356,7 +374,8 @@ export interface ProductionDraftPayload {
   objectTypeCode: string;
   regionCode: string;
   cultivarCode?: string | null;
-  surveyDate: string;
+  surveyYear: string;
+  surveyMonth?: string | null;
   cultivatedAreaMu: string;
   yieldPerMuKilograms: string;
   quality: Record<string, string>;
@@ -394,6 +413,8 @@ export interface ProductionRecordRow extends Omit<
   "evidencePhotoIds"
 > {
   id: string;
+  surveyDate?: string;
+  fillingDate?: string;
   reportedAt: string;
   estimatedOutputKilograms: string;
   status: string;
@@ -405,6 +426,8 @@ export interface ProductionRecordRow extends Omit<
 
 export interface MarketDraftPayload {
   productCode: string;
+  surveyYear: string;
+  surveyMonth?: string | null;
   coreValues: Record<string, string>;
   facts: Record<string, string>;
   evidencePhotoIds: readonly string[];
@@ -414,6 +437,8 @@ export interface MarketDraftPayload {
 export interface MarketRecordRow {
   id: string;
   productCode: string;
+  surveyYear?: string;
+  surveyMonth?: string | null;
   coreValues: Record<string, string>;
   status: string;
   returnReason: string | null;
@@ -620,7 +645,8 @@ export interface BusinessRecordListInput {
 export interface ProductionDefinition {
   productCode: string;
   objectTypeCode: string | null;
-  contractVersion: "production-survey-fields-v1";
+  contractVersion: typeof PRODUCTION_SURVEY_CONTRACT_VERSION;
+  contractDigest: string;
   fields: readonly ProductionSurveyField[];
   groups: readonly {
     category: string;
@@ -695,7 +721,8 @@ const productionFactFieldSchema = z.object({
 const productionDefinitionSchema = z.object({
   productCode: z.string().min(1),
   objectTypeCode: z.string().nullable(),
-  contractVersion: z.literal("production-survey-fields-v1"),
+  contractVersion: z.literal(PRODUCTION_SURVEY_CONTRACT_VERSION),
+  contractDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   fields: z.array(productionSurveyFieldSchema).min(1),
   groups: z.array(
     z.object({
@@ -718,17 +745,94 @@ function contractMismatch(details: unknown): RealtimeApiError {
 
 export function parseProductionDefinition(
   value: unknown,
+  expectedContext?: {
+    productCode: string;
+    objectTypeCode?: string;
+  },
 ): ProductionDefinition {
   const result = productionDefinitionSchema.safeParse(value);
   if (!result.success) throw contractMismatch(result.error.issues);
   const definition = result.data;
+  if (definition.contractDigest !== PRODUCTION_SURVEY_CONTRACT_DIGEST) {
+    throw contractMismatch({
+      reason: "CONTRACT_DIGEST_MISMATCH",
+      expected: PRODUCTION_SURVEY_CONTRACT_DIGEST,
+      actual: definition.contractDigest,
+    });
+  }
+  if (
+    expectedContext &&
+    (definition.productCode !== expectedContext.productCode ||
+      definition.objectTypeCode !== (expectedContext.objectTypeCode ?? null))
+  ) {
+    throw contractMismatch({
+      reason: "PRODUCTION_CONTEXT_MISMATCH",
+      expectedProductCode: expectedContext.productCode,
+      actualProductCode: definition.productCode,
+      expectedObjectTypeCode: expectedContext.objectTypeCode ?? null,
+      actualObjectTypeCode: definition.objectTypeCode,
+    });
+  }
   const codes = definition.fields.map(({ code }) => code);
-  const subjectCode = definition.fields.find(
-    ({ code }) => code === "PROD_SAMPLE_SUBJECT_CODE",
+  const byCode = new Map(definition.fields.map((field) => [field.code, field]));
+  const requiredPublicBoundaries = [
+    ["objectTypeCode", { controlType: "SELECT", required: true }],
+    ["regionCode", { controlType: "REGION", required: true }],
+    ["PROD_CULTIVAR_NAME", {}],
+    ["surveyYear", { controlType: "SELECT", required: true }],
+    ["surveyMonth", { controlType: "SELECT", required: false }],
+    ["PROD_SAMPLE_NAME", { readOnly: false }],
+    [
+      "PROD_REPORTER_NAME",
+      {
+        controlType: "READONLY_TEXT",
+        required: true,
+        readOnly: true,
+        importable: false,
+      },
+    ],
+    ["PROD_REPORTER_PHONE", { required: true, readOnly: false }],
+    ["PROD_SAMPLE_CONTACT", { required: true, readOnly: false }],
+    ["PROD_SAMPLE_LATITUDE", { controlType: "DECIMAL", required: true }],
+    ["PROD_SAMPLE_LONGITUDE", { controlType: "DECIMAL", required: true }],
+    ["cultivatedAreaMu", { controlType: "DECIMAL", required: true }],
+    ["yieldPerMuKilograms", { controlType: "DECIMAL", required: true }],
+    [
+      "estimatedOutputKilograms",
+      { readOnly: true, calculated: true, importable: false },
+    ],
+    ["yearOnYear", { readOnly: true, calculated: true, importable: false }],
+  ] as const;
+  const missingRequiredCodes = requiredPublicBoundaries
+    .filter(([code]) => !byCode.has(code))
+    .map(([code]) => code);
+  const invalidRequiredCodes = requiredPublicBoundaries.flatMap(
+    ([code, expected]) => {
+      const field = byCode.get(code);
+      if (!field) return [];
+      const invalid = Object.entries(expected).some(
+        ([property, expectedValue]) =>
+          field[property as keyof typeof field] !== expectedValue,
+      );
+      return invalid ? [code] : [];
+    },
   );
-  const subjectName = definition.fields.find(
-    ({ code }) => code === "PROD_SAMPLE_NAME",
+  const privateCodes = new Set([
+    "PROD_SAMPLE_SUBJECT_CODE",
+    "PROD_SURPLUS_SUBJECT_CODE",
+    "PROD_SURPLUS_CUTOFF_DATE",
+    "sample_point_id",
+    "evidencePhotoId",
+    "surveyDate",
+  ]);
+  const exposedPrivateCodes = codes.filter((code) => privateCodes.has(code));
+  const unapprovedPublicCodes = codes.filter(
+    (code) => !PRODUCTION_PUBLIC_FIELD_CODES.has(code),
   );
+  const orphanGroupCodes = definition.groups
+    .flatMap(({ fields }) => fields)
+    .map(({ code }) => code)
+    .filter((code) => !byCode.has(code));
   const ordered = definition.fields.every((field, index, fields) => {
     const previous = fields[index - 1];
     return (
@@ -740,16 +844,26 @@ export function parseProductionDefinition(
   });
   if (
     new Set(codes).size !== codes.length ||
-    codes.includes("sample_point_id") ||
-    !subjectCode ||
-    !subjectName ||
-    !subjectCode.readOnly ||
-    subjectCode.importable ||
-    subjectCode.controlType !== "READONLY_SUBJECT" ||
-    subjectName.readOnly ||
+    missingRequiredCodes.length > 0 ||
+    invalidRequiredCodes.length > 0 ||
+    exposedPrivateCodes.length > 0 ||
+    unapprovedPublicCodes.length > 0 ||
+    orphanGroupCodes.length > 0 ||
+    definition.fields.some(({ displayed }) => !displayed) ||
     !ordered
   ) {
-    throw contractMismatch({ reason: "INVALID_PRODUCTION_FIELD_BOUNDARY" });
+    throw contractMismatch({
+      reason: "INVALID_PRODUCTION_FIELD_BOUNDARY",
+      missingRequiredCodes,
+      invalidRequiredCodes,
+      exposedPrivateCodes,
+      unapprovedPublicCodes,
+      orphanGroupCodes,
+      duplicateCodes: codes.filter(
+        (code, index) => codes.indexOf(code) !== index,
+      ),
+      ordered,
+    });
   }
   return definition;
 }
@@ -856,6 +970,10 @@ export interface RealtimeBusinessRepository {
   ): () => void;
   uploadEvidencePhoto(input: EvidencePhotoUpload): Promise<EvidencePhotoRow>;
   loadMasterData(): Promise<MasterDataSnapshot>;
+  listProducts?(
+    domain: "PRODUCTION" | "MARKET" | "LOGISTICS",
+    pageKind: string,
+  ): Promise<readonly MasterProduct[]>;
   loadSupplySurveyPeriods(): Promise<readonly SupplySurveyPeriod[]>;
   listAnnualComparisonDefinitions(
     sourceDomain: "PRODUCTION" | "MARKET",
@@ -1078,6 +1196,7 @@ export function createRealtimeBusinessRepository(
   const eventSourceFactory =
     options.eventSourceFactory ??
     ((url: string) => new EventSource(url, { withCredentials: true }));
+  const productionDefinitionCache = new Map<string, ProductionDefinition>();
   return {
     loadCurrentSession: () => client.get<CurrentSession>(enterpriseSessionPath),
     listEmployees: () =>
@@ -1181,6 +1300,11 @@ export function createRealtimeBusinessRepository(
       ]);
       return { products, periods, regions };
     },
+    listProducts: (domain, pageKind) =>
+      client.get<readonly MasterProduct[]>("/api/v1/master-data/products", {
+        domain,
+        pageKind,
+      }),
     loadSupplySurveyPeriods: () =>
       client.get<SupplySurveyPeriod[]>(
         "/api/v1/master-data/supply-survey-periods",
@@ -1222,13 +1346,31 @@ export function createRealtimeBusinessRepository(
         productCode,
         domain,
       }),
-    loadProductionDefinition: async (productCode, objectTypeCode) =>
-      parseProductionDefinition(
+    loadProductionDefinition: async (productCode, objectTypeCode) => {
+      const expectedCacheKey = productionDefinitionCacheKey(
+        productCode,
+        objectTypeCode,
+        PRODUCTION_SURVEY_CONTRACT_DIGEST,
+      );
+      const cached = productionDefinitionCache.get(expectedCacheKey);
+      if (cached) return cached;
+      const definition = parseProductionDefinition(
         await client.get<unknown>("/api/v1/production-record-definitions", {
           productCode,
           objectTypeCode,
+          contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
+          contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
         }),
-      ),
+        { productCode, objectTypeCode },
+      );
+      const cacheKey = productionDefinitionCacheKey(
+        definition.productCode,
+        definition.objectTypeCode,
+        definition.contractDigest,
+      );
+      productionDefinitionCache.set(cacheKey, definition);
+      return definition;
+    },
     loadMarketDefinition: (productCode, objectTypeCode) =>
       client.get<MarketDefinition>("/api/v1/market-record-definitions", {
         productCode,

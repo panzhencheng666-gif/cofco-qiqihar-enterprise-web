@@ -5,7 +5,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -14,6 +13,7 @@ import type {
   ProductionDraftPayload,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { RealtimeBusinessOperationsPanel } from "./RealtimeBusinessOperationsPanel";
 
 afterEach(cleanup);
@@ -99,6 +99,19 @@ function productionDefinition() {
         unit: "吨",
       },
     ),
+    productionContractField(
+      "PROD_ENDING_INVENTORY",
+      "期末余粮",
+      "DETAIL",
+      "业务调查明细",
+      40,
+      35,
+      {
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        unit: "吨",
+      },
+    ),
     productionContractField("PROTEIN", "蛋白", "QUALITY", "质量指标", 50, 10, {
       valueType: "DECIMAL",
       controlType: "DECIMAL",
@@ -122,6 +135,8 @@ function productionDefinition() {
     productCode: "CORN",
     objectTypeCode: "FARMER",
     contractVersion: "production-survey-fields-v1" as const,
+    contractDigest:
+      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32" as const,
     fields: [
       productionContractField(
         "objectTypeCode",
@@ -506,25 +521,28 @@ function fillRequiredProductionFields() {
   fireEvent.change(screen.getByRole("textbox", { name: "具体品种" }), {
     target: { value: "龙单86" },
   });
-  fireEvent.change(screen.getByLabelText("调查日期"), {
-    target: { value: "2026-08-08" },
+  fireEvent.change(screen.getByLabelText("数据年份"), {
+    target: { value: "2026" },
   });
-  fireEvent.change(screen.getByLabelText("种植面积"), {
+  fireEvent.change(screen.getByLabelText("数据月份"), {
+    target: { value: "8" },
+  });
+  fireEvent.change(screen.getByLabelText("播种面积"), {
     target: { value: "100" },
   });
-  fireEvent.change(screen.getByLabelText("权威采用单产"), {
+  fireEvent.change(screen.getByLabelText("预计单产"), {
     target: { value: "650" },
   });
   fireEvent.change(screen.getByLabelText("填报人联系方式"), {
     target: { value: "13800000000" },
   });
-  fireEvent.change(screen.getByLabelText("填报对象联系方式"), {
+  fireEvent.change(screen.getByLabelText("样本点联系方式"), {
     target: { value: "13900000000" },
   });
-  fireEvent.change(screen.getByLabelText("填报对象纬度"), {
+  fireEvent.change(screen.getByLabelText("纬度"), {
     target: { value: "47.3543" },
   });
-  fireEvent.change(screen.getByLabelText("填报对象经度"), {
+  fireEvent.change(screen.getByLabelText("经度"), {
     target: { value: "123.9182" },
   });
 }
@@ -605,7 +623,10 @@ describe("RealtimeBusinessOperationsPanel", () => {
       objectTypeCode: "FARMER",
       regionCode: "230221101001",
       cultivarCode: null,
+      surveyYear: "2026",
+      surveyMonth: "8",
       surveyDate: "2026-08-08",
+      fillingDate: "2026-08-09",
       cultivatedAreaMu: "100",
       yieldPerMuKilograms: "650",
       quality: {},
@@ -695,7 +716,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
       await Promise.resolve();
     });
     expect(screen.getByLabelText("填报人")).toHaveTextContent("原始填报员");
-    expect(screen.getByLabelText("调查日期")).toBeDisabled();
+    expect(screen.getByLabelText("数据年份")).toBeDisabled();
+    expect(screen.getByLabelText("数据月份")).toBeDisabled();
+    expect(screen.getByLabelText("填报日期")).toHaveTextContent("2026-08-09");
     expect(
       screen.queryByRole("button", { name: "保存业务记录" }),
     ).not.toBeInTheDocument();
@@ -736,6 +759,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       insurance: {},
       subsidies: {},
       submissionMetadata: {},
+      evidencePhotoIds: [],
       reportedAt: "2026-08-08T10:00:00+08:00",
       estimatedOutputKilograms: "65000",
       status: "PENDING_REVIEW",
@@ -805,7 +829,8 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
 
-    expect(await screen.findByLabelText("调查日期")).toBeDisabled();
+    expect(await screen.findByLabelText("数据年份")).toBeDisabled();
+    expect(screen.getByLabelText("数据月份")).toBeDisabled();
     expect(
       screen.queryByRole("button", { name: "保存业务记录" }),
     ).not.toBeInTheDocument();
@@ -879,7 +904,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       costs: {},
       insurance: {},
       subsidies: {},
-      submissionMetadata: { PROD_OPENING_INVENTORY: "10" },
+      submissionMetadata: { PROD_SALES_VOLUME: "10" },
       reportedAt: "2026-08-08T10:00:00+08:00",
       estimatedOutputKilograms: "65000",
       status: "RETURNED",
@@ -902,8 +927,8 @@ describe("RealtimeBusinessOperationsPanel", () => {
         repository={api}
       />,
     );
-    const inventory = await screen.findByLabelText(/期初库存/);
-    fireEvent.change(inventory, { target: { value: "25" } });
+    const sales = await screen.findByLabelText(/销售数量/);
+    fireEvent.change(sales, { target: { value: "25" } });
 
     view.rerender(
       <RealtimeBusinessOperationsPanel
@@ -920,7 +945,94 @@ describe("RealtimeBusinessOperationsPanel", () => {
 
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
     expect(getProduction).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText(/期初库存/)).toHaveValue("25");
+    expect(screen.getByLabelText(/销售数量/)).toHaveValue("25");
+  });
+
+  it("saves a returned production record whose API survey period values are numeric", async () => {
+    const { api, getProduction } = repository();
+    const updateProduction = vi.spyOn(api, "updateProduction");
+    const returnedRecord = {
+      id: "production-returned-numeric-period-1",
+      productCode: "CORN",
+      objectTypeCode: "FARMER",
+      regionCode: "230221101001",
+      cultivarCode: null,
+      surveyYear: 2026,
+      surveyMonth: 8,
+      surveyDate: "2026-08-01",
+      fillingDate: "2026-08-14",
+      cultivatedAreaMu: "100",
+      yieldPerMuKilograms: "650",
+      quality: {},
+      costs: {},
+      insurance: {},
+      subsidies: {},
+      submissionMetadata: {
+        PROD_REPORTER_NAME: "产情填报员",
+        PROD_REPORTER_PHONE: "13800000000",
+        PROD_SAMPLE_CONTACT: "13900000000",
+        PROD_SAMPLE_LATITUDE: "47.3543",
+        PROD_SAMPLE_LONGITUDE: "123.9182",
+      },
+      reportedAt: "2026-08-14T10:00:00+08:00",
+      estimatedOutputKilograms: "65000",
+      status: "RETURNED",
+      returnReason: "请修订预计单产",
+      allowedActions: ["VIEW", "SAVE", "SUBMIT"],
+      evidencePhotos: [
+        {
+          id: "photo-returned-1",
+          state: "ATTACHED",
+          originalFilename: "field.png",
+          mediaType: "image/png",
+          byteLength: 12,
+          sha256: "a".repeat(64),
+          capturedAt: "2026-08-14T09:00:00+08:00",
+          latitude: "47.3543000",
+          longitude: "123.9182000",
+          watermarkText: "龙江县 产情调查",
+        },
+      ],
+      version: 2,
+    } as const;
+    getProduction.mockResolvedValue(returnedRecord);
+    updateProduction.mockResolvedValue({
+      ...returnedRecord,
+      surveyYear: 2026,
+      surveyMonth: 8,
+      yieldPerMuKilograms: "651",
+      estimatedOutputKilograms: "65100",
+      version: 3,
+    } as never);
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="产情填报员"
+        domain="production"
+        editorOnly
+        initialRecordId={returnedRecord.id}
+        lockedProductCode="CORN"
+        mode="entry"
+        repository={api}
+      />,
+    );
+
+    const yieldInput = await screen.findByLabelText("预计单产");
+    await waitFor(() => expect(yieldInput).toHaveValue("650"));
+    fireEvent.change(yieldInput, { target: { value: "651" } });
+    fireEvent.submit(yieldInput.closest("form") as HTMLFormElement);
+
+    await waitFor(() => expect(updateProduction).toHaveBeenCalledOnce());
+    expect(updateProduction).toHaveBeenCalledWith(
+      returnedRecord.id,
+      expect.objectContaining({
+        surveyYear: "2026",
+        surveyMonth: "8",
+        yieldPerMuKilograms: "651",
+        evidencePhotoIds: [],
+        version: 2,
+      }),
+    );
   });
 
   it("captures both surveyed-object prices without a direction selector", async () => {
@@ -991,13 +1103,13 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
 
-    expect(await screen.findByLabelText("对象采购价格")).toBeVisible();
-    expect(screen.getByLabelText("对象销售价格")).toBeVisible();
+    expect(await screen.findByLabelText("采集对象收购价格")).toBeVisible();
+    expect(screen.getByLabelText("采集对象销售价格")).toBeVisible();
     expect(screen.queryByLabelText("本次成交价格方向")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("实际成交价")).not.toBeInTheDocument();
   });
 
-  it("renders region hierarchy market fields as authoritative four-level selectors", async () => {
+  it("shows only existing inventory while keeping governed storage fields internal", async () => {
     const { api } = repository();
     vi.spyOn(api, "listObjectTypes").mockResolvedValue([
       { code: "TRADER", name: "贸易商", domain: "MARKET" },
@@ -1020,7 +1132,52 @@ describe("RealtimeBusinessOperationsPanel", () => {
           options: [],
         },
       ],
-      groups: [],
+      groups: [
+        {
+          category: "INVENTORY",
+          label: "库存",
+          sortOrder: 1,
+          fields: [
+            {
+              code: "ENDING_INVENTORY",
+              label: "期末库存",
+              valueType: "DECIMAL",
+              unit: "吨",
+              description: null,
+              precision: 18,
+              scale: 4,
+              sortOrder: 1,
+            },
+          ],
+        },
+        {
+          category: "PROCESSING",
+          label: "加工生产",
+          sortOrder: 2,
+          fields: [
+            {
+              code: "PROCESSING_INPUT",
+              label: "加工投入量",
+              valueType: "DECIMAL",
+              unit: "吨",
+              description: null,
+              precision: 18,
+              scale: 4,
+              sortOrder: 1,
+            },
+            {
+              code: "STOCK_OUTFLOW",
+              label: "出库量",
+              valueType: "DECIMAL",
+              unit: "吨",
+              description: null,
+              precision: 18,
+              scale: 4,
+              sortOrder: 2,
+            },
+          ],
+        },
+      ],
     });
     vi.spyOn(api, "listMarket").mockResolvedValue({
       items: [],
@@ -1039,16 +1196,18 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
 
-    const storageRegion = await screen.findByRole("group", {
-      name: "库存存放地区",
-    });
+    await screen.findByRole("heading", { name: "市场采集" });
+    expect(await screen.findByLabelText("现有库存")).toBeVisible();
     expect(
-      within(storageRegion).getByRole("combobox", { name: "地级市" }),
-    ).toBeVisible();
+      screen.queryByRole("group", { name: "库存存放地" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("期末库存")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("库存量")).not.toBeInTheDocument();
     expect(
-      within(storageRegion).getByRole("combobox", { name: "行政村" }),
-    ).toBeDisabled();
-    expect(screen.queryByRole("textbox", { name: "库存存放地区" })).toBeNull();
+      screen.queryByText("MKT_STORAGE_REGION_CODE"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("加工投入量")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("出库量")).not.toBeInTheDocument();
   });
 
   it("renders the required production provenance fields without the removed duplicate inputs", async () => {
@@ -1068,9 +1227,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("填报人")).toHaveTextContent("王洋"),
     );
-    expect(screen.getByLabelText("填报对象联系方式")).toBeVisible();
-    expect(screen.getByLabelText("填报对象纬度")).toBeVisible();
-    expect(screen.getByLabelText("填报对象经度")).toBeVisible();
+    expect(screen.getByLabelText("样本点联系方式")).toBeVisible();
+    expect(screen.getByLabelText("纬度")).toBeVisible();
+    expect(screen.getByLabelText("经度")).toBeVisible();
     expect(screen.queryByLabelText("样本平均结果")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("区域加权估计")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("测产轮次")).not.toBeInTheDocument();
@@ -1081,19 +1240,58 @@ describe("RealtimeBusinessOperationsPanel", () => {
       screen.queryByRole("combobox", { name: "品种" }),
     ).not.toBeInTheDocument();
     expect(await screen.findByLabelText("期初库存")).toBeVisible();
+    expect(screen.getByLabelText("期末余粮")).toBeVisible();
+    expect(screen.queryByLabelText("未销售余粮")).not.toBeInTheDocument();
     expect(screen.getByLabelText("销售数量")).toBeVisible();
     expect(screen.getByLabelText("自用数量")).toBeVisible();
     expect(screen.getByLabelText("蛋白")).toBeVisible();
     expect(screen.getByLabelText("出油率")).toBeVisible();
     expect(screen.getByLabelText("预计总产")).toBeInstanceOf(HTMLOutputElement);
-    expect(screen.getByLabelText("与上年同比")).toBeInstanceOf(
+    expect(screen.getByLabelText("与上年相比")).toBeInstanceOf(
       HTMLOutputElement,
     );
-    expect(screen.getByLabelText("稳定主体码")).toHaveTextContent(
-      "待权威映射（EXT-007）",
-    );
+    expect(screen.queryByLabelText("稳定主体码")).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "地区" })).toBeVisible();
+    expect(screen.getByLabelText("数据年份")).toBeVisible();
+    expect(screen.getByLabelText("数据月份")).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "行政村" })).not.toBeRequired();
     expect(screen.getByRole("group", { name: "基础信息" })).toBeVisible();
-    expect(screen.getByRole("group", { name: "调查对象与联系" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "填报与定位" })).toBeVisible();
+  });
+
+  it("blocks the whole production form when its contract is invalid instead of leaving a photo-only island", async () => {
+    const { api, createProduction } = repository();
+    vi.spyOn(api, "loadProductionDefinition").mockRejectedValue(
+      new RealtimeApiError({
+        code: "CONTRACT_MISMATCH",
+        message: "产情字段契约与当前页面版本不一致，请刷新页面或联系管理员",
+        status: 200,
+        details: {
+          reason: "INVALID_PRODUCTION_FIELD_BOUNDARY",
+          missingRequiredCodes: ["PROD_REPORTER_PHONE"],
+        },
+      }),
+    );
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="张三"
+        domain="production"
+        lockedProductCode="CORN"
+        repository={api}
+        editorOnly
+      />,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "产情字段契约与当前页面版本不一致",
+    );
+    expect(screen.queryByLabelText("现场水印照片")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "现场照片" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存业务记录" })).toBeDisabled();
+    expect(createProduction).not.toHaveBeenCalled();
   });
 
   it("refuses to open a record that does not belong to the menu-locked product", async () => {
@@ -1118,6 +1316,8 @@ describe("RealtimeBusinessOperationsPanel", () => {
       objectTypeCode: "FARMER",
       regionCode: "230221101001",
       cultivarCode: null,
+      surveyYear: "2026",
+      surveyMonth: "8",
       surveyDate: "2026-08-08",
       cultivatedAreaMu: "100",
       yieldPerMuKilograms: "650",
@@ -1217,7 +1417,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
 
-    await screen.findByLabelText("所在地区");
+    await screen.findByRole("group", { name: "地区" });
     fillRequiredProductionFields();
 
     const saveButton = screen.getByRole("button", {

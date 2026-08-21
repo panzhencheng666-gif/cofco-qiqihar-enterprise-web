@@ -87,12 +87,12 @@ describe("production monitoring workspace", () => {
   it("uses governed production object types and soybean-specific quality columns", () => {
     render(<ProductionHarness section="soybean-collection" />);
 
-    const objectType = screen.getByRole("combobox", { name: "对象类型" });
+    const objectType = screen.getByRole("combobox", { name: "样本点类型" });
     expect(
       within(objectType)
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["全部对象类型", "农户", "村委会", "农技站"]);
+    ).toEqual(["全部样本点类型", "农户", "村委会", "农技站"]);
 
     const table = screen.getByRole("table", { name: "大豆产情调查表" });
     for (const label of ["蛋白", "出油率", "不完善粒", "水分", "杂质"]) {
@@ -149,7 +149,7 @@ describe("production monitoring workspace", () => {
       ).not.toBeInTheDocument();
       expect(screen.getByLabelText("选择地区")).toBeVisible();
       for (const column of [
-        "调查对象",
+        "样本点名称",
         "播种面积",
         "预计单产",
         "预计总产",

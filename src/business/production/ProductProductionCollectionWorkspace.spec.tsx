@@ -58,6 +58,8 @@ const productionDefinition = vi.fn().mockResolvedValue({
   productCode: "CORN",
   objectTypeCode: "FARMER",
   contractVersion: "production-survey-fields-v1",
+  contractDigest:
+    "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
   fields: [
     contractField(
       "PROD_SAMPLE_SUBJECT_CODE",
@@ -207,9 +209,9 @@ describe("product production collection workspace", () => {
       />,
     );
 
-    await screen.findByRole("combobox", { name: "调查年份" });
+    await screen.findByRole("combobox", { name: "数据年份" });
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "调查月份" }),
+      screen.getByRole("combobox", { name: "数据月份" }),
       "8",
     );
     await user.type(screen.getByLabelText("填报日期起"), "2026-08-01");
@@ -304,6 +306,10 @@ describe("product production collection workspace", () => {
           id: "PROD-DB-001",
           values: {
             PROD_SURVEY_DATE: "2026-08-08",
+            PROD_SURVEY_YEAR: "2026",
+            PROD_SURVEY_MONTH: "8",
+            PROD_SURVEY_PERIOD_PRECISION: "YEAR_MONTH",
+            PROD_FILLING_AT: "2026-08-09T08:30:00+08:00",
             PROD_SUBJECT_NAME: "克山县第一调查点",
             PROD_OBJECT_TYPE: "农户",
             PROD_REGION: "克山县",
@@ -315,6 +321,8 @@ describe("product production collection workspace", () => {
             PROD_SAMPLE_CONTACT: "13900000000",
             PROD_SAMPLE_LATITUDE: "47.3543",
             PROD_SAMPLE_LONGITUDE: "123.9182",
+            PROD_SAMPLE_SUBJECT_CODE: "INTERNAL-SUBJECT-001",
+            PROD_SURVEY_PERIOD_GOVERNANCE_STATE: "CONFIRMED",
             PROD_STATUS: "APPROVED",
           },
           allowedActions: [],
@@ -370,25 +378,67 @@ describe("product production collection workspace", () => {
     );
 
     expect(await screen.findByText("克山县第一调查点")).toBeVisible();
+    expect(screen.getAllByRole("columnheader")[0]).toHaveTextContent("序号");
     expect(
-      screen.getByRole("columnheader", { name: "调查对象与联系" }),
+      screen.getByRole("columnheader", { name: "数据时间" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "派生字段" }),
+      screen.getByRole("columnheader", { name: "填报日期" }),
+    ).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "地区" })).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "样本点名称" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "系统字段" }),
+      screen.getByRole("columnheader", { name: "样本点类型" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "稳定主体码" }),
+      screen.getByRole("columnheader", { name: "具体品种" }),
     ).toBeVisible();
-    expect(screen.getByText("待权威映射（EXT-007）")).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "销售数量" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "自用数量" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "期初库存" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "期末余粮" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("columnheader", { name: "未销售余粮" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "预计总产" }),
+    ).toBeVisible();
     expect(screen.getByRole("columnheader", { name: "填报人" })).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "填报对象联系方式" }),
+      screen.getByRole("columnheader", { name: "样本点联系方式" }),
     ).toBeVisible();
     expect(screen.getByText("张三")).toBeVisible();
     expect(screen.getByText("47.3543")).toBeVisible();
+    expect(screen.getByText("2026年8月")).toBeVisible();
+    expect(screen.queryByText("INTERNAL-SUBJECT-001")).not.toBeInTheDocument();
+    expect(screen.queryByText("CONFIRMED")).not.toBeInTheDocument();
+    expect(screen.queryByText(/EXT-007/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "系统字段" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "稳定主体码" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("调查期间")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("调查对象", { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("对象类型", { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("行政区划", { exact: true }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "具体品种" }),
     ).not.toBeInTheDocument();
@@ -425,7 +475,9 @@ describe("product production collection workspace", () => {
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(3));
     await user.click(screen.getByRole("button", { name: "新建调查记录" }));
     expect(onCreateRecord).toHaveBeenCalledWith("CORN");
-    await user.click(screen.getByRole("button", { name: "查看" }));
+    await user.click(screen.getByRole("button", { name: "查看记录" }));
     expect(onEditRecord).toHaveBeenCalledWith("CORN", "PROD-DB-001");
+    await user.click(screen.getByRole("button", { name: "查看照片" }));
+    expect(onEditRecord).toHaveBeenCalledTimes(2);
   });
 });

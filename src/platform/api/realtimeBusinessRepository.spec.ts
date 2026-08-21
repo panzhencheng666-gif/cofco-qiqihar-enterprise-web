@@ -3,10 +3,19 @@ import type { RealtimeApiClient, RealtimeApiError } from "./realtimeApiClient";
 import {
   createRealtimeBusinessRepository,
   parseProductionDefinition,
+  productionDefinitionCacheKey,
   type RealtimeBusinessRepository,
 } from "./realtimeBusinessRepository";
+import {
+  PRODUCTION_SURVEY_CONTRACT_DIGEST,
+  PRODUCTION_SURVEY_CONTRACT_VERSION,
+} from "./productionSurveyContract";
 
-function client() {
+function client(
+  products: readonly { code: string; name: string }[] = [
+    { code: "CORN", name: "玉米" },
+  ],
+) {
   const get = vi.fn((path: string) => {
     if (path.endsWith("/session/me"))
       return Promise.resolve({
@@ -16,8 +25,7 @@ function client() {
         permissions: ["BUSINESS_CREATE"],
         regionCodes: ["230200"],
       });
-    if (path.endsWith("/products"))
-      return Promise.resolve([{ code: "CORN", name: "玉米" }]);
+    if (path.endsWith("/products")) return Promise.resolve(products);
     if (path.endsWith("/business-periods")) return Promise.resolve([]);
     if (path.endsWith("/supply-survey-periods"))
       return Promise.resolve([
@@ -110,6 +118,25 @@ function client() {
 }
 
 describe("realtime business repository", () => {
+  it("sends the expected production contract version and digest to the backend", async () => {
+    const { api, get } = client();
+    get.mockResolvedValueOnce(
+      productionDefinition("RICE", "VILLAGE_COMMITTEE", [
+        "MILLING_YIELD",
+      ]) as never,
+    );
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.loadProductionDefinition("RICE", "VILLAGE_COMMITTEE");
+
+    expect(get).toHaveBeenCalledWith("/api/v1/production-record-definitions", {
+      productCode: "RICE",
+      objectTypeCode: "VILLAGE_COMMITTEE",
+      contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
+      contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
+    });
+  });
+
   it("accepts only the authoritative production survey contract version and boundaries", () => {
     const definition = productionDefinition();
 
@@ -127,15 +154,85 @@ describe("realtime business repository", () => {
     expect(() =>
       parseProductionDefinition({
         ...definition,
-        fields: definition.fields.map((field) =>
-          field.code === "PROD_SAMPLE_SUBJECT_CODE"
-            ? { ...field, readOnly: false }
-            : field,
+        fields: [
+          ...definition.fields,
+          field("PROD_SAMPLE_SUBJECT_CODE", {
+            groupCode: "SUBJECT",
+            groupLabel: "系统治理",
+            groupOrder: 20,
+            controlType: "READONLY_SUBJECT",
+            readOnly: true,
+            importable: false,
+          }),
+        ],
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<RealtimeApiError>>({
+        code: "CONTRACT_MISMATCH",
+      }),
+    );
+    expect(() =>
+      parseProductionDefinition({
+        ...definition,
+        fields: definition.fields.filter(
+          ({ code }) => code !== "PROD_REPORTER_PHONE",
         ),
       }),
     ).toThrowError(
       expect.objectContaining<Partial<RealtimeApiError>>({
         code: "CONTRACT_MISMATCH",
+        details: expect.objectContaining({
+          reason: "INVALID_PRODUCTION_FIELD_BOUNDARY",
+        }),
+      }),
+    );
+  });
+
+  it("binds the parsed public contract to its digest and rejects unapproved fields", () => {
+    const definition = {
+      ...productionDefinition(),
+      contractDigest:
+        "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
+    };
+
+    expect(parseProductionDefinition(definition)).toMatchObject({
+      contractVersion: "production-survey-fields-v1",
+      contractDigest: definition.contractDigest,
+    });
+    expect(() =>
+      parseProductionDefinition({
+        ...definition,
+        contractDigest:
+          "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<RealtimeApiError>>({
+        code: "CONTRACT_MISMATCH",
+        details: expect.objectContaining({
+          reason: "CONTRACT_DIGEST_MISMATCH",
+        }),
+      }),
+    );
+    expect(() =>
+      parseProductionDefinition({
+        ...definition,
+        fields: [
+          ...definition.fields,
+          field("PROD_UNAPPROVED_PUBLIC_FIELD", {
+            groupCode: "DETAIL",
+            groupLabel: "业务信息",
+            groupOrder: 40,
+            sortOrder: 999,
+          }),
+        ],
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<RealtimeApiError>>({
+        code: "CONTRACT_MISMATCH",
+        details: expect.objectContaining({
+          reason: "INVALID_PRODUCTION_FIELD_BOUNDARY",
+          unapprovedPublicCodes: ["PROD_UNAPPROVED_PUBLIC_FIELD"],
+        }),
       }),
     );
   });
@@ -151,13 +248,131 @@ describe("realtime business repository", () => {
     );
 
     expect(definition.contractVersion).toBe("production-survey-fields-v1");
-    expect(definition.fields).toContainEqual(
-      expect.objectContaining({
-        code: "PROD_SAMPLE_SUBJECT_CODE",
-        readOnly: true,
-        importable: false,
-      }),
+    expect(definition.fields.map(({ code }) => code)).not.toContain(
+      "PROD_SAMPLE_SUBJECT_CODE",
     );
+    expect(definition.fields).toContainEqual(
+      expect.objectContaining({ code: "PROD_SAMPLE_NAME" }),
+    );
+  });
+
+  it("enumerates the authoritative enabled production product set", async () => {
+    const products = [
+      { code: "CORN", name: "玉米" },
+      { code: "SOYBEAN", name: "大豆" },
+      { code: "RICE", name: "稻谷" },
+    ] as const;
+    const { api, get } = client(products);
+    const repository = createRealtimeBusinessRepository(api);
+
+    if (!repository.listProducts) {
+      throw new Error("Production product enumeration is required");
+    }
+    const enabled = await repository.listProducts("PRODUCTION", "MONITORING");
+
+    expect(new Set(enabled.map(({ code }) => code))).toEqual(
+      new Set(products.map(({ code }) => code)),
+    );
+    expect(get).toHaveBeenCalledWith("/api/v1/master-data/products", {
+      domain: "PRODUCTION",
+      pageKind: "MONITORING",
+    });
+  });
+
+  it.each([
+    ["CORN", "MOISTURE"],
+    ["SOYBEAN", "PROTEIN"],
+    ["RICE", "MILLING_YIELD"],
+  ] as const)(
+    "keeps the %s product and its quality projection bound to the request",
+    async (productCode, qualityCode) => {
+      const { api, get } = client();
+      get.mockResolvedValueOnce(
+        productionDefinition(productCode, "FARMER", [qualityCode]) as never,
+      );
+      const repository = createRealtimeBusinessRepository(api);
+
+      const definition = await repository.loadProductionDefinition(
+        productCode,
+        "FARMER",
+      );
+
+      expect(definition.productCode).toBe(productCode);
+      expect(definition.objectTypeCode).toBe("FARMER");
+      expect(
+        definition.groups.flatMap(({ fields }) =>
+          fields.map(({ code }) => code),
+        ),
+      ).toContain(qualityCode);
+    },
+  );
+
+  it("rejects a response product or object mismatch even with the same digest", async () => {
+    const { api, get } = client();
+    get.mockResolvedValueOnce(
+      productionDefinition("SOYBEAN", "VILLAGE_COMMITTEE", [
+        "PROTEIN",
+      ]) as never,
+    );
+    const repository = createRealtimeBusinessRepository(api);
+
+    await expect(
+      repository.loadProductionDefinition("CORN", "FARMER"),
+    ).rejects.toMatchObject({
+      code: "CONTRACT_MISMATCH",
+      details: {
+        reason: "PRODUCTION_CONTEXT_MISMATCH",
+        expectedProductCode: "CORN",
+        actualProductCode: "SOYBEAN",
+        expectedObjectTypeCode: "FARMER",
+        actualObjectTypeCode: "VILLAGE_COMMITTEE",
+      },
+    });
+  });
+
+  it("uses a product/object/digest-specific production definition cache key", () => {
+    const corn = productionDefinitionCacheKey(
+      "CORN",
+      "FARMER",
+      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
+    );
+    const soybean = productionDefinitionCacheKey(
+      "SOYBEAN",
+      "FARMER",
+      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
+    );
+
+    expect(corn).toContain("CORN");
+    expect(corn).toContain("FARMER");
+    expect(corn).toContain(
+      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
+    );
+    expect(soybean).not.toBe(corn);
+  });
+
+  it("does not reuse a cached definition across product codes", async () => {
+    const { api, get } = client();
+    get.mockResolvedValueOnce(
+      productionDefinition("CORN", "FARMER", ["MOISTURE"]) as never,
+    );
+    get.mockResolvedValueOnce(
+      productionDefinition("SOYBEAN", "FARMER", ["PROTEIN"]) as never,
+    );
+    const repository = createRealtimeBusinessRepository(api);
+
+    const corn = await repository.loadProductionDefinition("CORN", "FARMER");
+    const cornAgain = await repository.loadProductionDefinition(
+      "CORN",
+      "FARMER",
+    );
+    const soybean = await repository.loadProductionDefinition(
+      "SOYBEAN",
+      "FARMER",
+    );
+
+    expect(cornAgain).toBe(corn);
+    expect(soybean.productCode).toBe("SOYBEAN");
+    expect(get).toHaveBeenCalledTimes(2);
   });
 
   it("publishes an approved business record as a governed supply source", async () => {
@@ -744,29 +959,29 @@ describe("realtime business repository", () => {
   });
 });
 
-function productionDefinition() {
-  const field = (
-    code: string,
-    overrides: Partial<{
-      label: string;
-      groupCode: string;
-      groupLabel: string;
-      groupOrder: number;
-      sortOrder: number;
-      valueType: string;
-      controlType: string;
-      unit: string | null;
-      required: boolean;
-      options: readonly string[];
-      readOnly: boolean;
-      calculated: boolean;
-      importable: boolean;
-      displayed: boolean;
-      description: string | null;
-      precision: number;
-      scale: number;
-    }> = {},
-  ) => ({
+function field(
+  code: string,
+  overrides: Partial<{
+    label: string;
+    groupCode: string;
+    groupLabel: string;
+    groupOrder: number;
+    sortOrder: number;
+    valueType: string;
+    controlType: string;
+    unit: string | null;
+    required: boolean;
+    options: readonly string[];
+    readOnly: boolean;
+    calculated: boolean;
+    importable: boolean;
+    displayed: boolean;
+    description: string | null;
+    precision: number;
+    scale: number;
+  }> = {},
+) {
+  return {
     code,
     label: code,
     groupCode: "CONTEXT",
@@ -786,30 +1001,139 @@ function productionDefinition() {
     precision: 0,
     scale: 0,
     ...overrides,
-  });
+  };
+}
+
+function productionDefinition(
+  productCode: "CORN" | "SOYBEAN" | "RICE" = "CORN",
+  objectTypeCode: "FARMER" | "VILLAGE_COMMITTEE" = "FARMER",
+  qualityCodes: readonly string[] = [],
+) {
   return {
-    productCode: "CORN",
-    objectTypeCode: "FARMER",
+    productCode,
+    objectTypeCode,
     contractVersion: "production-survey-fields-v1",
+    contractDigest:
+      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
     fields: [
       field("objectTypeCode", { controlType: "SELECT", required: true }),
       field("regionCode", { controlType: "REGION", required: true }),
-      field("PROD_SAMPLE_SUBJECT_CODE", {
-        label: "稳定主体码",
+      field("PROD_CULTIVAR_NAME"),
+      field("surveyYear", {
+        label: "数据年份",
+        controlType: "SELECT",
+        required: true,
+      }),
+      field("surveyMonth", {
+        label: "数据月份",
+        controlType: "SELECT",
+      }),
+      field("PROD_SAMPLE_NAME", {
+        label: "样本点名称",
         groupCode: "SUBJECT",
-        groupLabel: "调查对象与联系",
+        groupLabel: "填报与定位",
         groupOrder: 20,
-        controlType: "READONLY_SUBJECT",
+      }),
+      field("PROD_REPORTER_NAME", {
+        label: "填报人",
+        groupCode: "SUBJECT",
+        groupLabel: "填报与定位",
+        groupOrder: 20,
+        sortOrder: 20,
+        controlType: "READONLY_TEXT",
+        required: true,
         readOnly: true,
         importable: false,
       }),
-      field("PROD_SAMPLE_NAME", {
-        label: "填报对象名称",
-        groupCode: "SUBJECT",
-        groupLabel: "调查对象与联系",
-        groupOrder: 20,
+      ...["PROD_REPORTER_PHONE", "PROD_SAMPLE_CONTACT"].map((code, index) =>
+        field(code, {
+          groupCode: "SUBJECT",
+          groupLabel: "填报与定位",
+          groupOrder: 20,
+          sortOrder: 30 + index * 10,
+          required: true,
+        }),
+      ),
+      ...["PROD_SAMPLE_LATITUDE", "PROD_SAMPLE_LONGITUDE"].map((code, index) =>
+        field(code, {
+          groupCode: "SUBJECT",
+          groupLabel: "填报与定位",
+          groupOrder: 20,
+          sortOrder: 50 + index * 10,
+          valueType: "DECIMAL",
+          controlType: "DECIMAL",
+          required: true,
+        }),
+      ),
+      field("cultivatedAreaMu", {
+        groupCode: "OUTPUT",
+        groupLabel: "产量信息",
+        groupOrder: 30,
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        required: true,
       }),
+      field("yieldPerMuKilograms", {
+        groupCode: "OUTPUT",
+        groupLabel: "产量信息",
+        groupOrder: 30,
+        sortOrder: 20,
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        required: true,
+      }),
+      field("estimatedOutputKilograms", {
+        groupCode: "OUTPUT",
+        groupLabel: "产量信息",
+        groupOrder: 30,
+        sortOrder: 30,
+        valueType: "DECIMAL",
+        controlType: "READONLY_DECIMAL",
+        readOnly: true,
+        calculated: true,
+        importable: false,
+      }),
+      field("yearOnYear", {
+        groupCode: "OUTPUT",
+        groupLabel: "产量信息",
+        groupOrder: 30,
+        sortOrder: 40,
+        controlType: "READONLY_TEXT",
+        readOnly: true,
+        calculated: true,
+        importable: false,
+      }),
+      ...qualityCodes.map((code, index) =>
+        field(code, {
+          label: code,
+          groupCode: "QUALITY",
+          groupLabel: "质量指标",
+          groupOrder: 100,
+          sortOrder: index + 1,
+          valueType: "DECIMAL",
+          controlType: "DECIMAL",
+          unit: "%",
+        }),
+      ),
     ],
-    groups: [],
+    groups: qualityCodes.length
+      ? [
+          {
+            category: "QUALITY",
+            label: "质量指标",
+            sortOrder: 100,
+            fields: qualityCodes.map((code, index) => ({
+              code,
+              label: code,
+              valueType: "DECIMAL",
+              unit: "%",
+              description: null,
+              precision: 18,
+              scale: 1,
+              sortOrder: index + 1,
+            })),
+          },
+        ]
+      : [],
   };
 }

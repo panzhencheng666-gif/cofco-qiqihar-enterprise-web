@@ -2,12 +2,9 @@ import { useEffect, useState } from "react";
 
 import type {
   BusinessRecordListItem,
-  ProductionDefinition,
   ProductionImportJob,
-  ProductionSurveyField,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
-import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 import {
   RegionCascadeSelector,
@@ -221,11 +218,11 @@ function productionObjectTypeId(
 }
 
 function productionObjectType(item: BusinessWorkItem): string {
-  if (item.subject.kind !== "monitoring-object") return "对象类型未提供";
+  if (item.subject.kind !== "monitoring-object") return "样本点类型未提供";
   const typeId = productionObjectTypeId(item);
   return (
     getProductionObjectTypeOptions().find(({ id }) => id === typeId)?.label ??
-    "对象类型未提供"
+    "样本点类型未提供"
   );
 }
 
@@ -281,184 +278,6 @@ function persistedValue(
     if (value !== undefined && value !== "") return value;
   }
   return "—";
-}
-
-function productionContractValue(
-  record: BusinessRecordListItem,
-  field: ProductionSurveyField,
-): string {
-  if (field.code === "PROD_SAMPLE_SUBJECT_CODE") {
-    const subjectCode = persistedValue(record, field.code);
-    return subjectCode === "—" ? "待权威映射（EXT-007）" : subjectCode;
-  }
-  if (field.code === "PROD_SAMPLE_NAME") {
-    return persistedValue(
-      record,
-      field.code,
-      "PROD_SUBJECT_NAME",
-      "PROD_OBJECT_NAME",
-    );
-  }
-  if (field.code === "objectTypeCode") {
-    return persistedValue(record, "PROD_OBJECT_TYPE", field.code);
-  }
-  if (field.code === "regionCode") {
-    return persistedValue(record, "PROD_REGION", field.code);
-  }
-  if (field.code === "PROD_CULTIVAR_NAME") {
-    return persistedValue(record, "PROD_CULTIVAR", field.code);
-  }
-  if (field.code === "surveyDate") {
-    return persistedValue(record, "PROD_SURVEY_DATE", field.code);
-  }
-  if (field.code === "cultivatedAreaMu") {
-    return persistedValue(record, "PROD_AREA_MU", field.code);
-  }
-  if (field.code === "yieldPerMuKilograms") {
-    return persistedValue(record, "PROD_YIELD_PER_MU", field.code);
-  }
-  if (field.code === "estimatedOutputKilograms") {
-    return persistedValue(record, "PROD_ESTIMATED_OUTPUT", field.code);
-  }
-  if (field.code === "yearOnYear") return "尚无上年同口径记录";
-  return persistedValue(record, field.code);
-}
-
-interface ProductionContractGroup {
-  code: string;
-  label: string;
-  fields: readonly ProductionSurveyField[];
-}
-
-function productionContractGroups(
-  fields: readonly ProductionSurveyField[],
-): readonly ProductionContractGroup[] {
-  const groups = new Map<string, ProductionContractGroup>();
-  for (const field of fields) {
-    const existing = groups.get(field.groupCode);
-    if (existing) {
-      groups.set(field.groupCode, {
-        ...existing,
-        fields: [...existing.fields, field],
-      });
-    } else {
-      groups.set(field.groupCode, {
-        code: field.groupCode,
-        label: field.groupLabel,
-        fields: [field],
-      });
-    }
-  }
-  return [...groups.values()];
-}
-
-function productionContractFieldLabel(field: ProductionSurveyField): string {
-  return field.unit ? `${field.label}（${field.unit}）` : field.label;
-}
-
-function ProductionContractTable({
-  definition,
-  records,
-  pageNumber,
-  productCode,
-  productLabel,
-  onEditRecord,
-}: {
-  definition: ProductionDefinition;
-  records: readonly BusinessRecordListItem[];
-  pageNumber: number;
-  productCode: "CORN" | "SOYBEAN" | "RICE";
-  productLabel: string;
-  onEditRecord?: (
-    productCode: "CORN" | "SOYBEAN" | "RICE",
-    recordId: string,
-  ) => void;
-}) {
-  const displayedFields = definition.fields.filter(
-    ({ displayed }) => displayed,
-  );
-  const businessFields = displayedFields.filter(
-    ({ calculated }) => !calculated,
-  );
-  const derivedFields = displayedFields.filter(({ calculated }) => calculated);
-  const groups = productionContractGroups(businessFields);
-  const columnCount = businessFields.length + derivedFields.length + 4;
-
-  return (
-    <>
-      <thead>
-        <tr>
-          {groups.map((group) => (
-            <th colSpan={group.fields.length} key={group.code}>
-              {group.label}
-            </th>
-          ))}
-          {derivedFields.length > 0 && (
-            <th colSpan={derivedFields.length}>派生字段</th>
-          )}
-          <th colSpan={4}>系统字段</th>
-        </tr>
-        <tr>
-          {groups.flatMap((group) =>
-            group.fields.map((field) => (
-              <th key={field.code}>{productionContractFieldLabel(field)}</th>
-            )),
-          )}
-          {derivedFields.map((field) => (
-            <th key={field.code}>{productionContractFieldLabel(field)}</th>
-          ))}
-          <th>序号</th>
-          <th>填报时间</th>
-          <th>填报状态</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        {records.map((record, index) => (
-          <tr key={record.id}>
-            {businessFields.map((field) => (
-              <td className="is-operational" key={field.code}>
-                {productionContractValue(record, field)}
-              </td>
-            ))}
-            {derivedFields.map((field) => (
-              <td className="is-operational" key={field.code}>
-                {productionContractValue(record, field)}
-              </td>
-            ))}
-            <td>{pageNumber * collectionPageSize + index + 1}</td>
-            <td>{formatRealFillingTime(record.values, "PROD")}</td>
-            <td>
-              <span
-                className={`enterprise-ledger-state is-${persistedProductionStatus(record.values.PROD_STATUS)}`}
-              >
-                {persistedProductionStatus(record.values.PROD_STATUS)}
-              </span>
-            </td>
-            <td>
-              <button
-                className="enterprise-ledger-row-action"
-                type="button"
-                onClick={() => onEditRecord?.(productCode, record.id)}
-              >
-                查看
-              </button>
-            </td>
-          </tr>
-        ))}
-        {records.length === 0 && (
-          <tr>
-            <td
-              className="enterprise-ledger-table__empty"
-              colSpan={columnCount}
-            >
-              当前范围暂无{productLabel}产情调查记录
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </>
-  );
 }
 
 function businessDate(item: BusinessWorkItem | undefined): string {
@@ -526,9 +345,6 @@ export function ProductProductionCollectionWorkspace({
   const [persistedRecords, setPersistedRecords] = useState<
     readonly BusinessRecordListItem[]
   >([]);
-  const [productionDefinition, setProductionDefinition] =
-    useState<ProductionDefinition | null>(null);
-  const [definitionError, setDefinitionError] = useState("");
   const [pageNumber, setPageNumber] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [serverTotalPages, setServerTotalPages] = useState(1);
@@ -581,7 +397,7 @@ export function ProductProductionCollectionWorkspace({
       subject:
         item.subject.kind === "monitoring-object"
           ? cleanSubjectName(item.subject.objectName)
-          : "调查对象未提供",
+          : "样本点名称未提供",
       objectType: productionObjectType(item),
       objectTypeId: productionObjectTypeId(item),
       region: item.regionLabel,
@@ -631,36 +447,6 @@ export function ProductProductionCollectionWorkspace({
       status: collectionStatus(item),
     }),
   );
-  useEffect(() => {
-    if (!realtimeRepository || !importObjectType) return;
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setProductionDefinition(null);
-      setDefinitionError("");
-    });
-    void realtimeRepository
-      .loadProductionDefinition(
-        productCode,
-        productionObjectTypeCode(importObjectType),
-      )
-      .then((definition) => {
-        if (!cancelled) setProductionDefinition(definition);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setProductionDefinition(null);
-        setDefinitionError(
-          error instanceof RealtimeApiError &&
-            error.code === "CONTRACT_MISMATCH"
-            ? error.message
-            : "产情字段契约读取失败，已停止展示调查记录，请稍后重试。",
-        );
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [importObjectType, productCode, realtimeRefreshToken, realtimeRepository]);
   useEffect(() => {
     if (!realtimeRepository) return;
     let cancelled = false;
@@ -994,9 +780,9 @@ export function ProductProductionCollectionWorkspace({
         role="search"
       >
         <label>
-          <span>调查年份</span>
+          <span>数据年份</span>
           <select
-            aria-label="调查年份"
+            aria-label="数据年份"
             required
             value={surveyYear}
             onChange={(event) => {
@@ -1012,9 +798,9 @@ export function ProductProductionCollectionWorkspace({
           </select>
         </label>
         <label>
-          <span>调查月份</span>
+          <span>数据月份</span>
           <select
-            aria-label="调查月份"
+            aria-label="数据月份"
             value={surveyMonth}
             onChange={(event) => {
               setSurveyMonth(event.target.value);
@@ -1073,9 +859,9 @@ export function ProductProductionCollectionWorkspace({
           </label>
         )}
         <label>
-          <span>对象类型</span>
+          <span>样本点类型</span>
           <select
-            aria-label="对象类型"
+            aria-label="样本点类型"
             value={objectType}
             onChange={(event) => {
               setPageNumber(0);
@@ -1084,7 +870,7 @@ export function ProductProductionCollectionWorkspace({
               );
             }}
           >
-            <option value="">全部对象类型</option>
+            <option value="">全部样本点类型</option>
             {getProductionObjectTypeOptions().map(({ id, label }) => (
               <option key={id} value={id}>
                 {label}
@@ -1207,11 +993,6 @@ export function ProductProductionCollectionWorkspace({
           {recordsError}
         </div>
       )}
-      {definitionError && (
-        <div className="production-task5-alert" role="alert">
-          {definitionError}
-        </div>
-      )}
       {masterDataError && (
         <div className="production-task5-alert" role="alert">
           {masterDataError}
@@ -1228,7 +1009,7 @@ export function ProductProductionCollectionWorkspace({
 
       <header className="enterprise-ledger-title">
         <h1>{context.productLabel}产情调查表</h1>
-        <p>{businessDate(sourceItem)} · 当前授权地区 · 当前调查对象</p>
+        <p>{businessDate(sourceItem)} · 当前授权地区 · 当前样本点</p>
       </header>
 
       <section
@@ -1239,7 +1020,7 @@ export function ProductProductionCollectionWorkspace({
           <strong>
             {recordsLoading
               ? "正在读取产情调查记录"
-              : `共 ${rows.length} 个调查对象，当前显示 ${rows.length > 0 ? 1 : 0}–${rows.length}`}
+              : `共 ${rows.length} 个样本点，当前显示 ${rows.length > 0 ? 1 : 0}–${rows.length}`}
           </strong>
           <div>
             {realtimeRepository && (
@@ -1277,182 +1058,168 @@ export function ProductProductionCollectionWorkspace({
         </div>
         <div className="enterprise-ledger-table__scroll" tabIndex={0}>
           <table aria-label={`${context.productLabel}产情调查表`}>
-            {realtimeRepository ? (
-              productionDefinition ? (
-                <ProductionContractTable
-                  definition={productionDefinition}
-                  onEditRecord={onEditRecord}
-                  pageNumber={pageNumber}
-                  productCode={productCode}
-                  productLabel={context.productLabel}
-                  records={persistedRecords}
-                />
-              ) : (
-                <>
-                  <thead>
-                    <tr>
-                      <th>正在读取字段契约</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="enterprise-ledger-table__empty">
-                        {definitionError
-                          ? "字段契约不匹配，未展示调查记录"
-                          : "正在读取产情字段契约"}
-                      </td>
-                    </tr>
-                  </tbody>
-                </>
-              )
-            ) : (
-              <>
-                <thead>
-                  <tr>
-                    <th rowSpan={2}>序号</th>
-                    <th rowSpan={2}>调查期间</th>
-                    <th rowSpan={2}>填报日期</th>
-                    <th rowSpan={2}>调查对象</th>
-                    <th rowSpan={2}>对象类型</th>
-                    <th rowSpan={2}>行政区划</th>
-                    <th rowSpan={2}>具体品种</th>
-                    <th colSpan={5}>填报与定位</th>
-                    <th colSpan={5}>面积与长势</th>
-                    <th colSpan={3}>测产与产量</th>
-                    <th colSpan={qualityFields.length}>
-                      {context.productLabel}质量
-                    </th>
-                    <th colSpan={4}>余粮、销售与使用</th>
-                    <th colSpan={2}>种植意向</th>
-                    <th colSpan={8}>成本费用</th>
-                    <th colSpan={2}>补贴与保险</th>
-                    <th colSpan={2}>来源校验</th>
-                    <th rowSpan={2}>填报状态</th>
-                    <th rowSpan={2}>操作</th>
-                  </tr>
-                  <tr>
-                    <th>填报人</th>
-                    <th>填报人联系方式</th>
-                    <th>填报对象联系方式</th>
-                    <th>纬度</th>
-                    <th>经度</th>
-                    <th>播种面积</th>
-                    <th>预计收获面积</th>
-                    <th>灾损面积</th>
-                    <th>当前长势</th>
-                    <th>生育阶段</th>
-                    <th>预计单产</th>
-                    <th>预计总产</th>
-                    <th>与上年相比</th>
-                    {qualityFields.map(({ id, label }) => (
-                      <th key={id}>{label}</th>
-                    ))}
-                    <th>期初库存</th>
-                    <th>销售数量</th>
-                    <th>自用数量</th>
-                    <th>期末余粮</th>
-                    <th>下年度意向面积</th>
-                    <th>调整原因</th>
-                    <th>地租</th>
-                    <th>种子费用</th>
-                    <th>农药费用</th>
-                    <th>化肥费用</th>
-                    <th>灌溉费用</th>
-                    <th>人工费用</th>
-                    <th>机耕费用</th>
-                    <th>其他成本</th>
-                    <th>政策补贴</th>
-                    <th>农业保险</th>
-                    <th>数据来源</th>
-                    <th>校验结果</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.workId}>
-                      <td>{row.number}</td>
-                      <td>{row.surveyDate}</td>
-                      <td>{row.lastSaved}</td>
-                      <th scope="row">{row.subject}</th>
-                      <td>{row.objectType}</td>
-                      <td>{row.region}</td>
-                      <td>{row.cultivar}</td>
-                      <td>{row.reporter}</td>
-                      <td>{row.reporterPhone}</td>
-                      <td>{row.subjectContact}</td>
-                      <td className="is-operational">{row.latitude}</td>
-                      <td className="is-operational">{row.longitude}</td>
-                      <td className="is-operational">{row.plantingArea}</td>
-                      <td className="is-operational">{row.harvestArea}</td>
-                      <td className="is-operational">{row.affectedArea}</td>
-                      <td className="is-operational">{row.growth}</td>
-                      <td className="is-operational">{row.stage}</td>
-                      <td className="is-operational">{row.expectedYield}</td>
-                      <td className="is-operational">{row.expectedOutput}</td>
-                      <td className="is-operational">{row.yearOnYear}</td>
-                      {qualityFields.map(({ id }) => (
-                        <td className="is-operational" key={id}>
-                          {qualityValue(row, id)}
-                        </td>
-                      ))}
-                      <td className="is-operational">{row.openingStock}</td>
-                      <td className="is-operational">{row.sales}</td>
-                      <td className="is-operational">{row.selfUse}</td>
-                      <td className="is-operational">{row.endingStock}</td>
-                      <td className="is-operational">{row.intendedArea}</td>
-                      <td>{row.intentionReason}</td>
-                      <td className="is-operational">{row.landRent}</td>
-                      <td className="is-operational">{row.seedCost}</td>
-                      <td className="is-operational">{row.pesticideCost}</td>
-                      <td className="is-operational">{row.fertilizerCost}</td>
-                      <td className="is-operational">{row.irrigationCost}</td>
-                      <td className="is-operational">{row.laborCost}</td>
-                      <td className="is-operational">{row.machineryCost}</td>
-                      <td className="is-operational">{row.otherCost}</td>
-                      <td className="is-operational">{row.subsidy}</td>
-                      <td className="is-operational">{row.insurance}</td>
-                      <td>{row.sourceDetail}</td>
-                      <td>{row.validation}</td>
-                      <td>
-                        <span
-                          className={`enterprise-ledger-state is-${row.status}`}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          className="enterprise-ledger-row-action"
-                          type="button"
-                          onClick={() => {
-                            if (realtimeRepository && onEditRecord) {
-                              onEditRecord(productCode, row.workId);
-                              return;
-                            }
-                            onSelectionChange({
-                              type: "work-item",
-                              id: row.workId,
-                            });
-                          }}
-                        >
-                          查看
-                        </button>
-                      </td>
-                    </tr>
+            <>
+              <thead>
+                <tr>
+                  <th rowSpan={2}>序号</th>
+                  <th rowSpan={2}>数据时间</th>
+                  <th rowSpan={2}>填报日期</th>
+                  <th rowSpan={2}>样本点名称</th>
+                  <th rowSpan={2}>样本点类型</th>
+                  <th rowSpan={2}>地区</th>
+                  <th rowSpan={2}>具体品种</th>
+                  <th colSpan={5}>填报与定位</th>
+                  <th colSpan={5}>面积与长势</th>
+                  <th colSpan={3}>测产与产量</th>
+                  <th colSpan={qualityFields.length}>
+                    {context.productLabel}质量
+                  </th>
+                  <th colSpan={4}>余粮、销售与使用</th>
+                  <th colSpan={2}>种植意向</th>
+                  <th colSpan={8}>成本费用</th>
+                  <th colSpan={2}>补贴与保险</th>
+                  <th colSpan={2}>来源校验</th>
+                  <th rowSpan={2}>填报状态</th>
+                  <th rowSpan={2}>操作</th>
+                </tr>
+                <tr>
+                  <th>填报人</th>
+                  <th>填报人联系方式</th>
+                  <th>样本点联系方式</th>
+                  <th>纬度</th>
+                  <th>经度</th>
+                  <th>播种面积</th>
+                  <th>预计收获面积</th>
+                  <th>灾损面积</th>
+                  <th>当前长势</th>
+                  <th>生育阶段</th>
+                  <th>预计单产</th>
+                  <th>预计总产</th>
+                  <th>与上年相比</th>
+                  {qualityFields.map(({ id, label }) => (
+                    <th key={id}>{label}</th>
                   ))}
-                  {rows.length === 0 && (
-                    <tr>
-                      <td
-                        className="enterprise-ledger-table__empty"
-                        colSpan={40 + qualityFields.length}
-                      >
-                        当前范围暂无{context.productLabel}产情调查记录
+                  <th>期初库存</th>
+                  <th>销售数量</th>
+                  <th>自用数量</th>
+                  <th>期末余粮</th>
+                  <th>下年度意向面积</th>
+                  <th>调整原因</th>
+                  <th>地租</th>
+                  <th>种子费用</th>
+                  <th>农药费用</th>
+                  <th>化肥费用</th>
+                  <th>灌溉费用</th>
+                  <th>人工费用</th>
+                  <th>机耕费用</th>
+                  <th>其他成本</th>
+                  <th>政策补贴</th>
+                  <th>农业保险</th>
+                  <th>数据来源</th>
+                  <th>校验结果</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.workId}>
+                    <td>{row.number}</td>
+                    <td>{row.surveyDate}</td>
+                    <td>{row.lastSaved}</td>
+                    <th scope="row">{row.subject}</th>
+                    <td>{row.objectType}</td>
+                    <td>{row.region}</td>
+                    <td>{row.cultivar}</td>
+                    <td>{row.reporter}</td>
+                    <td>{row.reporterPhone}</td>
+                    <td>{row.subjectContact}</td>
+                    <td className="is-operational">{row.latitude}</td>
+                    <td className="is-operational">{row.longitude}</td>
+                    <td className="is-operational">{row.plantingArea}</td>
+                    <td className="is-operational">{row.harvestArea}</td>
+                    <td className="is-operational">{row.affectedArea}</td>
+                    <td className="is-operational">{row.growth}</td>
+                    <td className="is-operational">{row.stage}</td>
+                    <td className="is-operational">{row.expectedYield}</td>
+                    <td className="is-operational">{row.expectedOutput}</td>
+                    <td className="is-operational">{row.yearOnYear}</td>
+                    {qualityFields.map(({ id }) => (
+                      <td className="is-operational" key={id}>
+                        {qualityValue(row, id)}
                       </td>
-                    </tr>
-                  )}
-                </tbody>
-              </>
-            )}
+                    ))}
+                    <td className="is-operational">{row.openingStock}</td>
+                    <td className="is-operational">{row.sales}</td>
+                    <td className="is-operational">{row.selfUse}</td>
+                    <td className="is-operational">{row.endingStock}</td>
+                    <td className="is-operational">{row.intendedArea}</td>
+                    <td>{row.intentionReason}</td>
+                    <td className="is-operational">{row.landRent}</td>
+                    <td className="is-operational">{row.seedCost}</td>
+                    <td className="is-operational">{row.pesticideCost}</td>
+                    <td className="is-operational">{row.fertilizerCost}</td>
+                    <td className="is-operational">{row.irrigationCost}</td>
+                    <td className="is-operational">{row.laborCost}</td>
+                    <td className="is-operational">{row.machineryCost}</td>
+                    <td className="is-operational">{row.otherCost}</td>
+                    <td className="is-operational">{row.subsidy}</td>
+                    <td className="is-operational">{row.insurance}</td>
+                    <td>{row.sourceDetail}</td>
+                    <td>{row.validation}</td>
+                    <td>
+                      <span
+                        className={`enterprise-ledger-state is-${row.status}`}
+                      >
+                        {row.status}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className="enterprise-ledger-row-action"
+                        type="button"
+                        onClick={() => {
+                          if (realtimeRepository && onEditRecord) {
+                            onEditRecord(productCode, row.workId);
+                            return;
+                          }
+                          onSelectionChange({
+                            type: "work-item",
+                            id: row.workId,
+                          });
+                        }}
+                      >
+                        查看记录
+                      </button>
+                      <button
+                        className="enterprise-ledger-row-action"
+                        type="button"
+                        onClick={() => {
+                          if (realtimeRepository && onEditRecord) {
+                            onEditRecord(productCode, row.workId);
+                            return;
+                          }
+                          onSelectionChange({
+                            type: "work-item",
+                            id: row.workId,
+                          });
+                        }}
+                      >
+                        查看照片
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td
+                      className="enterprise-ledger-table__empty"
+                      colSpan={39 + qualityFields.length}
+                    >
+                      当前范围暂无{context.productLabel}产情调查记录
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </>
           </table>
         </div>
         <footer>

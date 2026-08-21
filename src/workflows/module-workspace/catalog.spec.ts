@@ -113,6 +113,19 @@ describe("module workspace catalog", () => {
       title: "同一分段或边界穿越重复申报",
     });
     expect(logistics.notices[0]?.detail).toContain("不将合法多式联运判为重复");
+    const visibleNotices = logistics.notices
+      .flatMap(({ title, detail }) => [title, detail])
+      .join(" ");
+    for (const removed of [
+      "物流监测期",
+      "物流采集期",
+      "起运节点",
+      "到达节点",
+      "在途时间",
+      "产品品种",
+    ]) {
+      expect(visibleNotices).not.toContain(removed);
+    }
   });
 
   it("uses per-fact-type counts instead of a cross-fact aggregate", () => {

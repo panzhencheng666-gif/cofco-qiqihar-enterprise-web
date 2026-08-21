@@ -71,7 +71,6 @@ const nodeTypeLabels: Readonly<Record<string, string>> = {
 interface LogisticsRow {
   workId: string;
   number: number;
-  product: string;
   surveyPeriod: string;
   fillingTime: string;
   node: string;
@@ -85,6 +84,21 @@ interface LogisticsRow {
   responsible: string;
   state: string;
 }
+
+const publicLogisticsListFields = [
+  { code: "LOG_SAMPLE_NAME", label: "物流样本点名称" },
+  { code: "LOG_REGION", label: "地区" },
+  { code: "LOG_REPORTER", label: "填报人" },
+  { code: "LOG_REPORTER_PHONE", label: "填报人联系方式" },
+  { code: "LOG_SAMPLE_CONTACT", label: "物流样本点联系方式" },
+  { code: "LOG_SAMPLE_LATITUDE", label: "纬度（度）" },
+  { code: "LOG_SAMPLE_LONGITUDE", label: "经度（度）" },
+  { code: "LOG_TRANSPORT_MODE", label: "运输方式" },
+  { code: "LOG_DIRECTION", label: "运输方向" },
+  { code: "LOG_ROUTE_VOLUME", label: "运输数量（吨）" },
+  { code: "LOG_FREIGHT_RATE", label: "物流运价（不含车板价）（元/吨）" },
+  { code: "LOG_BOARD_PRICE", label: "车板价（元/吨）" },
+] as const;
 
 const logisticsProducts = [
   { code: "CORN", label: "玉米" },
@@ -133,17 +147,12 @@ function persistedRow(
   record: LogisticsRecordRow,
   number: number,
 ): LogisticsRow {
-  const origin = persistedValue(record, "LOG_ORIGIN");
-  const destination = persistedValue(record, "LOG_DESTINATION");
   const direction = persistedValue(record, "LOG_DIRECTION");
   const volume = persistedValue(record, "LOG_ROUTE_VOLUME");
   const status = persistedValue(record, "LOG_STATUS");
   return {
     workId: record.id,
     number,
-    product:
-      logisticsProducts.find(({ code }) => code === record.productCode)
-        ?.label ?? record.productCode,
     surveyPeriod: persistedSurveyPeriod(record),
     fillingTime: persistedFillingTime(record),
     node: record.id,
@@ -151,18 +160,40 @@ function persistedRow(
     region: persistedValue(record, "LOG_REGION"),
     inflow: direction.includes("流入") ? volume : "—",
     outflow: direction.includes("流出") ? volume : "—",
-    direction:
-      origin !== "—" && destination !== "—"
-        ? `${origin} → ${destination}`
-        : direction,
+    direction,
     freightRate: persistedValue(record, "LOG_FREIGHT_RATE"),
-    transitTime: persistedValue(record, "LOG_TRANSIT_TIME"),
-    responsible: persistedValue(record, "LOG_SOURCE_ORGANIZATION"),
+    transitTime: "—",
+    responsible: persistedValue(record, "LOG_REPORTER"),
     state:
       status !== "—"
         ? status
         : (logisticsStatusLabels[record.status] ?? "待确认"),
   };
+}
+
+function fixturePublicValue(row: LogisticsRow, code: string): string {
+  switch (code) {
+    case "LOG_SAMPLE_NAME":
+      return row.node;
+    case "LOG_REGION":
+      return row.region;
+    case "LOG_REPORTER":
+      return row.responsible;
+    case "LOG_TRANSPORT_MODE":
+      return row.nodeType;
+    case "LOG_DIRECTION":
+      return row.inflow !== "—" && row.outflow !== "—"
+        ? "流入 / 流出"
+        : row.inflow !== "—"
+          ? "流入"
+          : "流出";
+    case "LOG_ROUTE_VOLUME":
+      return row.inflow !== "—" ? row.inflow : row.outflow;
+    case "LOG_FREIGHT_RATE":
+      return row.freightRate;
+    default:
+      return "—";
+  }
 }
 
 function pathValue(path: readonly EnterpriseRegionNode[]): RegionCascadeValue {
@@ -275,9 +306,7 @@ export function LogisticsMonitoringWorkspace({
   const [importMessage, setImportMessage] = useState("");
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const [recordsRevision, setRecordsRevision] = useState(0);
-  const [definition, setDefinition] = useState<LogisticsDefinition | null>(
-    null,
-  );
+  const [, setDefinition] = useState<LogisticsDefinition | null>(null);
   const { masterData, masterDataError } =
     useRealtimeMasterData(realtimeRepository);
 
@@ -554,10 +583,6 @@ export function LogisticsMonitoringWorkspace({
     (currentPageNumber + 1) * collectionPageSize,
     rowTotal,
   );
-  const definitionFields =
-    definition?.fields.filter(
-      ({ code }) => code !== "LOG_STATUS" && code !== "LOG_REPORTED_AT",
-    ) ?? [];
   const selectedPersistedRecord = realtimeRepository
     ? persistedRecords.find(({ id }) => id === selectedPersistedId)
     : undefined;
@@ -583,10 +608,10 @@ export function LogisticsMonitoringWorkspace({
   return (
     <div className="enterprise-ledger-workbench">
       <div className="enterprise-ledger-workbench__breadcrumb">
-        物流监测 / 物流节点监测
+        物流监测 / 物流业务监测
       </div>
       <section
-        aria-label="物流节点查询条件"
+        aria-label="物流业务查询条件"
         className="enterprise-ledger-query enterprise-ledger-query--logistics"
         role="search"
       >
@@ -650,18 +675,18 @@ export function LogisticsMonitoringWorkspace({
           />
         )}
         <label>
-          <span>节点类型</span>
+          <span>运输方式</span>
           <select
-            aria-label="节点类型"
+            aria-label="运输方式"
             value={nodeType}
             onChange={(event) => {
               setNodeType(event.target.value);
               setPageNumber(0);
             }}
           >
-            <option value="">全部节点类型</option>
-            <option value="rail-node">铁路站点</option>
-            <option value="road-node">公路物流节点</option>
+            <option value="">全部运输方式</option>
+            <option value="rail-node">铁路</option>
+            <option value="road-node">公路</option>
           </select>
         </label>
         <label>
@@ -767,15 +792,15 @@ export function LogisticsMonitoringWorkspace({
       />
 
       <header className="enterprise-ledger-title">
-        <h1>粮食物流节点监测表</h1>
+        <h1>粮食物流监测表</h1>
         <p>
-          铁路站点与公路物流节点 · {surveyYear}年
+          物流运输业务 · {surveyYear}年
           {surveyMonth ? `${Number(surveyMonth)}月` : "全年"} · 当前授权地区
         </p>
       </header>
 
       <section
-        aria-label="粮食物流节点监测表区域"
+        aria-label="粮食物流监测表区域"
         className="enterprise-ledger-table"
       >
         <div className="enterprise-ledger-table__toolbar">
@@ -811,64 +836,29 @@ export function LogisticsMonitoringWorkspace({
           </div>
         </div>
         <div className="enterprise-ledger-table__scroll" tabIndex={0}>
-          <table aria-label="粮食物流节点监测表">
+          <table aria-label="粮食物流监测表">
             <thead>
-              {realtimeRepository && definition ? (
-                <tr>
-                  <th>序号</th>
-                  <th>产品品种</th>
-                  <th>调查期间</th>
-                  <th>填报日期</th>
-                  {definitionFields.map((field) => (
-                    <th key={field.code}>
-                      {field.label}
-                      {field.unit ? `（${field.unit}）` : ""}
-                    </th>
-                  ))}
-                  <th>业务状态</th>
-                  <th>操作</th>
-                </tr>
-              ) : (
-                <>
-                  <tr>
-                    <th rowSpan={2}>序号</th>
-                    <th rowSpan={2}>产品品种</th>
-                    <th rowSpan={2}>调查期间</th>
-                    <th rowSpan={2}>填报日期</th>
-                    <th rowSpan={2}>物流节点</th>
-                    <th rowSpan={2}>节点类型</th>
-                    <th rowSpan={2}>行政区划</th>
-                    <th colSpan={3}>运输数量与方向</th>
-                    <th colSpan={2}>运输依据</th>
-                    <th rowSpan={2}>责任人</th>
-                    <th rowSpan={2}>业务状态</th>
-                    <th rowSpan={2}>操作</th>
-                  </tr>
-                  <tr>
-                    <th>流入量</th>
-                    <th>流出量</th>
-                    <th>主要流向</th>
-                    <th>运价</th>
-                    <th>平均在途时间</th>
-                  </tr>
-                </>
-              )}
+              <tr>
+                <th>序号</th>
+                <th>数据时间</th>
+                <th>填报日期</th>
+                {publicLogisticsListFields.map((field) => (
+                  <th key={field.code}>{field.label}</th>
+                ))}
+                <th>填报状态</th>
+                <th>操作</th>
+              </tr>
             </thead>
             <tbody>
-              {realtimeRepository && definition
+              {realtimeRepository
                 ? persistedRecords.map((record, index) => (
                     <tr key={record.id}>
                       <td>
                         {currentPageNumber * collectionPageSize + index + 1}
                       </td>
-                      <td>
-                        {logisticsProducts.find(
-                          ({ code }) => code === record.productCode,
-                        )?.label ?? record.productCode}
-                      </td>
                       <td>{persistedSurveyPeriod(record)}</td>
                       <td>{persistedFillingTime(record)}</td>
-                      {definitionFields.map(({ code }) => (
+                      {publicLogisticsListFields.map(({ code }) => (
                         <td className="is-operational" key={code}>
                           {persistedValue(record, code)}
                         </td>
@@ -896,18 +886,13 @@ export function LogisticsMonitoringWorkspace({
                 : displayedRows.map((row) => (
                     <tr key={row.workId}>
                       <td>{row.number}</td>
-                      <td>{row.product}</td>
                       <td>{row.surveyPeriod}</td>
                       <td>{row.fillingTime}</td>
-                      <th scope="row">{row.node}</th>
-                      <td>{row.nodeType}</td>
-                      <td>{row.region}</td>
-                      <td className="is-operational">{row.inflow}</td>
-                      <td className="is-operational">{row.outflow}</td>
-                      <td className="is-operational">{row.direction}</td>
-                      <td className="is-operational">{row.freightRate}</td>
-                      <td className="is-operational">{row.transitTime}</td>
-                      <td>{row.responsible}</td>
+                      {publicLogisticsListFields.map(({ code }) => (
+                        <td className="is-operational" key={code}>
+                          {fixturePublicValue(row, code)}
+                        </td>
+                      ))}
                       <td>{row.state}</td>
                       <td>
                         <button
@@ -937,13 +922,9 @@ export function LogisticsMonitoringWorkspace({
                 <tr>
                   <td
                     className="enterprise-ledger-table__empty"
-                    colSpan={
-                      realtimeRepository && definition
-                        ? definitionFields.length + 6
-                        : 15
-                    }
+                    colSpan={publicLogisticsListFields.length + 5}
                   >
-                    当前范围暂无粮食物流节点监测记录
+                    当前范围暂无粮食物流监测记录
                   </td>
                 </tr>
               )}
@@ -971,11 +952,19 @@ export function LogisticsMonitoringWorkspace({
         <section aria-label="物流记录详情" className="enterprise-ledger-title">
           <h2>物流记录详情</h2>
           <p>
-            {persistedValue(selectedPersistedRecord, "LOG_ORIGIN")} →{" "}
-            {persistedValue(selectedPersistedRecord, "LOG_DESTINATION")} ·{" "}
+            {persistedValue(selectedPersistedRecord, "LOG_SAMPLE_NAME")} ·{" "}
+            {persistedValue(selectedPersistedRecord, "LOG_REGION")} ·{" "}
             {persistedSurveyPeriod(selectedPersistedRecord)} ·{" "}
             {persistedFillingTime(selectedPersistedRecord)}
           </p>
+          <dl>
+            {publicLogisticsListFields.map(({ code, label }) => (
+              <div key={code}>
+                <dt>{label}</dt>
+                <dd>{persistedValue(selectedPersistedRecord, code)}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
       )}
 

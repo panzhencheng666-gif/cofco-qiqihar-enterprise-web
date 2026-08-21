@@ -82,12 +82,18 @@ describe("market monitoring workspace", () => {
   it("uses product-applicable market object types and soybean quality columns", () => {
     renderWorkspace("soybean-collection");
 
-    const objectType = screen.getByRole("combobox", { name: "对象类型" });
+    const objectType = screen.getByRole("combobox", { name: "样本点类型" });
     expect(
       within(objectType)
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["全部适用对象", "贸易商", "深加工企业", "批发市场", "承储企业"]);
+    ).toEqual([
+      "全部适用样本点",
+      "贸易商",
+      "深加工企业",
+      "批发市场",
+      "承储企业",
+    ]);
 
     const table = screen.getByRole("table", { name: "大豆市场采集表" });
     for (const label of ["蛋白", "出油率", "不完善粒", "水分", "杂质"]) {
@@ -102,29 +108,32 @@ describe("market monitoring workspace", () => {
     }
   });
 
-  it("keeps procurement price, procurement volume and quality for processors", async () => {
+  it("keeps public purchase, volume and quality fields while hiding processor governance fields", async () => {
     const user = userEvent.setup();
     renderWorkspace("paddy-collection");
 
     await user.selectOptions(
-      screen.getByRole("combobox", { name: "对象类型" }),
+      screen.getByRole("combobox", { name: "样本点类型" }),
       "deep-processing",
     );
     const table = screen.getByRole("table", { name: "稻谷市场采集表" });
     for (const label of [
-      "对象采购价格",
-      "对象销售价格",
+      "采集对象收购价格",
+      "采集对象销售价格",
       "采购量",
       "水分",
       "出米率",
       "出糙率",
       "杂质",
-      "加工投入量",
-      "主产品产出量",
     ]) {
       expect(
         within(table).getByRole("columnheader", { name: label }),
       ).toBeVisible();
+    }
+    for (const hidden of ["加工投入量", "主产品产出量", "权属", "政策库存"]) {
+      expect(
+        within(table).queryByRole("columnheader", { name: hidden }),
+      ).not.toBeInTheDocument();
     }
   });
 
@@ -133,10 +142,10 @@ describe("market monitoring workspace", () => {
 
     const table = screen.getByRole("table", { name: "玉米市场采集表" });
     expect(
-      within(table).getByRole("columnheader", { name: "对象采购价格" }),
+      within(table).getByRole("columnheader", { name: "采集对象收购价格" }),
     ).toHaveTextContent("未含车板、包装、运费");
     expect(
-      within(table).getByRole("columnheader", { name: "对象销售价格" }),
+      within(table).getByRole("columnheader", { name: "采集对象销售价格" }),
     ).toHaveTextContent("未含车板、包装、运费");
     expect(
       within(table).queryByRole("columnheader", { name: "实际成交价" }),
@@ -175,13 +184,13 @@ describe("market monitoring workspace", () => {
         within(table).getByText(new RegExp(`${productLabel}质量`)),
       ).toBeVisible();
       expect(
-        within(table).getByRole("columnheader", { name: "对象采购价格" }),
+        within(table).getByRole("columnheader", { name: "采集对象收购价格" }),
       ).toBeVisible();
       expect(
-        within(table).getByRole("columnheader", { name: "对象销售价格" }),
+        within(table).getByRole("columnheader", { name: "采集对象销售价格" }),
       ).toBeVisible();
       expect(
-        within(table).getByRole("columnheader", { name: "期末库存" }),
+        within(table).getByRole("columnheader", { name: "现有库存" }),
       ).toBeVisible();
     },
   );

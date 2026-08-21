@@ -26,7 +26,7 @@ import {
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
 import {
-  definitionFields,
+  marketFields,
   marketPayloadFromValues,
   productionFields,
   productionPayloadFromValues,
@@ -54,6 +54,16 @@ function statusLabel(status: string | undefined): string {
   return status ? (labels[status] ?? status) : "新建填报";
 }
 
+function businessRecordLabel(values: Readonly<Record<string, string>>): string {
+  return (
+    values.PROD_SAMPLE_NAME ??
+    values.MKT_SAMPLE_NAME ??
+    values.PROD_REGION ??
+    values.MKT_REGION ??
+    "业务记录"
+  );
+}
+
 function productName(code: string, master: MasterDataSnapshot | null): string {
   return (
     master?.products.find((product) => product.code === code)?.name ?? code
@@ -65,10 +75,22 @@ function isAccountLockedReporter(code: string): boolean {
 }
 
 function productionValues(record: ProductionRecordRow): Record<string, string> {
+  const [legacyYear = "", legacyMonth = ""] = (record.surveyDate ?? "").split(
+    "-",
+  );
   return {
     objectTypeCode: record.objectTypeCode,
     regionCode: record.regionCode,
-    surveyDate: record.surveyDate,
+    surveyDate: record.surveyDate ?? "",
+    surveyYear:
+      record.surveyYear != null ? String(record.surveyYear) : legacyYear,
+    surveyMonth:
+      record.surveyMonth != null
+        ? String(record.surveyMonth)
+        : legacyMonth
+          ? String(Number(legacyMonth))
+          : "",
+    fillingDate: record.fillingDate || record.reportedAt.slice(0, 10),
     cultivatedAreaMu: record.cultivatedAreaMu,
     yieldPerMuKilograms: record.yieldPerMuKilograms,
     ...record.quality,
@@ -80,7 +102,16 @@ function productionValues(record: ProductionRecordRow): Record<string, string> {
 }
 
 function marketValues(record: MarketRecordRow): Record<string, string> {
-  return { ...record.coreValues, ...record.facts };
+  const [legacyYear = "", legacyMonth = ""] = (
+    record.coreValues.MKT_TRADE_DATE ?? ""
+  ).split("-");
+  return {
+    ...record.coreValues,
+    ...record.facts,
+    surveyYear: record.surveyYear || legacyYear,
+    surveyMonth:
+      record.surveyMonth || (legacyMonth ? String(Number(legacyMonth)) : ""),
+  };
 }
 
 export function RealtimeBusinessOperationsPanel({
@@ -115,9 +146,12 @@ export function RealtimeBusinessOperationsPanel({
   const [objectTypes, setObjectTypes] = useState<readonly MasterObjectType[]>(
     [],
   );
-  const [definition, setDefinition] = useState<
-    ProductionDefinition | MarketDefinition | null
-  >(null);
+  const [definitionSnapshot, setDefinitionSnapshot] = useState<{
+    requestKey: string;
+    definition: ProductionDefinition | MarketDefinition | null;
+    state: "loaded" | "failed";
+    error: string;
+  }>({ requestKey: "", definition: null, state: "failed", error: "" });
   const [records, setRecords] = useState<readonly BusinessRecordListItem[]>([]);
   const [selected, setSelected] = useState<SelectedRecord | null>(null);
   const selectedRecordId = useRef<string | undefined>(initialRecordId);
@@ -254,6 +288,14 @@ export function RealtimeBusinessOperationsPanel({
     values.MKT_OBJECT_TYPE ||
     objectTypes[0]?.code ||
     "";
+  const definitionRequestKey = `${domain}:${productCode}:${objectTypeCode}`;
+  const currentDefinitionSnapshot =
+    definitionSnapshot.requestKey === definitionRequestKey
+      ? definitionSnapshot
+      : null;
+  const definition = currentDefinitionSnapshot?.definition ?? null;
+  const definitionState = currentDefinitionSnapshot?.state ?? "loading";
+  const definitionError = currentDefinitionSnapshot?.error ?? "";
   useEffect(() => {
     if (!productCode || !objectTypeCode) return;
     let cancelled = false;
@@ -263,21 +305,33 @@ export function RealtimeBusinessOperationsPanel({
         : repository.loadMarketDefinition(productCode, objectTypeCode);
     void request
       .then((nextDefinition) => {
-        if (!cancelled) setDefinition(nextDefinition);
+        if (!cancelled) {
+          setDefinitionSnapshot({
+            requestKey: definitionRequestKey,
+            definition: nextDefinition,
+            state: "loaded",
+            error: "",
+          });
+        }
       })
       .catch((loadError: unknown) => {
-        if (!cancelled)
-          setError(
-            loadError instanceof RealtimeApiError &&
+        if (!cancelled) {
+          setDefinitionSnapshot({
+            requestKey: definitionRequestKey,
+            definition: null,
+            state: "failed",
+            error:
+              loadError instanceof RealtimeApiError &&
               loadError.code === "CONTRACT_MISMATCH"
-              ? loadError.message
-              : "填报规则读取失败，请稍后重试。",
-          );
+                ? loadError.message
+                : "填报规则读取失败，请稍后重试。",
+          });
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [domain, objectTypeCode, productCode, repository]);
+  }, [definitionRequestKey, domain, objectTypeCode, productCode, repository]);
 
   const fields = useMemo(() => {
     if (domain === "production") {
@@ -286,26 +340,7 @@ export function RealtimeBusinessOperationsPanel({
         : [];
     }
     if (!definition || !("coreFields" in definition)) return [];
-    const core: RealtimeFormField[] = definition.coreFields.map((field) => ({
-      code: field.code,
-      label: field.label,
-      type:
-        field.controlType === "REGION_HIERARCHY"
-          ? "region"
-          : field.controlType === "SELECT"
-            ? "select"
-            : field.controlType === "DATE"
-              ? "date"
-              : field.controlType === "DECIMAL"
-                ? "decimal"
-                : "text",
-      required: field.required,
-      readOnly: field.controlType.startsWith("READONLY"),
-      unit: field.unit,
-      options: field.options,
-      section: "交易与对象",
-    }));
-    return [...core, ...definitionFields(definition)];
+    return marketFields(definition);
   }, [definition, domain]);
 
   const fieldSections = useMemo(() => {
@@ -342,8 +377,10 @@ export function RealtimeBusinessOperationsPanel({
   }
 
   function displayedValue(field: RealtimeFormField): string {
-    if (field.code === "PROD_SAMPLE_SUBJECT_CODE") {
-      return values[field.code] || "待权威映射（EXT-007）";
+    if (field.code === "fillingDate") {
+      return selected
+        ? values.fillingDate || "系统填报日期暂不可用"
+        : "保存后由系统生成";
     }
     if (field.code === "estimatedOutputKilograms") {
       const area = Number(values.cultivatedAreaMu);
@@ -704,6 +741,8 @@ export function RealtimeBusinessOperationsPanel({
     allowed.has("RETURN");
   const existingRecordUnavailable =
     recordLoadState === "loading" || recordLoadState === "failed";
+  const definitionReady = definitionState === "loaded" && definition !== null;
+  const visibleError = definitionError || error;
   return (
     <section
       aria-label={
@@ -806,11 +845,7 @@ export function RealtimeBusinessOperationsPanel({
                     disabled={busy}
                     onClick={() => void openRecord(record.id)}
                   >
-                    <strong>
-                      {record.values.PROD_REGION ??
-                        record.values.MKT_REGION ??
-                        record.id}
-                    </strong>
+                    <strong>{businessRecordLabel(record.values)}</strong>
                     <span>
                       {record.values.PROD_STATUS ??
                         record.values.MKT_STATUS ??
@@ -831,7 +866,7 @@ export function RealtimeBusinessOperationsPanel({
           <header>
             <strong>
               {selected
-                ? `${selected.id} · ${statusLabel(selected.status)}`
+                ? `${businessRecordLabel(values)} · ${statusLabel(selected.status)}`
                 : recordLoadState === "loading"
                   ? "正在读取原业务记录"
                   : recordLoadState === "failed"
@@ -865,6 +900,7 @@ export function RealtimeBusinessOperationsPanel({
                           <span>{field.label} *</span>
                           <RealtimeRegionCascadePicker
                             ariaLabel={field.label}
+                            requireVillage={false}
                             regions={master?.regions ?? []}
                             value={values[field.code] ?? ""}
                             onChange={(regionCode) =>
@@ -923,7 +959,7 @@ export function RealtimeBusinessOperationsPanel({
                 </div>
               </fieldset>
             ))}
-            {!selected && recordLoadState === "new" && (
+            {definitionReady && !selected && recordLoadState === "new" && (
               <fieldset>
                 <legend>现场照片</legend>
                 <label className="realtime-business-evidence-upload">
@@ -954,7 +990,7 @@ export function RealtimeBusinessOperationsPanel({
                 </label>
               </fieldset>
             )}
-            {selected && (
+            {definitionReady && selected && (
               <fieldset className="realtime-business-evidence-review">
                 <legend>现场水印照片</legend>
                 {selected.evidencePhotos?.length ? (
@@ -989,7 +1025,7 @@ export function RealtimeBusinessOperationsPanel({
             )}
             {canSave && (
               <button
-                disabled={busy || !definition || existingRecordUnavailable}
+                disabled={busy || !definitionReady || existingRecordUnavailable}
                 type="submit"
               >
                 保存业务记录
@@ -1045,8 +1081,8 @@ export function RealtimeBusinessOperationsPanel({
               </p>
             )}
           </div>
-          <p aria-live="polite" role={error ? "alert" : "status"}>
-            {error || message}
+          <p aria-live="polite" role={visibleError ? "alert" : "status"}>
+            {visibleError || message}
           </p>
         </form>
       </div>

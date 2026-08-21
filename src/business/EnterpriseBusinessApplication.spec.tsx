@@ -97,6 +97,8 @@ function productionDefinitionFixture(): ProductionDefinition {
     productCode: "CORN",
     objectTypeCode: "FARMER",
     contractVersion: "production-survey-fields-v1",
+    contractDigest:
+      "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32",
     fields: [
       field("surveyDate", "调查日期", "CONTEXT", "基础信息", 10, 10, {
         valueType: "DATE",
@@ -423,8 +425,12 @@ describe("formal enterprise prototype", () => {
     await waitFor(() =>
       expect(getProduction).toHaveBeenCalledWith("production-source-17"),
     );
-    expect(within(dialog).getByLabelText("调查日期")).toHaveValue("2026-08-09");
-    expect(within(dialog).getByLabelText("调查日期")).toBeDisabled();
+    expect(within(dialog).getByLabelText("数据年份")).toHaveValue("2026");
+    expect(within(dialog).getByLabelText("数据年份")).toBeDisabled();
+    expect(within(dialog).getByLabelText("数据月份")).toHaveValue("8");
+    expect(within(dialog).getByLabelText("数据月份")).toBeDisabled();
+    expect(within(dialog).getByLabelText("填报日期")).toHaveValue("2026-08-09");
+    expect(within(dialog).getByLabelText("填报日期").tagName).toBe("OUTPUT");
     expect(
       within(dialog).queryByRole("button", { name: "保存业务记录" }),
     ).not.toBeInTheDocument();
@@ -438,11 +444,11 @@ describe("formal enterprise prototype", () => {
         productCode: "CORN",
         values: {
           LOG_REPORTER: "物流填报员",
-          ROUTE_VOLUME: "120.0000",
+          LOG_ROUTE_VOLUME: "120.0000",
         },
         displayValues: {
           LOG_REPORTER: "物流填报员",
-          ROUTE_VOLUME: "120.0000",
+          LOG_ROUTE_VOLUME: "120.0000",
         },
         status: "PENDING_REVIEW",
         returnReason: null,
@@ -515,7 +521,7 @@ describe("formal enterprise prototype", () => {
               options: [],
             },
             {
-              code: "ROUTE_VOLUME",
+              code: "LOG_ROUTE_VOLUME",
               label: "运输数量",
               controlType: "DECIMAL",
               unit: "吨",
@@ -1020,7 +1026,7 @@ describe("formal enterprise prototype", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "粮食物流节点监测表",
+        name: "粮食物流监测表",
       }),
     ).toBeVisible();
     expect(
@@ -1035,13 +1041,13 @@ describe("formal enterprise prototype", () => {
       await screen.findByRole("region", { name: "物流监测填报" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "粮食物流节点监测表" }),
+      screen.getByRole("heading", { name: "粮食物流监测表" }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "取消并返回" }));
     expect(
       await screen.findByRole("heading", {
-        name: "粮食物流节点监测表",
+        name: "粮食物流监测表",
       }),
     ).toBeVisible();
   });
@@ -2051,7 +2057,9 @@ describe("formal enterprise prototype", () => {
       name: /龙江县玉米贸易监测组/,
     });
     expect(marketRow).toHaveTextContent("待审核");
-    await user.click(within(marketRow).getByRole("button", { name: "查看" }));
+    await user.click(
+      within(marketRow).getByRole("button", { name: "查看记录" }),
+    );
     expect(screen.getByLabelText("任务五状态")).toHaveTextContent("已提交");
     expect(screen.getByLabelText("任务五状态")).toHaveTextContent("待审核");
   });
@@ -2107,7 +2115,7 @@ describe("formal enterprise prototype", () => {
         screen.getByRole("row", {
           name: /讷河市同义镇保国村村委会/,
         }),
-      ).getByRole("button", { name: "查看" }),
+      ).getByRole("button", { name: "查看记录" }),
     );
     expect(screen.getByRole("textbox", { name: "预计单产" })).toHaveValue(
       "470.0 公斤/亩",

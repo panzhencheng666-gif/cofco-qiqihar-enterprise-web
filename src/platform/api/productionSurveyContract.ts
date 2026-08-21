@@ -1,0 +1,59 @@
+export const PRODUCTION_SURVEY_CONTRACT_VERSION =
+  "production-survey-fields-v1" as const;
+
+export const PRODUCTION_SURVEY_CONTRACT_DIGEST =
+  "sha256:44997993c550cd093d2012bb0eb0520b5f693da046cca2573d4fbe6b93f62e32" as const;
+
+/** Public fields accepted by the production survey boundary. */
+export const PRODUCTION_PUBLIC_FIELD_ORDER = [
+  "PROD_SAMPLE_NAME",
+  "objectTypeCode",
+  "regionCode",
+  "PROD_CULTIVAR_NAME",
+  "PROD_REPORTER_NAME",
+  "PROD_REPORTER_PHONE",
+  "PROD_SAMPLE_CONTACT",
+  "PROD_SAMPLE_LATITUDE",
+  "PROD_SAMPLE_LONGITUDE",
+  "cultivatedAreaMu",
+  "PROD_HARVEST_AREA_MU",
+  "PROD_AFFECTED_AREA_MU",
+  "PROD_GROWTH_STATUS",
+  "PROD_GROWTH_STAGE",
+  "yieldPerMuKilograms",
+  "estimatedOutputKilograms",
+  "yearOnYear",
+  "MOISTURE",
+  "TEST_WEIGHT",
+  "TOXIN",
+  "IMPURITY",
+  "IMPERFECT_GRAIN",
+  "MILDEW",
+  "PROTEIN",
+  "OIL_YIELD",
+  "MILLING_YIELD",
+  "BROWN_RICE_YIELD",
+  "PROD_OPENING_INVENTORY",
+  "PROD_SALES_VOLUME",
+  "PROD_SELF_USE",
+  "PROD_ENDING_INVENTORY",
+  "PROD_INTENDED_AREA_MU",
+  "PROD_INTENTION_REASON",
+  "LAND_RENT",
+  "SEED_COST",
+  "PESTICIDE_COST",
+  "FERTILIZER_COST",
+  "IRRIGATION_COST",
+  "LABOR_COST",
+  "MACHINERY_COST",
+  "OTHER_COST",
+  "SUBSIDY_AMOUNT",
+  "INSURANCE_AMOUNT",
+  "PROD_SOURCE_NOTE",
+] as const;
+
+export const PRODUCTION_PUBLIC_FIELD_CODES = new Set<string>([
+  "surveyYear",
+  "surveyMonth",
+  ...PRODUCTION_PUBLIC_FIELD_ORDER,
+]);

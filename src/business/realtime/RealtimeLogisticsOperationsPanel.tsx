@@ -21,6 +21,26 @@ import {
 
 type PanelMode = "entry" | "view" | "review";
 
+const publicLogisticsFieldOrder = [
+  "surveyYear",
+  "surveyMonth",
+  "fillingDate",
+  "LOG_SAMPLE_NAME",
+  "LOG_REGION",
+  "LOG_REPORTER",
+  "LOG_REPORTER_PHONE",
+  "LOG_SAMPLE_CONTACT",
+  "LOG_SAMPLE_LATITUDE",
+  "LOG_SAMPLE_LONGITUDE",
+  "LOG_TRANSPORT_MODE",
+  "LOG_DIRECTION",
+  "LOG_ROUTE_VOLUME",
+  "LOG_FREIGHT_RATE",
+  "LOG_BOARD_PRICE",
+  "LOG_STATUS",
+] as const;
+const publicLogisticsFields = new Set<string>(publicLogisticsFieldOrder);
+
 function statusLabel(status: string): string {
   return (
     (
@@ -85,7 +105,17 @@ export function RealtimeLogisticsOperationsPanel({
   const [message, setMessage] = useState("正在读取物流业务定义…");
   const [returnReason, setReturnReason] = useState("");
 
-  const fields = useMemo(() => definition?.fields ?? [], [definition]);
+  const fields = useMemo(() => {
+    const byCode = new Map(
+      (definition?.fields ?? [])
+        .filter((field) => publicLogisticsFields.has(field.code))
+        .map((field) => [field.code, field]),
+    );
+    return publicLogisticsFieldOrder.flatMap((code) => {
+      const field = byCode.get(code);
+      return field ? [field] : [];
+    });
+  }, [definition]);
   const editableFields = useMemo(
     () => fields.filter((field) => !field.readOnly),
     [fields],
@@ -126,7 +156,11 @@ export function RealtimeLogisticsOperationsPanel({
       Object.fromEntries(
         editableFields.map((field) => [
           field.code,
-          field.code === "LOG_REPORTER" ? actorName : "",
+          field.code === "LOG_REPORTER"
+            ? actorName
+            : field.code === "surveyYear"
+              ? String(new Date().getFullYear())
+              : "",
         ]),
       ),
     );
@@ -508,6 +542,7 @@ export function RealtimeLogisticsOperationsPanel({
                       <output aria-label={field.label}>{readOnlyValue}</output>
                     ) : field.options.length > 0 ? (
                       <select
+                        aria-label={field.label}
                         required={field.required}
                         value={values[field.code] ?? ""}
                         onChange={(event) =>
@@ -529,6 +564,21 @@ export function RealtimeLogisticsOperationsPanel({
                       </select>
                     ) : (
                       <input
+                        aria-label={field.label}
+                        max={
+                          field.code === "LOG_SAMPLE_LATITUDE"
+                            ? 90
+                            : field.code === "LOG_SAMPLE_LONGITUDE"
+                              ? 180
+                              : undefined
+                        }
+                        min={
+                          field.code === "LOG_SAMPLE_LATITUDE"
+                            ? -90
+                            : field.code === "LOG_SAMPLE_LONGITUDE"
+                              ? -180
+                              : undefined
+                        }
                         required={field.required}
                         readOnly={field.readOnly}
                         type={fieldInputType(field.controlType)}
