@@ -268,6 +268,14 @@ test("real nginx removes forged identity headers from every gateway proxy locati
         "pid /var/run/nginx.pid;",
         `pid ${join(directory, "nginx.pid")};`,
       )
+      .replace(
+        "access_log /dev/stdout structured;",
+        `access_log ${join(directory, "logs", "access.log")} structured;`,
+      )
+      .replace(
+        "error_log /dev/stderr warn;",
+        `error_log ${join(directory, "logs", "error.log")} warn;`,
+      )
       .replace("/etc/nginx/mime.types", `"${mimeTypes}"`)
       .replace(
         /server (?:business-web|overview-web):8080;/gu,
