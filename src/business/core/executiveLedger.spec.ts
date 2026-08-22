@@ -463,8 +463,8 @@ describe("ExecutiveLedger", () => {
       authorPost: "供需分析岗",
       reviewerPost: "报告复核岗",
       publisherPost: "报告发布岗",
-      createdAt: new Date(2026, 6, 31, 16, 20).getTime(),
-      updatedAt: new Date(2026, 6, 31, 17, 20).getTime(),
+      createdAt: Date.parse("2026-07-31T16:20:00+08:00"),
+      updatedAt: Date.parse("2026-07-31T17:20:00+08:00"),
       auditTrail: [],
     };
     const releaseQuery = query(currentScope, {
@@ -483,7 +483,7 @@ describe("ExecutiveLedger", () => {
           ...report,
           status: "已发布",
           currentHandlerPost: "报告档案岗",
-          updatedAt: new Date(2026, 6, 31, 18, 0).getTime(),
+          updatedAt: Date.parse("2026-07-31T18:00:00+08:00"),
           auditTrail: [
             {
               id: "audit-published",
@@ -491,7 +491,7 @@ describe("ExecutiveLedger", () => {
               fromStatus: "待发布",
               toStatus: "已发布",
               actorPost: "报告发布岗",
-              occurredAt: new Date(2026, 6, 31, 18, 0).getTime(),
+              occurredAt: Date.parse("2026-07-31T18:00:00+08:00"),
             },
           ],
         },
