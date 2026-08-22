@@ -26,7 +26,8 @@
 ## 构建与自动化门禁
 
 - Backend JDK 21 `mvn -B -ntp verify`：
-- Web Node 24 / npm 11.6 `npm run verify`：
+- Web 单仓 GitHub CI（跨仓来源精确核对项明确跳过）：
+- Web 三仓同级源码工作树 Node 24 / npm 11.6 完整 `npm run verify`：
 - Frontend Node 24 / npm 11.6 `npm run verify`：
 - 三个 GitHub PR 检查链接：
 

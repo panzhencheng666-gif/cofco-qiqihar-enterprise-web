@@ -14,6 +14,8 @@ const uiInventoryPath = resolve(
   process.cwd(),
   "docs/production-readiness/stage-one-ui-inventory.json",
 );
+const singleRepositoryCi = process.env["COFCO_SINGLE_REPOSITORY_CI"] === "true";
+const webRepository = "cofco-qiqihar-enterprise-web";
 
 interface StageOneBaseline {
   canonicalAcceptanceEntry: {
@@ -121,6 +123,16 @@ function implementationLocationExists(location: string) {
   return existsSync(join(dirname(process.cwd()), repository, path));
 }
 
+function requiresLocalRepositoryProof(location: string) {
+  return !singleRepositoryCi || location.startsWith(`${webRepository}:`);
+}
+
+function locallyVerifiableLocationsExist(locations: readonly string[]) {
+  return locations
+    .filter(requiresLocalRepositoryProof)
+    .every(implementationLocationExists);
+}
+
 function implementationLocationSource(location: string) {
   const separator = location.indexOf(":");
   if (separator < 1) return "";
@@ -161,6 +173,12 @@ describe("阶段一唯一系统基线", () => {
           item.deploymentComponent,
       ),
     ).toBe(true);
+    expect(
+      baseline.historicalRequirementSources.every(
+        (item) =>
+          item.paths.length > 0 && item.status && item.verificationStage,
+      ),
+    ).toBe(true);
   });
 
   it("逐项覆盖当前正式一级和二级业务菜单", () => {
@@ -179,7 +197,7 @@ describe("阶段一唯一系统基线", () => {
     );
     expect(
       baseline.primaryMenuInventory.every((item) =>
-        item.implementationLocations.every(implementationLocationExists),
+        locallyVerifiableLocationsExist(item.implementationLocations),
       ),
     ).toBe(true);
 
@@ -199,7 +217,7 @@ describe("阶段一唯一系统基线", () => {
     for (const item of baseline.menuInventory) {
       expect(item.implementationLocations.length).toBeGreaterThan(0);
       expect(
-        item.implementationLocations.every(implementationLocationExists),
+        locallyVerifiableLocationsExist(item.implementationLocations),
       ).toBe(true);
       expect(item.ownerRepository).toBeTruthy();
       expect(item.status).toMatch(/^(?:IMPLEMENTED|PARTIAL|NOT_EVIDENCED)$/u);
@@ -207,7 +225,7 @@ describe("阶段一唯一系统基线", () => {
     }
   });
 
-  it("覆盖所有受控历史规格和计划来源", () => {
+  it.skipIf(singleRepositoryCi)("覆盖所有受控历史规格和计划来源", () => {
     const baseline = loadBaseline();
     expect(baseline).toBeDefined();
     if (!baseline) return;
@@ -226,12 +244,6 @@ describe("阶段一唯一系统基线", () => {
       .sort();
 
     expect(actual).toEqual(expected.sort());
-    expect(
-      baseline.historicalRequirementSources.every(
-        (item) =>
-          item.paths.length > 0 && item.status && item.verificationStage,
-      ),
-    ).toBe(true);
   });
 
   it("所有按钮动作、导入导出和后台任务均可定位且有后续验证归属", () => {
@@ -252,7 +264,7 @@ describe("阶段一唯一系统基线", () => {
       for (const item of inventory) {
         expect(item.implementationLocations.length).toBeGreaterThan(0);
         expect(
-          item.implementationLocations.every(implementationLocationExists),
+          locallyVerifiableLocationsExist(item.implementationLocations),
         ).toBe(true);
         expect(item.ownerRepository).toBeTruthy();
         expect(item.status).toMatch(/^(?:IMPLEMENTED|PARTIAL|NOT_EVIDENCED)$/u);
@@ -263,7 +275,16 @@ describe("阶段一唯一系统基线", () => {
       baseline.businessStateInventory.every((item) => item.values.length > 0),
     ).toBe(true);
     for (const item of baseline.businessStateInventory) {
-      const implementationSource = item.implementationLocations
+      const locallyVerifiableLocations = item.implementationLocations.filter(
+        requiresLocalRepositoryProof,
+      );
+      if (
+        locallyVerifiableLocations.length !==
+        item.implementationLocations.length
+      ) {
+        continue;
+      }
+      const implementationSource = locallyVerifiableLocations
         .map(implementationLocationSource)
         .join("\n");
       for (const value of item.values.flatMap((entry) => entry.split("/"))) {

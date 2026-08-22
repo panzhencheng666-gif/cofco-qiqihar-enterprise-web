@@ -34,7 +34,7 @@ git diff --check
 - Create: `.github/pull_request_template.md`
 - Create: `docs/releases/THREE_REPOSITORY_RELEASE_MANIFEST_TEMPLATE.md`
 
-**Implementation:** Run the existing `npm run verify` contract on Node 24/npm 11.6 with Chromium installed. Record the exact Backend, Web, and Frontend commit SHAs plus local-runtime acceptance evidence in one version manifest; never place databases or secrets in a release bundle.
+**Implementation:** Run the existing `npm run verify` contract on Node 24/npm 11.6 with Chromium installed. The private single-repository runner verifies Web-owned baseline locations and explicitly skips the exact sibling-repository history comparison; the release manifest therefore requires a full three-sibling-worktree Web verify before a release candidate can pass. Record the exact Backend, Web, and Frontend commit SHAs plus local-runtime acceptance evidence in one version manifest; never place databases or secrets in a release bundle.
 
 **Verification:**
 

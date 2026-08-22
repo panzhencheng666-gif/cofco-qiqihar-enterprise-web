@@ -55,3 +55,5 @@ jobs:
 
       - name: Verify Web
         run: npm run verify
+        env:
+          COFCO_SINGLE_REPOSITORY_CI: "true"
