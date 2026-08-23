@@ -119,7 +119,7 @@ describe("AnnualSampleNetworkPanel", () => {
 
     expect(await screen.findByText("2026年度样本网络尚未创建")).toBeVisible();
     await userEvent.click(
-      screen.getByRole("button", { name: "创建2026年度空白网络" }),
+      screen.getByRole("button", { name: "创建2026年度网络" }),
     );
 
     expect(generateSampleNetworkCandidates).toHaveBeenCalledWith(
@@ -131,13 +131,14 @@ describe("AnnualSampleNetworkPanel", () => {
     ).toBeVisible();
   });
 
-  it("uses the nearest loaded published earlier year when creating the next annual network", async () => {
+  it("probes newer years before using an older cached published network", async () => {
     const generateSampleNetworkCandidates = vi
       .fn()
       .mockResolvedValue(network("DRAFT", 2029));
     const repository = {
       getSampleNetwork: vi.fn((year: number) => {
         if (year === 2028) return Promise.resolve(network("DRAFT", 2028, 2026));
+        if (year === 2027) return Promise.resolve(network("PUBLISHED", 2027));
         if (year === 2026) return Promise.resolve(network("PUBLISHED", 2026));
         return Promise.reject(
           Object.assign(new Error("not found"), { status: 404 }),
@@ -169,7 +170,9 @@ describe("AnnualSampleNetworkPanel", () => {
       screen.getByRole("button", { name: "生成2029年度候选名单" }),
     );
 
-    expect(generateSampleNetworkCandidates).toHaveBeenCalledWith(2029, 2026);
+    await waitFor(() =>
+      expect(generateSampleNetworkCandidates).toHaveBeenCalledWith(2029, 2027),
+    );
   });
 
   it("discovers the nearest earlier published network before creating a candidate", async () => {
@@ -198,7 +201,7 @@ describe("AnnualSampleNetworkPanel", () => {
 
     expect(await screen.findByText("2029年度样本网络尚未创建")).toBeVisible();
     await userEvent.click(
-      screen.getByRole("button", { name: "创建2029年度空白网络" }),
+      screen.getByRole("button", { name: "创建2029年度网络" }),
     );
 
     await waitFor(() =>
@@ -241,7 +244,7 @@ describe("AnnualSampleNetworkPanel", () => {
   it("refreshes the comparison relation after adding an exact member", async () => {
     const updateSampleNetworkMember = vi
       .fn()
-      .mockResolvedValue(network("DRAFT"));
+      .mockResolvedValue(networkWithNewMember());
     const getSampleNetworkComparison = vi
       .fn()
       .mockResolvedValueOnce({ relations: [] })
@@ -288,6 +291,9 @@ describe("AnnualSampleNetworkPanel", () => {
     await waitFor(() =>
       expect(getSampleNetworkComparison).toHaveBeenCalledTimes(2),
     );
+    await waitFor(() =>
+      expect(screen.getByText("精确对应（230202997001）")).toBeVisible(),
+    );
   });
 
   it("does not replay a returned relationship during an ordinary member status update", async () => {
@@ -317,7 +323,7 @@ describe("AnnualSampleNetworkPanel", () => {
 
     await screen.findByText("契约测试村现有样本点");
     await waitFor(() =>
-      expect(screen.getByText("精确对应（230202997001）")).toBeVisible(),
+      expect(screen.getByText("退回的精确对应（230202997001）")).toBeVisible(),
     );
     await userEvent.click(screen.getByRole("button", { name: "启用" }));
 
@@ -329,6 +335,39 @@ describe("AnnualSampleNetworkPanel", () => {
         relationType: undefined,
         evidenceReference: undefined,
       }),
+    );
+  });
+
+  it("prefers an active explicit relation over a returned exact relation", async () => {
+    const repository = {
+      getSampleNetwork: vi.fn().mockResolvedValue(network("DRAFT")),
+      getSampleNetworkComparison: vi.fn().mockResolvedValue({
+        relations: [
+          relation({
+            relationType: "EXACT_VILLAGE",
+            reviewStatus: "RETURNED",
+          }),
+          relation({
+            relationType: "EXPLICIT_REPRESENTATION",
+            reviewStatus: "PENDING_REVIEW",
+          }),
+        ],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <AnnualSampleNetworkPanel
+        currentYear={2027}
+        repository={repository}
+        session={session}
+      />,
+    );
+
+    await screen.findByText("契约测试村现有样本点");
+    await waitFor(() =>
+      expect(
+        screen.getByText("明确代表（230202997001；现场踏勘确认代表关系）"),
+      ).toBeVisible(),
     );
   });
 
@@ -463,6 +502,22 @@ function relation({
     createdAt: "2026-12-20T08:00:00Z",
     reviewedBy: null,
     reviewedAt: null,
+  };
+}
+
+function networkWithNewMember() {
+  const current = network("DRAFT");
+  return {
+    ...current,
+    memberships: [
+      ...current.memberships,
+      {
+        ...current.memberships[0],
+        samplePointId: "94000000-0000-0000-0000-000000000099",
+        samplePointName: "新增精确样本点",
+        sourceCode: "NEW" as const,
+      },
+    ],
   };
 }
 

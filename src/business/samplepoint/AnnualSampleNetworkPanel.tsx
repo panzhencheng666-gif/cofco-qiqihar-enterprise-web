@@ -42,7 +42,6 @@ export function AnnualSampleNetworkPanel({
     currentYear,
     currentYear + 1,
   ]);
-  const [publishedYears, setPublishedYears] = useState<number[]>([]);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -63,9 +62,6 @@ export function AnnualSampleNetworkPanel({
         ...(next.carriedFromYear ? [next.carriedFromYear] : []),
       ]),
     );
-    if (next.statusCode === "PUBLISHED") {
-      setPublishedYears((years) => knownYearList([...years, next.networkYear]));
-    }
   }
 
   useEffect(() => {
@@ -179,8 +175,6 @@ export function AnnualSampleNetworkPanel({
   }
 
   async function nearestPublishedNetworkYear(targetYear: number) {
-    const knownPublished = nearestPublishedYear(publishedYears, targetYear);
-    if (knownPublished !== undefined) return knownPublished;
     if (!repository.getSampleNetwork) return undefined;
 
     for (const candidateYear of discoveryYears(targetYear)) {
@@ -339,7 +333,7 @@ export function AnnualSampleNetworkPanel({
               type="button"
             >
               {year === currentYear
-                ? `创建${year}年度空白网络`
+                ? `创建${year}年度网络`
                 : `生成${year}年度候选名单`}
             </button>
           ) : null}
@@ -566,12 +560,6 @@ function knownYearList(years: readonly number[]) {
   return [...new Set(years)].sort((left, right) => left - right);
 }
 
-function nearestPublishedYear(years: readonly number[], targetYear: number) {
-  return [...years]
-    .filter((year) => year < targetYear)
-    .sort((left, right) => right - left)[0];
-}
-
 function discoveryYears(targetYear: number) {
   return Array.from(
     { length: Math.max(0, targetYear - ANNUAL_NETWORK_DISCOVERY_START_YEAR) },
@@ -612,11 +600,14 @@ function relationIndexByMember(relations: readonly SampleNetworkRelation[]) {
 }
 
 function relationPriority(relation: SampleNetworkRelation) {
-  return {
+  const typePriority = {
     EXACT_VILLAGE: 3,
     EXPLICIT_REPRESENTATION: 2,
     REGIONAL_ASSOCIATION: 1,
   }[relation.relationType];
+  return relation.reviewStatus === "RETURNED"
+    ? typePriority
+    : typePriority + 10;
 }
 
 function locationLabel(member: AnnualSampleNetworkMembership) {
@@ -637,6 +628,15 @@ function relationLabel(
   if (status === "LOADING") return "正在读取设计关系…";
   if (status === "UNAVAILABLE") return "设计关系暂不可用";
   if (!relation) return "未关联设计村";
+  if (relation.reviewStatus === "RETURNED") {
+    if (relation.relationType === "EXACT_VILLAGE") {
+      return `退回的精确对应（${relation.designVillageRegionCode}）`;
+    }
+    if (relation.relationType === "REGIONAL_ASSOCIATION") {
+      return "退回的区域关联（系统推导）";
+    }
+    return `退回的明确代表（${relation.designVillageRegionCode}；${relation.evidenceReference ?? "未说明依据"}）`;
+  }
   if (relation.relationType === "EXACT_VILLAGE") {
     return `精确对应（${relation.designVillageRegionCode}）`;
   }
