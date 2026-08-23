@@ -12,6 +12,17 @@ import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 import "./annual-sample-network.css";
 
+const ANNUAL_NETWORK_DISCOVERY_START_YEAR = 2026;
+const EMPTY_RELATIONS: readonly SampleNetworkRelation[] = [];
+
+type ComparisonState =
+  | { year: number; status: "LOADING" | "UNAVAILABLE" }
+  | {
+      year: number;
+      status: "LOADED";
+      relations: readonly SampleNetworkRelation[];
+    };
+
 export function AnnualSampleNetworkPanel({
   currentYear = new Date().getFullYear(),
   repository,
@@ -25,10 +36,8 @@ export function AnnualSampleNetworkPanel({
   const [network, setNetwork] = useState<AnnualSampleNetwork>();
   const [notCreated, setNotCreated] = useState(false);
   const [resolvedYear, setResolvedYear] = useState<number>();
-  const [comparison, setComparison] = useState<{
-    year: number;
-    relations: readonly SampleNetworkRelation[];
-  }>();
+  const [comparison, setComparison] = useState<ComparisonState>();
+  const [comparisonRefresh, setComparisonRefresh] = useState(0);
   const [knownYears, setKnownYears] = useState(() => [
     currentYear,
     currentYear + 1,
@@ -45,6 +54,19 @@ export function AnnualSampleNetworkPanel({
   >("");
   const [newEvidenceReference, setNewEvidenceReference] = useState("");
   const [newReason, setNewReason] = useState("");
+
+  function rememberNetwork(next: AnnualSampleNetwork) {
+    setKnownYears((years) =>
+      knownYearList([
+        ...years,
+        next.networkYear,
+        ...(next.carriedFromYear ? [next.carriedFromYear] : []),
+      ]),
+    );
+    if (next.statusCode === "PUBLISHED") {
+      setPublishedYears((years) => knownYearList([...years, next.networkYear]));
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -66,18 +88,7 @@ export function AnnualSampleNetworkPanel({
       .then((next) => {
         if (!active) return;
         setNetwork(next);
-        setKnownYears((years) =>
-          knownYearList([
-            ...years,
-            next.networkYear,
-            ...(next.carriedFromYear ? [next.carriedFromYear] : []),
-          ]),
-        );
-        if (next.statusCode === "PUBLISHED") {
-          setPublishedYears((years) =>
-            knownYearList([...years, next.networkYear]),
-          );
-        }
+        rememberNetwork(next);
         setNotCreated(false);
         setError("");
         setMessage("");
@@ -100,24 +111,29 @@ export function AnnualSampleNetworkPanel({
     let active = true;
     if (!repository.getSampleNetworkComparison) {
       queueMicrotask(() => {
-        if (active) setComparison(undefined);
+        if (active) setComparison({ year, status: "UNAVAILABLE" });
       });
       return () => {
         active = false;
       };
     }
+    queueMicrotask(() => {
+      if (active) setComparison({ year, status: "LOADING" });
+    });
     void repository
       .getSampleNetworkComparison(year)
       .then((next) => {
-        if (active) setComparison({ year, relations: next.relations });
+        if (active) {
+          setComparison({ year, status: "LOADED", relations: next.relations });
+        }
       })
       .catch(() => {
-        if (active) setComparison(undefined);
+        if (active) setComparison({ year, status: "UNAVAILABLE" });
       });
     return () => {
       active = false;
     };
-  }, [repository, year]);
+  }, [comparisonRefresh, repository, year]);
 
   const loading = resolvedYear !== year;
   const currentNetwork = loading ? undefined : network;
@@ -133,18 +149,7 @@ export function AnnualSampleNetworkPanel({
     try {
       const next = await operation();
       setNetwork(next);
-      setKnownYears((years) =>
-        knownYearList([
-          ...years,
-          next.networkYear,
-          ...(next.carriedFromYear ? [next.carriedFromYear] : []),
-        ]),
-      );
-      if (next.statusCode === "PUBLISHED") {
-        setPublishedYears((years) =>
-          knownYearList([...years, next.networkYear]),
-        );
-      }
+      rememberNetwork(next);
       setNotCreated(false);
       setResolvedYear(year);
       return next;
@@ -158,10 +163,11 @@ export function AnnualSampleNetworkPanel({
 
   function createNetwork() {
     if (!repository.generateSampleNetworkCandidates) return;
-    const carriedFromYear = nearestPublishedYear(publishedYears, year);
-    void run("create", () =>
-      repository.generateSampleNetworkCandidates!(year, carriedFromYear),
-    ).then((next) => {
+    let carriedFromYear: number | undefined;
+    void run("create", async () => {
+      carriedFromYear = await nearestPublishedNetworkYear(year);
+      return repository.generateSampleNetworkCandidates!(year, carriedFromYear);
+    }).then((next) => {
       if (next) {
         setMessage(
           carriedFromYear
@@ -172,16 +178,30 @@ export function AnnualSampleNetworkPanel({
     });
   }
 
+  async function nearestPublishedNetworkYear(targetYear: number) {
+    const knownPublished = nearestPublishedYear(publishedYears, targetYear);
+    if (knownPublished !== undefined) return knownPublished;
+    if (!repository.getSampleNetwork) return undefined;
+
+    for (const candidateYear of discoveryYears(targetYear)) {
+      try {
+        const candidate = await repository.getSampleNetwork(candidateYear);
+        rememberNetwork(candidate);
+        if (candidate.statusCode === "PUBLISHED") return candidateYear;
+      } catch (cause) {
+        if (!isNotFound(cause)) throw cause;
+      }
+    }
+    return undefined;
+  }
+
   function decide(
     member: AnnualSampleNetworkMembership,
     statusCode: SampleNetworkMembershipStatus,
   ) {
     if (!repository.updateSampleNetworkMember) return;
     const reason = decisionReason(year, statusCode);
-    const relation = memberRelation(
-      comparison?.year === year ? comparison.relations : [],
-      member.samplePointId,
-    );
+    const relation = memberRelation(relationIndex.get(member.samplePointId));
     void run(`member:${member.samplePointId}:${statusCode}`, () =>
       repository.updateSampleNetworkMember!(year, member.samplePointId, {
         designVillageRegionCode: relation?.designVillageRegionCode,
@@ -220,6 +240,9 @@ export function AnnualSampleNetworkPanel({
       }),
     ).then((next) => {
       if (!next) return;
+      if (newRelationType !== "") {
+        setComparisonRefresh((refresh) => refresh + 1);
+      }
       setNewSamplePointId("");
       setNewDesignVillageCode("");
       setNewRelationType("");
@@ -255,8 +278,13 @@ export function AnnualSampleNetworkPanel({
   const canSubmit = session.permissions.includes("BUSINESS_SUBMIT");
   const canApprove = session.permissions.includes("BUSINESS_APPROVE");
   const canReturn = session.permissions.includes("BUSINESS_RETURN");
+  const comparisonForYear = comparison?.year === year ? comparison : undefined;
+  const relationStatus = comparisonForYear?.status ?? "LOADING";
   const selectedRelations =
-    comparison?.year === year ? comparison.relations : [];
+    comparisonForYear?.status === "LOADED"
+      ? comparisonForYear.relations
+      : EMPTY_RELATIONS;
+  const relationIndex = relationIndexByMember(selectedRelations);
   const canAddMember =
     Boolean(newSamplePointId.trim()) &&
     (newRelationType === "" || Boolean(newDesignVillageCode.trim())) &&
@@ -349,10 +377,8 @@ export function AnnualSampleNetworkPanel({
                     <td>{locationLabel(member)}</td>
                     <td>
                       {relationLabel(
-                        sampleNetworkRelation(
-                          selectedRelations,
-                          member.samplePointId,
-                        ),
+                        relationIndex.get(member.samplePointId),
+                        relationStatus,
                       )}
                     </td>
                     <td>{sourceLabel(member.sourceCode)}</td>
@@ -546,47 +572,51 @@ function nearestPublishedYear(years: readonly number[], targetYear: number) {
     .sort((left, right) => right - left)[0];
 }
 
+function discoveryYears(targetYear: number) {
+  return Array.from(
+    { length: Math.max(0, targetYear - ANNUAL_NETWORK_DISCOVERY_START_YEAR) },
+    (_, index) => targetYear - index - 1,
+  );
+}
+
 function memberRelation(
-  relations: readonly SampleNetworkRelation[],
-  samplePointId: string,
+  relation: SampleNetworkRelation | undefined,
 ):
   | (Pick<
       SampleNetworkRelation,
       "designVillageRegionCode" | "evidenceReference"
     > & { relationType: "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION" })
   | undefined {
-  const relation = sampleNetworkRelation(relations, samplePointId);
   if (
     relation?.relationType !== "EXACT_VILLAGE" &&
     relation?.relationType !== "EXPLICIT_REPRESENTATION"
   ) {
     return undefined;
   }
-  return relation as
-    | (Pick<
-        SampleNetworkRelation,
-        "designVillageRegionCode" | "evidenceReference"
-      > & { relationType: "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION" })
-    | undefined;
+  if (relation.reviewStatus === "RETURNED") return undefined;
+  return relation as Pick<
+    SampleNetworkRelation,
+    "designVillageRegionCode" | "evidenceReference"
+  > & { relationType: "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION" };
 }
 
-function sampleNetworkRelation(
-  relations: readonly SampleNetworkRelation[],
-  samplePointId: string,
-) {
-  return (
-    relations.find(
-      (relation) =>
-        relation.samplePointId === samplePointId &&
-        relation.relationType === "EXACT_VILLAGE",
-    ) ??
-    relations.find(
-      (relation) =>
-        relation.samplePointId === samplePointId &&
-        relation.relationType === "EXPLICIT_REPRESENTATION",
-    ) ??
-    relations.find((relation) => relation.samplePointId === samplePointId)
-  );
+function relationIndexByMember(relations: readonly SampleNetworkRelation[]) {
+  const index = new Map<string, SampleNetworkRelation>();
+  for (const relation of relations) {
+    const previous = index.get(relation.samplePointId);
+    if (!previous || relationPriority(relation) > relationPriority(previous)) {
+      index.set(relation.samplePointId, relation);
+    }
+  }
+  return index;
+}
+
+function relationPriority(relation: SampleNetworkRelation) {
+  return {
+    EXACT_VILLAGE: 3,
+    EXPLICIT_REPRESENTATION: 2,
+    REGIONAL_ASSOCIATION: 1,
+  }[relation.relationType];
 }
 
 function locationLabel(member: AnnualSampleNetworkMembership) {
@@ -600,7 +630,12 @@ function locationLabel(member: AnnualSampleNetworkMembership) {
   } / ${member.locatedRegionName}`;
 }
 
-function relationLabel(relation: SampleNetworkRelation | undefined) {
+function relationLabel(
+  relation: SampleNetworkRelation | undefined,
+  status: ComparisonState["status"],
+): string {
+  if (status === "LOADING") return "正在读取设计关系…";
+  if (status === "UNAVAILABLE") return "设计关系暂不可用";
   if (!relation) return "未关联设计村";
   if (relation.relationType === "EXACT_VILLAGE") {
     return `精确对应（${relation.designVillageRegionCode}）`;

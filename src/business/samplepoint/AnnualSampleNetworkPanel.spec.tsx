@@ -172,6 +172,166 @@ describe("AnnualSampleNetworkPanel", () => {
     expect(generateSampleNetworkCandidates).toHaveBeenCalledWith(2029, 2026);
   });
 
+  it("discovers the nearest earlier published network before creating a candidate", async () => {
+    const generateSampleNetworkCandidates = vi
+      .fn()
+      .mockResolvedValue(network("DRAFT", 2029));
+    const getSampleNetwork = vi.fn((year: number) => {
+      if (year === 2028) return Promise.resolve(network("DRAFT", 2028));
+      if (year === 2027) return Promise.resolve(network("PUBLISHED", 2027));
+      return Promise.reject(
+        Object.assign(new Error("not found"), { status: 404 }),
+      );
+    });
+    const repository = {
+      getSampleNetwork,
+      generateSampleNetworkCandidates,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <AnnualSampleNetworkPanel
+        currentYear={2029}
+        repository={repository}
+        session={session}
+      />,
+    );
+
+    expect(await screen.findByText("2029年度样本网络尚未创建")).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "创建2029年度空白网络" }),
+    );
+
+    await waitFor(() =>
+      expect(generateSampleNetworkCandidates).toHaveBeenCalledWith(2029, 2027),
+    );
+    expect(getSampleNetwork).toHaveBeenCalledWith(2028);
+    expect(getSampleNetwork).toHaveBeenCalledWith(2027);
+  });
+
+  it("shows relationship loading and failure instead of treating them as no relationship", async () => {
+    let rejectComparison: ((reason?: unknown) => void) | undefined;
+    const repository = {
+      getSampleNetwork: vi.fn().mockResolvedValue(network("DRAFT")),
+      getSampleNetworkComparison: vi.fn(
+        () =>
+          new Promise((_, reject) => {
+            rejectComparison = reject;
+          }),
+      ),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <AnnualSampleNetworkPanel
+        currentYear={2027}
+        repository={repository}
+        session={session}
+      />,
+    );
+
+    const memberTable = await screen.findByRole("region", {
+      name: "年度样本成员",
+    });
+    expect(memberTable).toHaveTextContent("正在读取设计关系…");
+    rejectComparison?.(new Error("comparison unavailable"));
+    await waitFor(() =>
+      expect(memberTable).toHaveTextContent("设计关系暂不可用"),
+    );
+  });
+
+  it("refreshes the comparison relation after adding an exact member", async () => {
+    const updateSampleNetworkMember = vi
+      .fn()
+      .mockResolvedValue(network("DRAFT"));
+    const getSampleNetworkComparison = vi
+      .fn()
+      .mockResolvedValueOnce({ relations: [] })
+      .mockResolvedValueOnce({
+        relations: [
+          relation({
+            samplePointId: "94000000-0000-0000-0000-000000000099",
+            relationType: "EXACT_VILLAGE",
+            reviewStatus: "PENDING_REVIEW",
+          }),
+        ],
+      });
+    const repository = {
+      getSampleNetwork: vi.fn().mockResolvedValue(network("DRAFT")),
+      getSampleNetworkComparison,
+      updateSampleNetworkMember,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <AnnualSampleNetworkPanel
+        currentYear={2027}
+        repository={repository}
+        session={session}
+      />,
+    );
+
+    await screen.findByText("契约测试村现有样本点");
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "稳定样本点ID" }),
+      "94000000-0000-0000-0000-000000000099",
+    );
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "设计关系" }),
+      "EXACT_VILLAGE",
+    );
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "设计行政村代码" }),
+      "230202997001",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "新增现有样本点" }),
+    );
+
+    await waitFor(() =>
+      expect(getSampleNetworkComparison).toHaveBeenCalledTimes(2),
+    );
+  });
+
+  it("does not replay a returned relationship during an ordinary member status update", async () => {
+    const updateSampleNetworkMember = vi
+      .fn()
+      .mockResolvedValue(network("DRAFT"));
+    const repository = {
+      getSampleNetwork: vi.fn().mockResolvedValue(network("DRAFT")),
+      getSampleNetworkComparison: vi.fn().mockResolvedValue({
+        relations: [
+          relation({
+            relationType: "EXACT_VILLAGE",
+            reviewStatus: "RETURNED",
+          }),
+        ],
+      }),
+      updateSampleNetworkMember,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <AnnualSampleNetworkPanel
+        currentYear={2027}
+        repository={repository}
+        session={session}
+      />,
+    );
+
+    await screen.findByText("契约测试村现有样本点");
+    await waitFor(() =>
+      expect(screen.getByText("精确对应（230202997001）")).toBeVisible(),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "启用" }));
+
+    expect(updateSampleNetworkMember).toHaveBeenCalledWith(
+      2027,
+      "94000000-0000-0000-0000-000000000001",
+      expect.objectContaining({
+        designVillageRegionCode: undefined,
+        relationType: undefined,
+        evidenceReference: undefined,
+      }),
+    );
+  });
+
   it("allows a new actual sample at any administrative level without a design village", async () => {
     const updateSampleNetworkMember = vi
       .fn()
@@ -260,8 +420,51 @@ describe("AnnualSampleNetworkPanel", () => {
     expect(
       screen.getByRole("button", { name: "新增现有样本点" }),
     ).toBeEnabled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "新增现有样本点" }),
+    );
+    await waitFor(() =>
+      expect(updateSampleNetworkMember).toHaveBeenCalledWith(
+        2027,
+        "94000000-0000-0000-0000-000000000099",
+        {
+          designVillageRegionCode: "230202997001",
+          relationType: "EXPLICIT_REPRESENTATION",
+          evidenceReference: "现场踏勘确认代表关系",
+          statusCode: "ACTIVE",
+          sourceCode: "NEW",
+          reason: "新增2027年度现有样本点",
+          version: 0,
+        },
+      ),
+    );
   });
 });
+
+function relation({
+  samplePointId = "94000000-0000-0000-0000-000000000001",
+  relationType,
+  reviewStatus,
+}: {
+  samplePointId?: string;
+  relationType: "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION";
+  reviewStatus: "PENDING_REVIEW" | "RETURNED";
+}) {
+  return {
+    samplePointId,
+    designVillageRegionCode: "230202997001",
+    relationType,
+    evidenceReference:
+      relationType === "EXPLICIT_REPRESENTATION"
+        ? "现场踏勘确认代表关系"
+        : null,
+    reviewStatus,
+    createdBy: "operator-1",
+    createdAt: "2026-12-20T08:00:00Z",
+    reviewedBy: null,
+    reviewedAt: null,
+  };
+}
 
 function network(
   statusCode: "DRAFT" | "IN_REVIEW" | "PUBLISHED",
