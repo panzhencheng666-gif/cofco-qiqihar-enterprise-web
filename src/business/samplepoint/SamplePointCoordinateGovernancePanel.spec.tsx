@@ -165,20 +165,22 @@ describe("sample point coordinate governance", () => {
     let onChange: ((event: unknown) => void) | undefined;
     const listJobs = vi.fn().mockResolvedValue([job]);
     const listRequests = vi.fn().mockResolvedValue([request]);
+    const subscribeBusinessEvents = vi.fn(
+      (_afterSequence: number, listener: (event: unknown) => void) => {
+        onChange = listener;
+        return () => undefined;
+      },
+    );
     const repository = {
       loadCurrentSession: vi.fn().mockResolvedValue(session),
       listSamplePointCoordinateCorrectionJobs: listJobs,
       listSamplePointCoordinateCorrectionRequests: listRequests,
-      subscribeBusinessEvents: vi.fn(
-        (_afterSequence: number, listener: (event: unknown) => void) => {
-          onChange = listener;
-          return () => undefined;
-        },
-      ),
+      subscribeBusinessEvents,
     } as unknown as RealtimeBusinessRepository;
 
     render(<SamplePointCoordinateGovernancePanel repository={repository} />);
     await waitFor(() => expect(listRequests).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(subscribeBusinessEvents).toHaveBeenCalledTimes(1));
 
     act(() => {
       onChange?.({

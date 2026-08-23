@@ -523,7 +523,7 @@
   "uiInteractionInventory": {
     "path": "docs/production-readiness/stage-one-ui-inventory.json",
     "sourceBoundary": "src/business 下全部非测试 TSX",
-    "itemCount": 436,
+    "itemCount": 435,
     "ownerRepository": "cofco-qiqihar-enterprise-web",
     "status": "IMPLEMENTED",
     "verificationStage": "阶段二/三",
@@ -1101,6 +1101,7 @@
         "docs/superpowers/specs/2026-08-21-analysis-dashboard-clarity-upgrade-design.md",
         "docs/superpowers/specs/2026-08-21-business-analysis-report-and-import-ledger-design.md",
         "docs/superpowers/specs/2026-08-21-field-backed-analysis-dashboard-visual-redesign.md",
+        "docs/superpowers/specs/2026-08-23-enterprise-workbench-clarity-and-live-operations-design.md",
         "docs/superpowers/specs/2026-08-23-sample-network-map-and-governance-ux-design.md"
       ]
     }
