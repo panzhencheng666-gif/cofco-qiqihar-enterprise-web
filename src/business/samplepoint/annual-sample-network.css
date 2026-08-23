@@ -1,9 +1,9 @@
 .annual-sample-network-panel {
   display: grid;
   gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--enterprise-border, #d7e2ea);
-  border-radius: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   background: var(--enterprise-surface, #fff);
 }
 

@@ -35,6 +35,33 @@ describe("my work sample point governance entry", () => {
     expect(ledger.querySelectorAll("thead th")).toHaveLength(6);
   });
 
+  it("uses completed-work language instead of pending-work instructions", () => {
+    render(
+      <MyWorkWorkspace
+        onOpenBusiness={vi.fn()}
+        onScopeChange={vi.fn()}
+        scope={{
+          ...fixtureOperationalIdentity,
+          coordinates: { regionId: "authorized-all" },
+          savedView: null,
+        }}
+        section="completed"
+      />,
+    );
+
+    expect(
+      screen.getByText("查看本人已经处理的事项、办理结果和完成时间。"),
+    ).toBeVisible();
+    expect(
+      screen.getByText("按完成时间查看办理结果；点击“查看”返回原业务单据。"),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(
+        "先处理退回和质量阻断，再处理临近截止事项；点击“处理”直接进入原业务单据。",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders sample governance as an independent route and never inside the work ledger", () => {
     render(
       <MyWorkWorkspace

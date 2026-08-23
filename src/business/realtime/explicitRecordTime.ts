@@ -1,5 +1,11 @@
 export const currentSurveyYear = String(new Date().getFullYear());
 
+export function annualSampleStatusNote(surveyYear: string): string {
+  return Number(surveyYear) >= 2026
+    ? `${surveyYear}年度业务记录；现有样本以已批准的年度样本名单为准。`
+    : "2025年及以前属于历史业务记录，不计入现有样本数量。";
+}
+
 export const surveyYearOptions = Array.from({ length: 12 }, (_, index) =>
   String(Number(currentSurveyYear) + 1 - index),
 );

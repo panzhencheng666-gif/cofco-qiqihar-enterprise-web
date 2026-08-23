@@ -300,10 +300,10 @@ export function AnnualSampleNetworkPanel({
     >
       <header>
         <div>
-          <span>稳定样本点年度在网治理</span>
-          <h2>设计样本点与现有样本点对照</h2>
+          <span>年度样本点管理</span>
+          <h2>{year}年度现有样本名单</h2>
           <p>
-            2,332个行政村设计点不分年份；年度名单只引用稳定样本点，不复制业务数据。
+            从2026年开始逐年确认当年实际使用的样本点；可沿用上年名单，也可新增、暂停或移除。
           </p>
         </div>
         <label>
@@ -357,7 +357,6 @@ export function AnnualSampleNetworkPanel({
             <strong>{currentNetwork.networkYear}年度</strong>
             <span>{networkStatusLabel(currentNetwork.statusCode)}</span>
             <span>成员 {currentNetwork.memberships.length} 个</span>
-            <span>版本 {currentNetwork.version}</span>
           </div>
           <div
             className="annual-sample-network-panel__table"

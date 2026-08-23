@@ -17,10 +17,10 @@ type GovernanceModule = "registry" | "design" | "annual" | "review";
 type ReviewModule = "coordinate" | "identity-import" | "identity-merge";
 
 const modules = [
-  ["registry", "稳定样本点"],
-  ["design", "设计样本"],
-  ["annual", "年度在网样本"],
-  ["review", "审核队列"],
+  ["registry", "样本点名册"],
+  ["design", "设计参考点"],
+  ["annual", "年度现有样本"],
+  ["review", "待办审核"],
 ] as const satisfies readonly (readonly [GovernanceModule, string])[];
 
 export function SamplePointGovernanceWorkspace({
@@ -84,7 +84,7 @@ export function SamplePointGovernanceWorkspace({
       <WorkspaceHeader
         eyebrow="平台运营管理部 / 数据治理"
         title="样本点管理"
-        summary="设计参考、稳定身份、年度在网和独立审核分层管理；业务填报记录不在本页复制或改写。"
+        summary="维护样本点名册、设计参考点和年度现有样本；审核事项集中进入待办审核。"
       />
 
       <dl
@@ -96,7 +96,7 @@ export function SamplePointGovernanceWorkspace({
           value={summaryValue(comparisonState, comparison?.designPointCount)}
         />
         <Status
-          label={`${year}年度在网`}
+          label={`${year}年度现有样本`}
           value={summaryValue(
             comparisonState,
             comparison?.activeSamplePointCount,
@@ -240,15 +240,15 @@ function DesignReferenceTable({
   state: "loading" | "ready" | "unavailable";
   year: number;
 }) {
-  if (state === "loading") return <p role="status">正在读取设计样本清单…</p>;
+  if (state === "loading") return <p role="status">正在读取设计参考点清单…</p>;
   if (state === "unavailable" || !comparison) {
-    return <p role="alert">设计样本清单暂不可用，请稍后重试。</p>;
+    return <p role="alert">设计参考点清单暂不可用，请稍后重试。</p>;
   }
   return (
     <div className="sample-point-governance-workspace__table-region">
       <header>
         <div>
-          <h2>设计样本清单</h2>
+          <h2>设计参考点清单</h2>
           <p>
             设计点不属于{year}
             年度业务数据；年度仅用于读取当前对照结果。未经权威核验的候选坐标不会作为地图精确点。
@@ -257,11 +257,10 @@ function DesignReferenceTable({
         <strong>{comparison.designPointCount} 个行政村</strong>
       </header>
       <div className="sample-point-governance-workspace__table-scroll">
-        <table aria-label="设计样本清单">
+        <table aria-label="设计参考点清单">
           <thead>
             <tr>
               <th>行政村</th>
-              <th>行政区代码</th>
               <th>所属乡镇 / 区县</th>
               <th>坐标来源</th>
               <th>核验状态</th>
@@ -285,7 +284,6 @@ function DesignReferenceRow({ point }: { point: SampleNetworkDesignPoint }) {
   return (
     <tr>
       <td>{point.villageName}</td>
-      <td>{point.villageRegionCode}</td>
       <td>
         {point.townshipName} / {point.countyName}
       </td>

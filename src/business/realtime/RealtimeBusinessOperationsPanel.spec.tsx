@@ -390,6 +390,8 @@ function productionDefinition() {
 
 function repository() {
   const createProduction = vi.fn();
+  const createAndSubmitProduction = vi.fn();
+  const updateAndSubmitProduction = vi.fn();
   const getProduction = vi.fn();
   const transitionProduction = vi.fn();
   const importProductionCsv = vi.fn();
@@ -489,6 +491,8 @@ function repository() {
     ),
     getProduction,
     createProduction,
+    createAndSubmitProduction,
+    updateAndSubmitProduction,
     updateProduction: vi.fn(),
     transitionProduction,
     listMarket: vi.fn(),
@@ -503,10 +507,12 @@ function repository() {
   return {
     api,
     createProduction,
+    createAndSubmitProduction,
     getProduction,
     importProductionCsv,
     retryImportJob,
     transitionProduction,
+    updateAndSubmitProduction,
     uploadEvidencePhoto,
   };
 }
@@ -700,7 +706,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     await screen.findByText(/作废成功/);
     expect(screen.getByText(/已作废/)).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "保存业务记录" }),
+      screen.queryByRole("button", { name: "保存并提交审核" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "提交审核" }),
@@ -816,7 +822,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(screen.getByLabelText("数据月份")).toBeDisabled();
     expect(screen.getByLabelText("填报日期")).toHaveTextContent("2026-08-09");
     expect(
-      screen.queryByRole("button", { name: "保存业务记录" }),
+      screen.queryByRole("button", { name: "保存并提交审核" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("新建填报")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "field.png" })).toHaveAttribute(
@@ -928,7 +934,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(await screen.findByLabelText("数据年份")).toBeDisabled();
     expect(screen.getByLabelText("数据月份")).toBeDisabled();
     expect(
-      screen.queryByRole("button", { name: "保存业务记录" }),
+      screen.queryByRole("button", { name: "保存并提交审核" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "提交审核" }),
@@ -959,7 +965,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.getByText("原业务记录读取失败", { selector: "strong" }),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "保存业务记录" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "保存并提交审核" }),
+    ).toBeDisabled();
     expect(screen.queryByLabelText("现场水印照片")).not.toBeInTheDocument();
     expect(createProduction).not.toHaveBeenCalled();
   });
@@ -1045,8 +1053,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
   });
 
   it("saves a returned production record whose API survey period values are numeric", async () => {
-    const { api, getProduction } = repository();
-    const updateProduction = vi.spyOn(api, "updateProduction");
+    const { api, getProduction, updateAndSubmitProduction } = repository();
     const returnedRecord = {
       id: "production-returned-numeric-period-1",
       productCode: "CORN",
@@ -1093,14 +1100,16 @@ describe("RealtimeBusinessOperationsPanel", () => {
       version: 2,
     } as const;
     getProduction.mockResolvedValue(returnedRecord);
-    updateProduction.mockResolvedValue({
+    updateAndSubmitProduction.mockResolvedValue({
       ...returnedRecord,
+      status: "PENDING_REVIEW",
+      allowedActions: ["VIEW"],
       surveyYear: 2026,
       surveyMonth: 8,
       yieldPerMuKilograms: "651",
       estimatedOutputKilograms: "65100",
-      version: 3,
-    } as never);
+      version: 4,
+    });
 
     render(
       <RealtimeBusinessOperationsPanel
@@ -1119,8 +1128,10 @@ describe("RealtimeBusinessOperationsPanel", () => {
     fireEvent.change(yieldInput, { target: { value: "651" } });
     fireEvent.submit(yieldInput.closest("form") as HTMLFormElement);
 
-    await waitFor(() => expect(updateProduction).toHaveBeenCalledOnce());
-    expect(updateProduction).toHaveBeenCalledWith(
+    await waitFor(() =>
+      expect(updateAndSubmitProduction).toHaveBeenCalledOnce(),
+    );
+    expect(updateAndSubmitProduction).toHaveBeenCalledWith(
       returnedRecord.id,
       expect.objectContaining({
         surveyYear: "2026",
@@ -1389,7 +1400,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.queryByRole("group", { name: "现场照片" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "保存业务记录" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "保存并提交审核" }),
+    ).toBeDisabled();
     expect(createProduction).not.toHaveBeenCalled();
   });
 
@@ -1452,7 +1465,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.getByText("原业务记录读取失败", { selector: "strong" }),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "保存业务记录" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "保存并提交审核" }),
+    ).toBeDisabled();
   });
 
   it("searches the authorized region list before selecting a region", async () => {
@@ -1475,9 +1490,15 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(select).not.toHaveTextContent("呼伦贝尔市");
   });
 
-  it("allows a new production record without a photo", async () => {
-    const { api, createProduction, uploadEvidencePhoto } = repository();
-    vi.mocked(createProduction).mockResolvedValue({
+  it("submits a new production record atomically without a photo", async () => {
+    const {
+      api,
+      createAndSubmitProduction,
+      createProduction,
+      transitionProduction,
+      uploadEvidencePhoto,
+    } = repository();
+    createAndSubmitProduction.mockResolvedValue({
       id: "production-1",
       productCode: "CORN",
       objectTypeCode: "FARMER",
@@ -1500,9 +1521,9 @@ describe("RealtimeBusinessOperationsPanel", () => {
       },
       reportedAt: "2026-08-08T10:01:00+08:00",
       estimatedOutputKilograms: "65000",
-      status: "DRAFT",
+      status: "PENDING_REVIEW",
       returnReason: null,
-      allowedActions: ["SUBMIT"],
+      allowedActions: ["VIEW"],
       version: 1,
     });
 
@@ -1520,13 +1541,17 @@ describe("RealtimeBusinessOperationsPanel", () => {
     fillRequiredProductionFields();
 
     const saveButton = screen.getByRole("button", {
-      name: "保存业务记录",
+      name: "保存并提交审核",
     });
     await waitFor(() => expect(saveButton).not.toBeDisabled());
     fireEvent.submit(saveButton.closest("form") as HTMLFormElement);
-    await waitFor(() => expect(createProduction).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(createAndSubmitProduction).toHaveBeenCalledOnce(),
+    );
+    expect(createProduction).not.toHaveBeenCalled();
+    expect(transitionProduction).not.toHaveBeenCalled();
     expect(uploadEvidencePhoto).not.toHaveBeenCalled();
-    const created = createProduction.mock.calls[0]?.[0] as unknown as
+    const created = createAndSubmitProduction.mock.calls[0]?.[0] as unknown as
       ProductionDraftPayload | undefined;
     expect(created).toMatchObject({
       productCode: "CORN",

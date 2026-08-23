@@ -86,7 +86,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(
       screen.getByRole("tablist", { name: "样本点治理模块" }),
     ).toBeVisible();
-    expect(screen.getByRole("tab", { name: "年度在网样本" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "年度现有样本" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -96,12 +96,16 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(screen.queryByRole("region", { name: "样本点坐标治理" })).toBeNull();
     expect(screen.queryByRole("region", { name: "样本点身份治理" })).toBeNull();
 
-    await userEvent.click(screen.getByRole("tab", { name: "设计样本" }));
+    await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
 
     expect(
-      await screen.findByRole("table", { name: "设计样本清单" }),
+      await screen.findByRole("table", { name: "设计参考点清单" }),
     ).toBeVisible();
     expect(screen.getByText("众兴村")).toBeVisible();
+    expect(
+      screen.queryByRole("columnheader", { name: "行政区代码" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("230231100201")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("region", { name: "年度样本网络管理" }),
     ).toBeNull();
@@ -131,8 +135,8 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
 
     await screen.findByRole("region", { name: "年度样本网络管理" });
-    await userEvent.click(screen.getByRole("tab", { name: "设计样本" }));
-    await screen.findByRole("table", { name: "设计样本清单" });
+    await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
+    await screen.findByRole("table", { name: "设计参考点清单" });
     expect(getComparison).toHaveBeenCalledTimes(2);
 
     rerender(
@@ -143,7 +147,7 @@ describe("SamplePointGovernanceWorkspace", () => {
         session={session}
       />,
     );
-    expect(screen.getByRole("tab", { name: "设计样本" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "设计参考点" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -158,7 +162,7 @@ describe("SamplePointGovernanceWorkspace", () => {
       />,
     );
     await vi.waitFor(() => expect(getComparison).toHaveBeenCalledTimes(3));
-    expect(screen.getByRole("tab", { name: "设计样本" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "设计参考点" })).toHaveAttribute(
       "aria-selected",
       "true",
     );

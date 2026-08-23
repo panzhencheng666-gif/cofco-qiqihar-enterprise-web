@@ -1389,7 +1389,14 @@ export interface RealtimeBusinessRepository {
   ): Promise<Page<BusinessRecordListItem>>;
   getProduction(id: string): Promise<ProductionRecordRow>;
   createProduction(draft: ProductionDraftPayload): Promise<ProductionRecordRow>;
+  createAndSubmitProduction(
+    draft: ProductionDraftPayload,
+  ): Promise<ProductionRecordRow>;
   updateProduction(
+    id: string,
+    draft: ProductionDraftPayload & { version: number },
+  ): Promise<ProductionRecordRow>;
+  updateAndSubmitProduction(
     id: string,
     draft: ProductionDraftPayload & { version: number },
   ): Promise<ProductionRecordRow>;
@@ -1404,7 +1411,12 @@ export interface RealtimeBusinessRepository {
   ): Promise<Page<BusinessRecordListItem>>;
   getMarket(id: string): Promise<MarketRecordRow>;
   createMarket(draft: MarketDraftPayload): Promise<MarketRecordRow>;
+  createAndSubmitMarket(draft: MarketDraftPayload): Promise<MarketRecordRow>;
   updateMarket(
+    id: string,
+    draft: MarketDraftPayload & { version: number },
+  ): Promise<MarketRecordRow>;
+  updateAndSubmitMarket(
     id: string,
     draft: MarketDraftPayload & { version: number },
   ): Promise<MarketRecordRow>;
@@ -1912,9 +1924,19 @@ export function createRealtimeBusinessRepository(
       ),
     createProduction: (draft) =>
       client.post<ProductionRecordRow>("/api/v1/production-records", draft),
+    createAndSubmitProduction: (draft) =>
+      client.post<ProductionRecordRow>(
+        "/api/v1/production-records/submit",
+        draft,
+      ),
     updateProduction: (id, draft) =>
       client.put<ProductionRecordRow>(
         `/api/v1/production-records/${encodeURIComponent(id)}`,
+        draft,
+      ),
+    updateAndSubmitProduction: (id, draft) =>
+      client.put<ProductionRecordRow>(
+        `/api/v1/production-records/${encodeURIComponent(id)}/submit`,
         draft,
       ),
     transitionProduction: (id, action, version, reason) =>
@@ -1933,9 +1955,16 @@ export function createRealtimeBusinessRepository(
       ),
     createMarket: (draft) =>
       client.post<MarketRecordRow>("/api/v1/market-records", draft),
+    createAndSubmitMarket: (draft) =>
+      client.post<MarketRecordRow>("/api/v1/market-records/submit", draft),
     updateMarket: (id, draft) =>
       client.put<MarketRecordRow>(
         `/api/v1/market-records/${encodeURIComponent(id)}`,
+        draft,
+      ),
+    updateAndSubmitMarket: (id, draft) =>
+      client.put<MarketRecordRow>(
+        `/api/v1/market-records/${encodeURIComponent(id)}/submit`,
         draft,
       ),
     transitionMarket: (id, action, version, reason) =>

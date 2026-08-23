@@ -7388,9 +7388,9 @@ body {
   max-height: min(820px, calc(100vh - 120px));
   overflow: hidden;
   border: 1px solid var(--formal-line-strong);
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--formal-panel);
-  box-shadow: 0 24px 70px rgb(1 27 40 / 28%);
+  box-shadow: 0 8px 28px rgb(1 27 40 / 18%);
 }
 
 .identity-governance-header,
@@ -7480,7 +7480,7 @@ body {
   width: 38px;
   height: 38px;
   border: 1px solid var(--formal-line-strong);
-  border-radius: 50%;
+  border-radius: 0;
   color: var(--formal-text);
   background: #fff;
   cursor: pointer;
@@ -7586,7 +7586,7 @@ body {
   min-height: 38px;
   padding: 8px 14px;
   border: 1px solid var(--formal-teal);
-  border-radius: 6px;
+  border-radius: 2px;
   background: #fff;
   color: var(--formal-teal-deep);
   cursor: pointer;
@@ -7649,7 +7649,7 @@ body {
 .identity-review-list article {
   padding: 13px 15px;
   border: 1px solid var(--formal-line);
-  border-radius: 7px;
+  border-radius: 0;
   background: #fff;
 }
 
@@ -7665,7 +7665,7 @@ body {
   margin-top: 18px;
   padding: 18px;
   border: 1px solid var(--formal-line-strong);
-  border-radius: 9px;
+  border-radius: 0;
   background: #f8fbfc;
 }
 
@@ -7701,7 +7701,7 @@ body {
   margin: 12px 0;
   padding: 12px 14px 14px;
   border: 1px solid var(--formal-line);
-  border-radius: 7px;
+  border-radius: 0;
 }
 
 .identity-governance-editor legend {
@@ -7755,7 +7755,7 @@ body {
 .identity-governance-error {
   margin: 0 0 14px;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .identity-governance-success {
@@ -7783,7 +7783,7 @@ body {
   min-height: 38px;
   padding: 0 16px;
   border: 1px solid var(--formal-teal);
-  border-radius: 6px;
+  border-radius: 2px;
   color: var(--formal-teal-deep);
   font-weight: 700;
   text-decoration: none;

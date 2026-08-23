@@ -364,7 +364,7 @@ describe("formal enterprise prototype", () => {
 
     expect(
       await screen.findByRole("region", { name: "年度样本网络管理" }),
-    ).toHaveTextContent("设计样本点与现有样本点对照");
+    ).toHaveTextContent("2026年度现有样本名单");
     expect(await screen.findByText(/年度样本网络尚未创建/)).toBeInTheDocument();
     await waitFor(() =>
       expect(getSampleNetworkComparison).toHaveBeenCalledTimes(2),
@@ -544,7 +544,10 @@ describe("formal enterprise prototype", () => {
     );
     expect(
       screen.getByRole("dialog", { name: "账号与权限" }),
-    ).toHaveTextContent("230200");
+    ).toHaveTextContent("已授权 1 个责任地区");
+    expect(
+      screen.getByRole("dialog", { name: "账号与权限" }),
+    ).not.toHaveTextContent("230200");
   });
 
   it("opens a pending production item as an administrator review of its source record", async () => {
@@ -664,7 +667,7 @@ describe("formal enterprise prototype", () => {
     expect(within(dialog).getByLabelText("填报日期")).toHaveValue("2026-08-09");
     expect(within(dialog).getByLabelText("填报日期").tagName).toBe("OUTPUT");
     expect(
-      within(dialog).queryByRole("button", { name: "保存业务记录" }),
+      within(dialog).queryByRole("button", { name: "保存并提交审核" }),
     ).not.toBeInTheDocument();
   });
 
@@ -1258,7 +1261,7 @@ describe("formal enterprise prototype", () => {
       screen.getByRole("heading", { name: "玉米市场采集表" }),
     ).toBeInTheDocument();
 
-    const save = screen.getByRole("button", { name: "保存业务记录" });
+    const save = screen.getByRole("button", { name: "保存并提交审核" });
     await waitFor(() => expect(save).toBeEnabled());
     await user.upload(
       screen.getByLabelText("现场水印照片"),

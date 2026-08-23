@@ -135,6 +135,11 @@ describe("product market collection workspace", () => {
 
     await screen.findByRole("combobox", { name: "数据年份" });
     expect(
+      screen.getByText(
+        "2026年度业务记录；现有样本以已批准的年度样本名单为准。",
+      ),
+    ).toBeVisible();
+    expect(
       screen.queryByRole("option", { name: "填写中" }),
     ).not.toBeInTheDocument();
     await user.selectOptions(
@@ -736,4 +741,42 @@ describe("product market collection workspace", () => {
       expect(downloaded).toContain(filename);
     },
   );
+
+  it("never opens the fixture draft workbench in the formal realtime path", async () => {
+    const listMarket = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const repository = {
+      listMarket,
+      loadMasterData,
+      loadMarketDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        objectTypeCode: "TRADER",
+        coreFields: [],
+        groups: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductMarketCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={scope}
+        section="corn-collection"
+        selection={{ type: "work-item", id: "WORK-MARKET-FILL-W31" }}
+      />,
+    );
+
+    await waitFor(() => expect(listMarket).toHaveBeenCalled());
+    expect(
+      screen.queryByRole("region", { name: /单据工作台$/u }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("保存草稿")).not.toBeInTheDocument();
+  });
 });

@@ -15,7 +15,7 @@
   min-height: 38px;
   padding: 0 16px;
   border: 1px solid #80a9ac;
-  border-radius: 6px;
+  border-radius: 2px;
   background: #fff;
   color: #136b68;
   font: inherit;
@@ -67,7 +67,7 @@
   min-height: 36px;
   padding: 0 12px;
   border: 1px solid #80a9ac;
-  border-radius: 5px;
+  border-radius: 2px;
   background: #fff;
   color: #136b68;
   font: inherit;
@@ -106,7 +106,7 @@
   min-height: 40px;
   padding: 0 18px;
   border: 1px solid #136b68;
-  border-radius: 6px;
+  border-radius: 2px;
   background: #136b68;
   color: #fff;
   font: inherit;

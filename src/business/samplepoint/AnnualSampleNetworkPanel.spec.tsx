@@ -70,6 +70,12 @@ describe("AnnualSampleNetworkPanel", () => {
       />,
     );
 
+    expect(
+      screen.getByRole("heading", { name: "2027年度现有样本名单" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("设计样本点与现有样本点对照"),
+    ).not.toBeInTheDocument();
     expect(await screen.findByText("契约测试村现有样本点")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "启用" }));
     expect(updateSampleNetworkMember).toHaveBeenCalledWith(

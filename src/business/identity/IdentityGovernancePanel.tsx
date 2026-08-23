@@ -67,7 +67,7 @@ function displayRegion(
   regionNames: ReadonlyMap<string, string>,
 ): string {
   const name = regionNames.get(code);
-  return name ? `${name}（${code}）` : code;
+  return name ?? "责任地区名称待同步";
 }
 
 function regionScopeSummary(
@@ -75,9 +75,12 @@ function regionScopeSummary(
   regionNames: ReadonlyMap<string, string>,
 ): string {
   if (codes.length === 0) return "未分配责任地区";
-  const visible = codes
-    .slice(0, 3)
-    .map((code) => displayRegion(code, regionNames));
+  const namedRegions = codes.flatMap((code) => {
+    const name = regionNames.get(code);
+    return name ? [name] : [];
+  });
+  if (namedRegions.length === 0) return `已授权 ${codes.length} 个责任地区`;
+  const visible = namedRegions.slice(0, 3);
   return codes.length > visible.length
     ? `${visible.join("、")} 等 ${codes.length} 个地区`
     : visible.join("、");
@@ -667,14 +670,14 @@ export function IdentityGovernancePanel({
                   <dt>员工</dt>
                   <dd>
                     <strong>{session.displayName}</strong>
-                    <small>员工账号 {session.subjectId}</small>
+                    <small>企业员工身份已认证</small>
                   </dd>
                 </div>
                 <div>
                   <dt>工作单位</dt>
                   <dd>
                     <strong>{session.workUnitName}</strong>
-                    <small>单位编码 {session.workUnitCode}</small>
+                    <small>当前登录账号所属单位</small>
                   </dd>
                 </div>
                 <div>

@@ -6517,6 +6517,11 @@
   font-weight: 600;
 }
 
+.enterprise-ledger-title .enterprise-ledger-title__sample-note {
+  color: #315f72;
+  font-weight: 500;
+}
+
 .enterprise-ledger-table {
   min-width: 0;
   border: 1px solid #b9cedc;

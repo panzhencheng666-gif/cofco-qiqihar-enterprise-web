@@ -184,7 +184,8 @@ describe("IdentityGovernancePanel", () => {
       within(unit).getByRole("heading", { name: "齐齐哈尔经营部" }),
     ).toBeVisible();
     expect(within(unit).getByText("单位负责人")).toBeVisible();
-    expect(within(unit).getByText("230200")).toBeVisible();
+    expect(await within(unit).findByText("齐齐哈尔市")).toBeVisible();
+    expect(within(unit).queryByText("230200")).not.toBeInTheDocument();
     expect(within(unit).getByText("李主任")).toBeVisible();
 
     await user.click(
@@ -197,7 +198,7 @@ describe("IdentityGovernancePanel", () => {
     expect(await screen.findByText("张敏")).toBeVisible();
   });
 
-  it("shows the authenticated account, position, organization and responsibility scope", () => {
+  it("shows the authenticated account, position, organization and responsibility scope", async () => {
     render(
       <IdentityGovernancePanel
         initialView="profile"
@@ -209,11 +210,16 @@ describe("IdentityGovernancePanel", () => {
 
     const dialog = screen.getByRole("dialog", { name: "账号与权限" });
     expect(within(dialog).getByText("李主任")).toBeVisible();
-    expect(within(dialog).getByText("员工账号 identity-admin")).toBeVisible();
     expect(within(dialog).getByText("齐齐哈尔经营部")).toBeVisible();
-    expect(within(dialog).getByText("单位编码 QIQIHAR_BUSINESS")).toBeVisible();
     expect(within(dialog).getAllByText("单位负责人")).toHaveLength(2);
-    expect(within(dialog).getByText("230200")).toBeVisible();
+    expect(await within(dialog).findByText("齐齐哈尔市")).toBeVisible();
+    expect(
+      within(dialog).queryByText("员工账号 identity-admin"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByText("单位编码 QIQIHAR_BUSINESS"),
+    ).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("230200")).not.toBeInTheDocument();
     expect(within(dialog).getByText("在职 · 账号正常")).toBeVisible();
     expect(within(dialog).getByText("管理员")).toBeVisible();
     expect(
@@ -234,7 +240,8 @@ describe("IdentityGovernancePanel", () => {
     const summary = screen.getByLabelText("账号资料");
     expect(summary.tagName).toBe("DL");
     expect(summary.querySelector("article")).toBeNull();
-    expect(await screen.findByText("齐齐哈尔市（230200）")).toBeVisible();
+    expect(await screen.findByText("齐齐哈尔市")).toBeVisible();
+    expect(screen.queryByText("齐齐哈尔市（230200）")).not.toBeInTheDocument();
   });
 
   it("links account security and posts logout with the server CSRF token", () => {

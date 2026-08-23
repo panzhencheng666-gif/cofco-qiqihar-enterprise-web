@@ -938,6 +938,44 @@ describe("realtime business repository", () => {
     );
   });
 
+  it("uses atomic create and resubmit endpoints for formal production and market entry", async () => {
+    const { api, post, put } = client();
+    const repository = createRealtimeBusinessRepository(api) as unknown as {
+      createAndSubmitProduction(input: unknown): Promise<unknown>;
+      updateAndSubmitProduction(id: string, input: unknown): Promise<unknown>;
+      createAndSubmitMarket(input: unknown): Promise<unknown>;
+      updateAndSubmitMarket(id: string, input: unknown): Promise<unknown>;
+    };
+    const production = { productCode: "CORN" };
+    const market = { productCode: "SOYBEAN" };
+
+    await repository.createAndSubmitProduction(production);
+    await repository.updateAndSubmitProduction("production/1", production);
+    await repository.createAndSubmitMarket(market);
+    await repository.updateAndSubmitMarket("market/1", market);
+
+    expect(post).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/production-records/submit",
+      production,
+    );
+    expect(put).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/production-records/production%2F1/submit",
+      production,
+    );
+    expect(post).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/market-records/submit",
+      market,
+    );
+    expect(put).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/market-records/market%2F1/submit",
+      market,
+    );
+  });
+
   it("lists and reads persisted production and market records", async () => {
     const { api, get } = client();
     const repository = createRealtimeBusinessRepository(api);

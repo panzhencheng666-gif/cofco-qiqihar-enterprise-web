@@ -57,6 +57,7 @@ import {
 } from "../importing/businessImportWorkflow";
 import { RealtimeRegionFilterSelect } from "../realtime/RealtimeRegionFilterSelect";
 import {
+  annualSampleStatusNote,
   currentSurveyYear,
   formatExplicitSurveyPeriod,
   formatRealFillingTime,
@@ -1225,6 +1226,9 @@ export function ProductMarketCollectionWorkspace({
       <header className="enterprise-ledger-title">
         <h1>{context.productLabel}市场采集表</h1>
         <p>当前业务对象 · {businessDate(sourceItem)} · 当前授权地区</p>
+        <p className="enterprise-ledger-title__sample-note">
+          {annualSampleStatusNote(surveyYear)}
+        </p>
       </header>
 
       <section
@@ -1433,7 +1437,7 @@ export function ProductMarketCollectionWorkspace({
         </footer>
       </section>
 
-      {selectedItem && selectedDocument && (
+      {!realtimeRepository && selectedItem && selectedDocument && (
         <MarketDocumentWorkbench
           actor={{
             userId: scope.identity.userId,

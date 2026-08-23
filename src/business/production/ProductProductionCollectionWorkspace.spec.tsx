@@ -224,6 +224,9 @@ describe("product production collection workspace", () => {
     expect(screen.getByRole("combobox", { name: "数据年份" })).toHaveValue(
       "2024",
     );
+    expect(
+      screen.getByText("2025年及以前属于历史业务记录，不计入现有样本数量。"),
+    ).toBeVisible();
   });
 
   it("queries by mandatory survey year, optional month, real filling dates and status", async () => {
@@ -720,5 +723,37 @@ describe("product production collection workspace", () => {
       ),
     ).toBeVisible();
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
+  });
+
+  it("never opens the fixture draft workbench in the formal realtime path", async () => {
+    const listProduction = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const repository = {
+      listProduction,
+      loadProductionDefinition: productionDefinition,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductProductionCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={scope}
+        section="corn-collection"
+        selection={{ type: "work-item", id: "WORK-PRODUCTION-FILL-W31" }}
+      />,
+    );
+
+    await waitFor(() => expect(listProduction).toHaveBeenCalled());
+    expect(
+      screen.queryByRole("region", { name: /单据工作台$/u }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("保存草稿")).not.toBeInTheDocument();
   });
 });

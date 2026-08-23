@@ -762,6 +762,7 @@ function MyWorkLedger({
     [periodKeys, queryAllowed, scope, workItems],
   );
   const view = myWorkViews[section];
+  const completedView = section === "completed";
   const visible = projections.filter(({ savedViewGroup }) =>
     view.groups.includes(savedViewGroup),
   );
@@ -834,7 +835,11 @@ function MyWorkLedger({
       <WorkspaceHeader
         eyebrow="统一工作门户 / 我的工作"
         title={view.label}
-        summary="按风险和截止时间集中处理本人事项，处理结果实时回写原业务单据。"
+        summary={
+          completedView
+            ? "查看本人已经处理的事项、办理结果和完成时间。"
+            : "按风险和截止时间集中处理本人事项，处理结果实时回写原业务单据。"
+        }
       />
       <Filters
         availableClassificationOptions={classificationOptions}
@@ -862,7 +867,9 @@ function MyWorkLedger({
           <div>
             <h2>{view.label}任务台账</h2>
             <p>
-              先处理退回和质量阻断，再处理临近截止事项；点击“处理”直接进入原业务单据。
+              {completedView
+                ? "按完成时间查看办理结果；点击“查看”返回原业务单据。"
+                : "先处理退回和质量阻断，再处理临近截止事项；点击“处理”直接进入原业务单据。"}
             </p>
           </div>
           <div className="my-work-task5-batch-actions">
