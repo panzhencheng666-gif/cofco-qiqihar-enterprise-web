@@ -119,14 +119,16 @@ export interface AnnualSampleNetworkMembership {
   samplePointId: string;
   samplePointName: string;
   samplePointKindCode: string;
-  villageRegionCode: string;
-  villageName: string;
+  locatedRegionCode: string;
+  locatedRegionName: string;
+  locatedRegionLevel: "PREFECTURE" | "COUNTY" | "TOWNSHIP" | "VILLAGE";
   statusCode: SampleNetworkMembershipStatus;
   sourceCode: "CARRIED_FORWARD" | "NEW" | "MANUAL";
   decisionReason: string | null;
   version: number;
   longitude: number | null;
   latitude: number | null;
+  locationState: string;
 }
 
 export interface AnnualSampleNetwork {
@@ -144,7 +146,7 @@ export interface AnnualSampleNetwork {
   memberships: readonly AnnualSampleNetworkMembership[];
 }
 
-export interface SampleNetworkComparisonPoint {
+export interface SampleNetworkDesignPoint {
   villageRegionCode: string;
   villageName: string;
   townshipRegionCode: string;
@@ -153,13 +155,34 @@ export interface SampleNetworkComparisonPoint {
   countyName: string;
   designLongitude: number;
   designLatitude: number;
-  samplePointId: string | null;
-  samplePointName: string | null;
-  samplePointKindCode: string | null;
-  membershipStatusCode: SampleNetworkMembershipStatus | null;
+}
+
+export interface SampleNetworkActualPoint {
+  samplePointId: string;
+  samplePointName: string;
+  samplePointKindCode: string;
+  membershipStatusCode: SampleNetworkMembershipStatus;
+  locatedRegionCode: string;
+  locatedRegionName: string;
+  locatedRegionLevel: "PREFECTURE" | "COUNTY" | "TOWNSHIP" | "VILLAGE";
   actualLongitude: number | null;
   actualLatitude: number | null;
-  comparisonState: string;
+  locationState: string;
+}
+
+export type SampleNetworkRelationType =
+  "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION" | "REGIONAL_ASSOCIATION";
+
+export interface SampleNetworkRelation {
+  samplePointId: string;
+  designVillageRegionCode: string;
+  relationType: SampleNetworkRelationType;
+  evidenceReference: string | null;
+  reviewStatus: string | null;
+  createdBy: string | null;
+  createdAt: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
 }
 
 export interface SampleNetworkComparison {
@@ -167,13 +190,25 @@ export interface SampleNetworkComparison {
   networkStatus: SampleNetworkStatus | "NOT_CREATED";
   designPointCount: number;
   activeSamplePointCount: number;
-  coveredDesignPointCount: number;
-  uncoveredDesignPointCount: number;
-  points: readonly SampleNetworkComparisonPoint[];
+  exactCoveredDesignPointCount: number;
+  representedDesignPointCount: number;
+  regionalAssociationDesignPointCount: number;
+  unrelatedDesignPointCount: number;
+  actualLevelCounts: {
+    prefecture: number;
+    county: number;
+    township: number;
+    village: number;
+  };
+  designPoints: readonly SampleNetworkDesignPoint[];
+  actualPoints: readonly SampleNetworkActualPoint[];
+  relations: readonly SampleNetworkRelation[];
 }
 
 export interface SampleNetworkMemberDecision {
-  villageRegionCode: string;
+  designVillageRegionCode?: string;
+  relationType?: "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION";
+  evidenceReference?: string;
   statusCode: SampleNetworkMembershipStatus;
   sourceCode: "CARRIED_FORWARD" | "NEW" | "MANUAL";
   reason: string;

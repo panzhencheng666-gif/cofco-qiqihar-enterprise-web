@@ -6,6 +6,7 @@ import type {
   CurrentSession,
   RealtimeBusinessRepository,
   SampleNetworkMembershipStatus,
+  SampleNetworkRelation,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
@@ -24,12 +25,25 @@ export function AnnualSampleNetworkPanel({
   const [network, setNetwork] = useState<AnnualSampleNetwork>();
   const [notCreated, setNotCreated] = useState(false);
   const [resolvedYear, setResolvedYear] = useState<number>();
+  const [comparison, setComparison] = useState<{
+    year: number;
+    relations: readonly SampleNetworkRelation[];
+  }>();
+  const [knownYears, setKnownYears] = useState(() => [
+    currentYear,
+    currentYear + 1,
+  ]);
+  const [publishedYears, setPublishedYears] = useState<number[]>([]);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [reviewReason, setReviewReason] = useState("");
   const [newSamplePointId, setNewSamplePointId] = useState("");
-  const [newVillageCode, setNewVillageCode] = useState("");
+  const [newDesignVillageCode, setNewDesignVillageCode] = useState("");
+  const [newRelationType, setNewRelationType] = useState<
+    "" | "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION"
+  >("");
+  const [newEvidenceReference, setNewEvidenceReference] = useState("");
   const [newReason, setNewReason] = useState("");
 
   useEffect(() => {
@@ -52,6 +66,18 @@ export function AnnualSampleNetworkPanel({
       .then((next) => {
         if (!active) return;
         setNetwork(next);
+        setKnownYears((years) =>
+          knownYearList([
+            ...years,
+            next.networkYear,
+            ...(next.carriedFromYear ? [next.carriedFromYear] : []),
+          ]),
+        );
+        if (next.statusCode === "PUBLISHED") {
+          setPublishedYears((years) =>
+            knownYearList([...years, next.networkYear]),
+          );
+        }
         setNotCreated(false);
         setError("");
         setMessage("");
@@ -64,6 +90,29 @@ export function AnnualSampleNetworkPanel({
         setError(isNotFound(cause) ? "" : actionError(cause));
         setMessage("");
         setResolvedYear(year);
+      });
+    return () => {
+      active = false;
+    };
+  }, [repository, year]);
+
+  useEffect(() => {
+    let active = true;
+    if (!repository.getSampleNetworkComparison) {
+      queueMicrotask(() => {
+        if (active) setComparison(undefined);
+      });
+      return () => {
+        active = false;
+      };
+    }
+    void repository
+      .getSampleNetworkComparison(year)
+      .then((next) => {
+        if (active) setComparison({ year, relations: next.relations });
+      })
+      .catch(() => {
+        if (active) setComparison(undefined);
       });
     return () => {
       active = false;
@@ -84,6 +133,18 @@ export function AnnualSampleNetworkPanel({
     try {
       const next = await operation();
       setNetwork(next);
+      setKnownYears((years) =>
+        knownYearList([
+          ...years,
+          next.networkYear,
+          ...(next.carriedFromYear ? [next.carriedFromYear] : []),
+        ]),
+      );
+      if (next.statusCode === "PUBLISHED") {
+        setPublishedYears((years) =>
+          knownYearList([...years, next.networkYear]),
+        );
+      }
       setNotCreated(false);
       setResolvedYear(year);
       return next;
@@ -97,7 +158,7 @@ export function AnnualSampleNetworkPanel({
 
   function createNetwork() {
     if (!repository.generateSampleNetworkCandidates) return;
-    const carriedFromYear = year === currentYear + 1 ? currentYear : undefined;
+    const carriedFromYear = nearestPublishedYear(publishedYears, year);
     void run("create", () =>
       repository.generateSampleNetworkCandidates!(year, carriedFromYear),
     ).then((next) => {
@@ -117,9 +178,15 @@ export function AnnualSampleNetworkPanel({
   ) {
     if (!repository.updateSampleNetworkMember) return;
     const reason = decisionReason(year, statusCode);
+    const relation = memberRelation(
+      comparison?.year === year ? comparison.relations : [],
+      member.samplePointId,
+    );
     void run(`member:${member.samplePointId}:${statusCode}`, () =>
       repository.updateSampleNetworkMember!(year, member.samplePointId, {
-        villageRegionCode: member.villageRegionCode,
+        designVillageRegionCode: relation?.designVillageRegionCode,
+        relationType: relation?.relationType,
+        evidenceReference: relation?.evidenceReference ?? undefined,
         statusCode,
         sourceCode: member.sourceCode,
         reason,
@@ -131,13 +198,21 @@ export function AnnualSampleNetworkPanel({
   function addMember() {
     if (
       !repository.updateSampleNetworkMember ||
-      !newSamplePointId ||
-      !newVillageCode
+      !newSamplePointId.trim() ||
+      (newRelationType !== "" && !newDesignVillageCode.trim()) ||
+      (newRelationType === "EXPLICIT_REPRESENTATION" &&
+        !newEvidenceReference.trim())
     )
       return;
     void run("add-member", () =>
       repository.updateSampleNetworkMember!(year, newSamplePointId.trim(), {
-        villageRegionCode: newVillageCode.trim(),
+        designVillageRegionCode:
+          newRelationType === "" ? undefined : newDesignVillageCode.trim(),
+        relationType: newRelationType || undefined,
+        evidenceReference:
+          newRelationType === "EXPLICIT_REPRESENTATION"
+            ? newEvidenceReference.trim()
+            : undefined,
         statusCode: "ACTIVE",
         sourceCode: "NEW",
         reason: newReason.trim() || `新增${year}年度现有样本点`,
@@ -146,7 +221,9 @@ export function AnnualSampleNetworkPanel({
     ).then((next) => {
       if (!next) return;
       setNewSamplePointId("");
-      setNewVillageCode("");
+      setNewDesignVillageCode("");
+      setNewRelationType("");
+      setNewEvidenceReference("");
       setNewReason("");
     });
   }
@@ -178,6 +255,14 @@ export function AnnualSampleNetworkPanel({
   const canSubmit = session.permissions.includes("BUSINESS_SUBMIT");
   const canApprove = session.permissions.includes("BUSINESS_APPROVE");
   const canReturn = session.permissions.includes("BUSINESS_RETURN");
+  const selectedRelations =
+    comparison?.year === year ? comparison.relations : [];
+  const canAddMember =
+    Boolean(newSamplePointId.trim()) &&
+    (newRelationType === "" || Boolean(newDesignVillageCode.trim())) &&
+    (newRelationType !== "EXPLICIT_REPRESENTATION" ||
+      Boolean(newEvidenceReference.trim())) &&
+    !busy;
 
   return (
     <section
@@ -198,8 +283,13 @@ export function AnnualSampleNetworkPanel({
             value={year}
             onChange={(event) => setYear(Number(event.target.value))}
           >
-            <option value={currentYear}>{currentYear}年</option>
-            <option value={currentYear + 1}>{currentYear + 1}年</option>
+            {knownYearList([...knownYears, currentYear + 1]).map(
+              (optionYear) => (
+                <option key={optionYear} value={optionYear}>
+                  {optionYear}年
+                </option>
+              ),
+            )}
           </select>
         </label>
       </header>
@@ -245,7 +335,8 @@ export function AnnualSampleNetworkPanel({
               <thead>
                 <tr>
                   <th>样本点</th>
-                  <th>行政村</th>
+                  <th>所在地层级/区域</th>
+                  <th>设计关系</th>
                   <th>来源</th>
                   <th>状态</th>
                   <th>处理</th>
@@ -255,7 +346,15 @@ export function AnnualSampleNetworkPanel({
                 {currentNetwork.memberships.map((member) => (
                   <tr key={member.samplePointId}>
                     <td>{member.samplePointName}</td>
-                    <td>{member.villageName}</td>
+                    <td>{locationLabel(member)}</td>
+                    <td>
+                      {relationLabel(
+                        sampleNetworkRelation(
+                          selectedRelations,
+                          member.samplePointId,
+                        ),
+                      )}
+                    </td>
                     <td>{sourceLabel(member.sourceCode)}</td>
                     <td>{membershipStatusLabel(member.statusCode)}</td>
                     <td>
@@ -301,12 +400,43 @@ export function AnnualSampleNetworkPanel({
                 value={newSamplePointId}
                 onChange={(event) => setNewSamplePointId(event.target.value)}
               />
-              <input
-                aria-label="行政村代码"
-                placeholder="行政村代码"
-                value={newVillageCode}
-                onChange={(event) => setNewVillageCode(event.target.value)}
-              />
+              <label>
+                设计关系
+                <select
+                  aria-label="设计关系"
+                  value={newRelationType}
+                  onChange={(event) =>
+                    setNewRelationType(
+                      event.target.value as
+                        "" | "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION",
+                    )
+                  }
+                >
+                  <option value="">不关联设计村</option>
+                  <option value="EXACT_VILLAGE">精确对应</option>
+                  <option value="EXPLICIT_REPRESENTATION">明确代表</option>
+                </select>
+              </label>
+              {newRelationType ? (
+                <input
+                  aria-label="设计行政村代码"
+                  placeholder="设计行政村代码"
+                  value={newDesignVillageCode}
+                  onChange={(event) =>
+                    setNewDesignVillageCode(event.target.value)
+                  }
+                />
+              ) : null}
+              {newRelationType === "EXPLICIT_REPRESENTATION" ? (
+                <input
+                  aria-label="明确代表依据"
+                  placeholder="明确代表依据"
+                  value={newEvidenceReference}
+                  onChange={(event) =>
+                    setNewEvidenceReference(event.target.value)
+                  }
+                />
+              ) : null}
               <input
                 aria-label="新增理由"
                 placeholder="新增理由"
@@ -314,11 +444,7 @@ export function AnnualSampleNetworkPanel({
                 onChange={(event) => setNewReason(event.target.value)}
               />
               <button
-                disabled={
-                  !newSamplePointId.trim() ||
-                  !newVillageCode.trim() ||
-                  Boolean(busy)
-                }
+                disabled={!canAddMember}
                 onClick={addMember}
                 type="button"
               >
@@ -408,4 +534,79 @@ function sourceLabel(source: AnnualSampleNetworkMembership["sourceCode"]) {
   return { CARRIED_FORWARD: "上年引用", NEW: "本年新增", MANUAL: "人工调整" }[
     source
   ];
+}
+
+function knownYearList(years: readonly number[]) {
+  return [...new Set(years)].sort((left, right) => left - right);
+}
+
+function nearestPublishedYear(years: readonly number[], targetYear: number) {
+  return [...years]
+    .filter((year) => year < targetYear)
+    .sort((left, right) => right - left)[0];
+}
+
+function memberRelation(
+  relations: readonly SampleNetworkRelation[],
+  samplePointId: string,
+):
+  | (Pick<
+      SampleNetworkRelation,
+      "designVillageRegionCode" | "evidenceReference"
+    > & { relationType: "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION" })
+  | undefined {
+  const relation = sampleNetworkRelation(relations, samplePointId);
+  if (
+    relation?.relationType !== "EXACT_VILLAGE" &&
+    relation?.relationType !== "EXPLICIT_REPRESENTATION"
+  ) {
+    return undefined;
+  }
+  return relation as
+    | (Pick<
+        SampleNetworkRelation,
+        "designVillageRegionCode" | "evidenceReference"
+      > & { relationType: "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION" })
+    | undefined;
+}
+
+function sampleNetworkRelation(
+  relations: readonly SampleNetworkRelation[],
+  samplePointId: string,
+) {
+  return (
+    relations.find(
+      (relation) =>
+        relation.samplePointId === samplePointId &&
+        relation.relationType === "EXACT_VILLAGE",
+    ) ??
+    relations.find(
+      (relation) =>
+        relation.samplePointId === samplePointId &&
+        relation.relationType === "EXPLICIT_REPRESENTATION",
+    ) ??
+    relations.find((relation) => relation.samplePointId === samplePointId)
+  );
+}
+
+function locationLabel(member: AnnualSampleNetworkMembership) {
+  return `${
+    {
+      PREFECTURE: "地市级",
+      COUNTY: "区县级",
+      TOWNSHIP: "乡镇级",
+      VILLAGE: "村级",
+    }[member.locatedRegionLevel]
+  } / ${member.locatedRegionName}`;
+}
+
+function relationLabel(relation: SampleNetworkRelation | undefined) {
+  if (!relation) return "未关联设计村";
+  if (relation.relationType === "EXACT_VILLAGE") {
+    return `精确对应（${relation.designVillageRegionCode}）`;
+  }
+  if (relation.relationType === "REGIONAL_ASSOCIATION") {
+    return "区域关联（系统推导）";
+  }
+  return `明确代表（${relation.designVillageRegionCode}；${relation.evidenceReference ?? "未说明依据"}）`;
 }

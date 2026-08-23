@@ -43,6 +43,21 @@ describe("AnnualSampleNetworkPanel", () => {
     const submitSampleNetwork = vi.fn().mockResolvedValue(network("IN_REVIEW"));
     const repository = {
       getSampleNetwork: vi.fn().mockResolvedValue(network("DRAFT")),
+      getSampleNetworkComparison: vi.fn().mockResolvedValue({
+        relations: [
+          {
+            samplePointId: "94000000-0000-0000-0000-000000000001",
+            designVillageRegionCode: "230202997001",
+            relationType: "REGIONAL_ASSOCIATION",
+            evidenceReference: null,
+            reviewStatus: null,
+            createdBy: null,
+            createdAt: null,
+            reviewedBy: null,
+            reviewedAt: null,
+          },
+        ],
+      }),
       updateSampleNetworkMember,
       submitSampleNetwork,
     } as unknown as RealtimeBusinessRepository;
@@ -61,12 +76,22 @@ describe("AnnualSampleNetworkPanel", () => {
       2027,
       "94000000-0000-0000-0000-000000000001",
       {
-        villageRegionCode: "230202997001",
+        designVillageRegionCode: undefined,
+        relationType: undefined,
+        evidenceReference: undefined,
         statusCode: "ACTIVE",
         sourceCode: "CARRIED_FORWARD",
         reason: "确认纳入2027年度现有样本网络",
         version: 0,
       },
+    );
+
+    const memberTable = screen.getByRole("region", { name: "年度样本成员" });
+    expect(memberTable).toHaveTextContent("所在地层级/区域");
+    expect(memberTable).toHaveTextContent("村级 / 契约测试村");
+    expect(memberTable).toHaveTextContent("设计关系");
+    await waitFor(() =>
+      expect(memberTable).toHaveTextContent("区域关联（系统推导）"),
     );
 
     await userEvent.click(screen.getByRole("button", { name: "提交独立审核" }));
@@ -105,13 +130,148 @@ describe("AnnualSampleNetworkPanel", () => {
       screen.getByText("仅创建年度名单，不复制产量、价格、库存等业务数据。"),
     ).toBeVisible();
   });
+
+  it("uses the nearest loaded published earlier year when creating the next annual network", async () => {
+    const generateSampleNetworkCandidates = vi
+      .fn()
+      .mockResolvedValue(network("DRAFT", 2029));
+    const repository = {
+      getSampleNetwork: vi.fn((year: number) => {
+        if (year === 2028) return Promise.resolve(network("DRAFT", 2028, 2026));
+        if (year === 2026) return Promise.resolve(network("PUBLISHED", 2026));
+        return Promise.reject(
+          Object.assign(new Error("not found"), { status: 404 }),
+        );
+      }),
+      generateSampleNetworkCandidates,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <AnnualSampleNetworkPanel
+        currentYear={2028}
+        repository={repository}
+        session={session}
+      />,
+    );
+
+    await screen.findByText("2028年度");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "年度" }),
+      "2026",
+    );
+    await screen.findByText("2026年度");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "年度" }),
+      "2029",
+    );
+    expect(await screen.findByText("2029年度样本网络尚未创建")).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "生成2029年度候选名单" }),
+    );
+
+    expect(generateSampleNetworkCandidates).toHaveBeenCalledWith(2029, 2026);
+  });
+
+  it("allows a new actual sample at any administrative level without a design village", async () => {
+    const updateSampleNetworkMember = vi
+      .fn()
+      .mockResolvedValue(network("DRAFT"));
+    const repository = {
+      getSampleNetwork: vi.fn().mockResolvedValue(network("DRAFT")),
+      updateSampleNetworkMember,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <AnnualSampleNetworkPanel
+        currentYear={2027}
+        repository={repository}
+        session={session}
+      />,
+    );
+
+    await screen.findByText("契约测试村现有样本点");
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "稳定样本点ID" }),
+      "94000000-0000-0000-0000-000000000099",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "新增现有样本点" }),
+    );
+
+    await waitFor(() =>
+      expect(updateSampleNetworkMember).toHaveBeenCalledWith(
+        2027,
+        "94000000-0000-0000-0000-000000000099",
+        {
+          designVillageRegionCode: undefined,
+          relationType: undefined,
+          evidenceReference: undefined,
+          statusCode: "ACTIVE",
+          sourceCode: "NEW",
+          reason: "新增2027年度现有样本点",
+          version: 0,
+        },
+      ),
+    );
+  });
+
+  it("requires a design village only for selected relations and evidence for explicit representation", async () => {
+    const updateSampleNetworkMember = vi
+      .fn()
+      .mockResolvedValue(network("DRAFT"));
+    const repository = {
+      getSampleNetwork: vi.fn().mockResolvedValue(network("DRAFT")),
+      updateSampleNetworkMember,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <AnnualSampleNetworkPanel
+        currentYear={2027}
+        repository={repository}
+        session={session}
+      />,
+    );
+
+    await screen.findByText("契约测试村现有样本点");
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "稳定样本点ID" }),
+      "94000000-0000-0000-0000-000000000099",
+    );
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "设计关系" }),
+      "EXPLICIT_REPRESENTATION",
+    );
+    expect(
+      screen.getByRole("button", { name: "新增现有样本点" }),
+    ).toBeDisabled();
+
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "设计行政村代码" }),
+      "230202997001",
+    );
+    expect(
+      screen.getByRole("button", { name: "新增现有样本点" }),
+    ).toBeDisabled();
+
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "明确代表依据" }),
+      "现场踏勘确认代表关系",
+    );
+    expect(
+      screen.getByRole("button", { name: "新增现有样本点" }),
+    ).toBeEnabled();
+  });
 });
 
-function network(statusCode: "DRAFT" | "IN_REVIEW") {
+function network(
+  statusCode: "DRAFT" | "IN_REVIEW" | "PUBLISHED",
+  networkYear = 2027,
+  carriedFromYear = 2026,
+) {
   return {
-    networkYear: 2027,
+    networkYear,
     statusCode,
-    carriedFromYear: 2026,
+    carriedFromYear,
     version: 3,
     createdBy: "creator-1",
     createdAt: "2026-12-20T08:00:00Z",
@@ -125,14 +285,16 @@ function network(statusCode: "DRAFT" | "IN_REVIEW") {
         samplePointId: "94000000-0000-0000-0000-000000000001",
         samplePointName: "契约测试村现有样本点",
         samplePointKindCode: "SURVEY_SITE",
-        villageRegionCode: "230202997001",
-        villageName: "契约测试村",
+        locatedRegionCode: "230202997001",
+        locatedRegionName: "契约测试村",
+        locatedRegionLevel: "VILLAGE",
         statusCode: "CANDIDATE",
         sourceCode: "CARRIED_FORWARD",
         decisionReason: null,
         version: 0,
         longitude: 123.8,
         latitude: 47.2,
+        locationState: "CONFIRMED",
       },
     ],
   };

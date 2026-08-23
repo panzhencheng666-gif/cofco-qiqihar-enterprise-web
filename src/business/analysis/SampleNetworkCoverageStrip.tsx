@@ -61,7 +61,7 @@ export function SampleNetworkCoverageStrip({
         ) : (
           <dl>
             <div>
-              <dt>设计行政村</dt>
+              <dt>设计村总数</dt>
               <dd>{formatCount(comparison.designPointCount)}</dd>
             </div>
             <div>
@@ -69,12 +69,34 @@ export function SampleNetworkCoverageStrip({
               <dd>{formatCount(comparison.activeSamplePointCount)}</dd>
             </div>
             <div>
-              <dt>已覆盖行政村</dt>
-              <dd>{formatCount(comparison.coveredDesignPointCount)}</dd>
+              <dt>村级精确覆盖</dt>
+              <dd>{formatCount(comparison.exactCoveredDesignPointCount)}</dd>
             </div>
             <div>
-              <dt>未覆盖行政村</dt>
-              <dd>{formatCount(comparison.uncoveredDesignPointCount)}</dd>
+              <dt>明确代表覆盖</dt>
+              <dd>{formatCount(comparison.representedDesignPointCount)}</dd>
+            </div>
+            <div>
+              <dt>区域关联</dt>
+              <dd>
+                {formatCount(comparison.regionalAssociationDesignPointCount)}
+              </dd>
+            </div>
+            <div>
+              <dt>地市级样本</dt>
+              <dd>{formatCount(comparison.actualLevelCounts.prefecture)}</dd>
+            </div>
+            <div>
+              <dt>区县级样本</dt>
+              <dd>{formatCount(comparison.actualLevelCounts.county)}</dd>
+            </div>
+            <div>
+              <dt>乡镇级样本</dt>
+              <dd>{formatCount(comparison.actualLevelCounts.township)}</dd>
+            </div>
+            <div>
+              <dt>村级样本</dt>
+              <dd>{formatCount(comparison.actualLevelCounts.village)}</dd>
             </div>
           </dl>
         )

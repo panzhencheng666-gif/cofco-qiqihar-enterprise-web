@@ -221,7 +221,9 @@ describe("realtime business repository", () => {
     await repository.getSampleNetworkComparison!(2027, "230200");
     await repository.generateSampleNetworkCandidates!(2027, 2026);
     await repository.updateSampleNetworkMember!(2027, "point/1", {
-      villageRegionCode: "230202997001",
+      designVillageRegionCode: "230202997001",
+      relationType: "EXPLICIT_REPRESENTATION",
+      evidenceReference: "2027年实地核验记录",
       statusCode: "ACTIVE",
       sourceCode: "CARRIED_FORWARD",
       reason: "继续纳入2027年度",
@@ -242,7 +244,9 @@ describe("realtime business repository", () => {
     expect(put).toHaveBeenCalledWith(
       "/api/v1/sample-networks/2027/members/point%2F1",
       {
-        villageRegionCode: "230202997001",
+        designVillageRegionCode: "230202997001",
+        relationType: "EXPLICIT_REPRESENTATION",
+        evidenceReference: "2027年实地核验记录",
         statusCode: "ACTIVE",
         sourceCode: "CARRIED_FORWARD",
         reason: "继续纳入2027年度",

@@ -397,8 +397,13 @@ function sampleNetworkCoverage() {
     networkStatus: "PUBLISHED" as const,
     designPointCount: 2332,
     activeSamplePointCount: 650,
-    coveredDesignPointCount: 640,
-    uncoveredDesignPointCount: 1692,
-    points: [],
+    exactCoveredDesignPointCount: 600,
+    representedDesignPointCount: 40,
+    regionalAssociationDesignPointCount: 0,
+    unrelatedDesignPointCount: 1692,
+    actualLevelCounts: { prefecture: 0, county: 0, township: 0, village: 650 },
+    designPoints: [],
+    actualPoints: [],
+    relations: [],
   };
 }

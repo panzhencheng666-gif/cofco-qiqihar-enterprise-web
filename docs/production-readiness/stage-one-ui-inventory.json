@@ -4,12 +4,12 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 56,
-  "sourceDigest": "d7abd7db8adca9aff4dfb4c7cf6e3001ccca6867a01b11771228f3bf2e92e836",
-  "itemCount": 432,
+  "sourceDigest": "bbf3e5d0cc5749cb0e5505f4d6d59991e82381adf09fb8b70b6b036ddae4079f",
+  "itemCount": 434,
   "countsByKind": {
     "BUTTON": 225,
     "LINK": 8,
-    "FILTER_OR_INPUT": 194,
+    "FILTER_OR_INPUT": 196,
     "DIALOG": 5
   },
   "items": [
@@ -5376,10 +5376,10 @@
       "sourceExcerpt": "<select aria-label=\"具体品种\" disabled={!product} value={cultivarId} onChange={(event) => { setCultivarId(event.target.value); setDataVersion(\"\"); setSectionKeys([]); }} >"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:197:11:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:282:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 197,
+      "line": 282,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": null,
@@ -5390,10 +5390,10 @@
       "sourceExcerpt": "<select value={year} onChange={(event) => setYear(Number(event.target.value))} >"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:218:13:BUTTON",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:308:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 218,
+      "line": 308,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5404,10 +5404,10 @@
       "sourceExcerpt": "<button disabled={Boolean(busy)} onClick={createNetwork} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:264:27:BUTTON",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:363:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 264,
+      "line": 363,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5418,10 +5418,10 @@
       "sourceExcerpt": "<button onClick={() => decide(member, \"ACTIVE\")} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:270:27:BUTTON",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:369:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 270,
+      "line": 369,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5432,10 +5432,10 @@
       "sourceExcerpt": "<button onClick={() => decide(member, \"PAUSED\")} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:276:27:BUTTON",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:375:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 276,
+      "line": 375,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5446,10 +5446,10 @@
       "sourceExcerpt": "<button onClick={() => decide(member, \"REMOVED\")} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:298:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:397:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 298,
+      "line": 397,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"稳定样本点ID\"",
@@ -5460,24 +5460,52 @@
       "sourceExcerpt": "<input aria-label=\"稳定样本点ID\" placeholder=\"稳定样本点ID\" value={newSamplePointId} onChange={(event) => setNewSamplePointId(event.target.value)} />"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:304:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:405:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 304,
-      "column": 15,
-      "tag": "input",
-      "accessibleNameSource": "aria-label=\"行政村代码\"",
+      "line": 405,
+      "column": 17,
+      "tag": "select",
+      "accessibleNameSource": "aria-label=\"设计关系\"",
       "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<input aria-label=\"行政村代码\" placeholder=\"行政村代码\" value={newVillageCode} onChange={(event) => setNewVillageCode(event.target.value)} />"
+      "sourceExcerpt": "<select aria-label=\"设计关系\" value={newRelationType} onChange={(event) => setNewRelationType( event.target.value as \"\" | \"EXACT_VILLAGE\" | \"EXPLICIT_REPRESENTATION\", ) } >"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:310:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:421:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 310,
+      "line": 421,
+      "column": 17,
+      "tag": "input",
+      "accessibleNameSource": "aria-label=\"设计行政村代码\"",
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<input aria-label=\"设计行政村代码\" placeholder=\"设计行政村代码\" value={newDesignVillageCode} onChange={(event) => setNewDesignVillageCode(event.target.value) } />"
+    },
+    {
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:431:17:FILTER_OR_INPUT",
+      "kind": "FILTER_OR_INPUT",
+      "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
+      "line": 431,
+      "column": 17,
+      "tag": "input",
+      "accessibleNameSource": "aria-label=\"明确代表依据\"",
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<input aria-label=\"明确代表依据\" placeholder=\"明确代表依据\" value={newEvidenceReference} onChange={(event) => setNewEvidenceReference(event.target.value) } />"
+    },
+    {
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:440:15:FILTER_OR_INPUT",
+      "kind": "FILTER_OR_INPUT",
+      "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
+      "line": 440,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"新增理由\"",
@@ -5488,10 +5516,10 @@
       "sourceExcerpt": "<input aria-label=\"新增理由\" placeholder=\"新增理由\" value={newReason} onChange={(event) => setNewReason(event.target.value)} />"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:316:15:BUTTON",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:446:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 316,
+      "line": 446,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5499,13 +5527,13 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button disabled={ !newSamplePointId.trim() || !newVillageCode.trim() || Boolean(busy) } onClick={addMember} type=\"button\" >"
+      "sourceExcerpt": "<button disabled={!canAddMember} onClick={addMember} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:331:13:BUTTON",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:457:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 331,
+      "line": 457,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5516,10 +5544,10 @@
       "sourceExcerpt": "<button disabled={Boolean(busy)} onClick={submit} type=\"button\">"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:339:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:465:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 339,
+      "line": 465,
       "column": 15,
       "tag": "textarea",
       "accessibleNameSource": "aria-label=\"年度样本网络审核理由\"",
@@ -5530,10 +5558,10 @@
       "sourceExcerpt": "<textarea aria-label=\"年度样本网络审核理由\" value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} />"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:345:17:BUTTON",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:471:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 345,
+      "line": 471,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5544,10 +5572,10 @@
       "sourceExcerpt": "<button disabled={!reviewReason.trim() || Boolean(busy)} onClick={() => review(\"APPROVE\")} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:354:17:BUTTON",
+      "id": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx:480:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/AnnualSampleNetworkPanel.tsx",
-      "line": 354,
+      "line": 480,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,

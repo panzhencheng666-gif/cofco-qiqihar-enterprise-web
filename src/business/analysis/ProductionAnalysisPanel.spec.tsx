@@ -189,7 +189,7 @@ describe("ProductionAnalysisPanel", () => {
     ).toBeVisible();
     expect(
       await screen.findByRole("region", { name: "样本网络覆盖" }),
-    ).toHaveTextContent("设计行政村2,332");
+    ).toHaveTextContent("设计村总数2,332");
     expect(container.firstElementChild).toHaveAttribute(
       "data-dashboard",
       "production",
@@ -327,8 +327,13 @@ function sampleNetworkCoverage() {
     networkStatus: "PUBLISHED" as const,
     designPointCount: 2332,
     activeSamplePointCount: 650,
-    coveredDesignPointCount: 640,
-    uncoveredDesignPointCount: 1692,
-    points: [],
+    exactCoveredDesignPointCount: 600,
+    representedDesignPointCount: 40,
+    regionalAssociationDesignPointCount: 0,
+    unrelatedDesignPointCount: 1692,
+    actualLevelCounts: { prefecture: 0, county: 0, township: 0, village: 650 },
+    designPoints: [],
+    actualPoints: [],
+    relations: [],
   };
 }
