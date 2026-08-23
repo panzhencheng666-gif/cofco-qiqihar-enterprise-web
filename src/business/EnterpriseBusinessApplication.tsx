@@ -534,6 +534,10 @@ export function EnterpriseBusinessApplication({
     "connecting" | "connected" | "empty" | "error" | "fixtures"
   >(realtimeMode ? "connecting" : "fixtures");
   const [realtimeRefreshToken, setRealtimeRefreshToken] = useState(0);
+  const [
+    sampleNetworkRefreshSequenceByYear,
+    setSampleNetworkRefreshSequenceByYear,
+  ] = useState<Readonly<Record<number, number>>>({});
   const [businessNotifications, setBusinessNotifications] = useState<
     readonly BusinessNotificationRow[]
   >([]);
@@ -717,15 +721,44 @@ export function EnterpriseBusinessApplication({
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    let pendingSampleNetworkYears = new Set<number>();
+    let pendingBusinessRefresh = false;
     const subscribeFrom = (afterSequence: number) => {
       if (cancelled) return;
-      unsubscribe = repository.subscribeBusinessEvents(afterSequence, () => {
-        if (refreshTimer !== undefined) clearTimeout(refreshTimer);
-        refreshTimer = setTimeout(() => {
-          refreshTimer = undefined;
-          if (!cancelled) setRealtimeRefreshToken((value) => value + 1);
-        }, 500);
-      });
+      unsubscribe = repository.subscribeBusinessEvents(
+        afterSequence,
+        (event) => {
+          if (
+            event.aggregateType === "SAMPLE_NETWORK_YEAR" &&
+            typeof event.surveyYear === "number"
+          ) {
+            pendingSampleNetworkYears.add(event.surveyYear);
+          } else {
+            pendingBusinessRefresh = true;
+          }
+          if (refreshTimer !== undefined) clearTimeout(refreshTimer);
+          refreshTimer = setTimeout(() => {
+            refreshTimer = undefined;
+            if (cancelled) return;
+            const years = pendingSampleNetworkYears;
+            pendingSampleNetworkYears = new Set<number>();
+            const refreshBusiness = pendingBusinessRefresh;
+            pendingBusinessRefresh = false;
+            if (refreshBusiness) {
+              setRealtimeRefreshToken((value) => value + 1);
+            }
+            if (years.size > 0) {
+              setSampleNetworkRefreshSequenceByYear((current) => {
+                const next = { ...current };
+                years.forEach((year) => {
+                  next[year] = (next[year] ?? 0) + 1;
+                });
+                return next;
+              });
+            }
+          }, 500);
+        },
+      );
     };
     void repository
       .listNotifications()
@@ -1136,7 +1169,7 @@ export function EnterpriseBusinessApplication({
                 currentSession.permissions.includes(permission),
               ) ? (
                 <SamplePointGovernanceWorkspace
-                  refreshSequence={realtimeRefreshToken}
+                  refreshSequenceByYear={sampleNetworkRefreshSequenceByYear}
                   repository={repository}
                   session={currentSession}
                 />

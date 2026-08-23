@@ -26,11 +26,13 @@ const modules = [
 export function SamplePointGovernanceWorkspace({
   currentYear = new Date().getFullYear(),
   refreshSequence = 0,
+  refreshSequenceByYear = {},
   repository,
   session,
 }: {
   currentYear?: number;
   refreshSequence?: number;
+  refreshSequenceByYear?: Readonly<Record<number, number>>;
   repository: RealtimeBusinessRepository;
   session: CurrentSession;
 }) {
@@ -41,6 +43,8 @@ export function SamplePointGovernanceWorkspace({
   const [comparisonState, setComparisonState] = useState<
     "loading" | "ready" | "unavailable"
   >("loading");
+  const selectedYearRefreshSequence =
+    refreshSequence + (refreshSequenceByYear[year] ?? 0);
 
   useEffect(() => {
     let active = true;
@@ -73,7 +77,7 @@ export function SamplePointGovernanceWorkspace({
     return () => {
       active = false;
     };
-  }, [refreshSequence, repository, year]);
+  }, [repository, selectedYearRefreshSequence, year]);
 
   return (
     <main className="sample-point-governance-workspace">
@@ -154,7 +158,7 @@ export function SamplePointGovernanceWorkspace({
           <AnnualSampleNetworkPanel
             currentYear={currentYear}
             onSelectedYearChange={setYear}
-            refreshSequence={refreshSequence}
+            refreshSequence={selectedYearRefreshSequence}
             repository={repository}
             selectedYear={year}
             session={session}

@@ -1,12 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   CurrentSession,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { SamplePointGovernanceWorkspace } from "./SamplePointGovernanceWorkspace";
+
+afterEach(cleanup);
 
 const session: CurrentSession = {
   subjectId: "governance-user",
@@ -103,5 +105,62 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(
       screen.queryByRole("region", { name: "年度样本网络管理" }),
     ).toBeNull();
+  });
+
+  it("keeps the selected module and reloads only for realtime changes to its year", async () => {
+    const initialRepository = repository();
+    const getComparison = vi.fn(
+      (year: number, regionCode?: string, productCode?: string) =>
+        initialRepository.getSampleNetworkComparison!(
+          year,
+          regionCode,
+          productCode,
+        ),
+    );
+    const data = {
+      ...initialRepository,
+      getSampleNetworkComparison: getComparison,
+    } as RealtimeBusinessRepository;
+    const { rerender } = render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        refreshSequenceByYear={{}}
+        repository={data}
+        session={session}
+      />,
+    );
+
+    await screen.findByRole("region", { name: "年度样本网络管理" });
+    await userEvent.click(screen.getByRole("tab", { name: "设计样本" }));
+    await screen.findByRole("table", { name: "设计样本清单" });
+    expect(getComparison).toHaveBeenCalledTimes(2);
+
+    rerender(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        refreshSequenceByYear={{ 2025: 1 }}
+        repository={data}
+        session={session}
+      />,
+    );
+    expect(screen.getByRole("tab", { name: "设计样本" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(getComparison).toHaveBeenCalledTimes(2);
+
+    rerender(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        refreshSequenceByYear={{ 2025: 1, 2026: 1 }}
+        repository={data}
+        session={session}
+      />,
+    );
+    await vi.waitFor(() => expect(getComparison).toHaveBeenCalledTimes(3));
+    expect(screen.getByRole("tab", { name: "设计样本" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 });

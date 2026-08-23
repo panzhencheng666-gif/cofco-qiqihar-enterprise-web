@@ -304,6 +304,23 @@ describe("formal enterprise prototype", () => {
 
   it("mounts annual sample-network governance on its dedicated route", async () => {
     const user = userEvent.setup();
+    let receiveBusinessEvent:
+      ((event: BusinessNotificationRow) => void) | undefined;
+    const getSampleNetworkComparison = vi.fn(() =>
+      Promise.reject(new Error("comparison unavailable")),
+    );
+    const loadMasterData = vi.fn(() =>
+      Promise.resolve({ products: [], periods: [], regions: [] }),
+    );
+    const listWorkItems = vi.fn(() =>
+      Promise.resolve({
+        items: [],
+        pageNumber: 0,
+        pageSize: 100,
+        totalElements: 0,
+        totalPages: 0,
+      }),
+    );
     const repository = {
       loadCurrentSession: () =>
         Promise.resolve(
@@ -316,18 +333,19 @@ describe("formal enterprise prototype", () => {
             ],
           }),
         ),
-      loadMasterData: () =>
-        Promise.resolve({ products: [], periods: [], regions: [] }),
-      listWorkItems: () =>
-        Promise.resolve({
-          items: [],
-          pageNumber: 0,
-          pageSize: 100,
-          totalElements: 0,
-          totalPages: 0,
-        }),
+      loadMasterData,
+      listWorkItems,
       getSampleNetwork: () =>
         Promise.reject(Object.assign(new Error("not found"), { status: 404 })),
+      getSampleNetworkComparison,
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: (
+        _afterSequence: number,
+        onChange: (event: BusinessNotificationRow) => void,
+      ) => {
+        receiveBusinessEvent = onChange;
+        return vi.fn();
+      },
     } as unknown as RealtimeBusinessRepository;
 
     render(
@@ -348,6 +366,51 @@ describe("formal enterprise prototype", () => {
       await screen.findByRole("region", { name: "年度样本网络管理" }),
     ).toHaveTextContent("设计样本点与现有样本点对照");
     expect(await screen.findByText(/年度样本网络尚未创建/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(getSampleNetworkComparison).toHaveBeenCalledTimes(2),
+    );
+    await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(2));
+    if (!receiveBusinessEvent) throw new Error("event stream not subscribed");
+
+    act(() =>
+      receiveBusinessEvent?.({
+        id: "production-event",
+        sequence: 1,
+        aggregateType: "PRODUCTION_RECORD",
+        aggregateId: "production-1",
+        actionCode: "PRODUCTION_RECORD_APPROVED",
+        productCode: "CORN",
+        surveyYear: 2026,
+        regionCodes: ["230200"],
+        occurredAt: "2026-08-23T08:00:00Z",
+        read: false,
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 550));
+    expect(getSampleNetworkComparison).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(3));
+    expect(listWorkItems).toHaveBeenCalledTimes(3);
+
+    act(() =>
+      receiveBusinessEvent?.({
+        id: "sample-network-event",
+        sequence: 2,
+        aggregateType: "SAMPLE_NETWORK_YEAR",
+        aggregateId: "2026",
+        actionCode: "SAMPLE_NETWORK_PUBLISHED",
+        productCode: null,
+        surveyYear: 2026,
+        regionCodes: ["230200"],
+        occurredAt: "2026-08-23T08:01:00Z",
+        read: false,
+      }),
+    );
+    await waitFor(
+      () => expect(getSampleNetworkComparison).toHaveBeenCalledTimes(4),
+      { timeout: 1_500 },
+    );
+    expect(loadMasterData).toHaveBeenCalledTimes(3);
+    expect(listWorkItems).toHaveBeenCalledTimes(3);
   });
 
   it("fails closed at the enterprise login boundary when no session exists", async () => {

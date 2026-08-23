@@ -401,6 +401,7 @@ export interface BusinessNotificationRow {
   aggregateId: string;
   actionCode: string;
   productCode: string | null;
+  surveyYear?: number | null;
   regionCodes: readonly string[];
   occurredAt: string;
   read: boolean;

@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 57,
-  "sourceDigest": "fbfb3bad1d03b3e8d859a3a6305ee8f88a3d57b552f686f2345dbea257bddb20",
+  "sourceDigest": "8910a999e7dcedd62aac64f486e88fc6e63a085db9f23e74087900f1d765b4c6",
   "itemCount": 436,
   "countsByKind": {
     "BUTTON": 227,
@@ -378,10 +378,10 @@
       "sourceExcerpt": "<button aria-label={`打开${application.label}`} key={application.key} type=\"button\" onClick={() => { onSelect?.(application.key); setOpen(false); }} >"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1281:13:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1314:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1281,
+      "line": 1314,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -392,10 +392,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={rebuildOperationalState}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1299:11:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1332:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1299,
+      "line": 1332,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5726,10 +5726,10 @@
       "sourceExcerpt": "<button aria-label={`审核驳回${item.canonicalName}`} disabled={busyAction === `review:${item.requestId}`} type=\"button\" onClick={() => review(item, \"REJECT\")} >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:120:11:BUTTON",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:124:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 120,
+      "line": 124,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5740,10 +5740,10 @@
       "sourceExcerpt": "<button aria-controls={`sample-governance-${module}`} aria-selected={activeModule === module} id={`sample-governance-tab-${module}`} key={module} onClick={() => setActiveModule(module)} role=\"tab\" type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:177:17:BUTTON",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:181:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 177,
+      "line": 181,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
