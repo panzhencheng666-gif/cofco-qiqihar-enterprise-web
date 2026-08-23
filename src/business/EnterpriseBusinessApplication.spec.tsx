@@ -290,6 +290,7 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
+    await user.click(await screen.findByRole("button", { name: "更多筛选" }));
     const product = await screen.findByRole("combobox", {
       name: "产品或作物",
     });
@@ -302,10 +303,11 @@ describe("formal enterprise prototype", () => {
     expect(screen.queryByText("稻谷产情审核任务")).not.toBeInTheDocument();
   });
 
-  it("mounts annual sample-network governance on its dedicated route", async () => {
+  it("mounts the sample registry first and keeps annual governance available", async () => {
     const user = userEvent.setup();
-    let receiveBusinessEvent:
-      ((event: BusinessNotificationRow) => void) | undefined;
+    const receiveBusinessEvents: Array<
+      (event: BusinessNotificationRow) => void
+    > = [];
     const getSampleNetworkComparison = vi.fn(() =>
       Promise.reject(new Error("comparison unavailable")),
     );
@@ -343,7 +345,7 @@ describe("formal enterprise prototype", () => {
         _afterSequence: number,
         onChange: (event: BusinessNotificationRow) => void,
       ) => {
-        receiveBusinessEvent = onChange;
+        receiveBusinessEvents.push(onChange);
         return vi.fn();
       },
     } as unknown as RealtimeBusinessRepository;
@@ -362,6 +364,16 @@ describe("formal enterprise prototype", () => {
       await screen.findByRole("heading", { name: "样本点管理" }),
     ).toBeVisible();
 
+    expect(screen.getByRole("tab", { name: "样本点名册" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(
+      screen.getByRole("heading", { name: "样本点身份治理" }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("tab", { name: "年度现有样本" }));
+
     expect(
       await screen.findByRole("region", { name: "年度样本网络管理" }),
     ).toHaveTextContent("2026年度现有样本名单");
@@ -370,41 +382,46 @@ describe("formal enterprise prototype", () => {
       expect(getSampleNetworkComparison).toHaveBeenCalledTimes(2),
     );
     await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(2));
-    if (!receiveBusinessEvent) throw new Error("event stream not subscribed");
+    if (receiveBusinessEvents.length === 0)
+      throw new Error("event stream not subscribed");
 
-    act(() =>
-      receiveBusinessEvent?.({
-        id: "production-event",
-        sequence: 1,
-        aggregateType: "PRODUCTION_RECORD",
-        aggregateId: "production-1",
-        actionCode: "PRODUCTION_RECORD_APPROVED",
-        productCode: "CORN",
-        surveyYear: 2026,
-        regionCodes: ["230200"],
-        occurredAt: "2026-08-23T08:00:00Z",
-        read: false,
-      }),
-    );
+    act(() => {
+      receiveBusinessEvents.forEach((receiveBusinessEvent) =>
+        receiveBusinessEvent({
+          id: "production-event",
+          sequence: 1,
+          aggregateType: "PRODUCTION_RECORD",
+          aggregateId: "production-1",
+          actionCode: "PRODUCTION_RECORD_APPROVED",
+          productCode: "CORN",
+          surveyYear: 2026,
+          regionCodes: ["230200"],
+          occurredAt: "2026-08-23T08:00:00Z",
+          read: false,
+        }),
+      );
+    });
     await new Promise((resolve) => setTimeout(resolve, 550));
     expect(getSampleNetworkComparison).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(3));
     expect(listWorkItems).toHaveBeenCalledTimes(3);
 
-    act(() =>
-      receiveBusinessEvent?.({
-        id: "sample-network-event",
-        sequence: 2,
-        aggregateType: "SAMPLE_NETWORK_YEAR",
-        aggregateId: "2026",
-        actionCode: "SAMPLE_NETWORK_PUBLISHED",
-        productCode: null,
-        surveyYear: 2026,
-        regionCodes: ["230200"],
-        occurredAt: "2026-08-23T08:01:00Z",
-        read: false,
-      }),
-    );
+    act(() => {
+      receiveBusinessEvents.forEach((receiveBusinessEvent) =>
+        receiveBusinessEvent({
+          id: "sample-network-event",
+          sequence: 2,
+          aggregateType: "SAMPLE_NETWORK_YEAR",
+          aggregateId: "2026",
+          actionCode: "SAMPLE_NETWORK_PUBLISHED",
+          productCode: null,
+          surveyYear: 2026,
+          regionCodes: ["230200"],
+          occurredAt: "2026-08-23T08:01:00Z",
+          read: false,
+        }),
+      );
+    });
     await waitFor(
       () => expect(getSampleNetworkComparison).toHaveBeenCalledTimes(4),
       { timeout: 1_500 },

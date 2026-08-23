@@ -804,10 +804,15 @@ describe("enterprise portal workspaces", () => {
       screen.getByRole("navigation", { name: "表格分页" }),
     ).toHaveTextContent(/共 [1-9]\d* 条/);
     expect(container.querySelectorAll("table")).toHaveLength(1);
-    for (const label of ["业务类型", "业务地区", "产品或作物"]) {
+    expect(
+      screen.getByRole("searchbox", { name: "搜索事项名称或单据编号" }),
+    ).toBeVisible();
+    for (const label of ["业务类型", "业务地区", "待处理状态"]) {
       expect(screen.getByRole("combobox", { name: label })).toBeVisible();
     }
-    expect(screen.getByRole("combobox", { name: "任务期间" })).toBeVisible();
+    expect(
+      screen.queryByRole("combobox", { name: "产品或作物" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "业务分类" }),
     ).not.toBeInTheDocument();
@@ -815,6 +820,8 @@ describe("enterprise portal workspaces", () => {
     expect(moreFilters).toHaveAttribute("aria-expanded", "false");
     await user.click(moreFilters);
     expect(screen.getByRole("combobox", { name: "业务分类" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "产品或作物" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "任务期间" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "业务地区" })).toHaveValue(
       "authorized-all",
     );
@@ -872,7 +879,8 @@ describe("enterprise portal workspaces", () => {
     expect(within(ledger).queryByText("产情监测")).not.toBeInTheDocument();
   });
 
-  it("derives My Work filters from real rows, removes duplicates, and hides single-value dimensions", () => {
+  it("keeps the V8 primary filters stable and derives advanced choices from real rows", async () => {
+    const user = userEvent.setup();
     const first = businessWorkFixtures[0];
     const second: BusinessWorkItem = {
       ...first,
@@ -887,9 +895,7 @@ describe("enterprise portal workspaces", () => {
 
     const { rerender } = render(<MyWorkHarness workItems={[first, second]} />);
 
-    expect(
-      screen.queryByRole("combobox", { name: "业务类型" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "业务类型" })).toBeVisible();
     const region = screen.getByRole("combobox", { name: "业务地区" });
     expect(
       within(region)
@@ -899,6 +905,7 @@ describe("enterprise portal workspaces", () => {
     expect(
       within(region).queryByText("地区名称待维护"),
     ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "更多筛选" }));
     const product = screen.getByRole("combobox", { name: "产品或作物" });
     expect(
       within(product)
@@ -913,14 +920,18 @@ describe("enterprise portal workspaces", () => {
     ).toEqual(["全部任务期间", "2026 年第 31 周", "2026 年第 32 周"]);
 
     rerender(<MyWorkHarness workItems={[first]} />);
-    for (const label of ["业务类型", "业务地区", "产品或作物", "任务期间"]) {
-      expect(
-        screen.queryByRole("combobox", { name: label }),
-      ).not.toBeInTheDocument();
-    }
+    expect(screen.getByRole("combobox", { name: "业务类型" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "业务地区" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "待处理状态" })).toBeVisible();
+    expect(
+      screen.queryByRole("combobox", { name: "产品或作物" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "任务期间" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("removes the empty filter surface and restores real filters when live work items arrive", () => {
+  it("keeps the real query surface available before and after live work items arrive", () => {
     const first = businessWorkFixtures[0];
     const second: BusinessWorkItem = {
       ...first,
@@ -933,9 +944,7 @@ describe("enterprise portal workspaces", () => {
 
     const { rerender } = render(<MyWorkHarness workItems={[]} />);
 
-    expect(
-      screen.queryByRole("region", { name: "我的工作筛选" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "我的工作筛选" })).toBeVisible();
 
     rerender(<MyWorkHarness workItems={[first, second]} />);
 
@@ -944,7 +953,7 @@ describe("enterprise portal workspaces", () => {
       within(filters).getByRole("combobox", { name: "业务地区" }),
     ).toBeVisible();
     expect(
-      within(filters).getByRole("combobox", { name: "产品或作物" }),
+      within(filters).getByRole("button", { name: "更多筛选" }),
     ).toBeVisible();
   });
 
@@ -997,10 +1006,14 @@ describe("enterprise portal workspaces", () => {
     ).not.toHaveTextContent(
       /讷河市玉米长势与测产调查|齐齐哈尔市玉米市场运行周填报/,
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "当前筛选条件或状态视图下没有本人事项，请调整筛选条件后重试",
-    );
-    expect(screen.getByRole("status")).not.toHaveTextContent("业务坐标");
+    expect(
+      screen.getByText(
+        /当前筛选条件或状态视图下没有本人事项，请调整筛选条件后重试/,
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("status", { name: "待我处理概况" }),
+    ).not.toHaveTextContent("业务坐标");
   });
 
   it("keeps the Task 5 My Work ledger responsive, internally scrollable, and keyboard visible", () => {

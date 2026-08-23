@@ -152,10 +152,22 @@ function repository() {
             occurredAt: "2026-08-10T01:02:03Z",
             detailJson: "{}",
           },
+          {
+            eventId: "audit-local-runtime",
+            aggregateType: "BUSINESS_RECORD",
+            aggregateId: "LOCAL_DEV",
+            actionCode: "BUSINESS_RECORD_UPDATED",
+            actorSubjectId: "identity-admin",
+            actorDisplayName: "李主任",
+            workUnitCode: "QIQIHAR_BUSINESS",
+            workUnitName: "齐齐哈尔经营部",
+            occurredAt: "2026-08-10T01:03:03Z",
+            detailJson: "{}",
+          },
         ],
         pageNumber: 0,
         pageSize: 50,
-        totalElements: 1,
+        totalElements: 2,
         totalPages: 1,
       });
     }),
@@ -209,7 +221,16 @@ describe("IdentityGovernancePanel", () => {
     );
 
     const dialog = screen.getByRole("dialog", { name: "账号与权限" });
-    expect(within(dialog).getByText("李主任")).toBeVisible();
+    expect(
+      within(dialog).getByRole("region", { name: "账号身份概览" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("heading", { name: "身份与任职" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("heading", { name: "权限与责任范围" }),
+    ).toBeVisible();
+    expect(within(dialog).getAllByText("李主任")).toHaveLength(2);
     expect(within(dialog).getByText("齐齐哈尔经营部")).toBeVisible();
     expect(within(dialog).getAllByText("单位负责人")).toHaveLength(2);
     expect(await within(dialog).findByText("齐齐哈尔市")).toBeVisible();
@@ -220,7 +241,7 @@ describe("IdentityGovernancePanel", () => {
       within(dialog).queryByText("单位编码 QIQIHAR_BUSINESS"),
     ).not.toBeInTheDocument();
     expect(within(dialog).queryByText("230200")).not.toBeInTheDocument();
-    expect(within(dialog).getByText("在职 · 账号正常")).toBeVisible();
+    expect(within(dialog).getAllByText("在职 · 账号正常")).toHaveLength(2);
     expect(within(dialog).getByText("管理员")).toBeVisible();
     expect(
       within(dialog).queryByText("IDENTITY_ADMIN"),
@@ -361,9 +382,9 @@ describe("IdentityGovernancePanel", () => {
 
     expect(await screen.findByText("调整员工账号")).toBeVisible();
     expect(screen.getByText("业务编号 employee-1")).toBeVisible();
-    expect(
-      screen.getByText("齐齐哈尔经营部（QIQIHAR_BUSINESS）"),
-    ).toBeVisible();
+    expect(screen.queryByText(/LOCAL_DEV/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("齐齐哈尔经营部")).toHaveLength(2);
+    expect(screen.queryByText(/QIQIHAR_BUSINESS/)).not.toBeInTheDocument();
     await user.selectOptions(
       screen.getByLabelText("审计业务对象"),
       "SECURITY_USER",

@@ -83,18 +83,21 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
 
     expect(screen.getByRole("heading", { name: "样本点管理" })).toBeVisible();
+    expect(screen.getByRole("status", { name: "样本网络概况" })).toBeVisible();
     expect(
       screen.getByRole("tablist", { name: "样本点治理模块" }),
     ).toBeVisible();
-    expect(screen.getByRole("tab", { name: "年度现有样本" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "样本点名册" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
     expect(
-      await screen.findByRole("region", { name: "年度样本网络管理" }),
+      await screen.findByRole("region", { name: "样本点身份治理" }),
     ).toBeVisible();
     expect(screen.queryByRole("region", { name: "样本点坐标治理" })).toBeNull();
-    expect(screen.queryByRole("region", { name: "样本点身份治理" })).toBeNull();
+    expect(
+      screen.queryByRole("region", { name: "年度样本网络管理" }),
+    ).toBeNull();
 
     await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
 
@@ -134,10 +137,10 @@ describe("SamplePointGovernanceWorkspace", () => {
       />,
     );
 
-    await screen.findByRole("region", { name: "年度样本网络管理" });
+    await screen.findByRole("region", { name: "样本点身份治理" });
     await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
     await screen.findByRole("table", { name: "设计参考点清单" });
-    expect(getComparison).toHaveBeenCalledTimes(2);
+    expect(getComparison).toHaveBeenCalledTimes(1);
 
     rerender(
       <SamplePointGovernanceWorkspace
@@ -151,7 +154,7 @@ describe("SamplePointGovernanceWorkspace", () => {
       "aria-selected",
       "true",
     );
-    expect(getComparison).toHaveBeenCalledTimes(2);
+    expect(getComparison).toHaveBeenCalledTimes(1);
 
     rerender(
       <SamplePointGovernanceWorkspace
@@ -161,7 +164,7 @@ describe("SamplePointGovernanceWorkspace", () => {
         session={session}
       />,
     );
-    await vi.waitFor(() => expect(getComparison).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(getComparison).toHaveBeenCalledTimes(2));
     expect(screen.getByRole("tab", { name: "设计参考点" })).toHaveAttribute(
       "aria-selected",
       "true",

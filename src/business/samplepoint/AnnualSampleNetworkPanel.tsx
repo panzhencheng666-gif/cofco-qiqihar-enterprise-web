@@ -415,6 +415,25 @@ export function AnnualSampleNetworkPanel({
                     </td>
                   </tr>
                 ))}
+                {currentNetwork.memberships.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <div
+                        aria-label="年度样本空状态"
+                        className="annual-sample-network-panel__member-empty"
+                        role="status"
+                      >
+                        <strong>
+                          {currentNetwork.networkYear}
+                          年度尚未纳入现有样本点
+                        </strong>
+                        <span>
+                          可在下方录入稳定样本点并说明设计关系；提交审核前不会进入年度正式名单。
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           </div>
@@ -424,12 +443,21 @@ export function AnnualSampleNetworkPanel({
               className="annual-sample-network-panel__add"
               aria-label="新增年度样本点"
             >
-              <input
-                aria-label="稳定样本点ID"
-                placeholder="稳定样本点ID"
-                value={newSamplePointId}
-                onChange={(event) => setNewSamplePointId(event.target.value)}
-              />
+              <div className="annual-sample-network-panel__add-heading">
+                <strong>新增年度现有样本</strong>
+                <span>
+                  录入已经建立稳定身份的样本点；设计关系可按实际情况选择。
+                </span>
+              </div>
+              <label>
+                稳定样本点ID
+                <input
+                  aria-label="稳定样本点ID"
+                  placeholder="输入稳定样本点ID"
+                  value={newSamplePointId}
+                  onChange={(event) => setNewSamplePointId(event.target.value)}
+                />
+              </label>
               <label>
                 设计关系
                 <select
@@ -448,31 +476,40 @@ export function AnnualSampleNetworkPanel({
                 </select>
               </label>
               {newRelationType ? (
-                <input
-                  aria-label="设计行政村代码"
-                  placeholder="设计行政村代码"
-                  value={newDesignVillageCode}
-                  onChange={(event) =>
-                    setNewDesignVillageCode(event.target.value)
-                  }
-                />
+                <label>
+                  设计行政村代码
+                  <input
+                    aria-label="设计行政村代码"
+                    placeholder="输入设计行政村代码"
+                    value={newDesignVillageCode}
+                    onChange={(event) =>
+                      setNewDesignVillageCode(event.target.value)
+                    }
+                  />
+                </label>
               ) : null}
               {newRelationType === "EXPLICIT_REPRESENTATION" ? (
-                <input
-                  aria-label="明确代表依据"
-                  placeholder="明确代表依据"
-                  value={newEvidenceReference}
-                  onChange={(event) =>
-                    setNewEvidenceReference(event.target.value)
-                  }
-                />
+                <label>
+                  明确代表依据
+                  <input
+                    aria-label="明确代表依据"
+                    placeholder="填写代表关系依据"
+                    value={newEvidenceReference}
+                    onChange={(event) =>
+                      setNewEvidenceReference(event.target.value)
+                    }
+                  />
+                </label>
               ) : null}
-              <input
-                aria-label="新增理由"
-                placeholder="新增理由"
-                value={newReason}
-                onChange={(event) => setNewReason(event.target.value)}
-              />
+              <label>
+                新增理由
+                <input
+                  aria-label="新增理由"
+                  placeholder="填写纳入本年度的理由"
+                  value={newReason}
+                  onChange={(event) => setNewReason(event.target.value)}
+                />
+              </label>
               <button
                 disabled={!canAddMember}
                 onClick={addMember}

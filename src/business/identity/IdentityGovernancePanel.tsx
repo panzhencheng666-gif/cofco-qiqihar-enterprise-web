@@ -113,6 +113,14 @@ function auditActionLabel(value: string): string {
   return "业务操作";
 }
 
+function displayableAuditIdentifier(value: string): string | null {
+  const normalized = value.trim();
+  if (!normalized || /^(?:LOCAL(?:_DEV)?|DEV|TEST)$/i.test(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
 function toggle(values: readonly string[], value: string): string[] {
   return values.includes(value)
     ? values.filter((candidate) => candidate !== value)
@@ -664,85 +672,125 @@ export function IdentityGovernancePanel({
             </p>
           )}
           {view === "profile" && (
-            <section aria-label="当前账号资料">
-              <dl aria-label="账号资料" className="identity-account-summary">
+            <section
+              aria-label="当前账号资料"
+              className="identity-profile-view"
+            >
+              <header
+                aria-label="账号身份概览"
+                className="identity-profile-hero"
+                role="region"
+              >
+                <span aria-hidden="true" className="identity-profile-avatar">
+                  {session.displayName.trim().slice(0, 1) || "员"}
+                </span>
                 <div>
-                  <dt>员工</dt>
-                  <dd>
-                    <strong>{session.displayName}</strong>
-                    <small>企业员工身份已认证</small>
-                  </dd>
+                  <h3>{session.displayName}</h3>
+                  <p>
+                    {session.workUnitName} ·{" "}
+                    {primaryPosition?.name ?? "未分配岗位"}
+                  </p>
                 </div>
-                <div>
-                  <dt>工作单位</dt>
-                  <dd>
-                    <strong>{session.workUnitName}</strong>
-                    <small>当前登录账号所属单位</small>
-                  </dd>
-                </div>
-                <div>
-                  <dt>岗位</dt>
-                  <dd>
-                    <strong>{primaryPosition?.name ?? "未分配岗位"}</strong>
-                    <small>
-                      {session.positions.map(({ name }) => name).join("、") ||
-                        "暂无岗位"}
-                    </small>
-                  </dd>
-                </div>
-                <div>
-                  <dt>账号状态</dt>
-                  <dd>
-                    <strong>
-                      {employmentLabel(session.employmentStatus)} ·{" "}
-                      {accountLabel(session.accountStatus)}
-                    </strong>
-                    <small>账号状态由企业身份和管理员共同控制</small>
-                  </dd>
-                </div>
-                <div>
-                  <dt>业务角色</dt>
-                  <dd>
-                    <strong>
-                      {session.roleCodes.map(roleLabel).join("、") ||
-                        "未分配业务角色"}
-                    </strong>
-                  </dd>
-                </div>
-                <div>
-                  <dt>责任地区</dt>
-                  <dd>
-                    <strong>
-                      {regionScopeSummary(session.regionCodes, regionNames)}
-                    </strong>
-                    <small>
-                      列表、填报、审核、分析、照片和导出均按此范围授权
-                    </small>
-                  </dd>
-                </div>
-                <div>
-                  <dt>账号服务</dt>
-                  <dd className="identity-profile-actions">
-                    {identityManagementUrl ? (
-                      <a href={identityManagementUrl}>账号安全与登录设备</a>
-                    ) : (
+                <strong>
+                  {employmentLabel(session.employmentStatus)} ·{" "}
+                  {accountLabel(session.accountStatus)}
+                </strong>
+              </header>
+
+              <section className="identity-profile-section">
+                <h3>身份与任职</h3>
+                <dl aria-label="账号资料" className="identity-account-summary">
+                  <div>
+                    <dt>员工</dt>
+                    <dd>
+                      <strong>{session.displayName}</strong>
+                      <small>企业员工身份已认证</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>工作单位</dt>
+                    <dd>
+                      <strong>{session.workUnitName}</strong>
+                      <small>当前登录账号所属单位</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>主岗位</dt>
+                    <dd>
+                      <strong>{primaryPosition?.name ?? "未分配岗位"}</strong>
                       <small>
-                        账号安全与登录设备由企业统一身份平台管理，当前入口尚未配置。
+                        {session.positions.map(({ name }) => name).join("、") ||
+                          "暂无岗位"}
                       </small>
-                    )}
-                    {logoutUrl && (
-                      <form action={logoutUrl} method="post">
-                        <input
-                          name="_csrf"
-                          type="hidden"
-                          value={csrfTokenFromCookies() ?? ""}
-                        />
-                        <button type="submit">退出登录</button>
-                      </form>
-                    )}
-                  </dd>
-                </div>
-              </dl>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>账号状态</dt>
+                    <dd>
+                      <strong>
+                        {employmentLabel(session.employmentStatus)} ·{" "}
+                        {accountLabel(session.accountStatus)}
+                      </strong>
+                      <small>账号状态由企业身份和管理员共同控制</small>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="identity-profile-section">
+                <h3>权限与责任范围</h3>
+                <dl aria-label="权限资料" className="identity-account-summary">
+                  <div>
+                    <dt>业务角色</dt>
+                    <dd>
+                      <strong>
+                        {session.roleCodes.map(roleLabel).join("、") ||
+                          "未分配业务角色"}
+                      </strong>
+                      <small>具体操作同时受责任地区和数据状态约束</small>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>责任地区</dt>
+                    <dd>
+                      <strong>
+                        {regionScopeSummary(session.regionCodes, regionNames)}
+                      </strong>
+                      <small>
+                        列表、填报、审核、分析、照片和导出均按此范围授权
+                      </small>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="identity-profile-section">
+                <h3>账号服务</h3>
+                <dl aria-label="账号服务" className="identity-account-summary">
+                  <div>
+                    <dt>登录安全</dt>
+                    <dd className="identity-profile-actions">
+                      {identityManagementUrl ? (
+                        <a href={identityManagementUrl}>账号安全与登录设备</a>
+                      ) : (
+                        <small>
+                          账号安全与登录设备由企业统一身份平台管理，当前入口尚未配置。
+                        </small>
+                      )}
+                      {logoutUrl && (
+                        <form action={logoutUrl} method="post">
+                          <input
+                            name="_csrf"
+                            type="hidden"
+                            value={csrfTokenFromCookies() ?? ""}
+                          />
+                          <button type="submit">退出登录</button>
+                        </form>
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
             </section>
           )}
           {view === "organization" && (
@@ -1189,15 +1237,18 @@ export function IdentityGovernancePanel({
                           <strong>{row.actorDisplayName}</strong>
                           <small>{row.actorSubjectId}</small>
                         </td>
-                        <td>
-                          {row.workUnitName}（{row.workUnitCode}）
-                        </td>
+                        <td>{row.workUnitName}</td>
                         <td>
                           <strong>
                             {auditActionLabel(row.actionCode)}
                             {auditObjectLabel(row.aggregateType)}
                           </strong>
-                          <small>业务编号 {row.aggregateId}</small>
+                          {displayableAuditIdentifier(row.aggregateId) && (
+                            <small>
+                              业务编号{" "}
+                              {displayableAuditIdentifier(row.aggregateId)}
+                            </small>
+                          )}
                         </td>
                       </tr>
                     ))}

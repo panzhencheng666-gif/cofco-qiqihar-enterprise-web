@@ -23,6 +23,31 @@ const modules = [
   ["review", "待办审核"],
 ] as const satisfies readonly (readonly [GovernanceModule, string])[];
 
+const moduleGuidance: Readonly<
+  Record<GovernanceModule, { title: string; description: string }>
+> = {
+  registry: {
+    title: "样本点名册",
+    description:
+      "每个真实样本点只建立一次稳定身份；月份填报只增加业务记录，不重复创建样本点。",
+  },
+  design: {
+    title: "设计参考点",
+    description:
+      "2,332 个行政村设计参考点不随年份变化，仅用于与年度现有样本进行覆盖对照。",
+  },
+  annual: {
+    title: "年度现有样本",
+    description:
+      "从 2026 年开始逐年确认当年实际使用名单；沿用上年只复制成员关系，不复制业务数据。",
+  },
+  review: {
+    title: "待办审核",
+    description:
+      "集中处理坐标修正、新导入身份和历史身份归并，审核通过后才更新正式治理结果。",
+  },
+};
+
 export function SamplePointGovernanceWorkspace({
   currentYear = new Date().getFullYear(),
   refreshSequence = 0,
@@ -36,7 +61,8 @@ export function SamplePointGovernanceWorkspace({
   repository: RealtimeBusinessRepository;
   session: CurrentSession;
 }) {
-  const [activeModule, setActiveModule] = useState<GovernanceModule>("annual");
+  const [activeModule, setActiveModule] =
+    useState<GovernanceModule>("registry");
   const [reviewModule, setReviewModule] = useState<ReviewModule>("coordinate");
   const [year, setYear] = useState(currentYear);
   const [comparison, setComparison] = useState<SampleNetworkComparison>();
@@ -87,9 +113,38 @@ export function SamplePointGovernanceWorkspace({
         summary="维护样本点名册、设计参考点和年度现有样本；审核事项集中进入待办审核。"
       />
 
+      <nav
+        aria-label="样本点治理模块"
+        className="sample-point-governance-workspace__tabs"
+        role="tablist"
+      >
+        {modules.map(([module, label]) => (
+          <button
+            aria-controls={`sample-governance-${module}`}
+            aria-selected={activeModule === module}
+            id={`sample-governance-tab-${module}`}
+            key={module}
+            onClick={() => setActiveModule(module)}
+            role="tab"
+            type="button"
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="sample-point-governance-workspace__context">
+        <strong>{moduleGuidance[activeModule].title}</strong>
+        <span>{moduleGuidance[activeModule].description}</span>
+        <span className="sample-point-governance-workspace__context-year">
+          管理年度：{year}年
+        </span>
+      </div>
+
       <dl
-        className="sample-point-governance-workspace__status"
-        aria-label="样本网络状态"
+        aria-label="样本网络概况"
+        className="sample-point-governance-workspace__status-line"
+        role="status"
       >
         <Status
           label="设计参考点"
@@ -113,27 +168,11 @@ export function SamplePointGovernanceWorkspace({
           label="对照异常"
           value={summaryValue(comparisonState, comparison?.anomalyCount)}
         />
+        <div className="sample-point-governance-workspace__status-note">
+          <dt>业务口径</dt>
+          <dd>设计参考点共 2,332 个，不随年份变化</dd>
+        </div>
       </dl>
-
-      <nav
-        aria-label="样本点治理模块"
-        className="sample-point-governance-workspace__tabs"
-        role="tablist"
-      >
-        {modules.map(([module, label]) => (
-          <button
-            aria-controls={`sample-governance-${module}`}
-            aria-selected={activeModule === module}
-            id={`sample-governance-tab-${module}`}
-            key={module}
-            onClick={() => setActiveModule(module)}
-            role="tab"
-            type="button"
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
 
       <section
         aria-labelledby={`sample-governance-tab-${activeModule}`}

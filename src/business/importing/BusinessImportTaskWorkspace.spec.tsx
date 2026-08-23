@@ -48,6 +48,16 @@ describe("business import task workspace", () => {
       await screen.findByRole("region", { name: "导入任务列表" }),
     ).toBeVisible();
     expect(
+      screen.getByRole("complementary", { name: "当前导入批次详情" }),
+    ).toHaveTextContent("选择一条导入任务");
+    expect(
+      screen.getByRole("searchbox", { name: "搜索导入批次" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "导入任务状态" }),
+    ).toBeVisible();
+    expect(screen.getByRole("status", { name: "导入任务概况" })).toBeVisible();
+    expect(
       screen.queryByRole("region", { name: "导入任务详情" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("产情导入任务")).not.toBeInTheDocument();
@@ -76,6 +86,9 @@ describe("business import task workspace", () => {
       await screen.findByRole("button", { name: "查看第 1 项导入结果" }),
     );
     const detail = screen.getByRole("region", { name: "导入任务详情" });
+    expect(
+      screen.getByRole("complementary", { name: "当前导入批次详情" }),
+    ).toContainElement(detail);
     expect(detail).not.toHaveTextContent("已完成 216 行");
     expect(detail).not.toHaveTextContent("待修正 56 行");
     expect(

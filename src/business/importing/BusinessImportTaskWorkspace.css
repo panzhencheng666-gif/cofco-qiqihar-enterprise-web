@@ -1,37 +1,83 @@
 .business-import-task-workspace {
   display: grid;
-  gap: 14px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #b9d2df;
+  border-radius: 6px;
+  background: #fff;
 }
 
 .business-import-task-workspace__domains {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #d4e0e5;
+  gap: 0;
+  min-height: 45px;
+  padding: 0 12px;
+  border-bottom: 1px solid #b9d2df;
+  background: #fff;
 }
 
 .business-import-task-workspace__domains button {
-  min-height: 38px;
-  padding: 0 16px;
-  border: 1px solid #80a9ac;
-  border-radius: 2px;
-  background: #fff;
-  color: #136b68;
+  position: relative;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #56717f;
   font: inherit;
   cursor: pointer;
+  font-weight: 700;
 }
 
 .business-import-task-workspace__domains button[aria-pressed="true"] {
-  border-color: #136b68;
-  background: #136b68;
-  color: #fff;
+  background: #eaf5fb;
+  color: #0b679c;
+}
+
+.business-import-task-workspace__domains button[aria-pressed="true"]::after {
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 3px;
+  background: #117fbd;
+  content: "";
 }
 
 .business-import-task-workspace__detail {
   display: grid;
   gap: 14px;
-  padding: 16px 18px 18px;
+  padding: 0 16px 18px;
+}
+
+.business-import-task-workspace__detail-header {
+  margin: 0 -16px;
+  padding: 15px 16px 12px;
+  border-bottom: 1px solid #d6e3e9;
+}
+
+.business-import-task-workspace__detail-header :is(small, h3, p) {
+  display: block;
+  margin: 0;
+}
+
+.business-import-task-workspace__detail-header small {
+  color: #627d8d;
+  font-size: 11px;
+}
+
+.business-import-task-workspace__detail-header h3 {
+  margin-top: 4px;
+  color: #17384d;
+  font-size: 17px;
+}
+
+.business-import-task-workspace__detail-header p {
+  margin-top: 5px;
+  color: #6c8492;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .business-import-task-workspace__result {
@@ -67,7 +113,7 @@
   min-height: 36px;
   padding: 0 12px;
   border: 1px solid #80a9ac;
-  border-radius: 2px;
+  border-radius: 5px;
   background: #fff;
   color: #136b68;
   font: inherit;

@@ -251,6 +251,11 @@ export function BusinessImportTaskWorkspace({
       aria-label="导入任务详情"
       className="business-import-task-workspace__detail"
     >
+      <header className="business-import-task-workspace__detail-header">
+        <small>当前导入批次</small>
+        <h3>处理结果与后续操作</h3>
+        <p>错误清单、失败行重试和照片补传均作用于当前所选真实批次。</p>
+      </header>
       {message && (
         <div className="business-import-task-workspace__message" role="alert">
           {message}

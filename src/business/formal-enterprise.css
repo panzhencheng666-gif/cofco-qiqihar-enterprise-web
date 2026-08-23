@@ -7384,11 +7384,11 @@ body {
   display: grid;
   grid-template-columns: 184px minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
-  width: min(1180px, 96vw);
+  width: min(1240px, 96vw);
   max-height: min(820px, calc(100vh - 120px));
   overflow: hidden;
   border: 1px solid var(--formal-line-strong);
-  border-radius: 0;
+  border-radius: 8px;
   background: var(--formal-panel);
   box-shadow: 0 8px 28px rgb(1 27 40 / 18%);
 }
@@ -7466,7 +7466,7 @@ body {
 }
 
 .identity-governance-header small {
-  color: var(--formal-teal);
+  color: #0d729f;
   font-weight: 700;
 }
 
@@ -7480,7 +7480,7 @@ body {
   width: 38px;
   height: 38px;
   border: 1px solid var(--formal-line-strong);
-  border-radius: 0;
+  border-radius: 6px;
   color: var(--formal-text);
   background: #fff;
   cursor: pointer;
@@ -7511,16 +7511,79 @@ body {
 }
 
 .identity-governance-panel > nav button[aria-current="page"] {
-  border-left-color: var(--formal-teal);
-  color: var(--formal-teal-deep);
-  background: #e5f1f1;
+  border-left-color: #117bbb;
+  color: #08679f;
+  background: #e9f4fa;
 }
 
 .identity-governance-content {
   grid-column: 2;
   grid-row: 2;
   overflow: auto;
-  padding: 22px 24px 28px;
+  padding: 0 22px 28px;
+}
+
+.identity-profile-view {
+  min-width: 0;
+}
+
+.identity-profile-hero {
+  display: flex;
+  min-height: 82px;
+  align-items: center;
+  gap: 13px;
+  border-bottom: 1px solid var(--formal-line);
+}
+
+.identity-profile-avatar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #167c74, #117bbb);
+  color: #fff;
+  font-weight: 800;
+}
+
+.identity-profile-hero > div {
+  min-width: 0;
+}
+
+.identity-profile-hero :is(h3, p) {
+  margin: 0;
+}
+
+.identity-profile-hero h3 {
+  color: var(--formal-navy);
+  font-size: 18px;
+}
+
+.identity-profile-hero p {
+  margin-top: 4px;
+  color: var(--formal-muted);
+  font-size: 12px;
+}
+
+.identity-profile-hero > strong {
+  margin-left: auto;
+  padding: 5px 9px;
+  border: 1px solid #9dd4c2;
+  border-radius: 4px;
+  background: #e9f6f1;
+  color: #14735f;
+  font-size: 12px;
+}
+
+.identity-profile-section {
+  padding-top: 17px;
+}
+
+.identity-profile-section > h3 {
+  margin: 0 0 7px;
+  color: var(--formal-navy);
+  font-size: 14px;
 }
 
 .identity-account-summary {
@@ -7595,7 +7658,8 @@ body {
 
 .identity-governance-panel button.is-primary,
 .identity-governance-toolbar button.is-primary {
-  background: var(--formal-teal);
+  border-color: #117bbb;
+  background: #117bbb;
   color: #fff;
 }
 
@@ -7632,8 +7696,8 @@ body {
 }
 
 .identity-data-table thead th {
-  background: #edf3f5;
-  color: var(--formal-text-soft);
+  background: #deedf5;
+  color: #355b73;
   font-size: 12px;
 }
 

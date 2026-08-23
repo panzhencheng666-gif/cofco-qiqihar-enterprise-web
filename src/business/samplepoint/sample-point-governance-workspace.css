@@ -7,40 +7,50 @@
   gap: 0;
   min-width: 0;
   color: #17364d;
-  background: #fff;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
 }
 
 .sample-point-governance-workspace > .unified-page-header {
-  padding-bottom: 18px;
-}
-
-.sample-point-governance-workspace__status {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-height: auto;
   margin: 0;
-  border-block: 1px solid #d9e3e8;
-  background: #f7fafb;
+  padding: 2px 0 12px;
+  border: 0;
+  background: transparent;
 }
 
-.sample-point-governance-workspace__status > div {
-  min-height: 66px;
-  padding: 12px 18px;
-  border-right: 1px solid #d9e3e8;
+.sample-point-governance-workspace__status-line {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0 16px;
+  border-right: 1px solid #b9d2df;
+  border-bottom: 1px solid #b9d2df;
+  border-left: 1px solid #b9d2df;
+  background: #e9f4fa;
+  overflow-x: auto;
 }
 
-.sample-point-governance-workspace__status > div:last-child {
-  border-right: 0;
+.sample-point-governance-workspace__status-line > div {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 6px;
 }
 
-.sample-point-governance-workspace__status dt {
+.sample-point-governance-workspace__status-line dt {
   color: #607887;
   font-size: 12px;
 }
 
-.sample-point-governance-workspace__status dd {
-  margin: 7px 0 0;
-  color: #143a52;
-  font-size: 18px;
+.sample-point-governance-workspace__status-line dd {
+  margin: 0;
+  color: #0d689d;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -49,8 +59,39 @@
   gap: 24px;
   min-height: 48px;
   padding: 0 18px;
-  border-bottom: 1px solid #cfdce3;
+  border: 1px solid #b9d2df;
+  border-radius: 6px 6px 0 0;
   background: #fff;
+}
+
+.sample-point-governance-workspace__context {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 50px;
+  padding: 9px 18px;
+  border-right: 1px solid #b9d2df;
+  border-bottom: 1px solid #d7e3e9;
+  border-left: 1px solid #b9d2df;
+  background: #f6fafc;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace__context strong {
+  flex: 0 0 auto;
+  color: #17384d;
+  font-size: 14px;
+}
+
+.sample-point-governance-workspace__context span {
+  color: #667f8f;
+}
+
+.sample-point-governance-workspace__context-year {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #355b73 !important;
+  font-weight: 700;
 }
 
 .sample-point-governance-workspace__tabs button {
@@ -80,6 +121,11 @@
 .sample-point-governance-workspace__main {
   min-width: 0;
   padding: 18px;
+  border-right: 1px solid #b9d2df;
+  border-bottom: 1px solid #b9d2df;
+  border-left: 1px solid #b9d2df;
+  border-radius: 0 0 6px 6px;
+  background: #fff;
 }
 
 .sample-point-governance-workspace__review-switch {
@@ -165,6 +211,82 @@
   box-shadow: none;
 }
 
+.sample-point-governance-workspace .sample-coordinate-governance {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  color: #17364d;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header {
+  padding: 0 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header span {
+  color: #14766f;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header h2 {
+  margin: 3px 0 5px;
+  color: #17384d;
+  font-size: 20px;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header p {
+  max-width: 940px;
+  color: #667f8f;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__section {
+  gap: 10px;
+  padding: 15px 0;
+  border-top: 1px solid #d7e3e9;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header
+  h3 {
+  color: #17384d;
+  font-size: 16px;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header
+  p {
+  color: #667f8f;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__upload {
+  padding: 10px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__empty {
+  margin: 0;
+  padding: 20px;
+  border: 1px dashed #c6d8e1;
+  border-radius: 4px;
+  background: #fbfdfe;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance button {
+  border-color: #78a9bd;
+  border-radius: 4px;
+  color: #0b679c;
+}
+
 .sample-point-governance-workspace .sample-coordinate-governance__section {
   padding-inline: 0;
 }
@@ -183,7 +305,13 @@
 }
 
 @media (max-width: 1100px) {
-  .sample-point-governance-workspace__status {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .sample-point-governance-workspace__context {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .sample-point-governance-workspace__context-year {
+    margin-left: 0;
   }
 }
