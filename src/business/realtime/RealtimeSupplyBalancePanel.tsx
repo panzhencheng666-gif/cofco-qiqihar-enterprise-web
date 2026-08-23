@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { ObservableAnalysisFilters } from "@/business/analysis/ObservableAnalysisFilters";
+import { SampleNetworkCoverageStrip } from "@/business/analysis/SampleNetworkCoverageStrip";
 import {
   AnalysisDashboardGrid,
   AnalysisDonutChart,
@@ -274,6 +275,11 @@ function CurrentScopeSupplyBalancePanel({
         ) : (
           <p className="realtime-supply-loading">正在读取分析范围…</p>
         )}
+        <SampleNetworkCoverageStrip
+          regionCode={query.regionCode}
+          repository={repository}
+          year={query.surveyYear}
+        />
       </div>
 
       {masterError ? <p role="alert">{masterError}</p> : null}

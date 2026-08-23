@@ -79,6 +79,17 @@ function source(
       }),
     ),
     loadObservableAnalysisSnapshot,
+    getSampleNetworkComparison: vi.fn(() =>
+      Promise.resolve({
+        networkYear: 2026,
+        networkStatus: "PUBLISHED",
+        designPointCount: 2332,
+        activeSamplePointCount: 650,
+        coveredDesignPointCount: 640,
+        uncoveredDesignPointCount: 1692,
+        points: [],
+      }),
+    ),
     listNotifications: vi.fn(() =>
       Promise.resolve({ items: [], unreadCount: 0 }),
     ),
@@ -147,6 +158,9 @@ describe("RealtimeSupplyBalancePanel", () => {
     expect(
       await screen.findByRole("heading", { name: "期末库存月份趋势" }),
     ).toBeVisible();
+    expect(
+      await screen.findByRole("region", { name: "样本网络覆盖" }),
+    ).toHaveTextContent("仅用于样本网络覆盖对照，不参与业务指标计算");
     expect(
       await screen.findByRole("img", { name: "期末可观测库存趋势" }),
     ).toBeVisible();

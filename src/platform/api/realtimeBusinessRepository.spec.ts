@@ -210,6 +210,55 @@ describe("realtime business repository", () => {
     });
   });
 
+  it("uses the governed annual sample-network lifecycle contracts", async () => {
+    const { api, get, post, put } = client();
+    const repository = createRealtimeBusinessRepository(api);
+    get.mockResolvedValue({ networkYear: 2027, memberships: [] } as never);
+    post.mockResolvedValue({ networkYear: 2027, memberships: [] } as never);
+    put.mockResolvedValue({ networkYear: 2027, memberships: [] } as never);
+
+    await repository.getSampleNetwork!(2027);
+    await repository.getSampleNetworkComparison!(2027, "230200");
+    await repository.generateSampleNetworkCandidates!(2027, 2026);
+    await repository.updateSampleNetworkMember!(2027, "point/1", {
+      villageRegionCode: "230202997001",
+      statusCode: "ACTIVE",
+      sourceCode: "CARRIED_FORWARD",
+      reason: "继续纳入2027年度",
+      version: 0,
+    });
+    await repository.submitSampleNetwork!(2027, 3);
+    await repository.reviewSampleNetwork!(2027, 4, "APPROVE", "独立复核通过");
+
+    expect(get).toHaveBeenNthCalledWith(1, "/api/v1/sample-networks/2027");
+    expect(get).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/sample-networks/2027/comparison",
+      { regionCode: "230200" },
+    );
+    expect(post).toHaveBeenCalledWith("/api/v1/sample-networks/2027", {
+      carriedFromYear: 2026,
+    });
+    expect(put).toHaveBeenCalledWith(
+      "/api/v1/sample-networks/2027/members/point%2F1",
+      {
+        villageRegionCode: "230202997001",
+        statusCode: "ACTIVE",
+        sourceCode: "CARRIED_FORWARD",
+        reason: "继续纳入2027年度",
+        version: 0,
+      },
+    );
+    expect(post).toHaveBeenCalledWith("/api/v1/sample-networks/2027/submit", {
+      version: 3,
+    });
+    expect(post).toHaveBeenCalledWith("/api/v1/sample-networks/2027/review", {
+      version: 4,
+      decision: "APPROVE",
+      reason: "独立复核通过",
+    });
+  });
+
   it("keeps transport errors distinct from snapshot contract failures", async () => {
     const { api, get } = client();
     const repository = createRealtimeBusinessRepository(api);

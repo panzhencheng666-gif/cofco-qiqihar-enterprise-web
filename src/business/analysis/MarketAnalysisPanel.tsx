@@ -14,6 +14,7 @@ import {
   type RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { ObservableAnalysisFilters } from "./ObservableAnalysisFilters";
+import { SampleNetworkCoverageStrip } from "./SampleNetworkCoverageStrip";
 import {
   AnalysisBarChart,
   AnalysisDashboardGrid,
@@ -135,6 +136,11 @@ export function MarketAnalysisPanel({
         ) : (
           <p>正在读取分析范围…</p>
         )}
+        <SampleNetworkCoverageStrip
+          regionCode={query.regionCode}
+          repository={repository}
+          year={query.surveyYear}
+        />
       </div>
       {masterError ? <p role="alert">{masterError}</p> : null}
       {error ? <p role="alert">{error.message}</p> : null}

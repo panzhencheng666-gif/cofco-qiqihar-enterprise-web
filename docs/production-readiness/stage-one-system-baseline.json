@@ -512,7 +512,7 @@
   "uiInteractionInventory": {
     "path": "docs/production-readiness/stage-one-ui-inventory.json",
     "sourceBoundary": "src/business 下全部非测试 TSX",
-    "itemCount": 419,
+    "itemCount": 432,
     "ownerRepository": "cofco-qiqihar-enterprise-web",
     "status": "IMPLEMENTED",
     "verificationStage": "阶段二/三",
@@ -1005,11 +1005,14 @@
       "paths": [
         "docs/superpowers/plans/2026-08-08-market-submission-evidence-import.md",
         "docs/superpowers/plans/2026-08-17-xlsx-photo-batch-import.md",
+        "docs/superpowers/plans/2026-08-23-annual-sample-network-comparison.md",
+        "docs/superpowers/plans/2026-08-23-local-2026-business-data-reset-and-runtime-publish.md",
         "docs/superpowers/specs/2026-08-08-market-logistics-submission-evidence-import-design.md",
         "docs/superpowers/specs/2026-08-17-xlsx-photo-batch-import-design.md",
         "docs/superpowers/specs/2026-08-19-incremental-supply-inventory-design.md",
         "docs/superpowers/specs/2026-08-19-returned-market-batch-correction-design.md",
-        "docs/superpowers/specs/2026-08-20-sample-identity-deduplication-governance-design.md"
+        "docs/superpowers/specs/2026-08-20-sample-identity-deduplication-governance-design.md",
+        "docs/superpowers/specs/2026-08-23-annual-sample-network-comparison-and-local-reset-design.md"
       ]
     },
     {

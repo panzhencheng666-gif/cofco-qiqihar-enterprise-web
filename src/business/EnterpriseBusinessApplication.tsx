@@ -23,6 +23,7 @@ import { EnterpriseShell } from "./EnterpriseShell";
 import { IdentityGovernancePanel } from "./identity/IdentityGovernancePanel";
 import { SamplePointCoordinateGovernancePanel } from "./samplepoint/SamplePointCoordinateGovernancePanel";
 import { SamplePointIdentityGovernancePanel } from "./samplepoint/SamplePointIdentityGovernancePanel";
+import { AnnualSampleNetworkPanel } from "./samplepoint/AnnualSampleNetworkPanel";
 import { BusinessImportTaskWorkspace } from "./importing/BusinessImportTaskWorkspace";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
@@ -1125,13 +1126,33 @@ export function EnterpriseBusinessApplication({
             onReviewItem={realtimeMode ? reviewCurrentWorkItem : undefined}
             coordinateGovernance={
               realtimeMode &&
-              (currentSession?.permissions.includes("BUSINESS_IMPORT") ||
-                currentSession?.permissions.includes("BUSINESS_APPROVE")) ? (
+              currentSession &&
+              [
+                "BUSINESS_CREATE",
+                "BUSINESS_UPDATE",
+                "BUSINESS_SUBMIT",
+                "BUSINESS_APPROVE",
+                "BUSINESS_RETURN",
+                "BUSINESS_IMPORT",
+              ].some((permission) =>
+                currentSession.permissions.includes(permission),
+              ) ? (
                 <>
-                  <SamplePointCoordinateGovernancePanel
+                  <AnnualSampleNetworkPanel
                     repository={repository}
+                    session={currentSession}
                   />
-                  <SamplePointIdentityGovernancePanel repository={repository} />
+                  {currentSession.permissions.includes("BUSINESS_IMPORT") ||
+                  currentSession.permissions.includes("BUSINESS_APPROVE") ? (
+                    <>
+                      <SamplePointCoordinateGovernancePanel
+                        repository={repository}
+                      />
+                      <SamplePointIdentityGovernancePanel
+                        repository={repository}
+                      />
+                    </>
+                  ) : null}
                 </>
               ) : undefined
             }

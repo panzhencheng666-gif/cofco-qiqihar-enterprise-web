@@ -98,6 +98,9 @@ function repository(): RealtimeBusinessRepository {
         ],
       },
     }),
+    getSampleNetworkComparison: vi
+      .fn()
+      .mockResolvedValue(sampleNetworkCoverage()),
     listNotifications: vi.fn().mockResolvedValue({ items: [], unreadCount: 0 }),
     subscribeBusinessEvents: vi.fn(() => vi.fn()),
   } as unknown as RealtimeBusinessRepository;
@@ -211,6 +214,9 @@ describe("MarketAnalysisPanel", () => {
     expect(
       await screen.findByRole("heading", { name: "市场分析" }),
     ).toBeVisible();
+    expect(
+      await screen.findByRole("region", { name: "样本网络覆盖" }),
+    ).toHaveTextContent("年度现有样本点650");
     expect(container.firstElementChild).toHaveAttribute(
       "data-dashboard",
       "market",
@@ -384,3 +390,15 @@ describe("MarketAnalysisPanel", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+function sampleNetworkCoverage() {
+  return {
+    networkYear: 2026,
+    networkStatus: "PUBLISHED" as const,
+    designPointCount: 2332,
+    activeSamplePointCount: 650,
+    coveredDesignPointCount: 640,
+    uncoveredDesignPointCount: 1692,
+    points: [],
+  };
+}

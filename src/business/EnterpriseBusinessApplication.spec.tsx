@@ -302,6 +302,47 @@ describe("formal enterprise prototype", () => {
     expect(screen.queryByText("稻谷产情审核任务")).not.toBeInTheDocument();
   });
 
+  it("mounts annual sample-network governance for an authorized business operator", async () => {
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.resolve(
+          apiSession({
+            permissions: [
+              "BUSINESS_READ",
+              "BUSINESS_CREATE",
+              "BUSINESS_UPDATE",
+              "BUSINESS_SUBMIT",
+            ],
+          }),
+        ),
+      loadMasterData: () =>
+        Promise.resolve({ products: [], periods: [], regions: [] }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      getSampleNetwork: () =>
+        Promise.reject(Object.assign(new Error("not found"), { status: 404 })),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <EnterpriseBusinessApplication
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("region", { name: "年度样本网络管理" }),
+    ).toHaveTextContent("设计样本点与现有样本点对照");
+    expect(await screen.findByText(/年度样本网络尚未创建/)).toBeInTheDocument();
+  });
+
   it("fails closed at the enterprise login boundary when no session exists", async () => {
     const loadMasterData = vi.fn();
     const listWorkItems = vi.fn();

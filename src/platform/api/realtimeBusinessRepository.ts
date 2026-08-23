@@ -110,6 +110,76 @@ export interface AnnualComparisonDefinition {
   aggregationCode: "SUM" | "AVERAGE";
 }
 
+export type SampleNetworkStatus =
+  "DRAFT" | "IN_REVIEW" | "PUBLISHED" | "RETIRED";
+export type SampleNetworkMembershipStatus =
+  "CANDIDATE" | "ACTIVE" | "PAUSED" | "REMOVED";
+
+export interface AnnualSampleNetworkMembership {
+  samplePointId: string;
+  samplePointName: string;
+  samplePointKindCode: string;
+  villageRegionCode: string;
+  villageName: string;
+  statusCode: SampleNetworkMembershipStatus;
+  sourceCode: "CARRIED_FORWARD" | "NEW" | "MANUAL";
+  decisionReason: string | null;
+  version: number;
+  longitude: number | null;
+  latitude: number | null;
+}
+
+export interface AnnualSampleNetwork {
+  networkYear: number;
+  statusCode: SampleNetworkStatus;
+  carriedFromYear: number | null;
+  version: number;
+  createdBy: string;
+  createdAt: string;
+  submittedBy: string | null;
+  submittedAt: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewReason: string | null;
+  memberships: readonly AnnualSampleNetworkMembership[];
+}
+
+export interface SampleNetworkComparisonPoint {
+  villageRegionCode: string;
+  villageName: string;
+  townshipRegionCode: string;
+  townshipName: string;
+  countyRegionCode: string;
+  countyName: string;
+  designLongitude: number;
+  designLatitude: number;
+  samplePointId: string | null;
+  samplePointName: string | null;
+  samplePointKindCode: string | null;
+  membershipStatusCode: SampleNetworkMembershipStatus | null;
+  actualLongitude: number | null;
+  actualLatitude: number | null;
+  comparisonState: string;
+}
+
+export interface SampleNetworkComparison {
+  networkYear: number;
+  networkStatus: SampleNetworkStatus | "NOT_CREATED";
+  designPointCount: number;
+  activeSamplePointCount: number;
+  coveredDesignPointCount: number;
+  uncoveredDesignPointCount: number;
+  points: readonly SampleNetworkComparisonPoint[];
+}
+
+export interface SampleNetworkMemberDecision {
+  villageRegionCode: string;
+  statusCode: SampleNetworkMembershipStatus;
+  sourceCode: "CARRIED_FORWARD" | "NEW" | "MANUAL";
+  reason: string;
+  version: number;
+}
+
 export interface ReportDefinition {
   code: string;
   name: string;
@@ -1194,6 +1264,30 @@ export interface RealtimeBusinessRepository {
     surveyYear: number;
     indicatorCode: string;
   }): Promise<AnnualComparisonView>;
+  getSampleNetwork?(year: number): Promise<AnnualSampleNetwork>;
+  getSampleNetworkComparison?(
+    year: number,
+    regionCode?: string,
+  ): Promise<SampleNetworkComparison>;
+  generateSampleNetworkCandidates?(
+    year: number,
+    carriedFromYear?: number,
+  ): Promise<AnnualSampleNetwork>;
+  updateSampleNetworkMember?(
+    year: number,
+    samplePointId: string,
+    decision: SampleNetworkMemberDecision,
+  ): Promise<AnnualSampleNetwork>;
+  submitSampleNetwork?(
+    year: number,
+    version: number,
+  ): Promise<AnnualSampleNetwork>;
+  reviewSampleNetwork?(
+    year: number,
+    version: number,
+    decision: "APPROVE" | "RETURN",
+    reason: string,
+  ): Promise<AnnualSampleNetwork>;
   loadReportParameterOptions(): Promise<ReportParameterOptions>;
   createReportPreview(input: {
     definitionCode: string;
@@ -1520,6 +1614,32 @@ export function createRealtimeBusinessRepository(
           cultivarCode: input.cultivarCode,
           subjectTypeCode: input.subjectTypeCode,
         }),
+      ),
+    getSampleNetwork: (year) =>
+      client.get<AnnualSampleNetwork>(`/api/v1/sample-networks/${year}`),
+    getSampleNetworkComparison: (year, regionCode) =>
+      client.get<SampleNetworkComparison>(
+        `/api/v1/sample-networks/${year}/comparison`,
+        regionCode ? { regionCode } : undefined,
+      ),
+    generateSampleNetworkCandidates: (year, carriedFromYear) =>
+      client.post<AnnualSampleNetwork>(`/api/v1/sample-networks/${year}`, {
+        carriedFromYear: carriedFromYear ?? null,
+      }),
+    updateSampleNetworkMember: (year, samplePointId, decision) =>
+      client.put<AnnualSampleNetwork>(
+        `/api/v1/sample-networks/${year}/members/${encodeURIComponent(samplePointId)}`,
+        decision,
+      ),
+    submitSampleNetwork: (year, version) =>
+      client.post<AnnualSampleNetwork>(
+        `/api/v1/sample-networks/${year}/submit`,
+        { version },
+      ),
+    reviewSampleNetwork: (year, version, decision, reason) =>
+      client.post<AnnualSampleNetwork>(
+        `/api/v1/sample-networks/${year}/review`,
+        { version, decision, reason },
       ),
     loadCurrentSession: () => client.get<CurrentSession>(enterpriseSessionPath),
     listEmployees: () =>
