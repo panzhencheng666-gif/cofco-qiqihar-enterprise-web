@@ -218,7 +218,7 @@ describe("realtime business repository", () => {
     put.mockResolvedValue({ networkYear: 2027, memberships: [] } as never);
 
     await repository.getSampleNetwork!(2027);
-    await repository.getSampleNetworkComparison!(2027, "230200");
+    await repository.getSampleNetworkComparison!(2027, "230200", "CORN");
     await repository.generateSampleNetworkCandidates!(2027, 2026);
     await repository.updateSampleNetworkMember!(2027, "point/1", {
       designVillageRegionCode: "230202997001",
@@ -236,7 +236,7 @@ describe("realtime business repository", () => {
     expect(get).toHaveBeenNthCalledWith(
       2,
       "/api/v1/sample-networks/2027/comparison",
-      { regionCode: "230200" },
+      { productCode: "CORN", regionCode: "230200" },
     );
     expect(post).toHaveBeenCalledWith("/api/v1/sample-networks/2027", {
       carriedFromYear: 2026,

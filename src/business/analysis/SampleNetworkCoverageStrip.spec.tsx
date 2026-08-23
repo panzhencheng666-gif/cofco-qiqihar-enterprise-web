@@ -13,7 +13,12 @@ describe("SampleNetworkCoverageStrip", () => {
       networkYear: 2026,
       networkStatus: "PUBLISHED",
       designPointCount: 2332,
+      designCoordinateCount: 2300,
       activeSamplePointCount: 650,
+      approvedSubmissionSamplePointCount: 520,
+      pendingVerificationDesignPointCount: 32,
+      multipleActualPerDesignPointCount: 6,
+      anomalyCount: 3,
       coveredDesignPointCount: 340,
       uncoveredDesignPointCount: 1992,
       exactCoveredDesignPointCount: 300,
@@ -38,6 +43,7 @@ describe("SampleNetworkCoverageStrip", () => {
       <SampleNetworkCoverageStrip
         regionCode={ALL_AUTHORIZED_REGION_CODE}
         repository={repository}
+        productCode="CORN"
         year={2026}
       />,
     );
@@ -46,17 +52,71 @@ describe("SampleNetworkCoverageStrip", () => {
     expect(strip).toHaveTextContent("设计村总数2,332");
     expect(strip).toHaveTextContent("年度现有样本点650");
     expect(strip).toHaveTextContent("村级精确覆盖300");
+    expect(strip).toHaveTextContent("12.9%");
     expect(strip).toHaveTextContent("明确代表覆盖40");
+    expect(strip).toHaveTextContent("1.7%");
     expect(strip).toHaveTextContent("区域关联50");
+    expect(strip).toHaveTextContent("未建立覆盖关系1,942");
+    expect(strip).toHaveTextContent("已登记设计坐标2,300");
     expect(strip).toHaveTextContent("地市级样本2");
     expect(strip).toHaveTextContent("区县级样本10");
     expect(strip).toHaveTextContent("乡镇级样本38");
     expect(strip).toHaveTextContent("村级样本600");
+    expect(strip).toHaveTextContent("已审核报送520");
+    expect(strip).toHaveTextContent("待核验设计点32");
+    expect(strip).toHaveTextContent("多点对应行政村6");
+    expect(strip).toHaveTextContent("异常3");
     expect(strip).not.toHaveTextContent("已覆盖行政村");
     expect(strip).toHaveTextContent(
       "仅用于样本网络覆盖对照，不参与业务指标计算",
     );
-    expect(getSampleNetworkComparison).toHaveBeenCalledWith(2026, undefined);
+    expect(getSampleNetworkComparison).toHaveBeenCalledWith(
+      2026,
+      undefined,
+      "CORN",
+    );
+  });
+
+  it("does not present a draft network as the formal annual network", async () => {
+    const repository = {
+      getSampleNetworkComparison: vi.fn().mockResolvedValue({
+        networkYear: 2027,
+        networkStatus: "DRAFT",
+        designPointCount: 2332,
+        designCoordinateCount: 2300,
+        activeSamplePointCount: 650,
+        approvedSubmissionSamplePointCount: 520,
+        pendingVerificationDesignPointCount: 32,
+        multipleActualPerDesignPointCount: 6,
+        anomalyCount: 3,
+        exactCoveredDesignPointCount: 300,
+        representedDesignPointCount: 40,
+        regionalAssociationDesignPointCount: 50,
+        unrelatedDesignPointCount: 1942,
+        actualLevelCounts: {
+          prefecture: 2,
+          county: 10,
+          township: 38,
+          village: 600,
+        },
+        designPoints: [],
+        actualPoints: [],
+        relations: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <SampleNetworkCoverageStrip
+        productCode="CORN"
+        repository={repository}
+        year={2027}
+      />,
+    );
+
+    expect(
+      await screen.findByText("2027年度网络尚未发布（当前：草稿）"),
+    ).toBeVisible();
+    expect(screen.queryByText("年度现有样本点")).not.toBeInTheDocument();
   });
 
   it("discards a stale response when the selected year changes", async () => {
@@ -70,7 +130,12 @@ describe("SampleNetworkCoverageStrip", () => {
             networkYear: 2027,
             networkStatus: "NOT_CREATED",
             designPointCount: 2332,
+            designCoordinateCount: 0,
             activeSamplePointCount: 0,
+            approvedSubmissionSamplePointCount: 0,
+            pendingVerificationDesignPointCount: 0,
+            multipleActualPerDesignPointCount: 0,
+            anomalyCount: 0,
             coveredDesignPointCount: 0,
             uncoveredDesignPointCount: 2332,
             exactCoveredDesignPointCount: 0,
@@ -103,7 +168,12 @@ describe("SampleNetworkCoverageStrip", () => {
       networkYear: 2026,
       networkStatus: "PUBLISHED",
       designPointCount: 1,
+      designCoordinateCount: 1,
       activeSamplePointCount: 1,
+      approvedSubmissionSamplePointCount: 1,
+      pendingVerificationDesignPointCount: 0,
+      multipleActualPerDesignPointCount: 0,
+      anomalyCount: 0,
       coveredDesignPointCount: 1,
       uncoveredDesignPointCount: 0,
       exactCoveredDesignPointCount: 1,

@@ -189,7 +189,12 @@ export interface SampleNetworkComparison {
   networkYear: number;
   networkStatus: SampleNetworkStatus | "NOT_CREATED";
   designPointCount: number;
+  designCoordinateCount: number;
   activeSamplePointCount: number;
+  approvedSubmissionSamplePointCount: number;
+  pendingVerificationDesignPointCount: number;
+  multipleActualPerDesignPointCount: number;
+  anomalyCount: number;
   exactCoveredDesignPointCount: number;
   representedDesignPointCount: number;
   regionalAssociationDesignPointCount: number;
@@ -1303,6 +1308,7 @@ export interface RealtimeBusinessRepository {
   getSampleNetworkComparison?(
     year: number,
     regionCode?: string,
+    productCode?: string,
   ): Promise<SampleNetworkComparison>;
   generateSampleNetworkCandidates?(
     year: number,
@@ -1652,10 +1658,15 @@ export function createRealtimeBusinessRepository(
       ),
     getSampleNetwork: (year) =>
       client.get<AnnualSampleNetwork>(`/api/v1/sample-networks/${year}`),
-    getSampleNetworkComparison: (year, regionCode) =>
+    getSampleNetworkComparison: (year, regionCode, productCode) =>
       client.get<SampleNetworkComparison>(
         `/api/v1/sample-networks/${year}/comparison`,
-        regionCode ? { regionCode } : undefined,
+        productCode || regionCode
+          ? {
+              ...(productCode ? { productCode } : {}),
+              ...(regionCode ? { regionCode } : {}),
+            }
+          : undefined,
       ),
     generateSampleNetworkCandidates: (year, carriedFromYear) =>
       client.post<AnnualSampleNetwork>(`/api/v1/sample-networks/${year}`, {

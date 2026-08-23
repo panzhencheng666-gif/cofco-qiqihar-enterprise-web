@@ -276,6 +276,7 @@ function CurrentScopeSupplyBalancePanel({
           <p className="realtime-supply-loading">正在读取分析范围…</p>
         )}
         <SampleNetworkCoverageStrip
+          productCode={query.productCode}
           regionCode={query.regionCode}
           repository={repository}
           year={query.surveyYear}
