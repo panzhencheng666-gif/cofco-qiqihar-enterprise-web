@@ -76,6 +76,33 @@ function repository() {
     ],
   };
   const api = {
+    loadMasterData: vi.fn(() =>
+      Promise.resolve({
+        products: [],
+        periods: [],
+        approvedSurveyYears: [2026],
+        regions: [
+          {
+            code: "230200",
+            name: "齐齐哈尔市",
+            parentCode: null,
+            level: "PREFECTURE",
+          },
+          {
+            code: "230202",
+            name: "龙沙区",
+            parentCode: "230200",
+            level: "COUNTY",
+          },
+          {
+            code: "230208",
+            name: "梅里斯达区",
+            parentCode: "230200",
+            level: "COUNTY",
+          },
+        ],
+      }),
+    ),
     listEmployees: vi.fn(() => Promise.resolve([employee])),
     loadAssignmentOptions: vi.fn(() =>
       Promise.resolve({
@@ -194,6 +221,22 @@ describe("IdentityGovernancePanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("uses a row-based account summary and named responsibility regions", async () => {
+    render(
+      <IdentityGovernancePanel
+        initialView="profile"
+        onClose={vi.fn()}
+        repository={repository() as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    const summary = screen.getByLabelText("账号资料");
+    expect(summary.tagName).toBe("DL");
+    expect(summary.querySelector("article")).toBeNull();
+    expect(await screen.findByText("齐齐哈尔市（230200）")).toBeVisible();
+  });
+
   it("links account security and posts logout with the server CSRF token", () => {
     document.cookie = "XSRF-TOKEN=csrf%20logout";
     render(
@@ -232,6 +275,7 @@ describe("IdentityGovernancePanel", () => {
     );
 
     await screen.findByText("张敏");
+    expect(screen.getByRole("table", { name: "员工授权清单" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "邀请员工" }));
     await user.type(screen.getByLabelText("员工账号"), "employee-88");
     await user.type(screen.getByLabelText("员工姓名"), "赵蕾");

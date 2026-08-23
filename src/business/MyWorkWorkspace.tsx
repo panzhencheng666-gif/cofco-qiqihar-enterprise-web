@@ -683,7 +683,7 @@ export function MyWorkWorkspace({
         <WorkspaceHeader
           eyebrow="统一工作门户 / 我的工作"
           title="导入任务"
-          summary="查看导入结果并处理失败数据。"
+          summary="按产情、市场、物流查看真实导入批次，失败行可下载、修正并重试。"
         />
         {importTasks ?? (
           <div className="my-work-task5-alert" role="status">
@@ -834,7 +834,7 @@ function MyWorkLedger({
       <WorkspaceHeader
         eyebrow="统一工作门户 / 我的工作"
         title={view.label}
-        summary="统一汇总本人待填报、待审核、退回、异常与逾期事项，按截止时间和风险排序，并直达原业务单据。"
+        summary="按风险和截止时间集中处理本人事项，处理结果实时回写原业务单据。"
       />
       <Filters
         availableClassificationOptions={classificationOptions}
@@ -862,7 +862,7 @@ function MyWorkLedger({
           <div>
             <h2>{view.label}任务台账</h2>
             <p>
-              汇总待填报、待审核、退回、异常和逾期事项；同一业务事项只保留一个当前处理节点。
+              先处理退回和质量阻断，再处理临近截止事项；点击“处理”直接进入原业务单据。
             </p>
           </div>
           <div className="my-work-task5-batch-actions">
@@ -902,14 +902,13 @@ function MyWorkLedger({
             <thead>
               <tr>
                 <th className="my-work-task5-sticky" scope="col">
-                  任务与业务对象
+                  事项
                 </th>
-                <th scope="col">业务与分类</th>
-                <th scope="col">地区与产品</th>
+                <th scope="col">业务范围</th>
                 <th scope="col">期间与截止</th>
-                <th scope="col">责任与完成度</th>
-                <th scope="col">当前处理节点</th>
-                <th scope="col">操作</th>
+                <th scope="col">责任人</th>
+                <th scope="col">当前状态</th>
+                <th scope="col">处理</th>
               </tr>
             </thead>
             <tbody>
@@ -941,14 +940,12 @@ function MyWorkLedger({
                     </th>
                     <td>
                       <span className="my-work-task5-cell-stack">
-                        <strong>{domainLabels[item.domain]}</strong>
-                        <small>{item.businessLabel || "未提供业务分类"}</small>
-                      </span>
-                    </td>
-                    <td>
-                      <span className="my-work-task5-cell-stack">
-                        <strong>{item.regionLabel || "未提供业务地区"}</strong>
+                        <strong>
+                          {domainLabels[item.domain]} ·{" "}
+                          {item.businessLabel || "未提供业务分类"}
+                        </strong>
                         <small>
+                          {item.regionLabel || "未提供业务地区"} ·{" "}
                           {governedProductName(item)}
                           {cultivars ? ` · ${cultivars}` : ""}
                         </small>
@@ -965,10 +962,10 @@ function MyWorkLedger({
                     <td>
                       <span className="my-work-task5-cell-stack">
                         <strong>
-                          {item.responsiblePerson || "未提供责任人"} ·{" "}
-                          {item.responsiblePost || "未提供责任岗位"}
+                          {item.responsiblePerson || "未提供责任人"}
                         </strong>
                         <small>
+                          {item.responsiblePost || "未提供责任岗位"} ·{" "}
                           {isResponsible ? "本人负责" : "本人审核"}
                           {item.applicableFields > 0
                             ? ` · 已完成 ${item.completedFields}/${item.applicableFields} 项`

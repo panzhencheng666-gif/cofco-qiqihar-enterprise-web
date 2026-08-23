@@ -7382,7 +7382,8 @@ body {
 
 .identity-governance-panel {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-columns: 184px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   width: min(1180px, 96vw);
   max-height: min(820px, calc(100vh - 120px));
   overflow: hidden;
@@ -7411,8 +7412,9 @@ body {
   align-items: end;
   padding: 14px;
   border: 1px solid var(--formal-line);
-  border-radius: 7px;
-  background: #f8fbfc;
+  border-width: 1px 0;
+  border-radius: 0;
+  background: #fff;
 }
 
 .identity-audit-filters label {
@@ -7448,33 +7450,8 @@ body {
   color: var(--formal-muted);
 }
 
-.identity-audit-list {
-  display: grid;
-  gap: 8px;
-}
-
-.identity-audit-list article {
-  display: grid;
-  grid-template-columns: 180px minmax(140px, 0.7fr) minmax(260px, 1.3fr);
-  gap: 16px;
-  align-items: center;
-  padding: 13px 15px;
-  border: 1px solid var(--formal-line);
-  border-radius: 7px;
-  background: #fff;
-}
-
-.identity-audit-list article > div {
-  display: grid;
-  gap: 3px;
-}
-
-.identity-audit-list time,
-.identity-audit-list span {
-  color: var(--formal-muted);
-}
-
 .identity-governance-header {
+  grid-column: 1 / -1;
   padding: 20px 24px 14px;
   border-bottom: 1px solid var(--formal-line);
 }
@@ -7512,62 +7489,82 @@ body {
 
 .identity-governance-panel > nav {
   display: flex;
+  grid-column: 1;
+  grid-row: 2;
+  flex-direction: column;
   gap: 4px;
-  padding: 10px 24px 0;
-  border-bottom: 1px solid var(--formal-line);
+  padding: 14px 0;
+  border-right: 1px solid var(--formal-line);
+  background: #f6f9fa;
 }
 
 .identity-governance-panel > nav button {
-  padding: 10px 16px;
+  min-height: 42px;
+  padding: 10px 18px;
   border: 0;
-  border-bottom: 3px solid transparent;
+  border-left: 4px solid transparent;
   background: transparent;
   color: var(--formal-text-soft);
   cursor: pointer;
   font-weight: 700;
+  text-align: left;
 }
 
 .identity-governance-panel > nav button[aria-current="page"] {
-  border-bottom-color: var(--formal-teal);
+  border-left-color: var(--formal-teal);
   color: var(--formal-teal-deep);
+  background: #e5f1f1;
 }
 
 .identity-governance-content {
+  grid-column: 2;
+  grid-row: 2;
   overflow: auto;
   padding: 22px 24px 28px;
 }
 
-.identity-profile-grid {
+.identity-account-summary {
+  margin: 0;
+  border-top: 1px solid var(--formal-line);
+}
+
+.identity-account-summary > div {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 20px;
+  padding: 15px 4px;
+  border-bottom: 1px solid var(--formal-line);
 }
 
-.identity-profile-grid article {
-  display: grid;
-  gap: 7px;
-  min-height: 106px;
-  padding: 18px;
-  border: 1px solid var(--formal-line);
-  border-radius: 9px;
-  background: #f8fbfc;
+.identity-account-summary dt {
+  color: var(--formal-muted);
+  font-weight: 700;
 }
 
-.identity-profile-grid article.is-wide {
-  grid-column: 1 / -1;
+.identity-account-summary dd {
+  min-width: 0;
+  margin: 0;
 }
 
-.identity-profile-grid span,
-.identity-profile-grid small,
+.identity-account-summary strong,
+.identity-account-summary small,
+.identity-data-table strong,
+.identity-data-table small,
 .identity-employee-list small,
 .identity-review-list span,
 .identity-review-detail span {
-  color: var(--formal-muted);
+  display: block;
 }
 
-.identity-profile-grid strong {
+.identity-account-summary strong {
   color: var(--formal-navy);
-  font-size: 17px;
+  font-size: 15px;
+}
+
+.identity-account-summary small,
+.identity-data-table small {
+  margin-top: 3px;
+  color: var(--formal-muted);
 }
 
 .identity-governance-toolbar {
@@ -7583,6 +7580,7 @@ body {
 .identity-governance-toolbar button,
 .identity-review-create button,
 .identity-review-list button,
+.identity-data-table button,
 .identity-review-detail button,
 .identity-governance-editor footer button {
   min-height: 38px;
@@ -7610,6 +7608,41 @@ body {
 .identity-review-list {
   display: grid;
   gap: 8px;
+}
+
+.identity-data-table-scroll {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid var(--formal-line);
+}
+
+.identity-data-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  color: var(--formal-text);
+  font-size: 13px;
+}
+
+.identity-data-table :is(th, td) {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--formal-line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.identity-data-table thead th {
+  background: #edf3f5;
+  color: var(--formal-text-soft);
+  font-size: 12px;
+}
+
+.identity-data-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.identity-data-table tbody tr:hover > * {
+  background: #f7fbfa;
 }
 
 .identity-employee-list article,
@@ -7701,8 +7734,9 @@ body {
   align-items: end;
   padding: 14px;
   border: 1px solid var(--formal-line);
-  border-radius: 7px;
-  background: #f8fbfc;
+  border-width: 1px 0;
+  border-radius: 0;
+  background: #fff;
 }
 
 .identity-review-detail {
@@ -7734,7 +7768,7 @@ body {
   background: var(--formal-danger-soft);
 }
 
-.identity-profile-actions > div {
+.identity-profile-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -7828,13 +7862,44 @@ body {
   .identity-governance-panel {
     width: 100%;
     max-height: 100%;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 
-  .identity-profile-grid,
+  .identity-governance-panel > nav {
+    grid-column: 1;
+    grid-row: 2;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--formal-line);
+  }
+
+  .identity-governance-panel > nav button {
+    flex: 0 0 auto;
+    border-bottom: 3px solid transparent;
+    border-left: 0;
+  }
+
+  .identity-governance-panel > nav button[aria-current="page"] {
+    border-bottom-color: var(--formal-teal);
+  }
+
+  .identity-governance-content {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
   .identity-governance-form-grid,
   .identity-review-create,
   .identity-review-detail > article {
     grid-template-columns: 1fr;
+  }
+
+  .identity-account-summary > div {
+    grid-template-columns: 1fr;
+    gap: 5px;
   }
 
   .identity-governance-choice-grid {

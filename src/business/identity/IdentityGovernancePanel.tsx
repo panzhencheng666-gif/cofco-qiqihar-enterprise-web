@@ -62,6 +62,27 @@ function roleLabel(value: string): string {
   );
 }
 
+function displayRegion(
+  code: string,
+  regionNames: ReadonlyMap<string, string>,
+): string {
+  const name = regionNames.get(code);
+  return name ? `${name}（${code}）` : code;
+}
+
+function regionScopeSummary(
+  codes: readonly string[],
+  regionNames: ReadonlyMap<string, string>,
+): string {
+  if (codes.length === 0) return "未分配责任地区";
+  const visible = codes
+    .slice(0, 3)
+    .map((code) => displayRegion(code, regionNames));
+  return codes.length > visible.length
+    ? `${visible.join("、")} 等 ${codes.length} 个地区`
+    : visible.join("、");
+}
+
 function auditObjectLabel(value: string): string {
   return (
     {
@@ -142,6 +163,7 @@ function AssignmentEditor({
   onCancel,
   onChange,
   onSubmit,
+  regionNames,
   saving,
 }: {
   draft: AssignmentDraft;
@@ -150,6 +172,7 @@ function AssignmentEditor({
   onCancel: () => void;
   onChange: (draft: AssignmentDraft) => void;
   onSubmit: () => void;
+  regionNames: ReadonlyMap<string, string>;
   saving: boolean;
 }) {
   return (
@@ -293,7 +316,7 @@ function AssignmentEditor({
                   })
                 }
               />
-              {code}
+              {displayRegion(code, regionNames)}
             </label>
           ))}
         </div>
@@ -333,6 +356,9 @@ export function IdentityGovernancePanel({
   const [employees, setEmployees] = useState<readonly EmployeeProfile[]>([]);
   const [options, setOptions] =
     useState<IdentityAssignmentOptions>(emptyOptions);
+  const [regionNames, setRegionNames] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  );
   const [editor, setEditor] = useState<{
     invite: boolean;
     draft: AssignmentDraft;
@@ -361,6 +387,25 @@ export function IdentityGovernancePanel({
   const primaryPosition =
     session.positions.find(({ primaryPosition }) => primaryPosition) ??
     session.positions[0];
+
+  useEffect(() => {
+    let active = true;
+    void repository
+      .loadMasterData()
+      .then((snapshot) => {
+        if (!active) return;
+        setRegionNames(
+          new Map(snapshot.regions.map((region) => [region.code, region.name])),
+        );
+      })
+      .catch(() => {
+        // Authorization remains usable with codes when the read-only master-data
+        // label service is temporarily unavailable.
+      });
+    return () => {
+      active = false;
+    };
+  }, [repository]);
   const loadEmployees = async () => {
     setLoading(true);
     setError(null);
@@ -616,72 +661,85 @@ export function IdentityGovernancePanel({
             </p>
           )}
           {view === "profile" && (
-            <section
-              aria-label="当前账号资料"
-              className="identity-profile-grid"
-            >
-              <article>
-                <span>员工</span>
-                <strong>{session.displayName}</strong>
-                <small>员工账号 {session.subjectId}</small>
-              </article>
-              <article>
-                <span>工作单位</span>
-                <strong>{session.workUnitName}</strong>
-                <small>单位编码 {session.workUnitCode}</small>
-              </article>
-              <article>
-                <span>主岗位</span>
-                <strong>{primaryPosition?.name ?? "未分配岗位"}</strong>
-                <small>
-                  {session.positions.map(({ name }) => name).join("、") ||
-                    "暂无岗位"}
-                </small>
-              </article>
-              <article>
-                <span>账号状态</span>
-                <strong>
-                  {employmentLabel(session.employmentStatus)} ·{" "}
-                  {accountLabel(session.accountStatus)}
-                </strong>
-                <small>账号状态由企业身份和管理员共同控制</small>
-              </article>
-              <article className="is-wide">
-                <span>业务角色</span>
-                <strong>
-                  {session.roleCodes.map(roleLabel).join("、") ||
-                    "未分配业务角色"}
-                </strong>
-              </article>
-              <article className="is-wide">
-                <span>责任地区</span>
-                <strong>
-                  {session.regionCodes.join("、") || "未分配责任地区"}
-                </strong>
-                <small>列表、填报、审核、分析、照片和导出均按此范围授权</small>
-              </article>
-              <article className="is-wide identity-profile-actions">
-                <span>账号服务</span>
+            <section aria-label="当前账号资料">
+              <dl aria-label="账号资料" className="identity-account-summary">
                 <div>
-                  {identityManagementUrl ? (
-                    <a href={identityManagementUrl}>账号安全与登录设备</a>
-                  ) : (
-                    <small>
-                      账号安全与登录设备由企业统一身份平台管理，当前入口尚未配置。
-                    </small>
-                  )}
-                  {logoutUrl && (
-                    <form action={logoutUrl} method="post">
-                      <input
-                        name="_csrf"
-                        type="hidden"
-                        value={csrfTokenFromCookies() ?? ""}
-                      />
-                      <button type="submit">退出登录</button>
-                    </form>
-                  )}
+                  <dt>员工</dt>
+                  <dd>
+                    <strong>{session.displayName}</strong>
+                    <small>员工账号 {session.subjectId}</small>
+                  </dd>
                 </div>
-              </article>
+                <div>
+                  <dt>工作单位</dt>
+                  <dd>
+                    <strong>{session.workUnitName}</strong>
+                    <small>单位编码 {session.workUnitCode}</small>
+                  </dd>
+                </div>
+                <div>
+                  <dt>岗位</dt>
+                  <dd>
+                    <strong>{primaryPosition?.name ?? "未分配岗位"}</strong>
+                    <small>
+                      {session.positions.map(({ name }) => name).join("、") ||
+                        "暂无岗位"}
+                    </small>
+                  </dd>
+                </div>
+                <div>
+                  <dt>账号状态</dt>
+                  <dd>
+                    <strong>
+                      {employmentLabel(session.employmentStatus)} ·{" "}
+                      {accountLabel(session.accountStatus)}
+                    </strong>
+                    <small>账号状态由企业身份和管理员共同控制</small>
+                  </dd>
+                </div>
+                <div>
+                  <dt>业务角色</dt>
+                  <dd>
+                    <strong>
+                      {session.roleCodes.map(roleLabel).join("、") ||
+                        "未分配业务角色"}
+                    </strong>
+                  </dd>
+                </div>
+                <div>
+                  <dt>责任地区</dt>
+                  <dd>
+                    <strong>
+                      {regionScopeSummary(session.regionCodes, regionNames)}
+                    </strong>
+                    <small>
+                      列表、填报、审核、分析、照片和导出均按此范围授权
+                    </small>
+                  </dd>
+                </div>
+                <div>
+                  <dt>账号服务</dt>
+                  <dd className="identity-profile-actions">
+                    {identityManagementUrl ? (
+                      <a href={identityManagementUrl}>账号安全与登录设备</a>
+                    ) : (
+                      <small>
+                        账号安全与登录设备由企业统一身份平台管理，当前入口尚未配置。
+                      </small>
+                    )}
+                    {logoutUrl && (
+                      <form action={logoutUrl} method="post">
+                        <input
+                          name="_csrf"
+                          type="hidden"
+                          value={csrfTokenFromCookies() ?? ""}
+                        />
+                        <button type="submit">退出登录</button>
+                      </form>
+                    )}
+                  </dd>
+                </div>
+              </dl>
             </section>
           )}
           {view === "organization" && (
@@ -707,41 +765,51 @@ export function IdentityGovernancePanel({
                   </button>
                 )}
               </div>
-              <div className="identity-profile-grid">
-                <article>
-                  <span>当前员工</span>
-                  <strong>{session.displayName}</strong>
-                  <small>企业员工身份已认证</small>
-                </article>
-                <article>
-                  <span>主岗位</span>
-                  <strong>{primaryPosition?.name ?? "未分配岗位"}</strong>
-                  <small>
-                    {session.positions.length > 1
-                      ? `兼任：${session.positions
-                          .filter(({ code }) => code !== primaryPosition?.code)
-                          .map(({ name }) => name)
-                          .join("、")}`
-                      : "已配置为主岗位"}
-                  </small>
-                </article>
-                <article className="is-wide">
-                  <span>业务职责</span>
-                  <strong>
-                    {session.roleCodes.map(roleLabel).join("、") ||
-                      "未分配业务职责"}
-                  </strong>
-                </article>
-                <article className="is-wide">
-                  <span>责任地区</span>
-                  <strong>
-                    {session.regionCodes.join("、") || "未分配责任地区"}
-                  </strong>
-                  <small>
-                    填报、查询、审核、分析、照片和导出均受责任地区约束
-                  </small>
-                </article>
-              </div>
+              <dl className="identity-account-summary">
+                <div>
+                  <dt>当前员工</dt>
+                  <dd>
+                    <strong>{session.displayName}</strong>
+                    <small>企业员工身份已认证</small>
+                  </dd>
+                </div>
+                <div>
+                  <dt>主岗位</dt>
+                  <dd>
+                    <strong>{primaryPosition?.name ?? "未分配岗位"}</strong>
+                    <small>
+                      {session.positions.length > 1
+                        ? `兼任：${session.positions
+                            .filter(
+                              ({ code }) => code !== primaryPosition?.code,
+                            )
+                            .map(({ name }) => name)
+                            .join("、")}`
+                        : "已配置为主岗位"}
+                    </small>
+                  </dd>
+                </div>
+                <div>
+                  <dt>业务职责</dt>
+                  <dd>
+                    <strong>
+                      {session.roleCodes.map(roleLabel).join("、") ||
+                        "未分配业务职责"}
+                    </strong>
+                  </dd>
+                </div>
+                <div>
+                  <dt>责任地区</dt>
+                  <dd>
+                    <strong>
+                      {regionScopeSummary(session.regionCodes, regionNames)}
+                    </strong>
+                    <small>
+                      填报、查询、审核、分析、照片和导出均受责任地区约束
+                    </small>
+                  </dd>
+                </div>
+              </dl>
             </section>
           )}
           {view === "employees" && mayReadEmployees && (
@@ -771,47 +839,79 @@ export function IdentityGovernancePanel({
               {loading ? (
                 <p>正在读取员工信息…</p>
               ) : (
-                <div className="identity-employee-list">
-                  {employees.map((employee) => (
-                    <article key={employee.subjectId}>
-                      <div>
-                        <strong>{employee.displayName}</strong>
-                        <span>{employee.subjectId}</span>
-                      </div>
-                      <div>
-                        <span>{employee.workUnitName}</span>
-                        <small>
-                          {employee.positions
-                            .map(({ name }) => name)
-                            .join("、") || "未分配岗位"}
-                        </small>
-                      </div>
-                      <div>
-                        <span>
-                          {employmentLabel(employee.employmentStatus)} ·{" "}
-                          {accountLabel(employee.accountStatus)}
-                        </span>
-                        <small>{employee.regionCodes.length} 个责任地区</small>
-                      </div>
-                      {mayAdminister && (
-                        <button
-                          aria-label={`管理${employee.displayName}的授权`}
-                          type="button"
-                          onClick={() =>
-                            setEditor({
-                              invite: false,
-                              draft: employeeDraft(employee),
-                            })
-                          }
-                        >
-                          管理授权
-                        </button>
+                <div className="identity-data-table-scroll">
+                  <table
+                    aria-label="员工授权清单"
+                    className="identity-data-table"
+                  >
+                    <thead>
+                      <tr>
+                        <th scope="col">员工</th>
+                        <th scope="col">单位与岗位</th>
+                        <th scope="col">角色与责任地区</th>
+                        <th scope="col">账号状态</th>
+                        <th scope="col">处理</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {employees.map((employee) => (
+                        <tr key={employee.subjectId}>
+                          <th scope="row">
+                            <strong>{employee.displayName}</strong>
+                            <small>{employee.subjectId}</small>
+                          </th>
+                          <td>
+                            <strong>{employee.workUnitName}</strong>
+                            <small>
+                              {employee.positions
+                                .map(({ name }) => name)
+                                .join("、") || "未分配岗位"}
+                            </small>
+                          </td>
+                          <td>
+                            <strong>
+                              {employee.roles
+                                .map(({ name }) => name)
+                                .join("、") || "未分配业务角色"}
+                            </strong>
+                            <small>
+                              {regionScopeSummary(
+                                employee.regionCodes,
+                                regionNames,
+                              )}
+                            </small>
+                          </td>
+                          <td>
+                            {employmentLabel(employee.employmentStatus)} ·{" "}
+                            {accountLabel(employee.accountStatus)}
+                          </td>
+                          <td>
+                            {mayAdminister ? (
+                              <button
+                                aria-label={`管理${employee.displayName}的授权`}
+                                type="button"
+                                onClick={() =>
+                                  setEditor({
+                                    invite: false,
+                                    draft: employeeDraft(employee),
+                                  })
+                                }
+                              >
+                                管理授权
+                              </button>
+                            ) : (
+                              "只读"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {employees.length === 0 && (
+                        <tr>
+                          <td colSpan={5}>当前单位暂无员工账号。</td>
+                        </tr>
                       )}
-                    </article>
-                  ))}
-                  {!loading && employees.length === 0 && (
-                    <p>当前单位暂无员工账号。</p>
-                  )}
+                    </tbody>
+                  </table>
                 </div>
               )}
               {editor && (
@@ -822,6 +922,7 @@ export function IdentityGovernancePanel({
                   onChange={(draft) => setEditor({ ...editor, draft })}
                   onSubmit={() => void saveAssignment()}
                   options={options}
+                  regionNames={regionNames}
                   saving={saving}
                 />
               )}
@@ -863,32 +964,53 @@ export function IdentityGovernancePanel({
                   创建权限复核
                 </button>
               </div>
-              <div className="identity-review-list">
-                {reviews.map((review) => (
-                  <article key={review.reviewId}>
-                    <div>
-                      <strong>{review.name}</strong>
-                      <span>
-                        {review.statusCode === "COMPLETED"
-                          ? "已完成"
-                          : "进行中"}{" "}
-                        · 截止 {new Date(review.dueAt).toLocaleString("zh-CN")}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedReview(review);
-                        setReviewDecisions({});
-                      }}
-                    >
-                      {review.statusCode === "OPEN" ? "处理复核" : "查看结果"}
-                    </button>
-                  </article>
-                ))}
-                {!loading && reviews.length === 0 && (
-                  <p>当前单位尚未建立权限复核。</p>
-                )}
+              <div className="identity-data-table-scroll">
+                <table
+                  aria-label="权限复核清单"
+                  className="identity-data-table"
+                >
+                  <thead>
+                    <tr>
+                      <th scope="col">复核任务</th>
+                      <th scope="col">完成时限</th>
+                      <th scope="col">状态</th>
+                      <th scope="col">处理</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reviews.map((review) => (
+                      <tr key={review.reviewId}>
+                        <th scope="row">{review.name}</th>
+                        <td>
+                          {new Date(review.dueAt).toLocaleString("zh-CN")}
+                        </td>
+                        <td>
+                          {review.statusCode === "COMPLETED"
+                            ? "已完成"
+                            : "进行中"}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedReview(review);
+                              setReviewDecisions({});
+                            }}
+                          >
+                            {review.statusCode === "OPEN"
+                              ? "处理复核"
+                              : "查看结果"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {!loading && reviews.length === 0 && (
+                      <tr>
+                        <td colSpan={4}>当前单位尚未建立权限复核。</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
               {selectedReview && (
                 <section
@@ -1042,31 +1164,47 @@ export function IdentityGovernancePanel({
               <p className="identity-audit-summary">
                 共 {auditTotal} 条操作记录
               </p>
-              <div className="identity-audit-list">
-                {auditRows.map((row) => (
-                  <article key={row.eventId}>
-                    <time dateTime={row.occurredAt}>
-                      {new Date(row.occurredAt).toLocaleString("zh-CN")}
-                    </time>
-                    <div>
-                      <strong>{row.actorDisplayName}</strong>
-                      <span>{row.actorSubjectId}</span>
-                      <span>
-                        {row.workUnitName}（{row.workUnitCode}）
-                      </span>
-                    </div>
-                    <div>
-                      <strong>
-                        {auditActionLabel(row.actionCode)}
-                        {auditObjectLabel(row.aggregateType)}
-                      </strong>
-                      <span>业务编号 {row.aggregateId}</span>
-                    </div>
-                  </article>
-                ))}
-                {!loading && auditRows.length === 0 && (
-                  <p>当前查询范围内暂无操作记录。</p>
-                )}
+              <div className="identity-data-table-scroll">
+                <table aria-label="审计记录" className="identity-data-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">操作时间</th>
+                      <th scope="col">操作员工</th>
+                      <th scope="col">所属单位</th>
+                      <th scope="col">业务操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditRows.map((row) => (
+                      <tr key={row.eventId}>
+                        <td>
+                          <time dateTime={row.occurredAt}>
+                            {new Date(row.occurredAt).toLocaleString("zh-CN")}
+                          </time>
+                        </td>
+                        <td>
+                          <strong>{row.actorDisplayName}</strong>
+                          <small>{row.actorSubjectId}</small>
+                        </td>
+                        <td>
+                          {row.workUnitName}（{row.workUnitCode}）
+                        </td>
+                        <td>
+                          <strong>
+                            {auditActionLabel(row.actionCode)}
+                            {auditObjectLabel(row.aggregateType)}
+                          </strong>
+                          <small>业务编号 {row.aggregateId}</small>
+                        </td>
+                      </tr>
+                    ))}
+                    {!loading && auditRows.length === 0 && (
+                      <tr>
+                        <td colSpan={4}>当前查询范围内暂无操作记录。</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
               {auditTotalPages > 1 && (
                 <nav aria-label="审计记录分页">

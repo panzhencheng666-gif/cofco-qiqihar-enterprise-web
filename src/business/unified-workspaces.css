@@ -4354,7 +4354,7 @@
 
 .my-work-task5-ledger {
   width: 100%;
-  min-width: 1120px;
+  min-width: 980px;
   border-collapse: separate;
   border-spacing: 0;
   color: #294c5e;
@@ -4392,14 +4392,13 @@
 }
 
 .my-work-task5-ledger td:nth-child(2) {
-  min-width: 170px;
+  min-width: 250px;
   white-space: normal;
 }
 
 .my-work-task5-ledger td:nth-child(3),
 .my-work-task5-ledger td:nth-child(4),
-.my-work-task5-ledger td:nth-child(5),
-.my-work-task5-ledger td:nth-child(6) {
+.my-work-task5-ledger td:nth-child(5) {
   min-width: 180px;
   white-space: normal;
 }

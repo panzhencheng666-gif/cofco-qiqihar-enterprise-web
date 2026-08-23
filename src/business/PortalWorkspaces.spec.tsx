@@ -368,9 +368,8 @@ describe("enterprise portal workspaces", () => {
         : "监测对象名称待维护",
     );
     expect(row).toHaveTextContent("2026年7月31日 17:00");
-    expect(row).toHaveTextContent(
-      `${source!.responsiblePerson} · ${source!.responsiblePost}`,
-    );
+    expect(row).toHaveTextContent(source!.responsiblePerson);
+    expect(row).toHaveTextContent(source!.responsiblePost);
     for (const state of [
       "进行中",
       "已退回",
@@ -823,15 +822,7 @@ describe("enterprise portal workspaces", () => {
       within(ledger)
         .getAllByRole("columnheader")
         .map(({ textContent }) => textContent),
-    ).toEqual([
-      "任务与业务对象",
-      "业务与分类",
-      "地区与产品",
-      "期间与截止",
-      "责任与完成度",
-      "当前处理节点",
-      "操作",
-    ]);
+    ).toEqual(["事项", "业务范围", "期间与截止", "责任人", "当前状态", "处理"]);
     for (const removedColumn of [
       "义务状态",
       "单据状态",
@@ -844,7 +835,7 @@ describe("enterprise portal workspaces", () => {
       ).not.toBeInTheDocument();
     }
     for (const domain of ["产情监测", "市场监测", "供需核算"]) {
-      expect(within(ledger).getAllByText(domain).length).toBeGreaterThan(0);
+      expect(ledger).toHaveTextContent(domain);
     }
     expect(within(ledger).queryByText("报告中心")).not.toBeInTheDocument();
     expect(ledger).not.toHaveTextContent("第 31 周粮食商情报告审核与分发");
@@ -877,7 +868,7 @@ describe("enterprise portal workspaces", () => {
       businessDomainId: "market",
       businessSubtypeId: undefined,
     });
-    expect(within(ledger).getAllByText("市场监测").length).toBeGreaterThan(0);
+    expect(ledger).toHaveTextContent("市场监测");
     expect(within(ledger).queryByText("产情监测")).not.toBeInTheDocument();
   });
 
@@ -1034,7 +1025,7 @@ describe("enterprise portal workspaces", () => {
     );
     expect(marker).not.toMatch(/overflow-x:\s*clip/);
     expect(marker).toMatch(
-      /\.my-work-task5-ledger\s*\{[^}]*min-width:\s*1120px/s,
+      /\.my-work-task5-ledger\s*\{[^}]*min-width:\s*980px/s,
     );
     expect(marker).toMatch(/@media \(max-width:\s*1280px\)/);
     expect(marker).toMatch(/@media \(max-width:\s*1024px\)/);
