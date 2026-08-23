@@ -180,7 +180,9 @@ describe("sample point coordinate governance", () => {
 
     render(<SamplePointCoordinateGovernancePanel repository={repository} />);
     await waitFor(() => expect(listRequests).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(subscribeBusinessEvents).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(subscribeBusinessEvents).toHaveBeenCalledTimes(1),
+    );
 
     act(() => {
       onChange?.({
