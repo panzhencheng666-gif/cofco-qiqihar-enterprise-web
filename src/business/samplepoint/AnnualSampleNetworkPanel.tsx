@@ -25,14 +25,21 @@ type ComparisonState =
 
 export function AnnualSampleNetworkPanel({
   currentYear = new Date().getFullYear(),
+  onSelectedYearChange,
+  refreshSequence = 0,
   repository,
+  selectedYear,
   session,
 }: {
   currentYear?: number;
+  onSelectedYearChange?: (year: number) => void;
+  refreshSequence?: number;
   repository: RealtimeBusinessRepository;
+  selectedYear?: number;
   session: CurrentSession;
 }) {
-  const [year, setYear] = useState(currentYear);
+  const [internalYear, setInternalYear] = useState(currentYear);
+  const year = selectedYear ?? internalYear;
   const [network, setNetwork] = useState<AnnualSampleNetwork>();
   const [notCreated, setNotCreated] = useState(false);
   const [resolvedYear, setResolvedYear] = useState<number>();
@@ -101,7 +108,7 @@ export function AnnualSampleNetworkPanel({
     return () => {
       active = false;
     };
-  }, [repository, year]);
+  }, [refreshSequence, repository, year]);
 
   useEffect(() => {
     let active = true;
@@ -129,7 +136,7 @@ export function AnnualSampleNetworkPanel({
     return () => {
       active = false;
     };
-  }, [comparisonRefresh, repository, year]);
+  }, [comparisonRefresh, refreshSequence, repository, year]);
 
   const loading = resolvedYear !== year;
   const currentNetwork = loading ? undefined : network;
@@ -303,7 +310,11 @@ export function AnnualSampleNetworkPanel({
           年度
           <select
             value={year}
-            onChange={(event) => setYear(Number(event.target.value))}
+            onChange={(event) => {
+              const nextYear = Number(event.target.value);
+              setInternalYear(nextYear);
+              onSelectedYearChange?.(nextYear);
+            }}
           >
             {knownYearList([...knownYears, currentYear + 1]).map(
               (optionYear) => (

@@ -21,9 +21,7 @@ import {
 } from "./businessReportWorkflow";
 import { EnterpriseShell } from "./EnterpriseShell";
 import { IdentityGovernancePanel } from "./identity/IdentityGovernancePanel";
-import { SamplePointCoordinateGovernancePanel } from "./samplepoint/SamplePointCoordinateGovernancePanel";
-import { SamplePointIdentityGovernancePanel } from "./samplepoint/SamplePointIdentityGovernancePanel";
-import { AnnualSampleNetworkPanel } from "./samplepoint/AnnualSampleNetworkPanel";
+import { SamplePointGovernanceWorkspace } from "./samplepoint/SamplePointGovernanceWorkspace";
 import { BusinessImportTaskWorkspace } from "./importing/BusinessImportTaskWorkspace";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
@@ -1124,7 +1122,7 @@ export function EnterpriseBusinessApplication({
               realtimeMode ? batchApproveCurrentWorkScope : undefined
             }
             onReviewItem={realtimeMode ? reviewCurrentWorkItem : undefined}
-            coordinateGovernance={
+            samplePointGovernance={
               realtimeMode &&
               currentSession &&
               [
@@ -1137,23 +1135,11 @@ export function EnterpriseBusinessApplication({
               ].some((permission) =>
                 currentSession.permissions.includes(permission),
               ) ? (
-                <>
-                  <AnnualSampleNetworkPanel
-                    repository={repository}
-                    session={currentSession}
-                  />
-                  {currentSession.permissions.includes("BUSINESS_IMPORT") ||
-                  currentSession.permissions.includes("BUSINESS_APPROVE") ? (
-                    <>
-                      <SamplePointCoordinateGovernancePanel
-                        repository={repository}
-                      />
-                      <SamplePointIdentityGovernancePanel
-                        repository={repository}
-                      />
-                    </>
-                  ) : null}
-                </>
+                <SamplePointGovernanceWorkspace
+                  refreshSequence={realtimeRefreshToken}
+                  repository={repository}
+                  session={currentSession}
+                />
               ) : undefined
             }
             importTasks={

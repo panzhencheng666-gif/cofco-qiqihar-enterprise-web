@@ -23,6 +23,7 @@
 ### Task 1: Persistent township sample-network map layers
 
 **Files:**
+
 - Create: `../cofco-qiqihar-enterprise-frontend/src/modules/overview/ui/hooks/useOverviewSampleNetworkLayers.ts`
 - Create: `../cofco-qiqihar-enterprise-frontend/src/modules/overview/ui/components/OverviewSampleNetworkToolbar.tsx`
 - Create: `../cofco-qiqihar-enterprise-frontend/src/modules/overview/ui/components/OverviewSampleNetworkToolbar.spec.tsx`
@@ -35,6 +36,7 @@
 - Modify: `../cofco-qiqihar-enterprise-frontend/src/app/styles/global.css`
 
 **Interfaces:**
+
 - Consumes: `OverviewSamplePointRepository.comparison`, `sampleNetworkLayerIcons`, `SampleNetworkLayerMode`, `samplePointSequence`, `mapContextRegion`, and the selected region.
 - Produces: `useOverviewSampleNetworkLayers(input): { mode; setMode; icons; comparison; state; issue; showExactDesignLocations; setShowExactDesignLocations }` and a toolbar that can render without the details drawer.
 
@@ -43,7 +45,9 @@
 Add tests that enter a township without selecting a village and assert that the comparison request uses the township code, the toolbar defaults to `comparison`, and all village coverage badges are published. Rerender with a village selection and a larger `refreshSequence`; assert the chosen mode remains unchanged and non-selected villages remain present.
 
 ```tsx
-expect(await screen.findByRole("group", { name: "样本网络图层" })).toBeVisible();
+expect(
+  await screen.findByRole("group", { name: "样本网络图层" }),
+).toBeVisible();
 expect(screen.getByRole("button", { name: "对照显示" })).toHaveAttribute(
   "aria-pressed",
   "true",
@@ -79,7 +83,12 @@ Move comparison loading, layer mode, exact-location toggle and visible icon proj
 export interface OverviewSampleNetworkLayerInput {
   productCode: string;
   refreshSequence: number;
-  region?: { code: string; level: RegionLevel; name: string; parentCode?: string };
+  region?: {
+    code: string;
+    level: RegionLevel;
+    name: string;
+    parentCode?: string;
+  };
   repository: OverviewSamplePointRepository;
   year: number;
   actualIcons: readonly OverviewSamplePointIcon[];
@@ -106,6 +115,7 @@ git commit -m "fix(overview): keep township sample network layers visible"
 ### Task 2: Table-led sample-governance workspace
 
 **Files:**
+
 - Create: `src/business/samplepoint/SamplePointGovernanceWorkspace.tsx`
 - Create: `src/business/samplepoint/SamplePointGovernanceWorkspace.spec.tsx`
 - Modify: `src/business/samplepoint/AnnualSampleNetworkPanel.tsx`
@@ -122,6 +132,7 @@ git commit -m "fix(overview): keep township sample network layers visible"
 - Modify: `src/app/styles/global.css`
 
 **Interfaces:**
+
 - Consumes: existing annual-network, coordinate-correction and identity-governance repository methods and `CurrentSession` permissions.
 - Produces: a dedicated `work/sample-governance` section and `SamplePointGovernanceWorkspace` with tabs `registry | design | annual | review`.
 
@@ -183,6 +194,7 @@ git commit -m "feat(sample-network): add table-led governance workspace"
 ### Task 3: Publish scoped annual-network realtime events
 
 **Files:**
+
 - Modify: `../cofco-qiqihar-enterprise-backend/src/main/java/com/cofco/qiqihar/graintrade/samplepoint/network/application/AnnualSampleNetworkService.java`
 - Modify: `../cofco-qiqihar-enterprise-backend/src/test/java/com/cofco/qiqihar/graintrade/samplepoint/network/application/AnnualSampleNetworkServiceTest.java`
 - Modify: `../cofco-qiqihar-enterprise-backend/src/test/java/com/cofco/qiqihar/graintrade/samplepoint/network/interfaceadapter/AnnualSampleNetworkRestIntegrationTest.java`
@@ -195,6 +207,7 @@ git commit -m "feat(sample-network): add table-led governance workspace"
 - Modify: `src/business/samplepoint/SamplePointGovernanceWorkspace.spec.tsx`
 
 **Interfaces:**
+
 - Consumes: `BusinessAuditRecorder`, `/api/v1/business-events/stream`, and current frontend/Web SSE subscriptions.
 - Produces: sample-network events containing `surveyYear`, affected `regionCodes` and `actionCode`, plus scoped query invalidation without resetting UI context.
 
@@ -244,9 +257,11 @@ git commit -m "fix(sample-network): preserve governance context on realtime refr
 ### Task 4: Proportional gates, managed runtime publish and browser acceptance
 
 **Files:**
+
 - Modify if required by inventory gate: `docs/production-readiness/stage-one-ui-inventory.json`
 
 **Interfaces:**
+
 - Consumes: repository verification scripts and the existing managed runtime publishers.
 - Produces: source commits, clean feature branches, SHA-256 parity and browser evidence on 63182/63200/8090.
 

@@ -1,0 +1,189 @@
+.sample-point-governance-route {
+  padding: 0;
+}
+
+.sample-point-governance-workspace {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  color: #17364d;
+  background: #fff;
+}
+
+.sample-point-governance-workspace > .unified-page-header {
+  padding-bottom: 18px;
+}
+
+.sample-point-governance-workspace__status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border-block: 1px solid #d9e3e8;
+  background: #f7fafb;
+}
+
+.sample-point-governance-workspace__status > div {
+  min-height: 66px;
+  padding: 12px 18px;
+  border-right: 1px solid #d9e3e8;
+}
+
+.sample-point-governance-workspace__status > div:last-child {
+  border-right: 0;
+}
+
+.sample-point-governance-workspace__status dt {
+  color: #607887;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace__status dd {
+  margin: 7px 0 0;
+  color: #143a52;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.sample-point-governance-workspace__tabs {
+  display: flex;
+  gap: 24px;
+  min-height: 48px;
+  padding: 0 18px;
+  border-bottom: 1px solid #cfdce3;
+  background: #fff;
+}
+
+.sample-point-governance-workspace__tabs button {
+  position: relative;
+  padding: 0 2px;
+  border: 0;
+  color: #526c7c;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sample-point-governance-workspace__tabs button[aria-selected="true"] {
+  color: #0c5a78;
+}
+
+.sample-point-governance-workspace__tabs button[aria-selected="true"]::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  background: #1486a9;
+  content: "";
+}
+
+.sample-point-governance-workspace__main {
+  min-width: 0;
+  padding: 18px;
+}
+
+.sample-point-governance-workspace__review-switch {
+  display: flex;
+  gap: 0;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #d7e1e6;
+}
+
+.sample-point-governance-workspace__review-switch button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid #c7d5dc;
+  border-bottom: 0;
+  color: #4b6575;
+  background: #f7fafb;
+  cursor: pointer;
+}
+
+.sample-point-governance-workspace__review-switch button[aria-pressed="true"] {
+  color: #0c5a78;
+  background: #fff;
+  font-weight: 700;
+}
+
+.sample-point-governance-workspace__table-region > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  padding: 0 0 14px;
+}
+
+.sample-point-governance-workspace__table-region h2,
+.sample-point-governance-workspace__table-region p {
+  margin: 0;
+}
+
+.sample-point-governance-workspace__table-region h2 {
+  font-size: 20px;
+}
+
+.sample-point-governance-workspace__table-region p {
+  margin-top: 6px;
+  color: #667d8b;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace__table-scroll {
+  overflow: auto;
+  border: 1px solid #d4dfe5;
+}
+
+.sample-point-governance-workspace table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.sample-point-governance-workspace th,
+.sample-point-governance-workspace td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #e1e8ec;
+  text-align: left;
+  vertical-align: top;
+}
+
+.sample-point-governance-workspace th {
+  color: #4b6474;
+  background: #f4f7f8;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace .annual-sample-network-panel,
+.sample-point-governance-workspace .sample-coordinate-governance,
+.sample-point-governance-workspace .sample-coordinate-governance__section,
+.sample-point-governance-workspace
+  .sample-coordinate-governance__review-grid
+  article {
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__section {
+  padding-inline: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__review-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border: 1px solid #d4dfe5;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__review-grid
+  article {
+  border-bottom: 1px solid #dfe7eb;
+}
+
+@media (max-width: 1100px) {
+  .sample-point-governance-workspace__status {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

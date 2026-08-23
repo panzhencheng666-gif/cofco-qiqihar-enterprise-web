@@ -302,7 +302,7 @@ describe("formal enterprise prototype", () => {
     expect(screen.queryByText("稻谷产情审核任务")).not.toBeInTheDocument();
   });
 
-  it("mounts annual sample-network governance for an authorized business operator", async () => {
+  it("mounts annual sample-network governance on its dedicated route", async () => {
     const user = userEvent.setup();
     const repository = {
       loadCurrentSession: () =>
@@ -338,7 +338,11 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
-    await user.click(await screen.findByText("样本点治理"));
+    await user.click(await screen.findByText("样本点管理"));
+
+    expect(
+      await screen.findByRole("heading", { name: "样本点管理" }),
+    ).toBeVisible();
 
     expect(
       await screen.findByRole("region", { name: "年度样本网络管理" }),
@@ -1576,7 +1580,7 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(17);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(18);
     expect(within(navigation).getByText("导入任务")).toBeVisible();
     expect(within(navigation).getByText("玉米产情填报")).toBeVisible();
     expect(within(navigation).getByText("大豆产情填报")).toBeVisible();
@@ -1598,6 +1602,7 @@ describe("formal enterprise prototype", () => {
     ).not.toBeInTheDocument();
     expect(within(navigation).getByText("业务报告")).toBeVisible();
     expect(within(navigation).getByText("待我处理")).toBeVisible();
+    expect(within(navigation).getByText("样本点管理")).toBeVisible();
     expect(within(navigation).queryByText("产情任务")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("调查对象")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("数据审核")).not.toBeInTheDocument();

@@ -28,6 +28,7 @@ describe("formal enterprise route model", () => {
       ["work", "review", "#/我的工作/待我审核"],
       ["work", "exceptions", "#/我的工作/退回与异常"],
       ["work", "completed", "#/我的工作/已办事项"],
+      ["work", "sample-governance", "#/我的工作/样本点管理"],
       ["work", "imports", "#/我的工作/导入任务"],
       ["overview", "operations", "#/经营总览/经营运行"],
       ["overview", "risks", "#/经营总览/风险关注"],

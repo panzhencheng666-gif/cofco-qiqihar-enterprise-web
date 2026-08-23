@@ -43,8 +43,10 @@ function saveBlob(blob: Blob, filename: string): void {
 }
 
 export function SamplePointCoordinateGovernancePanel({
+  mode = "all",
   repository,
 }: {
+  mode?: "all" | "manage" | "review";
   repository: RealtimeBusinessRepository;
 }) {
   const [session, setSession] = useState<CurrentSession | null>(null);
@@ -65,17 +67,19 @@ export function SamplePointCoordinateGovernancePanel({
   const refreshLists = useCallback(
     async (activeSession: CurrentSession) => {
       const canImport = activeSession.permissions.includes("BUSINESS_IMPORT");
-      const nextJobs = canImport
-        ? await repository.listSamplePointCoordinateCorrectionJobs?.()
-        : [];
+      const nextJobs =
+        canImport && mode !== "review"
+          ? await repository.listSamplePointCoordinateCorrectionJobs?.()
+          : [];
       const canReview = activeSession.permissions.includes("BUSINESS_APPROVE");
-      const nextRequests = canReview
-        ? await repository.listSamplePointCoordinateCorrectionRequests?.()
-        : [];
+      const nextRequests =
+        canReview && mode !== "manage"
+          ? await repository.listSamplePointCoordinateCorrectionRequests?.()
+          : [];
       setJobs(nextJobs ?? []);
       setRequests(nextRequests ?? []);
     },
-    [repository],
+    [mode, repository],
   );
 
   useEffect(() => {
@@ -225,7 +229,7 @@ export function SamplePointCoordinateGovernancePanel({
             原位应用。普通账号需他人复核，平台唯一所有者可按特权规则自审并全程留痕。
           </p>
         </div>
-        {canImport && (
+        {mode !== "review" && canImport && (
           <button
             disabled={busyAction === "export"}
             type="button"
@@ -240,7 +244,7 @@ export function SamplePointCoordinateGovernancePanel({
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
 
-      {canImport && (
+      {mode !== "review" && canImport && (
         <div className="sample-coordinate-governance__upload">
           <label>
             <span>选择坐标修正文件</span>
@@ -261,90 +265,94 @@ export function SamplePointCoordinateGovernancePanel({
         </div>
       )}
 
-      <div className="sample-coordinate-governance__section">
-        <header>
-          <div>
-            <h3>修正任务历史</h3>
-            <p>
-              历史、失败结果和重试链均来自服务端持久记录，刷新或重登后可恢复查看。
+      {mode !== "review" && (
+        <div className="sample-coordinate-governance__section">
+          <header>
+            <div>
+              <h3>修正任务历史</h3>
+              <p>
+                历史、失败结果和重试链均来自服务端持久记录，刷新或重登后可恢复查看。
+              </p>
+            </div>
+            <button
+              disabled={!session || busyAction === "refresh"}
+              type="button"
+              onClick={() => {
+                if (!session) return;
+                void runAction("refresh", () => refreshLists(session));
+              }}
+            >
+              重新读取
+            </button>
+          </header>
+          {jobs.length === 0 && !loading ? (
+            <p className="sample-coordinate-governance__empty">
+              当前账号暂无坐标修正任务。
             </p>
-          </div>
-          <button
-            disabled={!session || busyAction === "refresh"}
-            type="button"
-            onClick={() => {
-              if (!session) return;
-              void runAction("refresh", () => refreshLists(session));
-            }}
-          >
-            重新读取
-          </button>
-        </header>
-        {jobs.length === 0 && !loading ? (
-          <p className="sample-coordinate-governance__empty">
-            当前账号暂无坐标修正任务。
-          </p>
-        ) : (
-          <div className="sample-coordinate-governance__table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>任务</th>
-                  <th>状态</th>
-                  <th>结果</th>
-                  <th>提交时间</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((item) => (
-                  <tr key={item.jobId}>
-                    <td>
-                      <strong>{item.jobId}</strong>
-                      <small>批次 {item.batchId}</small>
-                    </td>
-                    <td>{statusLabel(item.statusCode)}</td>
-                    <td>
-                      待审核 {item.pendingReviewRows} 行 · 失败{" "}
-                      {item.failedRows} 行
-                    </td>
-                    <td>{new Date(item.createdAt).toLocaleString("zh-CN")}</td>
-                    <td>
-                      <div className="sample-coordinate-governance__row-actions">
-                        <button
-                          type="button"
-                          onClick={() => restoreJob(item.jobId)}
-                        >
-                          查看详情
-                        </button>
-                        {item.failedRows > 0 && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => downloadErrors(item.jobId)}
-                            >
-                              下载错误清单
-                            </button>
-                            <button
-                              aria-label={`重试任务 ${item.jobId} 的失败行`}
-                              type="button"
-                              onClick={() => retryFailedRows(item.jobId)}
-                            >
-                              重试失败行
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
+          ) : (
+            <div className="sample-coordinate-governance__table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>任务</th>
+                    <th>状态</th>
+                    <th>结果</th>
+                    <th>提交时间</th>
+                    <th>操作</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {jobs.map((item) => (
+                    <tr key={item.jobId}>
+                      <td>
+                        <strong>{item.jobId}</strong>
+                        <small>批次 {item.batchId}</small>
+                      </td>
+                      <td>{statusLabel(item.statusCode)}</td>
+                      <td>
+                        待审核 {item.pendingReviewRows} 行 · 失败{" "}
+                        {item.failedRows} 行
+                      </td>
+                      <td>
+                        {new Date(item.createdAt).toLocaleString("zh-CN")}
+                      </td>
+                      <td>
+                        <div className="sample-coordinate-governance__row-actions">
+                          <button
+                            type="button"
+                            onClick={() => restoreJob(item.jobId)}
+                          >
+                            查看详情
+                          </button>
+                          {item.failedRows > 0 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => downloadErrors(item.jobId)}
+                              >
+                                下载错误清单
+                              </button>
+                              <button
+                                aria-label={`重试任务 ${item.jobId} 的失败行`}
+                                type="button"
+                                onClick={() => retryFailedRows(item.jobId)}
+                              >
+                                重试失败行
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-      {selectedJob && (
+      {mode !== "review" && selectedJob && (
         <aside
           aria-label="坐标修正任务详情"
           className="sample-coordinate-governance__detail"
@@ -369,7 +377,7 @@ export function SamplePointCoordinateGovernancePanel({
         </aside>
       )}
 
-      {canReview && (
+      {mode !== "manage" && canReview && (
         <div className="sample-coordinate-governance__section">
           <header>
             <div>

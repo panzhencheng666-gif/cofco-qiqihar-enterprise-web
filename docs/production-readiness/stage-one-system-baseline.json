@@ -233,6 +233,17 @@
     },
     {
       "application": "work",
+      "section": "sample-governance",
+      "label": "样本点管理",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/samplepoint/SamplePointGovernanceWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "work",
       "section": "obligations",
       "label": "填报履职周报",
       "implementationLocations": [
@@ -512,7 +523,7 @@
   "uiInteractionInventory": {
     "path": "docs/production-readiness/stage-one-ui-inventory.json",
     "sourceBoundary": "src/business 下全部非测试 TSX",
-    "itemCount": 434,
+    "itemCount": 436,
     "ownerRepository": "cofco-qiqihar-enterprise-web",
     "status": "IMPLEMENTED",
     "verificationStage": "阶段二/三",
@@ -1069,6 +1080,7 @@
         "docs/superpowers/plans/2026-08-13-stage-seven-supervisor-rejection-fixes.md",
         "docs/superpowers/plans/2026-08-16-observable-supply-production-market-analysis-implementation.md",
         "docs/superpowers/plans/2026-08-22-three-repository-ci-pr-gates.md",
+        "docs/superpowers/plans/2026-08-23-sample-network-map-governance-ux.md",
         "docs/superpowers/specs/2026-07-31-contextual-business-report-export-and-enterprise-shell-optimization-design.md",
         "docs/superpowers/specs/2026-07-31-enterprise-platform-information-architecture-redesign-design.md",
         "docs/superpowers/specs/2026-07-31-enterprise-visual-fusion-design.md",
@@ -1087,7 +1099,8 @@
         "docs/superpowers/specs/2026-08-16-current-template-observable-balance-and-analysis-design.md",
         "docs/superpowers/specs/2026-08-21-analysis-dashboard-clarity-upgrade-design.md",
         "docs/superpowers/specs/2026-08-21-business-analysis-report-and-import-ledger-design.md",
-        "docs/superpowers/specs/2026-08-21-field-backed-analysis-dashboard-visual-redesign.md"
+        "docs/superpowers/specs/2026-08-21-field-backed-analysis-dashboard-visual-redesign.md",
+        "docs/superpowers/specs/2026-08-23-sample-network-map-and-governance-ux-design.md"
       ]
     }
   ],

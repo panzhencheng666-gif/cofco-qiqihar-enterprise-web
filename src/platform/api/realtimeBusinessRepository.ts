@@ -155,6 +155,10 @@ export interface SampleNetworkDesignPoint {
   countyName: string;
   designLongitude: number;
   designLatitude: number;
+  coordinateReviewStatus?: string | null;
+  coordinateSourceName?: string | null;
+  coordinateSourceRevision?: string | null;
+  coordinateMatchConfidence?: string | null;
 }
 
 export interface SampleNetworkActualPoint {

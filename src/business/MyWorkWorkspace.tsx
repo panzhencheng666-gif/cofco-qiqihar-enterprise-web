@@ -29,7 +29,10 @@ import {
 import type { BatchReviewWorkItemsResult } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
-type MyWorkLedgerSection = Exclude<WorkSection, "imports">;
+type MyWorkLedgerSection = Exclude<
+  WorkSection,
+  "imports" | "sample-governance"
+>;
 
 function reviewErrorMessage(error: unknown): string {
   if (error instanceof RealtimeApiError && error.clientMessage) {
@@ -596,7 +599,7 @@ export function FormalMyWorkWorkspace({
   canBatchApprove = false,
   onBatchApprove,
   onReviewItem,
-  coordinateGovernance,
+  samplePointGovernance,
   importTasks,
 }: {
   section: WorkSection;
@@ -605,7 +608,7 @@ export function FormalMyWorkWorkspace({
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems?: readonly BusinessWorkItem[];
   canBatchApprove?: boolean;
-  coordinateGovernance?: ReactNode;
+  samplePointGovernance?: ReactNode;
   importTasks?: ReactNode;
   onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
   onReviewItem?: (
@@ -629,7 +632,7 @@ export function FormalMyWorkWorkspace({
         canBatchApprove={canBatchApprove}
         onBatchApprove={onBatchApprove}
         onReviewItem={onReviewItem}
-        coordinateGovernance={coordinateGovernance}
+        samplePointGovernance={samplePointGovernance}
         importTasks={importTasks}
       />
     </FormalWorkspaceScopeProvider>
@@ -645,7 +648,7 @@ export function MyWorkWorkspace({
   canBatchApprove = false,
   onBatchApprove,
   onReviewItem,
-  coordinateGovernance,
+  samplePointGovernance,
   importTasks,
 }: {
   section: WorkSection;
@@ -654,7 +657,7 @@ export function MyWorkWorkspace({
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems?: readonly BusinessWorkItem[];
   canBatchApprove?: boolean;
-  coordinateGovernance?: ReactNode;
+  samplePointGovernance?: ReactNode;
   importTasks?: ReactNode;
   onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
   onReviewItem?: (
@@ -663,6 +666,17 @@ export function MyWorkWorkspace({
     reason?: string,
   ) => Promise<void>;
 }) {
+  if (section === "sample-governance") {
+    return (
+      <div className="unified-workspace sample-point-governance-route">
+        {samplePointGovernance ?? (
+          <div className="my-work-task5-alert" role="status">
+            当前账号没有样本点管理权限。
+          </div>
+        )}
+      </div>
+    );
+  }
   if (section === "imports") {
     return (
       <div className="unified-workspace my-work-import-task-workspace">
@@ -689,7 +703,6 @@ export function MyWorkWorkspace({
       canBatchApprove={canBatchApprove}
       onBatchApprove={onBatchApprove}
       onReviewItem={onReviewItem}
-      coordinateGovernance={coordinateGovernance}
     />
   );
 }
@@ -703,7 +716,6 @@ function MyWorkLedger({
   canBatchApprove,
   onBatchApprove,
   onReviewItem,
-  coordinateGovernance,
 }: {
   section: MyWorkLedgerSection;
   scope: OperationalScope;
@@ -711,7 +723,6 @@ function MyWorkLedger({
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems: readonly BusinessWorkItem[];
   canBatchApprove: boolean;
-  coordinateGovernance?: ReactNode;
   onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
   onReviewItem?: (
     item: BusinessWorkItem,
@@ -730,7 +741,6 @@ function MyWorkLedger({
   const [returningWorkId, setReturningWorkId] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
-  const [governanceExpanded, setGovernanceExpanded] = useState(false);
   const domainOptions = workDomainOptions(workItems);
   const regionOptions = workRegionOptions(workItems);
   const productOptions = workProductOptions(workItems);
@@ -826,27 +836,6 @@ function MyWorkLedger({
         title={view.label}
         summary="统一汇总本人待填报、待审核、退回、异常与逾期事项，按截止时间和风险排序，并直达原业务单据。"
       />
-      {coordinateGovernance && (
-        <details
-          className="my-work-coordinate-governance-entry"
-          open={governanceExpanded}
-        >
-          <summary
-            onClick={(event) => {
-              event.preventDefault();
-              setGovernanceExpanded((current) => !current);
-            }}
-          >
-            <span>样本点治理</span>
-            <small>坐标修正、身份核验、历史归并与独立审核</small>
-          </summary>
-          {governanceExpanded ? (
-            <div className="my-work-coordinate-governance-entry__body">
-              {coordinateGovernance}
-            </div>
-          ) : null}
-        </details>
-      )}
       <Filters
         availableClassificationOptions={classificationOptions}
         domainOptions={domainOptions}
