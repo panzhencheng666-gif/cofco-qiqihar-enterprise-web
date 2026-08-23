@@ -303,6 +303,7 @@ describe("formal enterprise prototype", () => {
   });
 
   it("mounts annual sample-network governance for an authorized business operator", async () => {
+    const user = userEvent.setup();
     const repository = {
       loadCurrentSession: () =>
         Promise.resolve(
@@ -336,6 +337,8 @@ describe("formal enterprise prototype", () => {
         repository={repository}
       />,
     );
+
+    await user.click(await screen.findByText("样本点治理"));
 
     expect(
       await screen.findByRole("region", { name: "年度样本网络管理" }),

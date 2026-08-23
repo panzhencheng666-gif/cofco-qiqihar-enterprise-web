@@ -730,6 +730,7 @@ function MyWorkLedger({
   const [returningWorkId, setReturningWorkId] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
+  const [governanceExpanded, setGovernanceExpanded] = useState(false);
   const domainOptions = workDomainOptions(workItems);
   const regionOptions = workRegionOptions(workItems);
   const productOptions = workProductOptions(workItems);
@@ -826,14 +827,24 @@ function MyWorkLedger({
         summary="统一汇总本人待填报、待审核、退回、异常与逾期事项，按截止时间和风险排序，并直达原业务单据。"
       />
       {coordinateGovernance && (
-        <details className="my-work-coordinate-governance-entry">
-          <summary>
+        <details
+          className="my-work-coordinate-governance-entry"
+          open={governanceExpanded}
+        >
+          <summary
+            onClick={(event) => {
+              event.preventDefault();
+              setGovernanceExpanded((current) => !current);
+            }}
+          >
             <span>样本点治理</span>
             <small>坐标修正、身份核验、历史归并与独立审核</small>
           </summary>
-          <div className="my-work-coordinate-governance-entry__body">
-            {coordinateGovernance}
-          </div>
+          {governanceExpanded ? (
+            <div className="my-work-coordinate-governance-entry__body">
+              {coordinateGovernance}
+            </div>
+          ) : null}
         </details>
       )}
       <Filters

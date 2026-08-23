@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 56,
-  "sourceDigest": "ab15de3714a9a481ce5bda208ff59c65e51c66f088d62813e72b15f25c8329f7",
+  "sourceDigest": "d7abd7db8adca9aff4dfb4c7cf6e3001ccca6867a01b11771228f3bf2e92e836",
   "itemCount": 432,
   "countsByKind": {
     "BUTTON": 225,
@@ -2982,10 +2982,24 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => { if (realtimeRepository && onEditRecord) { onEditRecord(productCode, row.workId); return; } onSelectionChange({ type: \"work-item\", id: row.workId, }); }} >"
     },
     {
-      "id": "src/business/MyWorkWorkspace.tsx:1013:29:BUTTON",
+      "id": "src/business/MyWorkWorkspace.tsx:1010:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/MyWorkWorkspace.tsx",
-      "line": 1013,
+      "line": 1010,
+      "column": 25,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button className=\"my-work-task5-row-action\" type=\"button\" onClick={() => onOpenBusiness( projection.destination.route, projection.destination.selection, ) } >"
+    },
+    {
+      "id": "src/business/MyWorkWorkspace.tsx:1024:29:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/MyWorkWorkspace.tsx",
+      "line": 1024,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2996,10 +3010,10 @@
       "sourceExcerpt": "<button className=\"my-work-task5-row-action\" disabled={activeReviewWorkId !== null} type=\"button\" onClick={() => { void reviewOne(item, \"approve\"); }} >"
     },
     {
-      "id": "src/business/MyWorkWorkspace.tsx:1023:29:BUTTON",
+      "id": "src/business/MyWorkWorkspace.tsx:1034:29:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/MyWorkWorkspace.tsx",
-      "line": 1023,
+      "line": 1034,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3010,10 +3024,10 @@
       "sourceExcerpt": "<button className=\"my-work-task5-row-action\" disabled={activeReviewWorkId !== null} type=\"button\" onClick={() => { setReturningWorkId(item.workId); setReturnReason(\"\"); setReviewMessage(\"\"); }} >"
     },
     {
-      "id": "src/business/MyWorkWorkspace.tsx:1039:35:FILTER_OR_INPUT",
+      "id": "src/business/MyWorkWorkspace.tsx:1050:35:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/MyWorkWorkspace.tsx",
-      "line": 1039,
+      "line": 1050,
       "column": 35,
       "tag": "textarea",
       "accessibleNameSource": "aria-label=\"驳回原因\"",
@@ -3024,10 +3038,10 @@
       "sourceExcerpt": "<textarea aria-label=\"驳回原因\" value={returnReason} onChange={(event) => setReturnReason(event.target.value) } />"
     },
     {
-      "id": "src/business/MyWorkWorkspace.tsx:1047:33:BUTTON",
+      "id": "src/business/MyWorkWorkspace.tsx:1058:33:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/MyWorkWorkspace.tsx",
-      "line": 1047,
+      "line": 1058,
       "column": 33,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3038,10 +3052,10 @@
       "sourceExcerpt": "<button className=\"my-work-task5-row-action\" disabled={ !returnReason.trim() || activeReviewWorkId !== null } type=\"button\" onClick={() => { void reviewOne(item, \"return\"); }} >"
     },
     {
-      "id": "src/business/MyWorkWorkspace.tsx:1060:33:BUTTON",
+      "id": "src/business/MyWorkWorkspace.tsx:1071:33:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/MyWorkWorkspace.tsx",
-      "line": 1060,
+      "line": 1071,
       "column": 33,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3136,10 +3150,10 @@
       "sourceExcerpt": "<select aria-label=\"业务分类\" value={ selectedClassification ?? scope.coordinates.businessSubtypeId ?? \"\" } onChange={(event) => onScopeChange({ businessSubtypeId: event.target.value || undefined, }) } >"
     },
     {
-      "id": "src/business/MyWorkWorkspace.tsx:871:15:BUTTON",
+      "id": "src/business/MyWorkWorkspace.tsx:882:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/MyWorkWorkspace.tsx",
-      "line": 871,
+      "line": 882,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3148,20 +3162,6 @@
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
       "sourceExcerpt": "<button className=\"my-work-task5-row-action\" disabled={batchReviewStatus === \"running\"} type=\"button\" onClick={() => { void approveVisibleRecords(); }} >"
-    },
-    {
-      "id": "src/business/MyWorkWorkspace.tsx:999:25:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/MyWorkWorkspace.tsx",
-      "line": 999,
-      "column": 25,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"my-work-task5-row-action\" type=\"button\" onClick={() => onOpenBusiness( projection.destination.route, projection.destination.selection, ) } >"
     },
     {
       "id": "src/business/production/ProductionAnalysisWorkspace.tsx:136:11:FILTER_OR_INPUT",
