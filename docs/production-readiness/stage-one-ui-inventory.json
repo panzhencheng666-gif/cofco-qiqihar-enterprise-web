@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 59,
-  "sourceDigest": "b4e5f68a724255be42379cda93f149e783af5042b8d08e4d0a6e30f3b729f4fb",
+  "sourceDigest": "f65c9aadef3a584170624477b829b1312d49517f0dd76397d3fbb951a5f897d3",
   "itemCount": 477,
   "countsByKind": {
     "BUTTON": 245,
@@ -4746,10 +4746,10 @@
       "sourceExcerpt": "<input aria-label=\"现场水印照片\" accept=\"image/jpeg,image/png\" multiple type=\"file\" onChange={(event) => { const files = Array.from(event.target.files ?? []); if (files.length > 5) { setEvidenceFiles([]); setError(\"现场水印照片最多上传 5 张。\"); event.tar..."
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:445:13:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:454:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 445,
+      "line": 454,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4760,10 +4760,10 @@
       "sourceExcerpt": "<button disabled={busy || importing} type=\"button\" onClick={() => void downloadWorkbook()} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:454:15:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:463:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 454,
+      "line": 463,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"导入 XLSX\"",
@@ -4774,10 +4774,10 @@
       "sourceExcerpt": "<input aria-label=\"导入 XLSX\" accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" disabled={busy || importing} type=\"file\" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget..."
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:468:15:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:477:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 468,
+      "line": 477,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"附加物流照片\"",
@@ -4788,10 +4788,10 @@
       "sourceExcerpt": "<input aria-label=\"附加物流照片\" accept=\"image/jpeg,image/png\" disabled={busy || importing} multiple type=\"file\" onChange={(event) => setImportPhotos(Array.from(event.target.files ?? [])) } />"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:479:13:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:488:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 479,
+      "line": 488,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4802,10 +4802,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={newRecord} disabled={busy || importing} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:510:19:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:519:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 510,
+      "line": 519,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4816,10 +4816,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={busy} onClick={() => void openRecord(record.id)} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:567:23:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:576:23:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 567,
+      "line": 576,
       "column": 23,
       "tag": "select",
       "accessibleNameSource": "aria-label={field.label}",
@@ -4830,10 +4830,10 @@
       "sourceExcerpt": "<select aria-label={field.label} required={field.required} value={values[field.code] ?? \"\"} onChange={(event) => setValues((current) => { formDirty.current = true; return { ...current, [field.code]: event.target.value, }; }) } >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:589:23:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:598:23:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 589,
+      "line": 598,
       "column": 23,
       "tag": "input",
       "accessibleNameSource": "aria-label={field.label}",
@@ -4844,10 +4844,10 @@
       "sourceExcerpt": "<input aria-label={field.label} max={ field.code === \"LOG_SAMPLE_LATITUDE\" ? 90 : field.code === \"LOG_SAMPLE_LONGITUDE\" ? 180 : undefined } min={ field.code === \"LOG_SAMPLE_LATITUDE\" ? -90 : field.code === \"LOG_SAMPLE_LONGITUDE\" ? -180 :..."
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:627:15:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:637:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 627,
+      "line": 637,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4858,10 +4858,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={onCancel}>"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:632:15:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:642:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 632,
+      "line": 642,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4872,10 +4872,10 @@
       "sourceExcerpt": "<button disabled={busy || !definition || existingRecordUnavailable} type=\"submit\" >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:640:15:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:650:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 640,
+      "line": 650,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4886,10 +4886,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"submit\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:649:15:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:659:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 649,
+      "line": 659,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4900,10 +4900,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"void\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:658:15:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:668:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 658,
+      "line": 668,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4914,10 +4914,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"approve\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:668:17:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:678:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 668,
+      "line": 678,
       "column": 17,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"物流退回原因\"",
@@ -4928,10 +4928,10 @@
       "sourceExcerpt": "<input aria-label=\"物流退回原因\" placeholder=\"填写退回原因\" value={returnReason} onChange={(event) => setReturnReason(event.target.value)} />"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:674:17:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:684:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 674,
+      "line": 684,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
