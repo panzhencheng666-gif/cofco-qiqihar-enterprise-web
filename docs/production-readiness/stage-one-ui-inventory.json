@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 59,
-  "sourceDigest": "0ade66c7897aa97a52a6eed587f6c82828ee9b577e5be38828dcf1371fac7c52",
+  "sourceDigest": "b4e5f68a724255be42379cda93f149e783af5042b8d08e4d0a6e30f3b729f4fb",
   "itemCount": 477,
   "countsByKind": {
     "BUTTON": 245,
@@ -378,10 +378,10 @@
       "sourceExcerpt": "<button aria-label={`打开${application.label}`} key={application.key} type=\"button\" onClick={() => { onSelect?.(application.key); setOpen(false); }} >"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1298:13:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1299:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1298,
+      "line": 1299,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -392,10 +392,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={rebuildOperationalState}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1316:11:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1317:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1316,
+      "line": 1317,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -6370,10 +6370,10 @@
       "sourceExcerpt": "<button aria-label={`审核驳回身份归并${item.sourceRecordId}`} disabled={busyAction === `merge-review:${item.requestId}`} type=\"button\" onClick={() => reviewMerge(item, \"REJECT\")} >"
     },
     {
-      "id": "src/business/SupplyBalanceWorkspace.tsx:267:11:FILTER_OR_INPUT",
+      "id": "src/business/SupplyBalanceWorkspace.tsx:271:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/SupplyBalanceWorkspace.tsx",
-      "line": 267,
+      "line": 271,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"供需地区\"",
@@ -6384,10 +6384,10 @@
       "sourceExcerpt": "<select aria-label=\"供需地区\" value={regionCode} onChange={(event) => { invalidateLoadedScope(); setRegionCode(event.target.value); }} >"
     },
     {
-      "id": "src/business/SupplyBalanceWorkspace.tsx:284:11:FILTER_OR_INPUT",
+      "id": "src/business/SupplyBalanceWorkspace.tsx:288:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/SupplyBalanceWorkspace.tsx",
-      "line": 284,
+      "line": 288,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"供需年度\"",
@@ -6398,10 +6398,10 @@
       "sourceExcerpt": "<select aria-label=\"供需年度\" value={year} onChange={(event) => { invalidateLoadedScope(); setYear(Number(event.target.value)); }} >"
     },
     {
-      "id": "src/business/SupplyBalanceWorkspace.tsx:301:11:FILTER_OR_INPUT",
+      "id": "src/business/SupplyBalanceWorkspace.tsx:305:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/SupplyBalanceWorkspace.tsx",
-      "line": 301,
+      "line": 305,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"供需品种\"",
@@ -6412,10 +6412,10 @@
       "sourceExcerpt": "<select aria-label=\"供需品种\" value={productCode} onChange={(event) => { invalidateLoadedScope(); setProductCode(event.target.value); }} >"
     },
     {
-      "id": "src/business/SupplyBalanceWorkspace.tsx:351:21:FILTER_OR_INPUT",
+      "id": "src/business/SupplyBalanceWorkspace.tsx:360:21:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/SupplyBalanceWorkspace.tsx",
-      "line": 351,
+      "line": 360,
       "column": 21,
       "tag": "input",
       "accessibleNameSource": "aria-label={`${row.label}填报值`}",
@@ -6423,13 +6423,13 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<input aria-label={`${row.label}填报值`} min=\"0\" step=\"0.0001\" type=\"number\" value={manualValues[row.code] ?? \"\"} onChange={(event) => { draftDirty.current = true; setManualValues((current) => ({ ...current, [row.code]: event.target.value, ..."
+      "sourceExcerpt": "<input aria-label={`${row.label}填报值`} disabled={!canUpdate} min=\"0\" step=\"0.0001\" type=\"number\" value={manualValues[row.code] ?? \"\"} onChange={(event) => { draftDirty.current = true; setManualValues((current) => ({ ...current, [row.code]..."
     },
     {
-      "id": "src/business/SupplyBalanceWorkspace.tsx:373:21:FILTER_OR_INPUT",
+      "id": "src/business/SupplyBalanceWorkspace.tsx:383:21:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/SupplyBalanceWorkspace.tsx",
-      "line": 373,
+      "line": 383,
       "column": 21,
       "tag": "input",
       "accessibleNameSource": "aria-label={`${row.label}说明`}",
@@ -6437,13 +6437,13 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<input aria-label={`${row.label}说明`} value={notes[row.code] ?? \"\"} onChange={(event) => { draftDirty.current = true; setNotes((current) => ({ ...current, [row.code]: event.target.value, })); }} />"
+      "sourceExcerpt": "<input aria-label={`${row.label}说明`} disabled={!canUpdate} value={notes[row.code] ?? \"\"} onChange={(event) => { draftDirty.current = true; setNotes((current) => ({ ...current, [row.code]: event.target.value, })); }} />"
     },
     {
-      "id": "src/business/SupplyBalanceWorkspace.tsx:394:9:BUTTON",
+      "id": "src/business/SupplyBalanceWorkspace.tsx:405:9:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/SupplyBalanceWorkspace.tsx",
-      "line": 394,
+      "line": 405,
       "column": 9,
       "tag": "button",
       "accessibleNameSource": null,
@@ -6451,7 +6451,7 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button disabled={ !scopeLoaded || saving || selectedRegion?.level.toUpperCase() !== \"COUNTY\" } type=\"button\" onClick={() => void save()} >"
+      "sourceExcerpt": "<button disabled={ !canUpdate || !scopeLoaded || saving || selectedRegion?.level.toUpperCase() !== \"COUNTY\" } type=\"button\" onClick={() => void save()} >"
     },
     {
       "id": "src/business/SupplyDemandWorkspace.tsx:1232:15:FILTER_OR_INPUT",
