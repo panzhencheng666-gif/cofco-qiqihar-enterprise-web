@@ -3559,6 +3559,122 @@
   font-size: 11px;
   font-weight: 500;
 }
+.existing-observation__identity button {
+  width: max-content;
+  min-height: 32px;
+  margin-top: 3px;
+  border-color: #8aa9bf;
+  color: #185779;
+}
+.existing-observation__coordinate-change {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
+  border-bottom: 1px solid #b9c8d5;
+  background: #f4f8fb;
+}
+.existing-observation__coordinate-change > * {
+  min-width: 0;
+}
+.existing-observation__coordinate-change > header,
+.existing-observation__coordinate-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.existing-observation__coordinate-change h4,
+.existing-observation__coordinate-change p {
+  margin: 0;
+}
+.existing-observation__coordinate-change header p,
+.existing-observation__coordinate-actions span {
+  margin-top: 4px;
+  color: #5e7284;
+}
+.existing-observation__coordinate-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  padding: 1px;
+  background: #cbd8e2;
+}
+.existing-observation__coordinate-summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 11px 13px;
+  background: #fff;
+}
+.existing-observation__coordinate-summary span,
+.existing-observation__coordinate-grid label > span {
+  color: #526b7e;
+  font-size: 12px;
+  font-weight: 650;
+}
+.existing-observation__coordinate-map {
+  display: grid;
+  grid-template-columns: repeat(2, max-content) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 13px;
+  border: 1px dashed #82a9c1;
+  background: linear-gradient(135deg, #e7f2f7, #f7fbfd);
+}
+.existing-observation__coordinate-map > span {
+  padding: 5px 8px;
+  border-radius: 14px;
+  background: #236a95;
+  color: #fff;
+  font-size: 12px;
+}
+.existing-observation__coordinate-map > span:nth-child(2) {
+  background: #b0622a;
+}
+.existing-observation__coordinate-map small {
+  color: #4f687a;
+}
+.existing-observation__coordinate-map a {
+  grid-column: 1 / -1;
+  width: max-content;
+  color: #17618d;
+  font-size: 12px;
+  font-weight: 700;
+}
+.existing-observation__coordinate-map small:last-child {
+  grid-column: 1 / -1;
+}
+.existing-observation__coordinate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+}
+.existing-observation__coordinate-grid label {
+  display: grid;
+  gap: 5px;
+}
+.existing-observation__coordinate-grid .is-wide {
+  grid-column: 1 / -1;
+}
+.existing-observation__coordinate-grid textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+.existing-observation__coordinate-error {
+  padding: 9px 11px;
+  border-left: 3px solid #b42318;
+  background: #fff1f0;
+  color: #8f1d16;
+  font-weight: 650;
+}
+.existing-observation__coordinate-actions {
+  padding-top: 2px;
+}
+.existing-observation__coordinate-actions button {
+  min-width: 190px;
+  min-height: 40px;
+}
 .existing-observation__form {
   display: grid;
   gap: 10px;
@@ -3710,6 +3826,12 @@
   .existing-observation__field-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .existing-observation__coordinate-map {
+    grid-template-columns: repeat(2, max-content);
+  }
+  .existing-observation__coordinate-map small {
+    grid-column: 1 / -1;
+  }
   .existing-observation__identity {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3761,8 +3883,28 @@
   }
   .existing-observation__filters,
   .existing-observation__field-grid,
-  .existing-observation__identity {
+  .existing-observation__identity,
+  .existing-observation__coordinate-summary,
+  .existing-observation__coordinate-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .existing-observation__coordinate-grid .is-wide {
+    grid-column: auto;
+  }
+  .existing-observation__coordinate-map {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .existing-observation__coordinate-map > span {
+    width: max-content;
+  }
+  .existing-observation__coordinate-change > header,
+  .existing-observation__coordinate-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .existing-observation__coordinate-actions button {
+    width: 100%;
+    min-height: 48px;
   }
   .existing-observation__filters > button,
   .existing-observation__actions button {

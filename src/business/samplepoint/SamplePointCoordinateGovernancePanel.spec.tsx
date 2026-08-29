@@ -44,14 +44,20 @@ const job: SamplePointCoordinateCorrectionJob = {
 const request: SamplePointCoordinateCorrectionRequest = {
   requestId: "request-1",
   samplePointId: "point-1",
+  expectedVersion: 2,
   canonicalName: "富裕县第一样本点",
   regionCode: "230227",
+  regionName: "富裕县",
   originalLongitude: 123.51,
   originalLatitude: 47.92,
   correctedLongitude: 123.5101,
   correctedLatitude: 47.9201,
   coordinateSource: "现场重新定位",
   correctionNote: "已核对经营地址",
+  coordinateCollectedAt: "2026-08-19T01:00:00Z",
+  verifiedAddress: "富裕县测试村",
+  changeReason: "现场复核定位偏移",
+  evidenceReference: "现场核验记录 01",
   requestedBy: "operator-1",
   createdAt: "2026-08-20T01:00:00Z",
   statusCode: "PENDING_REVIEW",
@@ -84,8 +90,16 @@ describe("sample point coordinate governance", () => {
     ).toHaveTextContent("失败 2 行");
     expect(
       screen.getByRole("region", { name: "样本点坐标治理" }),
+    ).not.toHaveTextContent(/job-1|batch-1|point-1/u);
+    expect(
+      screen.getByRole("region", { name: "样本点坐标治理" }),
     ).toHaveTextContent("平台唯一所有者可按特权规则自审并全程留痕");
     expect(screen.getByText("富裕县第一样本点")).toBeVisible();
+    expect(screen.getByText("富裕县测试村")).toBeVisible();
+    expect(screen.getByText("现场复核定位偏移")).toBeVisible();
+    expect(screen.getByText("现场核验记录 01")).toBeVisible();
+    expect(screen.getByText("2026/08/19 09:00:00")).toBeVisible();
+    expect(screen.queryByText("230227")).not.toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: "审核通过富裕县第一样本点" }),
     );
@@ -150,7 +164,7 @@ describe("sample point coordinate governance", () => {
 
     render(<SamplePointCoordinateGovernancePanel repository={repository} />);
     await user.click(
-      await screen.findByRole("button", { name: "重试任务 job-1 的失败行" }),
+      await screen.findByRole("button", { name: "重试该任务的失败行" }),
     );
 
     await waitFor(() =>

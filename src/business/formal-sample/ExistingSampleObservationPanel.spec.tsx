@@ -13,6 +13,7 @@ import type {
   EligibleFormalSample,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { ExistingSampleObservationPanel } from "./ExistingSampleObservationPanel";
 
 const sample: EligibleFormalSample = {
@@ -26,6 +27,7 @@ const sample: EligibleFormalSample = {
   regionName: "龙江县",
   latitude: "47.5100000",
   longitude: "123.3800000",
+  coordinateVersion: 3,
   effectiveFrom: "2026-01-01",
   latestObservationId: "record-1",
   latestObservedAt: "2026-08-25T10:58:50Z",
@@ -40,6 +42,18 @@ const sample: EligibleFormalSample = {
 
 function repository() {
   return {
+    loadCurrentSession: vi.fn().mockResolvedValue({
+      subjectId: "operator-1",
+      displayName: "业务填报员",
+      workUnitCode: "QIQIHAR_BUSINESS",
+      workUnitName: "齐齐哈尔业务组",
+      accountStatus: "ACTIVE",
+      employmentStatus: "ACTIVE",
+      roleCodes: ["BUSINESS_OPERATOR"],
+      positions: [],
+      permissions: ["BUSINESS_READ", "BUSINESS_CREATE", "BUSINESS_IMPORT"],
+      regionCodes: ["230221"],
+    }),
     listObjectTypes: vi.fn().mockResolvedValue([
       { code: "TRADER", name: "贸易商", domain: "MARKET" },
       { code: "DEEP_PROCESSOR", name: "深加工企业", domain: "MARKET" },
@@ -202,6 +216,23 @@ function repository() {
       synchronizedModules: ["OVERVIEW", "MARKET_ANALYSIS", "REPORTS"],
       values: {},
     }),
+    submitFormalSampleCoordinateCorrection: vi.fn().mockResolvedValue({
+      requestId: "coordinate-request-1",
+      status: "PENDING_REVIEW",
+      samplePointName: sample.sampleName,
+      regionName: sample.regionName,
+      originalLongitude: sample.longitude,
+      originalLatitude: sample.latitude,
+      correctedLongitude: "123.3900000",
+      correctedLatitude: "47.5200000",
+      coordinateSource: "FIELD_GPS",
+      coordinateCollectedAt: "2026-08-29T02:00:00Z",
+      verifiedAddress: "龙江县测试村一组",
+      changeReason: "现场复核发现原定位偏移",
+      evidenceReference: "现场照片20260829-01",
+      expectedVersion: 3,
+      submittedAt: "2026-08-30T01:00:00Z",
+    }),
   };
 }
 
@@ -331,6 +362,204 @@ describe("ExistingSampleObservationPanel", () => {
     expect(
       screen.getByRole("region", { name: "历史观测记录" }),
     ).not.toHaveTextContent("BULK");
+  });
+
+  it("submits a governed coordinate change for review without mixing it into the observation payload", async () => {
+    const { api } = renderPanel();
+    await userEvent.click(
+      screen.getByRole("tab", { name: "已有样本数据更新" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: /中粮生化能源/u }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "申请坐标变更" }));
+
+    const governance = screen.getByRole("region", { name: "坐标变更申请" });
+    expect(governance).toHaveTextContent("当前坐标");
+    expect(governance).toHaveTextContent("123.3800000，47.5100000");
+    await userEvent.clear(within(governance).getByLabelText("变更后经度"));
+    await userEvent.type(
+      within(governance).getByLabelText("变更后经度"),
+      "123.3900000",
+    );
+    await userEvent.clear(within(governance).getByLabelText("变更后纬度"));
+    await userEvent.type(
+      within(governance).getByLabelText("变更后纬度"),
+      "47.5200000",
+    );
+    await userEvent.selectOptions(
+      within(governance).getByLabelText("坐标来源"),
+      "FIELD_GPS",
+    );
+    await userEvent.type(
+      within(governance).getByLabelText("坐标采集时间"),
+      "2026-08-29T10:00",
+    );
+    await userEvent.type(
+      within(governance).getByLabelText("核验地址"),
+      "龙江县测试村一组",
+    );
+    await userEvent.type(
+      within(governance).getByLabelText("变更原因"),
+      "现场复核发现原定位偏移",
+    );
+    await userEvent.type(
+      within(governance).getByLabelText("证据说明"),
+      "现场照片20260829-01",
+    );
+    expect(governance).toHaveTextContent("变更后坐标");
+    expect(governance).toHaveTextContent("123.3900000，47.5200000");
+    expect(governance).toHaveTextContent("待复核地址：龙江县测试村一组");
+    expect(
+      within(governance).getByRole("link", {
+        name: "在地图中核对变更后坐标",
+      }),
+    ).toHaveAttribute(
+      "href",
+      "https://www.openstreetmap.org/?mlat=47.5200000&mlon=123.3900000#map=16/47.5200000/123.3900000",
+    );
+    await userEvent.click(
+      within(governance).getByRole("button", { name: "提交坐标变更审核" }),
+    );
+
+    await waitFor(() =>
+      expect(api.submitFormalSampleCoordinateCorrection).toHaveBeenCalledTimes(
+        1,
+      ),
+    );
+    expect(
+      api.submitFormalSampleCoordinateCorrection.mock.calls[0]?.[0],
+    ).toEqual({
+      samplePointId: "sample-1",
+      expectedVersion: 3,
+      originalLongitude: "123.3800000",
+      originalLatitude: "47.5100000",
+      correctedLongitude: "123.3900000",
+      correctedLatitude: "47.5200000",
+      coordinateSource: "FIELD_GPS",
+      coordinateCollectedAt: "2026-08-29T02:00:00.000Z",
+      verifiedAddress: "龙江县测试村一组",
+      changeReason: "现场复核发现原定位偏移",
+      evidenceReference: "现场照片20260829-01",
+    });
+    expect(api.saveFormalSampleObservation).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "坐标变更已提交审核，正式坐标尚未改变",
+    );
+  });
+
+  it("explains missing coordinate authority and never relies on a front-end-only guard", async () => {
+    const api = repository();
+    api.loadCurrentSession.mockResolvedValue({
+      subjectId: "reader-1",
+      displayName: "只读人员",
+      workUnitCode: "QIQIHAR_BUSINESS",
+      workUnitName: "齐齐哈尔业务组",
+      accountStatus: "ACTIVE",
+      employmentStatus: "ACTIVE",
+      roleCodes: ["BUSINESS_READER"],
+      positions: [],
+      permissions: ["BUSINESS_READ"],
+      regionCodes: ["230221"],
+    });
+    renderPanel(api);
+    await userEvent.click(
+      screen.getByRole("tab", { name: "已有样本数据更新" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: /中粮生化能源/u }),
+    );
+    const requestButton = screen.getByRole("button", {
+      name: "申请坐标变更",
+    });
+    expect(requestButton).toBeDisabled();
+    expect(requestButton).toHaveAccessibleDescription(
+      "当前账号没有坐标变更申请权限，系统仍会再次校验权限和责任区",
+    );
+    expect(api.submitFormalSampleCoordinateCorrection).not.toHaveBeenCalled();
+  });
+
+  it("validates coordinate precision before submit", async () => {
+    const api = repository();
+    renderPanel(api);
+    await userEvent.click(
+      screen.getByRole("tab", { name: "已有样本数据更新" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: /中粮生化能源/u }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "申请坐标变更" }));
+    const governance = screen.getByRole("region", { name: "坐标变更申请" });
+    await userEvent.clear(within(governance).getByLabelText("变更后经度"));
+    await userEvent.type(
+      within(governance).getByLabelText("变更后经度"),
+      "123.39000001",
+    );
+    await userEvent.click(
+      within(governance).getByRole("button", { name: "提交坐标变更审核" }),
+    );
+    expect(governance).toHaveTextContent("经纬度最多保留 7 位小数");
+    expect(api.submitFormalSampleCoordinateCorrection).not.toHaveBeenCalled();
+  });
+
+  it("keeps an API-rejected coordinate request visibly failed", async () => {
+    const api = repository();
+    api.submitFormalSampleCoordinateCorrection.mockRejectedValue(
+      new RealtimeApiError({
+        status: 409,
+        code: "SAMPLE_POINT_COORDINATE_OCCUPIED",
+        message: "该坐标已被其他正式样本占用",
+        traceId: "trace-coordinate-1",
+      }),
+    );
+    renderPanel(api);
+    await userEvent.click(
+      screen.getByRole("tab", { name: "已有样本数据更新" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: /中粮生化能源/u }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "申请坐标变更" }));
+    const governance = screen.getByRole("region", { name: "坐标变更申请" });
+    await userEvent.clear(within(governance).getByLabelText("变更后经度"));
+    await userEvent.type(
+      within(governance).getByLabelText("变更后经度"),
+      "123.3900000",
+    );
+    await userEvent.clear(within(governance).getByLabelText("变更后纬度"));
+    await userEvent.type(
+      within(governance).getByLabelText("变更后纬度"),
+      "47.5200000",
+    );
+    await userEvent.selectOptions(
+      within(governance).getByLabelText("坐标来源"),
+      "FIELD_GPS",
+    );
+    await userEvent.type(
+      within(governance).getByLabelText("坐标采集时间"),
+      "2026-08-29T10:00",
+    );
+    await userEvent.type(
+      within(governance).getByLabelText("核验地址"),
+      "龙江县测试村一组",
+    );
+    await userEvent.type(
+      within(governance).getByLabelText("变更原因"),
+      "现场复核发现原定位偏移",
+    );
+    await userEvent.type(
+      within(governance).getByLabelText("证据说明"),
+      "现场照片20260829-01",
+    );
+    await userEvent.click(
+      within(governance).getByRole("button", { name: "提交坐标变更审核" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "该坐标已被其他正式样本占用",
+      ),
+    );
+    expect(screen.getByRole("status")).not.toHaveTextContent("已提交审核");
   });
 
   it("queries page-visible history by an explicit data year", async () => {
@@ -501,6 +730,15 @@ describe("ExistingSampleObservationPanel", () => {
     );
     expect(css).toMatch(
       /@media \(max-width:\s*640px\)[\s\S]*\.existing-observation__filters\s+:is\(input, select\)[^{]*\{[^}]*height:\s*48px/u,
+    );
+    expect(css).toMatch(
+      /\.existing-observation__coordinate-change\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
+    );
+    expect(css).toMatch(
+      /\.existing-observation__coordinate-change\s*>\s*\*\s*\{[^}]*min-width:\s*0/u,
+    );
+    expect(css).toMatch(
+      /@media \(max-width:\s*640px\)[\s\S]*\.existing-observation__coordinate-map\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
     );
     expect(shellCss).toMatch(
       /@media \(max-width:\s*1180px\)[\s\S]*\.formal-enterprise:has\(\.existing-observation\)\s*\{[^}]*min-width:\s*0/u,

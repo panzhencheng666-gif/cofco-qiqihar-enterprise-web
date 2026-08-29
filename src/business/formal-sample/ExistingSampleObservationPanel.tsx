@@ -9,6 +9,7 @@ import {
 
 import type {
   EligibleFormalSample,
+  FormalSampleCoordinateSource,
   FormalSampleObservationDomain,
   FormalSampleObservationHistoryItem,
   LogisticsDefinition,
@@ -28,6 +29,37 @@ import {
 
 type ValueMap = Record<string, string>;
 type PageMode = "LEDGER" | "UPDATE";
+
+interface CoordinateChangeDraft {
+  longitude: string;
+  latitude: string;
+  source: FormalSampleCoordinateSource | "";
+  collectedAt: string;
+  verifiedAddress: string;
+  changeReason: string;
+  evidenceReference: string;
+}
+
+const emptyCoordinateChange: CoordinateChangeDraft = {
+  longitude: "",
+  latitude: "",
+  source: "",
+  collectedAt: "",
+  verifiedAddress: "",
+  changeReason: "",
+  evidenceReference: "",
+};
+
+const coordinateSources: readonly {
+  value: FormalSampleCoordinateSource;
+  label: string;
+}[] = [
+  { value: "FIELD_GPS", label: "现场 GPS 采集" },
+  { value: "EVIDENCE_PHOTO", label: "带定位现场照片" },
+  { value: "OFFICIAL_GEOCODE", label: "官方地址定位" },
+  { value: "VERIFIED_MAP", label: "人工核验地图" },
+  { value: "OTHER", label: "其他可核验证据" },
+];
 
 const moduleLabels: Readonly<Record<string, string>> = {
   OVERVIEW: "总揽监测",
@@ -56,6 +88,58 @@ function dateTimeLabel(value: string): string {
   return Number.isFinite(parsed.getTime())
     ? parsed.toLocaleString("zh-CN", { hour12: false })
     : value;
+}
+
+function coordinateError(draft: CoordinateChangeDraft): string | null {
+  const decimal = /^-?\d+(?:\.(\d+))?$/u;
+  const longitude = decimal.exec(draft.longitude.trim());
+  const latitude = decimal.exec(draft.latitude.trim());
+  if (!longitude || !latitude) return "请输入有效的经度和纬度";
+  if ((longitude[1]?.length ?? 0) > 7 || (latitude[1]?.length ?? 0) > 7)
+    return "经纬度最多保留 7 位小数";
+  const longitudeValue = Number(draft.longitude);
+  const latitudeValue = Number(draft.latitude);
+  if (
+    longitudeValue < -180 ||
+    longitudeValue > 180 ||
+    latitudeValue < -90 ||
+    latitudeValue > 90
+  )
+    return "经度须在 -180 至 180 之间，纬度须在 -90 至 90 之间";
+  if (longitudeValue === 0 && latitudeValue === 0)
+    return "不能使用 0，0 占位坐标";
+  if (
+    !draft.source ||
+    !draft.collectedAt ||
+    !draft.verifiedAddress.trim() ||
+    !draft.changeReason.trim() ||
+    !draft.evidenceReference.trim()
+  )
+    return "请完整填写坐标来源、采集时间、核验地址、变更原因和证据说明";
+  if (!Number.isFinite(Date.parse(draft.collectedAt)))
+    return "坐标采集时间无效";
+  if (new Date(draft.collectedAt).getTime() > Date.now())
+    return "坐标采集时间不能晚于当前时间";
+  return null;
+}
+
+function coordinateMapUrl(draft: CoordinateChangeDraft): string | null {
+  const longitude = draft.longitude.trim();
+  const latitude = draft.latitude.trim();
+  const longitudeValue = Number(longitude);
+  const latitudeValue = Number(latitude);
+  if (
+    !longitude ||
+    !latitude ||
+    !Number.isFinite(longitudeValue) ||
+    !Number.isFinite(latitudeValue) ||
+    longitudeValue < -180 ||
+    longitudeValue > 180 ||
+    latitudeValue < -90 ||
+    latitudeValue > 90
+  )
+    return null;
+  return `https://www.openstreetmap.org/?mlat=${encodeURIComponent(latitude)}&mlon=${encodeURIComponent(longitude)}#map=16/${encodeURIComponent(latitude)}/${encodeURIComponent(longitude)}`;
 }
 
 function populated(values: ValueMap, codes: readonly string[]): ValueMap {
@@ -225,6 +309,15 @@ export function ExistingSampleObservationPanel({
     useState<FormalSampleObservationHistoryItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [canRequestCoordinate, setCanRequestCoordinate] = useState(false);
+  const [coordinateOpen, setCoordinateOpen] = useState(false);
+  const [coordinateDraft, setCoordinateDraft] = useState<CoordinateChangeDraft>(
+    emptyCoordinateChange,
+  );
+  const [coordinateValidation, setCoordinateValidation] = useState("");
+  const [coordinateIdempotencyKey, setCoordinateIdempotencyKey] = useState(() =>
+    crypto.randomUUID(),
+  );
   const [idempotencyKey, setIdempotencyKey] = useState(() =>
     crypto.randomUUID(),
   );
@@ -272,6 +365,9 @@ export function ExistingSampleObservationPanel({
     setHistory([]);
     setHistoryTotal(0);
     setHistoryDetail(null);
+    setCoordinateOpen(false);
+    setCoordinateDraft(emptyCoordinateChange);
+    setCoordinateValidation("");
   }, []);
 
   const invalidateQuery = useCallback(() => {
@@ -380,6 +476,17 @@ export function ExistingSampleObservationPanel({
         });
     }
     repository
+      .loadCurrentSession()
+      .then((session) => {
+        if (active)
+          setCanRequestCoordinate(
+            session.permissions.includes("BUSINESS_IMPORT"),
+          );
+      })
+      .catch(() => {
+        if (active) setCanRequestCoordinate(false);
+      });
+    repository
       .loadMasterData?.()
       .then((data) => {
         if (active) setRegions(data.regions);
@@ -405,6 +512,9 @@ export function ExistingSampleObservationPanel({
     setHistoryYear(selectedHistoryYear);
     setIdempotencyKey(crypto.randomUUID());
     setNotice("");
+    setCoordinateOpen(false);
+    setCoordinateDraft(emptyCoordinateChange);
+    setCoordinateValidation("");
     setBusy(true);
     try {
       const next =
@@ -475,6 +585,68 @@ export function ExistingSampleObservationPanel({
       setBusy(false);
     }
   };
+
+  const openCoordinateChange = () => {
+    if (!sample || !canRequestCoordinate) return;
+    setCoordinateDraft({
+      ...emptyCoordinateChange,
+      longitude: sample.longitude,
+      latitude: sample.latitude,
+    });
+    setCoordinateValidation("");
+    setCoordinateIdempotencyKey(crypto.randomUUID());
+    setCoordinateOpen(true);
+  };
+
+  const changeCoordinateDraft = (
+    property: keyof CoordinateChangeDraft,
+    value: string,
+  ) => {
+    setCoordinateDraft((current) => ({ ...current, [property]: value }));
+    setCoordinateValidation("");
+    setCoordinateIdempotencyKey(crypto.randomUUID());
+  };
+
+  const submitCoordinateChange = async () => {
+    if (!sample || !repository?.submitFormalSampleCoordinateCorrection) return;
+    const validation = coordinateError(coordinateDraft);
+    if (validation) {
+      setCoordinateValidation(validation);
+      return;
+    }
+    setBusy(true);
+    setNotice("");
+    try {
+      await repository.submitFormalSampleCoordinateCorrection(
+        {
+          samplePointId: sample.samplePointId,
+          expectedVersion: sample.coordinateVersion,
+          originalLongitude: sample.longitude,
+          originalLatitude: sample.latitude,
+          correctedLongitude: coordinateDraft.longitude.trim(),
+          correctedLatitude: coordinateDraft.latitude.trim(),
+          coordinateSource:
+            coordinateDraft.source as FormalSampleCoordinateSource,
+          coordinateCollectedAt: new Date(
+            coordinateDraft.collectedAt,
+          ).toISOString(),
+          verifiedAddress: coordinateDraft.verifiedAddress.trim(),
+          changeReason: coordinateDraft.changeReason.trim(),
+          evidenceReference: coordinateDraft.evidenceReference.trim(),
+        },
+        coordinateIdempotencyKey,
+      );
+      setNotice("坐标变更已提交审核，正式坐标尚未改变");
+    } catch (error) {
+      setNotice(
+        errorMessage(error, "坐标变更提交失败，请核对数据和权限后重试"),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const mapUrl = coordinateMapUrl(coordinateDraft);
 
   if (
     !repository?.listEligibleFormalSamples ||
@@ -728,8 +900,210 @@ export function ExistingSampleObservationPanel({
                         {sample.longitude}，{sample.latitude}
                       </strong>
                       <small>坐标由样本档案管理</small>
+                      <small>审核通过后由样本主档统一生效</small>
+                      <button
+                        type="button"
+                        aria-describedby="coordinate-change-authority"
+                        disabled={
+                          !canRequestCoordinate ||
+                          !repository.submitFormalSampleCoordinateCorrection
+                        }
+                        onClick={openCoordinateChange}
+                      >
+                        申请坐标变更
+                      </button>
+                      <small id="coordinate-change-authority">
+                        {canRequestCoordinate
+                          ? "提交后由系统校验权限、责任区、行政边界、版本和坐标占用，再进入独立审核"
+                          : "当前账号没有坐标变更申请权限，系统仍会再次校验权限和责任区"}
+                      </small>
                     </div>
                   </div>
+                  {coordinateOpen && (
+                    <section
+                      className="existing-observation__coordinate-change"
+                      role="region"
+                      aria-label="坐标变更申请"
+                    >
+                      <header>
+                        <div>
+                          <h4>坐标变更申请</h4>
+                          <p>
+                            观测台账不会改写样本身份；审核通过后，样本主档坐标才会统一更新。
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCoordinateOpen(false)}
+                        >
+                          关闭
+                        </button>
+                      </header>
+                      <div className="existing-observation__coordinate-summary">
+                        <div>
+                          <span>当前坐标</span>
+                          <strong>
+                            {sample.longitude}，{sample.latitude}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>变更后坐标</span>
+                          <strong>
+                            {coordinateDraft.longitude || "—"}，
+                            {coordinateDraft.latitude || "—"}
+                          </strong>
+                        </div>
+                      </div>
+                      <div
+                        className="existing-observation__coordinate-map"
+                        role="img"
+                        aria-label="坐标变更地图预览"
+                      >
+                        <span>当前锚点</span>
+                        <span>拟变更锚点</span>
+                        <small>
+                          服务端将按样本所属行政边界核验；同坐标冲突会拒绝，审核前地图锚点不变。
+                        </small>
+                        {mapUrl && (
+                          <a href={mapUrl} target="_blank" rel="noreferrer">
+                            在地图中核对变更后坐标
+                          </a>
+                        )}
+                        <small>
+                          待复核地址：
+                          {coordinateDraft.verifiedAddress.trim() || "尚未填写"}
+                        </small>
+                      </div>
+                      <div className="existing-observation__coordinate-grid">
+                        <label>
+                          <span>变更后经度</span>
+                          <input
+                            aria-label="变更后经度"
+                            inputMode="decimal"
+                            value={coordinateDraft.longitude}
+                            onChange={(event) =>
+                              changeCoordinateDraft(
+                                "longitude",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>变更后纬度</span>
+                          <input
+                            aria-label="变更后纬度"
+                            inputMode="decimal"
+                            value={coordinateDraft.latitude}
+                            onChange={(event) =>
+                              changeCoordinateDraft(
+                                "latitude",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </label>
+                        <label>
+                          <span>坐标来源</span>
+                          <select
+                            aria-label="坐标来源"
+                            value={coordinateDraft.source}
+                            onChange={(event) =>
+                              changeCoordinateDraft(
+                                "source",
+                                event.target.value,
+                              )
+                            }
+                          >
+                            <option value="">请选择</option>
+                            {coordinateSources.map((source) => (
+                              <option key={source.value} value={source.value}>
+                                {source.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span>坐标采集时间</span>
+                          <input
+                            aria-label="坐标采集时间"
+                            type="datetime-local"
+                            max={localDateTimeValue()}
+                            value={coordinateDraft.collectedAt}
+                            onChange={(event) =>
+                              changeCoordinateDraft(
+                                "collectedAt",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="is-wide">
+                          <span>核验地址</span>
+                          <input
+                            aria-label="核验地址"
+                            maxLength={300}
+                            value={coordinateDraft.verifiedAddress}
+                            onChange={(event) =>
+                              changeCoordinateDraft(
+                                "verifiedAddress",
+                                event.target.value,
+                              )
+                            }
+                          />
+                          <small>
+                            地址用于人工复核，不会替代行政边界和真实经纬度校验。
+                          </small>
+                        </label>
+                        <label className="is-wide">
+                          <span>变更原因</span>
+                          <textarea
+                            aria-label="变更原因"
+                            maxLength={500}
+                            value={coordinateDraft.changeReason}
+                            onChange={(event) =>
+                              changeCoordinateDraft(
+                                "changeReason",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="is-wide">
+                          <span>证据说明</span>
+                          <textarea
+                            aria-label="证据说明"
+                            maxLength={500}
+                            value={coordinateDraft.evidenceReference}
+                            onChange={(event) =>
+                              changeCoordinateDraft(
+                                "evidenceReference",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                      {coordinateValidation && (
+                        <p className="existing-observation__coordinate-error">
+                          {coordinateValidation}
+                        </p>
+                      )}
+                      <div className="existing-observation__coordinate-actions">
+                        <span>
+                          提交只生成待审核申请，不会提前改变主档、地图或导出。
+                        </span>
+                        <button
+                          className="is-primary"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void submitCoordinateChange()}
+                        >
+                          {busy ? "正在提交" : "提交坐标变更审核"}
+                        </button>
+                      </div>
+                    </section>
+                  )}
                   {definition && (
                     <form
                       className="existing-observation__form"

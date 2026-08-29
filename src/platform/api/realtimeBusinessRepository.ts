@@ -554,6 +554,7 @@ export interface EligibleFormalSample {
   regionName: string;
   latitude: string;
   longitude: string;
+  coordinateVersion: number;
   effectiveFrom: string;
   effectiveTo?: string | null;
   latestObservationId: string;
@@ -852,20 +853,47 @@ export interface SamplePointCoordinateCorrectionJob {
 export interface SamplePointCoordinateCorrectionRequest {
   requestId: string;
   samplePointId: string;
+  expectedVersion: number;
   canonicalName: string;
   regionCode: string;
+  regionName: string | null;
   originalLongitude: number;
   originalLatitude: number;
   correctedLongitude: number;
   correctedLatitude: number;
   coordinateSource: string;
   correctionNote: string;
+  coordinateCollectedAt: string | null;
+  verifiedAddress: string | null;
+  changeReason: string | null;
+  evidenceReference: string | null;
   requestedBy: string;
   createdAt: string;
   statusCode: "PENDING_REVIEW" | "APPLIED" | "REJECTED";
   reviewedBy: string | null;
   reviewReason: string | null;
   reviewedAt: string | null;
+}
+
+export type FormalSampleCoordinateSource =
+  | "FIELD_GPS"
+  | "EVIDENCE_PHOTO"
+  | "OFFICIAL_GEOCODE"
+  | "VERIFIED_MAP"
+  | "OTHER";
+
+export interface FormalSampleCoordinateChangeInput {
+  samplePointId: string;
+  expectedVersion: number;
+  originalLongitude: string;
+  originalLatitude: string;
+  correctedLongitude: string;
+  correctedLatitude: string;
+  coordinateSource: FormalSampleCoordinateSource;
+  coordinateCollectedAt: string;
+  verifiedAddress: string;
+  changeReason: string;
+  evidenceReference: string;
 }
 
 export interface SampleIdentityCandidate {
@@ -1564,6 +1592,10 @@ export interface RealtimeBusinessRepository {
   listSamplePointCoordinateCorrectionRequests?(): Promise<
     readonly SamplePointCoordinateCorrectionRequest[]
   >;
+  submitFormalSampleCoordinateCorrection?(
+    input: FormalSampleCoordinateChangeInput,
+    idempotencyKey: string,
+  ): Promise<SamplePointCoordinateCorrectionRequest>;
   reviewSamplePointCoordinateCorrection?(
     requestId: string,
     decision: "APPROVE" | "REJECT",
@@ -2176,6 +2208,12 @@ export function createRealtimeBusinessRepository(
     listSamplePointCoordinateCorrectionRequests: () =>
       client.get<readonly SamplePointCoordinateCorrectionRequest[]>(
         "/api/v1/sample-point-coordinate-corrections/requests",
+      ),
+    submitFormalSampleCoordinateCorrection: (input, idempotencyKey) =>
+      client.post<SamplePointCoordinateCorrectionRequest>(
+        "/api/v1/sample-point-coordinate-corrections/requests",
+        input,
+        { headers: { "Idempotency-Key": idempotencyKey } },
       ),
     reviewSamplePointCoordinateCorrection: (requestId, decision, reason) =>
       client.post<SamplePointCoordinateCorrectionRequest>(

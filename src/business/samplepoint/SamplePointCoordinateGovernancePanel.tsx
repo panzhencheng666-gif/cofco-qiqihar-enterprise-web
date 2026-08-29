@@ -33,6 +33,31 @@ function requestStatusLabel(
   return "已驳回";
 }
 
+function coordinateSourceLabel(source: string): string {
+  return (
+    {
+      FIELD_GPS: "现场 GPS 采集",
+      EVIDENCE_PHOTO: "带定位现场照片",
+      OFFICIAL_GEOCODE: "官方地址定位",
+      VERIFIED_MAP: "人工核验地图",
+      OTHER: "其他可核验证据",
+    }[source] ?? source
+  );
+}
+
+function coordinateCollectedAtLabel(value: string | null): string {
+  if (!value) return "未登记";
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
 function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -305,8 +330,8 @@ export function SamplePointCoordinateGovernancePanel({
                   {jobs.map((item) => (
                     <tr key={item.jobId}>
                       <td>
-                        <strong>{item.jobId}</strong>
-                        <small>批次 {item.batchId}</small>
+                        <strong>坐标修正任务</strong>
+                        <small>{item.totalRows} 行待校验数据</small>
                       </td>
                       <td>{statusLabel(item.statusCode)}</td>
                       <td>
@@ -333,7 +358,7 @@ export function SamplePointCoordinateGovernancePanel({
                                 下载错误清单
                               </button>
                               <button
-                                aria-label={`重试任务 ${item.jobId} 的失败行`}
+                                aria-label="重试该任务的失败行"
                                 type="button"
                                 onClick={() => retryFailedRows(item.jobId)}
                               >
@@ -358,7 +383,7 @@ export function SamplePointCoordinateGovernancePanel({
           className="sample-coordinate-governance__detail"
         >
           <header>
-            <h3>任务 {selectedJob.jobId}</h3>
+            <h3>坐标修正任务详情</h3>
             <button type="button" onClick={() => setSelectedJob(null)}>
               关闭
             </button>
@@ -370,7 +395,7 @@ export function SamplePointCoordinateGovernancePanel({
           <ul>
             {selectedJob.rowResults.map((row) => (
               <li key={`${row.rowNumber}-${row.samplePointId}`}>
-                第 {row.rowNumber} 行 · {row.samplePointId} · {row.message}
+                第 {row.rowNumber} 行 · {row.message}
               </li>
             ))}
           </ul>
@@ -398,7 +423,7 @@ export function SamplePointCoordinateGovernancePanel({
                   <header>
                     <div>
                       <h4>{item.canonicalName}</h4>
-                      <span>{item.regionCode}</span>
+                      <span>{item.regionName ?? "所属责任区"}</span>
                     </div>
                     <strong>{requestStatusLabel(item.statusCode)}</strong>
                   </header>
@@ -416,12 +441,28 @@ export function SamplePointCoordinateGovernancePanel({
                       </dd>
                     </div>
                     <div>
-                      <dt>核验依据</dt>
-                      <dd>{item.coordinateSource}</dd>
+                      <dt>坐标来源</dt>
+                      <dd>{coordinateSourceLabel(item.coordinateSource)}</dd>
                     </div>
                     <div>
-                      <dt>经办备注</dt>
-                      <dd>{item.correctionNote || "未填写"}</dd>
+                      <dt>采集时间</dt>
+                      <dd>
+                        {coordinateCollectedAtLabel(item.coordinateCollectedAt)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>核验地址</dt>
+                      <dd>{item.verifiedAddress || "未登记"}</dd>
+                    </div>
+                    <div>
+                      <dt>变更原因</dt>
+                      <dd>
+                        {item.changeReason || item.correctionNote || "未填写"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>证据引用</dt>
+                      <dd>{item.evidenceReference || "未登记"}</dd>
                     </div>
                   </dl>
                   {item.statusCode === "PENDING_REVIEW" && (

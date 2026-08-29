@@ -289,6 +289,41 @@ describe("realtime business repository", () => {
     );
   });
 
+  it("submits a governed formal-sample coordinate request without using an observation endpoint", async () => {
+    const { api, post } = client();
+    post.mockResolvedValueOnce({ requestId: "coordinate-request-1" } as never);
+    const repository = createRealtimeBusinessRepository(api);
+    const input = {
+      samplePointId: "sample-1",
+      expectedVersion: 3,
+      originalLongitude: "123.5100000",
+      originalLatitude: "47.9200000",
+      correctedLongitude: "123.5201000",
+      correctedLatitude: "47.9301000",
+      coordinateSource: "FIELD_GPS" as const,
+      coordinateCollectedAt: "2026-08-29T02:00:00Z",
+      verifiedAddress: "龙沙区测试村一组",
+      changeReason: "现场复核发现原定位偏移",
+      evidenceReference: "现场照片20260829-01",
+    };
+
+    await repository.submitFormalSampleCoordinateCorrection!(
+      input,
+      "formal-coordinate-key-1",
+    );
+
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/sample-point-coordinate-corrections/requests",
+      input,
+      { headers: { "Idempotency-Key": "formal-coordinate-key-1" } },
+    );
+    expect(post).not.toHaveBeenCalledWith(
+      "/api/v1/formal-sample-observations/observations",
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
   it("loads one strictly parsed observable snapshot with only allowed query parameters", async () => {
     const { api, get } = client();
     get.mockResolvedValueOnce(validSnapshot() as never);
