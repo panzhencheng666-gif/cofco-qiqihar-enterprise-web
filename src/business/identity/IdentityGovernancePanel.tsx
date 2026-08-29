@@ -8,6 +8,7 @@ import type {
   EmployeeInvitation,
   EmployeeProfile,
   IdentityAssignmentOptions,
+  IdentityInvitationReceipt,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { csrfTokenFromCookies } from "@/platform/api/browserSession";
@@ -30,6 +31,7 @@ const emptyOptions: IdentityAssignmentOptions = {
   roles: [],
   positions: [],
   regionCodes: [],
+  regions: [],
 };
 
 function accountLabel(value: string): string {
@@ -137,8 +139,10 @@ function businessError(error: unknown, fallback: string): string {
 }
 
 interface AssignmentDraft {
+  idempotencyKey: string;
   subjectId: string;
   displayName: string;
+  deliveryAddress: string;
   workUnitCode: string;
   accountStatus: string;
   employmentStatus: string;
@@ -149,8 +153,10 @@ interface AssignmentDraft {
 
 function invitationDraft(session: CurrentSession): AssignmentDraft {
   return {
+    idempotencyKey: `identity-invite-${globalThis.crypto.randomUUID()}`,
     subjectId: "",
     displayName: "",
+    deliveryAddress: "",
     workUnitCode: session.workUnitCode,
     accountStatus: "INVITED",
     employmentStatus: "ACTIVE",
@@ -162,8 +168,10 @@ function invitationDraft(session: CurrentSession): AssignmentDraft {
 
 function employeeDraft(employee: EmployeeProfile): AssignmentDraft {
   return {
+    idempotencyKey: "",
     subjectId: employee.subjectId,
     displayName: employee.displayName,
+    deliveryAddress: "",
     workUnitCode: employee.workUnitCode,
     accountStatus: employee.accountStatus,
     employmentStatus: employee.employmentStatus,
@@ -171,6 +179,27 @@ function employeeDraft(employee: EmployeeProfile): AssignmentDraft {
     regionCodes: [...employee.regionCodes],
     version: employee.version,
   };
+}
+
+function invitationStatusLabel(
+  value: IdentityInvitationReceipt["invitationStatus"],
+): string {
+  return {
+    PENDING: "等待激活",
+    ACTIVATED: "已激活",
+    REVOKED: "已撤销",
+    EXPIRED: "已过期",
+  }[value];
+}
+
+function invitationDeliveryLabel(
+  value: IdentityInvitationReceipt["deliveryStatus"],
+): string {
+  return {
+    QUEUED: "已进入送达队列",
+    DELIVERED: "已送达",
+    FAILED: "送达失败",
+  }[value];
 }
 
 function AssignmentEditor({
@@ -237,6 +266,20 @@ function AssignmentEditor({
             }
           />
         </label>
+        {invite && (
+          <label>
+            邀请送达邮箱
+            <input
+              aria-label="邀请送达邮箱"
+              autoComplete="email"
+              inputMode="email"
+              value={draft.deliveryAddress}
+              onChange={(event) =>
+                onChange({ ...draft, deliveryAddress: event.target.value })
+              }
+            />
+          </label>
+        )}
         <label>
           工作单位
           <select
@@ -308,19 +351,19 @@ function AssignmentEditor({
         </div>
       </fieldset>
       <fieldset>
-        <legend>责任乡镇</legend>
+        <legend>责任地区</legend>
         <div className="identity-region-picker">
           <label>
-            搜索责任乡镇
+            搜索责任地区
             <input
-              aria-label="搜索责任乡镇"
-              placeholder="输入乡镇名称"
+              aria-label="搜索责任地区"
+              placeholder="输入地区名称"
               value={regionSearch}
               onChange={(event) => setRegionSearch(event.target.value)}
             />
           </label>
           <strong className="identity-region-summary">
-            已选择 {draft.regionCodes.length} 个责任乡镇
+            已选择 {draft.regionCodes.length} 个责任地区
           </strong>
         </div>
         <div className="identity-governance-choice-grid identity-region-options">
@@ -341,9 +384,9 @@ function AssignmentEditor({
             </label>
           ))}
           {loadingOptions ? (
-            <p>正在读取该单位的责任乡镇…</p>
+            <p>正在读取该单位的责任地区…</p>
           ) : (
-            visibleRegionCodes.length === 0 && <p>没有匹配的责任乡镇。</p>
+            visibleRegionCodes.length === 0 && <p>没有匹配的责任地区。</p>
           )}
         </div>
       </fieldset>
@@ -357,7 +400,8 @@ function AssignmentEditor({
             saving ||
             loadingOptions ||
             !draft.subjectId.trim() ||
-            !draft.displayName.trim()
+            !draft.displayName.trim() ||
+            (invite && !draft.deliveryAddress.trim())
           }
           type="button"
           onClick={onSubmit}
@@ -392,6 +436,13 @@ export function IdentityGovernancePanel({
     invite: boolean;
     draft: AssignmentDraft;
   } | null>(null);
+  const [invitationEditor, setInvitationEditor] = useState<{
+    employee: EmployeeProfile;
+    receipt: IdentityInvitationReceipt | null;
+    deliveryAddress: string;
+    idempotencyKey: string;
+  } | null>(null);
+  const [loadingInvitation, setLoadingInvitation] = useState(false);
   const [reviews, setReviews] = useState<readonly AccessReviewCampaign[]>([]);
   const [selectedReview, setSelectedReview] =
     useState<AccessReviewCampaign | null>(null);
@@ -569,7 +620,7 @@ export function IdentityGovernancePanel({
       }
     } catch {
       if (assignmentOptionsRequest.current === requestId) {
-        setError("责任乡镇读取失败，请重新选择工作单位。");
+        setError("责任地区读取失败，请重新选择工作单位。");
       }
     } finally {
       if (assignmentOptionsRequest.current === requestId) {
@@ -579,6 +630,7 @@ export function IdentityGovernancePanel({
   };
 
   const openAssignmentEditor = (invite: boolean, draft: AssignmentDraft) => {
+    setInvitationEditor(null);
     setEditor({ invite, draft: { ...draft, regionCodes: [] } });
     void requestAssignmentOptions(draft.workUnitCode, draft.regionCodes);
   };
@@ -589,9 +641,94 @@ export function IdentityGovernancePanel({
     setEditor(null);
   };
 
+  const closeInvitationEditor = () => {
+    setInvitationEditor(null);
+    setLoadingInvitation(false);
+  };
+
+  const openInvitationEditor = async (employee: EmployeeProfile) => {
+    closeAssignmentEditor();
+    setMessage(null);
+    setError(null);
+    setLoadingInvitation(true);
+    setInvitationEditor({
+      employee,
+      receipt: null,
+      deliveryAddress: "",
+      idempotencyKey: `identity-reinvite-${globalThis.crypto.randomUUID()}`,
+    });
+    try {
+      const receipt = await repository.loadEmployeeInvitation(
+        employee.subjectId,
+      );
+      setInvitationEditor((current) =>
+        current?.employee.subjectId === employee.subjectId
+          ? { ...current, receipt }
+          : current,
+      );
+    } catch (caught) {
+      setError(businessError(caught, "当前邀请读取失败，请稍后重试。"));
+    } finally {
+      setLoadingInvitation(false);
+    }
+  };
+
+  const revokeCurrentInvitation = async () => {
+    if (!invitationEditor?.receipt) return;
+    setSaving(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await repository.revokeInvitation(invitationEditor.receipt.invitationId);
+      const receipt = await repository.loadEmployeeInvitation(
+        invitationEditor.employee.subjectId,
+      );
+      setInvitationEditor((current) =>
+        current ? { ...current, receipt } : current,
+      );
+      setMessage("当前邀请已撤销。");
+    } catch (caught) {
+      setError(businessError(caught, "邀请撤销失败，请刷新状态后重试。"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reissueCurrentInvitation = async () => {
+    if (!invitationEditor?.deliveryAddress.trim()) return;
+    setSaving(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await repository.reissueInvitation({
+        idempotencyKey: invitationEditor.idempotencyKey,
+        subjectId: invitationEditor.employee.subjectId,
+        deliveryAddress: invitationEditor.deliveryAddress.trim(),
+      });
+      const receipt = await repository.loadEmployeeInvitation(
+        invitationEditor.employee.subjectId,
+      );
+      setInvitationEditor((current) =>
+        current ? { ...current, receipt } : current,
+      );
+      setMessage(
+        receipt.deliveryStatus === "DELIVERED"
+          ? "邀请已重新送达。"
+          : receipt.deliveryStatus === "FAILED"
+            ? "邀请重新发送失败，请保留本次操作并稍后重试。"
+            : "邀请已重新进入送达队列。",
+      );
+    } catch (caught) {
+      setError(businessError(caught, "邀请重新发送失败，请稍后重试。"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const changeView = (nextView: GovernanceView) => {
     if (view === "employees" && nextView !== "employees") {
       closeAssignmentEditor();
+      closeInvitationEditor();
     }
     setView(nextView);
   };
@@ -616,7 +753,7 @@ export function IdentityGovernancePanel({
       return;
     }
     if (draft.regionCodes.length === 0) {
-      setError("请至少选择一个责任乡镇。");
+      setError("请至少选择一个责任地区。");
       return;
     }
     setSaving(true);
@@ -625,15 +762,23 @@ export function IdentityGovernancePanel({
     try {
       if (editor.invite) {
         const input: EmployeeInvitation = {
+          idempotencyKey: draft.idempotencyKey,
           subjectId: draft.subjectId.trim(),
           displayName: draft.displayName.trim(),
+          deliveryAddress: draft.deliveryAddress.trim(),
           workUnitCode: draft.workUnitCode,
           positionCodes: [],
           roleCodes: draft.roleCodes,
           regionCodes: draft.regionCodes,
         };
-        await repository.inviteEmployee(input);
-        setMessage("员工邀请已建立，待员工完成企业身份认证后激活账号。");
+        const receipt = await repository.inviteEmployee(input);
+        setMessage(
+          receipt.deliveryStatus === "DELIVERED"
+            ? "邀请已送达，等待员工完成企业身份认证。"
+            : receipt.deliveryStatus === "FAILED"
+              ? "邀请尚未送达，请稍后使用重新发送功能。"
+              : "邀请已进入送达队列，实际送达状态待服务确认。",
+        );
       } else {
         const input: EmployeeAssignmentUpdate = {
           version: draft.version,
@@ -652,7 +797,7 @@ export function IdentityGovernancePanel({
       await loadEmployees();
     } catch (caught) {
       setError(
-        businessError(caught, "保存失败，请检查账号、角色和责任乡镇后重试。"),
+        businessError(caught, "保存失败，请检查账号、角色和责任地区后重试。"),
       );
     } finally {
       setSaving(false);
@@ -1042,18 +1187,31 @@ export function IdentityGovernancePanel({
                             {employee.subjectId === session.subjectId ? (
                               <span>本人账号</span>
                             ) : mayAdminister ? (
-                              <button
-                                aria-label={`管理${employee.displayName}的授权`}
-                                type="button"
-                                onClick={() =>
-                                  openAssignmentEditor(
-                                    false,
-                                    employeeDraft(employee),
-                                  )
-                                }
-                              >
-                                管理授权
-                              </button>
+                              <div className="identity-profile-actions">
+                                <button
+                                  aria-label={`管理${employee.displayName}的授权`}
+                                  type="button"
+                                  onClick={() =>
+                                    openAssignmentEditor(
+                                      false,
+                                      employeeDraft(employee),
+                                    )
+                                  }
+                                >
+                                  管理授权
+                                </button>
+                                {employee.accountStatus === "INVITED" && (
+                                  <button
+                                    aria-label={`管理${employee.displayName}的邀请`}
+                                    type="button"
+                                    onClick={() =>
+                                      void openInvitationEditor(employee)
+                                    }
+                                  >
+                                    管理邀请
+                                  </button>
+                                )}
+                              </div>
                             ) : (
                               "只读"
                             )}
@@ -1084,6 +1242,76 @@ export function IdentityGovernancePanel({
                   saving={saving}
                   loadingOptions={loadingAssignmentOptions}
                 />
+              )}
+              {invitationEditor && (
+                <section
+                  aria-label={`管理${invitationEditor.employee.displayName}的邀请`}
+                  className="identity-governance-editor"
+                >
+                  <header>
+                    <h3>管理{invitationEditor.employee.displayName}的邀请</h3>
+                    <p>查看服务端当前状态；撤销或重新发送后会再次读取确认。</p>
+                  </header>
+                  {loadingInvitation ? (
+                    <p>正在读取当前邀请…</p>
+                  ) : invitationEditor.receipt ? (
+                    <strong>
+                      {invitationStatusLabel(
+                        invitationEditor.receipt.invitationStatus,
+                      )}{" "}
+                      ·{" "}
+                      {invitationDeliveryLabel(
+                        invitationEditor.receipt.deliveryStatus,
+                      )}
+                    </strong>
+                  ) : (
+                    <p>当前邀请状态不可用。</p>
+                  )}
+                  <label>
+                    重新送达邮箱
+                    <input
+                      aria-label="重新送达邮箱"
+                      autoComplete="email"
+                      inputMode="email"
+                      value={invitationEditor.deliveryAddress}
+                      onChange={(event) =>
+                        setInvitationEditor((current) =>
+                          current
+                            ? {
+                                ...current,
+                                deliveryAddress: event.target.value,
+                              }
+                            : current,
+                        )
+                      }
+                    />
+                  </label>
+                  <footer>
+                    <button type="button" onClick={closeInvitationEditor}>
+                      关闭邀请管理
+                    </button>
+                    <button
+                      disabled={
+                        saving ||
+                        invitationEditor.receipt?.invitationStatus !== "PENDING"
+                      }
+                      type="button"
+                      onClick={() => void revokeCurrentInvitation()}
+                    >
+                      撤销当前邀请
+                    </button>
+                    <button
+                      className="is-primary"
+                      disabled={
+                        saving || !invitationEditor.deliveryAddress.trim()
+                      }
+                      type="button"
+                      onClick={() => void reissueCurrentInvitation()}
+                    >
+                      重新发送邀请
+                    </button>
+                  </footer>
+                </section>
               )}
             </section>
           )}
