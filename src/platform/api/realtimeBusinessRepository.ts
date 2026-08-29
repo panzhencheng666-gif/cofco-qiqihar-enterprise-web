@@ -1301,6 +1301,9 @@ export interface MarketObjectMutation {
   roles: readonly MarketObjectRole[];
 }
 
+export type ProductionObjectRow = MarketObjectRow;
+export type ProductionObjectMutation = MarketObjectMutation;
+
 export interface RealtimeBusinessRepository {
   loadObservableAnalysisSnapshot(
     input: ObservableAnalysisQuery,
@@ -1450,6 +1453,14 @@ export interface RealtimeBusinessRepository {
     id: string,
     input: MarketObjectMutation & { version: number },
   ): Promise<MarketObjectRow>;
+  listProductionObjects?(): Promise<readonly ProductionObjectRow[]>;
+  createProductionObject?(
+    input: ProductionObjectMutation,
+  ): Promise<ProductionObjectRow>;
+  updateProductionObject?(
+    id: string,
+    input: ProductionObjectMutation & { version: number },
+  ): Promise<ProductionObjectRow>;
   listWorkItems(input?: {
     scope?: "PENDING" | "COMPLETED";
     page?: number;
@@ -2043,6 +2054,15 @@ export function createRealtimeBusinessRepository(
     updateMarketObject: (id, input) =>
       client.put<MarketObjectRow>(
         `/api/v1/market-objects/${encodeURIComponent(id)}`,
+        input,
+      ),
+    listProductionObjects: () =>
+      client.get<readonly ProductionObjectRow[]>("/api/v1/production-objects"),
+    createProductionObject: (input) =>
+      client.post<ProductionObjectRow>("/api/v1/production-objects", input),
+    updateProductionObject: (id, input) =>
+      client.put<ProductionObjectRow>(
+        `/api/v1/production-objects/${encodeURIComponent(id)}`,
         input,
       ),
     listWorkItems: (input = {}) =>

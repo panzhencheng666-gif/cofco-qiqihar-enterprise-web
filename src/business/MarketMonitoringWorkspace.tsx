@@ -146,6 +146,12 @@ export function MarketMonitoringWorkspace({
         documentDrafts={documentDrafts}
         onDocumentDraftChange={onDocumentDraftChange}
         onWorkItemChange={onWorkItemChange}
+        realtimeRepository={realtimeRepository}
+        onCreateRecord={onCreateRecord}
+        onEditRecord={(productCode, recordId) =>
+          onEditRecord?.("market", productCode, recordId)
+        }
+        reviewMode={section === "review"}
       />
     );
   }

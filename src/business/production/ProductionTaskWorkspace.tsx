@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 
 import {
   projectDomainTasks,
@@ -164,12 +166,14 @@ function taskSubjectName(item: BusinessWorkItem): string {
 function TaskFilters({
   scope,
   workItems,
+  authoritativeProducts,
   onScopeChange,
   stateFilters,
   onStateFiltersChange,
 }: {
   scope: OperationalScope;
   workItems: readonly BusinessWorkItem[];
+  authoritativeProducts: readonly { id: string; label: string }[];
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   stateFilters: TaskStateFilters;
   onStateFiltersChange: (filters: TaskStateFilters) => void;
@@ -194,8 +198,9 @@ function TaskFilters({
     ).entries(),
   ].map(([id, label]) => ({ id, label }));
   const products = [
-    ...new Map(
-      productionItems.flatMap((item) =>
+    ...new Map([
+      ...authoritativeProducts.map(({ id, label }) => [id, label] as const),
+      ...productionItems.flatMap((item) =>
         item.productId
           ? [
               [
@@ -210,7 +215,7 @@ function TaskFilters({
             ]
           : [],
       ),
-    ).entries(),
+    ]).entries(),
   ].map(([id, label]) => ({ id, label }));
   const periods = [
     ...new Map(
@@ -495,6 +500,10 @@ export function ProductionTaskWorkspace({
   documentDrafts = {},
   onDocumentDraftChange = () => undefined,
   onWorkItemChange = () => undefined,
+  realtimeRepository,
+  onCreateRecord,
+  onEditRecord,
+  reviewMode = false,
 }: {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
@@ -508,7 +517,40 @@ export function ProductionTaskWorkspace({
     draft: ProductionDocumentDraft,
   ) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
+  realtimeRepository?: RealtimeBusinessRepository;
+  onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
+  onEditRecord?: (
+    productCode: "CORN" | "SOYBEAN" | "RICE",
+    recordId: string,
+  ) => void;
+  reviewMode?: boolean;
 }) {
+  const [authoritativeProducts, setAuthoritativeProducts] = useState<
+    readonly { id: string; label: string }[]
+  >([]);
+  useEffect(() => {
+    if (!realtimeRepository || reviewMode) {
+      return;
+    }
+    let active = true;
+    void realtimeRepository
+      .loadMasterData()
+      .then((masterData) => {
+        if (!active) return;
+        setAuthoritativeProducts(
+          masterData.products.flatMap(({ code, name }) => {
+            const id = taskProductId(code);
+            return id ? [{ id, label: name }] : [];
+          }),
+        );
+      })
+      .catch(() => {
+        if (active) setAuthoritativeProducts([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [realtimeRepository, reviewMode]);
   const [stateFilters, setStateFilters] =
     useState<TaskStateFilters>(emptyStateFilters);
   const [page, setPage] = useState(1);
@@ -536,7 +578,15 @@ export function ProductionTaskWorkspace({
       }),
     [availablePeriods, periodInvalid, queryAllowed, scope, workItems],
   );
-  const visible = projections.filter((projection) =>
+  const actionableProjections = reviewMode
+    ? projections.filter(
+        ({ item }) =>
+          item.documentStatus === "submitted" &&
+          (item.reviewStatus === "pending" ||
+            item.reviewStatus === "reviewing"),
+      )
+    : projections;
+  const visible = actionableProjections.filter((projection) =>
     matchesStateFilters(projection, stateFilters),
   );
   const pageSize = 10;
@@ -547,7 +597,7 @@ export function ProductionTaskWorkspace({
   const advancedFilterCount = activeAdvancedFilterCount(scope, stateFilters);
   const selected =
     selection?.type === "work-item"
-      ? projections.find(({ item }) => item.workId === selection.id)
+      ? actionableProjections.find(({ item }) => item.workId === selection.id)
       : undefined;
   const invalidSelection =
     selection !== undefined &&
@@ -563,8 +613,28 @@ export function ProductionTaskWorkspace({
         eyebrow="产情监测 / 产情任务"
         title="产情任务作业"
         summary="按期间处理采集、审核、质量与发布，同一任务始终打开同一份业务单据。"
+        actions={
+          realtimeRepository &&
+          !reviewMode &&
+          scope.authorization.permissionKeys.includes("BUSINESS_CREATE") &&
+          scope.coordinates.productId ? (
+            <button
+              className="production-task5-primary"
+              type="button"
+              onClick={() => {
+                const code = productionTaskProductCode(
+                  scope.coordinates.productId,
+                );
+                if (code) onCreateRecord?.(code);
+              }}
+            >
+              新建产情任务
+            </button>
+          ) : undefined
+        }
       />
       <TaskFilters
+        authoritativeProducts={reviewMode ? [] : authoritativeProducts}
         onScopeChange={(coordinates) => {
           setPage(1);
           onScopeChange(coordinates);
@@ -745,14 +815,29 @@ export function ProductionTaskWorkspace({
                       <button
                         className="production-task5-row-action"
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          const productCode = productionTaskProductCode(
+                            item.productId,
+                          );
+                          if (
+                            realtimeRepository &&
+                            productCode &&
+                            item.subject.kind === "monitoring-object"
+                          ) {
+                            onEditRecord?.(productCode, item.subject.objectId);
+                            return;
+                          }
                           onSelectionChange({
                             type: "work-item",
                             id: item.workId,
-                          })
-                        }
+                          });
+                        }}
                       >
-                        {projection.actionLabel}
+                        {realtimeRepository
+                          ? reviewMode
+                            ? "审核任务"
+                            : "办理任务"
+                          : projection.actionLabel}
                       </button>
                     </td>
                   </tr>
@@ -801,4 +886,22 @@ export function ProductionTaskWorkspace({
       )}
     </div>
   );
+}
+
+function productionTaskProductCode(
+  productId: string | null | undefined,
+): "CORN" | "SOYBEAN" | "RICE" | undefined {
+  if (productId === "corn" || productId === "CORN") return "CORN";
+  if (productId === "soybean" || productId === "SOYBEAN") return "SOYBEAN";
+  if (productId === "paddy" || productId === "rice" || productId === "RICE") {
+    return "RICE";
+  }
+  return undefined;
+}
+
+function taskProductId(productCode: string): string | undefined {
+  if (productCode === "CORN") return "corn";
+  if (productCode === "SOYBEAN") return "soybean";
+  if (productCode === "RICE") return "paddy";
+  return undefined;
 }

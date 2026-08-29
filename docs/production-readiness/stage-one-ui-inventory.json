@@ -4,10 +4,10 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 59,
-  "sourceDigest": "f65c9aadef3a584170624477b829b1312d49517f0dd76397d3fbb951a5f897d3",
-  "itemCount": 477,
+  "sourceDigest": "feff96c5e8afb6475594aa41f6954b8893210dd8cd3ee915f1b0934305f47d66",
+  "itemCount": 479,
   "countsByKind": {
-    "BUTTON": 245,
+    "BUTTON": 247,
     "LINK": 8,
     "FILTER_OR_INPUT": 219,
     "DIALOG": 5
@@ -378,10 +378,10 @@
       "sourceExcerpt": "<button aria-label={`打开${application.label}`} key={application.key} type=\"button\" onClick={() => { onSelect?.(application.key); setOpen(false); }} >"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1299:13:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1329:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1299,
+      "line": 1329,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -392,10 +392,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={rebuildOperationalState}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1317:11:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1347:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1317,
+      "line": 1347,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2842,10 +2842,10 @@
       "sourceExcerpt": "<input aria-label={`${modeLabel}经营产品：${label}`} checked={productIds.includes(id)} type=\"checkbox\" onChange={(event) => toggleProduct(id, event.target.checked)} />"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:273:11:FILTER_OR_INPUT",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:278:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 273,
+      "line": 278,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"工作视图\"",
@@ -2856,10 +2856,10 @@
       "sourceExcerpt": "<select aria-label=\"工作视图\" value={filters.view} onChange={(event) => onFiltersChange({ ...filters, view: event.target.value }) } >"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:291:13:FILTER_OR_INPUT",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:296:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 291,
+      "line": 296,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"业务地区\"",
@@ -2870,10 +2870,10 @@
       "sourceExcerpt": "<select aria-label=\"业务地区\" value={scope.coordinates.regionId} onChange={(event) => onScopeChange({ regionId: event.target.value }) } >"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:315:13:FILTER_OR_INPUT",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:320:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 315,
+      "line": 320,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"业务分类\"",
@@ -2884,10 +2884,10 @@
       "sourceExcerpt": "<select aria-label=\"业务分类\" value={scope.coordinates.businessSubtypeId ?? \"\"} onChange={(event) => onScopeChange({ businessSubtypeId: event.target.value || undefined, }) } >"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:341:13:FILTER_OR_INPUT",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:346:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 341,
+      "line": 346,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"产品或品类\"",
@@ -2898,10 +2898,10 @@
       "sourceExcerpt": "<select aria-label=\"产品或品类\" value={scope.coordinates.productId ?? \"\"} onChange={(event) => onScopeChange({ productId: event.target.value || undefined, cultivarId: undefined, }) } >"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:368:13:FILTER_OR_INPUT",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:373:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 368,
+      "line": 373,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"任务期间\"",
@@ -2912,10 +2912,10 @@
       "sourceExcerpt": "<select aria-label=\"任务期间\" value={scope.coordinates.periodKey ?? \"\"} onChange={(event) => onScopeChange({ periodKey: event.target.value || undefined }) } >"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:399:15:FILTER_OR_INPUT",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:404:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 399,
+      "line": 404,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"任务对象\"",
@@ -2926,10 +2926,10 @@
       "sourceExcerpt": "<select aria-label=\"任务对象\" value={filters.target} onChange={(event) => onFiltersChange({ ...filters, target: event.target.value }) } >"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:424:15:FILTER_OR_INPUT",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:429:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 424,
+      "line": 429,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"具体品种\"",
@@ -2940,10 +2940,10 @@
       "sourceExcerpt": "<select aria-label=\"具体品种\" value={scope.coordinates.cultivarId ?? \"\"} onChange={(event) => onScopeChange({ cultivarId: event.target.value || undefined, }) } >"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:482:13:BUTTON",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:487:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 482,
+      "line": 487,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2954,10 +2954,24 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => { onFiltersChange({ ...emptyStateFilters, view: filters.view, }); onScopeChange({ cultivarId: undefined }); }} >"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:70:7:FILTER_OR_INPUT",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:706:13:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
+      "line": 706,
+      "column": 13,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/market/MarketTaskWorkspace.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button type=\"button\" onClick={() => { const code = marketTaskProductCode(scope.coordinates.productId); if (code) onCreateRecord?.(code); }} >"
+    },
+    {
+      "id": "src/business/market/MarketTaskWorkspace.tsx:72:7:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 70,
+      "line": 72,
       "column": 7,
       "tag": "select",
       "accessibleNameSource": "aria-label={label}",
@@ -2968,10 +2982,10 @@
       "sourceExcerpt": "<select aria-label={label} value={filters[key]} onChange={(event) => onChange({ ...filters, [key]: event.target.value }) } >"
     },
     {
-      "id": "src/business/market/MarketTaskWorkspace.tsx:785:23:BUTTON",
+      "id": "src/business/market/MarketTaskWorkspace.tsx:852:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/MarketTaskWorkspace.tsx",
-      "line": 785,
+      "line": 852,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2979,7 +2993,7 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button type=\"button\" onClick={() => onSelectionChange({ type: \"work-item\", id: item.workId, }) } >"
+      "sourceExcerpt": "<button type=\"button\" onClick={() => { const productCode = marketTaskProductCode( item.productId, ); if ( realtimeRepository && productCode && item.subject.kind === \"monitoring-object\" ) { onEditRecord?.(productCode, item.subject.objectI..."
     },
     {
       "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1112:13:FILTER_OR_INPUT",
@@ -3668,10 +3682,10 @@
       "sourceExcerpt": "<input aria-label={field.label} disabled={!canEdit} value={values[key] ?? \"\"} onChange={(event) => editField(key, event.target.value) } />"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:1046:13:BUTTON",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:1199:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 1046,
+      "line": 1199,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3682,10 +3696,10 @@
       "sourceExcerpt": "<button className=\"production-task5-primary\" type=\"button\" onClick={() => requestEditor(\"create\")} >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:1172:23:BUTTON",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:1336:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 1172,
+      "line": 1336,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": "aria-label={`查看${object.objectName}`}",
@@ -3696,10 +3710,10 @@
       "sourceExcerpt": "<button className=\"production-task5-row-action\" type=\"button\" aria-label={`查看${object.objectName}`} onClick={() => onSelectionChange({ type: \"object\", id: object.objectId, }) } >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:216:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:283:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 216,
+      "line": 283,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"对象类型\"",
@@ -3710,10 +3724,10 @@
       "sourceExcerpt": "<select aria-label=\"对象类型\" value={filters.objectTypeId} onChange={(event) => onFiltersChange({ ...filters, objectTypeId: event.target.value, }) } >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:243:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:310:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 243,
+      "line": 310,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"业务地区\"",
@@ -3724,10 +3738,10 @@
       "sourceExcerpt": "<select aria-label=\"业务地区\" value={scope.coordinates.regionId} onChange={(event) => onScopeChange({ regionId: event.target.value }) } >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:267:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:334:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 267,
+      "line": 334,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"作物\"",
@@ -3738,10 +3752,10 @@
       "sourceExcerpt": "<select aria-label=\"作物\" value={scope.coordinates.productId ?? \"\"} onChange={(event) => onScopeChange({ productId: event.target.value || undefined, cultivarId: undefined, }) } >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:294:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:361:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 294,
+      "line": 361,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"有效状态\"",
@@ -3752,10 +3766,10 @@
       "sourceExcerpt": "<select aria-label=\"有效状态\" value={filters.validityStatus} onChange={(event) => onFiltersChange({ ...filters, validityStatus: event.target.value, }) } >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:322:11:BUTTON",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:389:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 322,
+      "line": 389,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3766,10 +3780,10 @@
       "sourceExcerpt": "<button aria-controls=\"production-object-more-filters\" aria-expanded={advancedOpen} className=\"production-task5-filter-toggle\" type=\"button\" onClick={() => setAdvancedOpen((current) => !current)} >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:343:15:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:410:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 343,
+      "line": 410,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"具体品种\"",
@@ -3780,10 +3794,10 @@
       "sourceExcerpt": "<select aria-label=\"具体品种\" value={scope.coordinates.cultivarId ?? \"\"} onChange={(event) => onScopeChange({ cultivarId: event.target.value || undefined }) } >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:369:15:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:436:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 369,
+      "line": 436,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"来源渠道\"",
@@ -3794,10 +3808,10 @@
       "sourceExcerpt": "<select aria-label=\"来源渠道\" value={filters.sourceChannelId} onChange={(event) => onFiltersChange({ ...filters, sourceChannelId: event.target.value, }) } >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:670:9:BUTTON",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:767:9:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 670,
+      "line": 767,
       "column": 9,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3808,10 +3822,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={onClose}>"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:677:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:774:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 677,
+      "line": 774,
       "column": 11,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"对象名称\"",
@@ -3822,10 +3836,10 @@
       "sourceExcerpt": "<input aria-label=\"对象名称\" name=\"objectName\" defaultValue={object?.objectName ?? \"\"} />"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:685:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:782:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 685,
+      "line": 782,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"编辑对象类型\"",
@@ -3836,10 +3850,10 @@
       "sourceExcerpt": "<select aria-label=\"编辑对象类型\" name=\"objectTypeId\" defaultValue={object?.objectTypeId ?? \"\"} >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:700:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:797:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 700,
+      "line": 797,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"编辑行政区划\"",
@@ -3850,10 +3864,10 @@
       "sourceExcerpt": "<select aria-label=\"编辑行政区划\" name=\"regionId\" value={regionId} onChange={(event) => setRegionId(event.target.value)} >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:718:15:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:815:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 718,
+      "line": 815,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": null,
@@ -3864,10 +3878,10 @@
       "sourceExcerpt": "<input type=\"checkbox\" checked={selectedProductIds.includes(id)} onChange={() => toggleProduct(id)} />"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:736:15:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:833:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 736,
+      "line": 833,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": null,
@@ -3878,10 +3892,10 @@
       "sourceExcerpt": "<input type=\"checkbox\" checked={selectedCultivarIds.includes(id)} onChange={() => toggle(id, selectedCultivarIds, setSelectedCultivarIds) } />"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:749:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:846:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 749,
+      "line": 846,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"编辑来源渠道\"",
@@ -3892,11 +3906,11 @@
       "sourceExcerpt": "<select aria-label=\"编辑来源渠道\" name=\"sourceChannelId\" defaultValue={object?.sourceChannelId ?? \"\"} >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:764:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:862:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 764,
-      "column": 11,
+      "line": 862,
+      "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"编辑责任人\"",
       "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductionObjectRegistry.tsx",
@@ -3906,10 +3920,10 @@
       "sourceExcerpt": "<select aria-label=\"编辑责任人\" name=\"responsibleUserId\" defaultValue={object?.responsibleUserId ?? \"\"} >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:779:11:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:878:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 779,
+      "line": 878,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"编辑有效状态\"",
@@ -3920,10 +3934,10 @@
       "sourceExcerpt": "<select aria-label=\"编辑有效状态\" name=\"validityStatus\" defaultValue={object?.validityStatus ?? \"\"} >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:797:19:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:896:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 797,
+      "line": 896,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": null,
@@ -3934,10 +3948,10 @@
       "sourceExcerpt": "<input type=\"checkbox\" checked={selected} onChange={() => toggle(role.roleId, selectedRoleIds, setSelectedRoleIds) } />"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:808:19:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:907:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 808,
+      "line": 907,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label={`${role.label}角色生效日期`}",
@@ -3948,10 +3962,10 @@
       "sourceExcerpt": "<input aria-label={`${role.label}角色生效日期`} disabled={!selected} type=\"date\" value={period.from} onChange={(event) => setRolePeriods((current) => ({ ...current, [role.roleId]: { ...period, from: event.target.value }, })) } />"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:823:19:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:922:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 823,
+      "line": 922,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label={`${role.label}角色失效日期`}",
@@ -3962,10 +3976,10 @@
       "sourceExcerpt": "<input aria-label={`${role.label}角色失效日期`} disabled={!selected} type=\"date\" value={period.to} onChange={(event) => setRolePeriods((current) => ({ ...current, [role.roleId]: { ...period, to: event.target.value }, })) } />"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:841:7:BUTTON",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:940:7:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 841,
+      "line": 940,
       "column": 7,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3973,13 +3987,13 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"production-task5-primary\" type=\"submit\">"
+      "sourceExcerpt": "<button className=\"production-task5-primary\" disabled={saving} type=\"submit\" >"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:884:13:BUTTON",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:987:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 884,
+      "line": 987,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3990,10 +4004,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={onEdit}>"
     },
     {
-      "id": "src/business/production/ProductionObjectRegistry.tsx:888:11:BUTTON",
+      "id": "src/business/production/ProductionObjectRegistry.tsx:991:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductionObjectRegistry.tsx",
-      "line": 888,
+      "line": 991,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4004,10 +4018,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={onClose}>"
     },
     {
-      "id": "src/business/production/ProductionTaskWorkspace.tsx:268:7:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionTaskWorkspace.tsx:273:7:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionTaskWorkspace.tsx",
-      "line": 268,
+      "line": 273,
       "column": 7,
       "tag": "select",
       "accessibleNameSource": "aria-label={label}",
@@ -4018,10 +4032,10 @@
       "sourceExcerpt": "<select aria-label={label} value={stateFilters[key]} onChange={(event) => onStateFiltersChange({ ...stateFilters, [key]: event.target.value, }) } >"
     },
     {
-      "id": "src/business/production/ProductionTaskWorkspace.tsx:296:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionTaskWorkspace.tsx:301:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionTaskWorkspace.tsx",
-      "line": 296,
+      "line": 301,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"业务地区\"",
@@ -4032,10 +4046,10 @@
       "sourceExcerpt": "<select aria-label=\"业务地区\" value={scope.coordinates.regionId} onChange={(event) => onScopeChange({ regionId: event.target.value }) } >"
     },
     {
-      "id": "src/business/production/ProductionTaskWorkspace.tsx:320:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionTaskWorkspace.tsx:325:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionTaskWorkspace.tsx",
-      "line": 320,
+      "line": 325,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"业务分类\"",
@@ -4046,10 +4060,10 @@
       "sourceExcerpt": "<select aria-label=\"业务分类\" value={scope.coordinates.businessSubtypeId ?? \"\"} onChange={(event) => onScopeChange({ businessSubtypeId: event.target.value || undefined, }) } >"
     },
     {
-      "id": "src/business/production/ProductionTaskWorkspace.tsx:346:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionTaskWorkspace.tsx:351:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionTaskWorkspace.tsx",
-      "line": 346,
+      "line": 351,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"产品或作物\"",
@@ -4060,10 +4074,10 @@
       "sourceExcerpt": "<select aria-label=\"产品或作物\" value={scope.coordinates.productId ?? \"\"} onChange={(event) => onScopeChange({ productId: event.target.value || undefined, cultivarId: undefined, }) } >"
     },
     {
-      "id": "src/business/production/ProductionTaskWorkspace.tsx:373:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionTaskWorkspace.tsx:378:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionTaskWorkspace.tsx",
-      "line": 373,
+      "line": 378,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"任务期间\"",
@@ -4074,10 +4088,10 @@
       "sourceExcerpt": "<select aria-label=\"任务期间\" value={scope.coordinates.periodKey ?? \"\"} onChange={(event) => onScopeChange({ periodKey: event.target.value || undefined }) } >"
     },
     {
-      "id": "src/business/production/ProductionTaskWorkspace.tsx:399:9:BUTTON",
+      "id": "src/business/production/ProductionTaskWorkspace.tsx:404:9:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductionTaskWorkspace.tsx",
-      "line": 399,
+      "line": 404,
       "column": 9,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4088,10 +4102,10 @@
       "sourceExcerpt": "<button aria-controls=\"production-task-more-filters\" aria-expanded={advancedOpen} className=\"production-task5-filter-toggle\" type=\"button\" onClick={() => setAdvancedOpen((current) => !current)} >"
     },
     {
-      "id": "src/business/production/ProductionTaskWorkspace.tsx:418:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductionTaskWorkspace.tsx:423:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductionTaskWorkspace.tsx",
-      "line": 418,
+      "line": 423,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"具体品种\"",
@@ -4102,10 +4116,24 @@
       "sourceExcerpt": "<select aria-label=\"具体品种\" aria-invalid={cultivarSelectionInvalid || undefined} disabled={!selectedProductId} value={selectedCultivarId} onChange={(event) => onScopeChange({ cultivarId: event.target.value || undefined }) } >"
     },
     {
-      "id": "src/business/production/ProductionTaskWorkspace.tsx:745:23:BUTTON",
+      "id": "src/business/production/ProductionTaskWorkspace.tsx:621:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductionTaskWorkspace.tsx",
-      "line": 745,
+      "line": 621,
+      "column": 13,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/production/ProductionTaskWorkspace.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button className=\"production-task5-primary\" type=\"button\" onClick={() => { const code = productionTaskProductCode( scope.coordinates.productId, ); if (code) onCreateRecord?.(code); }} >"
+    },
+    {
+      "id": "src/business/production/ProductionTaskWorkspace.tsx:815:23:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/production/ProductionTaskWorkspace.tsx",
+      "line": 815,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4113,7 +4141,7 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"production-task5-row-action\" type=\"button\" onClick={() => onSelectionChange({ type: \"work-item\", id: item.workId, }) } >"
+      "sourceExcerpt": "<button className=\"production-task5-row-action\" type=\"button\" onClick={() => { const productCode = productionTaskProductCode( item.productId, ); if ( realtimeRepository && productCode && item.subject.kind === \"monitoring-object\" ) { onEd..."
     },
     {
       "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1039:13:FILTER_OR_INPUT",
