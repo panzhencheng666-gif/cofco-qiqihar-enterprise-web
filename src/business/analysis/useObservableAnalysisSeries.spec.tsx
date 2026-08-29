@@ -44,6 +44,53 @@ function source() {
 }
 
 describe("observable analysis annual series", () => {
+  it("limits monthly snapshot work so an analysis page does not saturate the live API", async () => {
+    let active = 0;
+    let maximumActive = 0;
+    const releases: Array<() => void> = [];
+    const repository = {
+      loadObservableAnalysisSnapshot: vi.fn(
+        (next: ObservableAnalysisQuery) =>
+          new Promise<ReturnType<typeof validSnapshot>>((resolve) => {
+            active += 1;
+            maximumActive = Math.max(maximumActive, active);
+            releases.push(() => {
+              active -= 1;
+              resolve({
+                ...validSnapshot(),
+                scope: {
+                  ...validSnapshot().scope,
+                  surveyYear: next.surveyYear,
+                  surveyMonth: next.surveyMonth ?? null,
+                },
+              });
+            });
+          }),
+      ),
+    };
+
+    const { result } = renderHook(() =>
+      useObservableAnalysisSeries({ query, repository }),
+    );
+
+    await waitFor(() =>
+      expect(repository.loadObservableAnalysisSnapshot).toHaveBeenCalled(),
+    );
+    while (result.current.status === "loading") {
+      expect(maximumActive).toBeLessThanOrEqual(2);
+      const release = releases.shift();
+      if (!release) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        continue;
+      }
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    expect(repository.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(12);
+    expect(maximumActive).toBeLessThanOrEqual(2);
+  });
+
   it("loads twelve server-calculated monthly snapshots without changing their values", async () => {
     const repository = source();
     const { result } = renderHook(() =>

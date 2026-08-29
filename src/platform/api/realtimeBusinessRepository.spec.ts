@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { RealtimeApiError, type RealtimeApiClient } from "./realtimeApiClient";
 import { validSnapshot } from "./observableAnalysisContract.fixture";
 import {
   createRealtimeBusinessRepository,
   parseProductionDefinition,
   productionDefinitionCacheKey,
+  type EligibleFormalSample,
   type RealtimeBusinessRepository,
 } from "./realtimeBusinessRepository";
 import {
@@ -121,6 +122,109 @@ function client(
 }
 
 describe("realtime business repository", () => {
+  it("keeps formal-sample filters, locked object identity, and idempotent save aligned", async () => {
+    expectTypeOf<EligibleFormalSample>()
+      .toHaveProperty("objectTypeCode")
+      .toEqualTypeOf<string | null>();
+    expectTypeOf<EligibleFormalSample>()
+      .toHaveProperty("objectTypeName")
+      .toEqualTypeOf<string | null>();
+
+    const { api, get, post } = client();
+    get.mockResolvedValueOnce([
+      {
+        samplePointId: "sample-1",
+        sampleName: "中粮生化能源（龙江）有限公司",
+        objectTypeCode: "DEEP_PROCESSOR",
+        objectTypeName: "深加工企业",
+        domain: "MARKET",
+        productCode: "CORN",
+        regionCode: "230221",
+        regionName: "龙江县",
+        latitude: "47.5100000",
+        longitude: "123.3800000",
+        effectiveFrom: "2026-01-01",
+        effectiveTo: null,
+        latestObservationId: "record-1",
+        latestObservedAt: "2026-08-25T10:58:50Z",
+        latestValues: { MKT_OBJECT_TYPE: "DEEP_PROCESSOR" },
+      },
+    ] as never);
+    get.mockResolvedValueOnce({
+      items: [{ observationId: "observation-1", latest: true }],
+      totalElements: 2,
+      pageNumber: 0,
+      pageSize: 20,
+    } as never);
+    post.mockResolvedValueOnce({ observationId: "observation-1" } as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    const samples = await repository.listEligibleFormalSamples!({
+      domain: "MARKET",
+      productCode: "CORN",
+      regionCode: "230221",
+      objectTypeCode: "DEEP_PROCESSOR",
+      keyword: "中粮生化",
+      year: 2026,
+      observedAt: "2026-08-29T02:51:00Z",
+    });
+    const history = await repository.listFormalSampleObservationHistory!({
+      domain: "MARKET",
+      samplePointId: "sample-1",
+      productCode: "CORN",
+      year: 2026,
+      pageNumber: 0,
+      pageSize: 20,
+    });
+    await repository.saveFormalSampleObservation!(
+      {
+        domain: "MARKET",
+        samplePointId: samples[0].samplePointId,
+        productCode: "CORN",
+        observedAt: "2026-08-29T02:51:00Z",
+        payload: { productCode: "CORN", coreValues: {}, facts: {} },
+      },
+      "formal-observation-key-1",
+    );
+
+    expect(samples[0]).toMatchObject({
+      objectTypeCode: "DEEP_PROCESSOR",
+      objectTypeName: "深加工企业",
+    });
+    expect(history).toMatchObject({
+      totalElements: 2,
+      items: [{ latest: true }],
+    });
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/formal-sample-observations/eligible-samples",
+      {
+        domain: "MARKET",
+        productCode: "CORN",
+        regionCode: "230221",
+        objectTypeCode: "DEEP_PROCESSOR",
+        keyword: "中粮生化",
+        year: 2026,
+        observedAt: "2026-08-29T02:51:00Z",
+      },
+    );
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/formal-sample-observations/observations",
+      expect.objectContaining({ samplePointId: "sample-1" }),
+      { headers: { "Idempotency-Key": "formal-observation-key-1" } },
+    );
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/formal-sample-observations/observations",
+      {
+        domain: "MARKET",
+        samplePointId: "sample-1",
+        productCode: "CORN",
+        year: 2026,
+        pageNumber: 0,
+        pageSize: 20,
+      },
+    );
+  });
+
   it("uses server identity governance contracts and preserves the upload idempotency key", async () => {
     const { api, get, post, upload, download } = client();
     get.mockResolvedValueOnce([] as never);
@@ -207,6 +311,84 @@ describe("realtime business repository", () => {
       surveyMonth: 8,
       cultivarCode: "CORN-DENT",
       subjectTypeCode: "FARMER",
+    });
+  });
+
+  it("coalesces identical in-flight observable snapshots without caching completed data", async () => {
+    const { api, get } = client();
+    let release: () => void = () => undefined;
+    const pending = new Promise<ReturnType<typeof validSnapshot>>((resolve) => {
+      release = () => resolve(validSnapshot());
+    });
+    get.mockReturnValueOnce(pending as never);
+    const repository = createRealtimeBusinessRepository(api);
+    const query = {
+      productCode: "CORN",
+      regionCode: "230200",
+      surveyYear: 2026,
+    };
+
+    const first = repository.loadObservableAnalysisSnapshot(query);
+    const duplicate = repository.loadObservableAnalysisSnapshot(query);
+    expect(get).toHaveBeenCalledTimes(1);
+    release();
+    await expect(Promise.all([first, duplicate])).resolves.toHaveLength(2);
+
+    get.mockResolvedValueOnce(validSnapshot() as never);
+    await repository.loadObservableAnalysisSnapshot(query);
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the governed annual sample-network lifecycle contracts", async () => {
+    const { api, get, post, put } = client();
+    const repository = createRealtimeBusinessRepository(api);
+    get.mockResolvedValue({ networkYear: 2027, memberships: [] } as never);
+    post.mockResolvedValue({ networkYear: 2027, memberships: [] } as never);
+    put.mockResolvedValue({ networkYear: 2027, memberships: [] } as never);
+
+    await repository.getSampleNetwork!(2027);
+    await repository.getSampleNetworkComparison!(2027, "230200", "CORN");
+    await repository.generateSampleNetworkCandidates!(2027, 2026);
+    await repository.updateSampleNetworkMember!(2027, "point/1", {
+      designVillageRegionCode: "230202997001",
+      relationType: "EXPLICIT_REPRESENTATION",
+      evidenceReference: "2027年实地核验记录",
+      statusCode: "ACTIVE",
+      sourceCode: "CARRIED_FORWARD",
+      reason: "继续纳入2027年度",
+      version: 0,
+    });
+    await repository.submitSampleNetwork!(2027, 3);
+    await repository.reviewSampleNetwork!(2027, 4, "APPROVE", "独立复核通过");
+
+    expect(get).toHaveBeenNthCalledWith(1, "/api/v1/sample-networks/2027");
+    expect(get).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/sample-networks/2027/comparison",
+      { productCode: "CORN", regionCode: "230200" },
+    );
+    expect(post).toHaveBeenCalledWith("/api/v1/sample-networks/2027", {
+      carriedFromYear: 2026,
+    });
+    expect(put).toHaveBeenCalledWith(
+      "/api/v1/sample-networks/2027/members/point%2F1",
+      {
+        designVillageRegionCode: "230202997001",
+        relationType: "EXPLICIT_REPRESENTATION",
+        evidenceReference: "2027年实地核验记录",
+        statusCode: "ACTIVE",
+        sourceCode: "CARRIED_FORWARD",
+        reason: "继续纳入2027年度",
+        version: 0,
+      },
+    );
+    expect(post).toHaveBeenCalledWith("/api/v1/sample-networks/2027/submit", {
+      version: 3,
+    });
+    expect(post).toHaveBeenCalledWith("/api/v1/sample-networks/2027/review", {
+      version: 4,
+      decision: "APPROVE",
+      reason: "独立复核通过",
     });
   });
 
@@ -495,6 +677,70 @@ describe("realtime business repository", () => {
 
     expect(cornAgain).toBe(corn);
     expect(soybean.productCode).toBe("SOYBEAN");
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it("coalesces concurrent formal definition reads per domain and context", async () => {
+    const { api, get } = client();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    get.mockImplementation(async (path: string) => {
+      await gate;
+      if (path.endsWith("/production-record-definitions")) {
+        return productionDefinition() as never;
+      }
+      if (path.endsWith("/market-record-definitions")) {
+        return {
+          productCode: "CORN",
+          objectTypeCode: "TRADER",
+          coreFields: [],
+          groups: [],
+        } as never;
+      }
+      if (path.endsWith("/logistics-record-definitions")) {
+        return {
+          productCode: "CORN",
+          fields: [],
+          actions: [],
+        } as never;
+      }
+      throw new Error(`unexpected GET ${path}`);
+    });
+    const repository = createRealtimeBusinessRepository(api);
+
+    const reads = [
+      repository.loadProductionDefinition("CORN", "FARMER"),
+      repository.loadProductionDefinition("CORN", "FARMER"),
+      repository.loadMarketDefinition("CORN", "TRADER"),
+      repository.loadMarketDefinition("CORN", "TRADER"),
+      repository.loadLogisticsDefinition("CORN"),
+      repository.loadLogisticsDefinition("CORN"),
+    ];
+
+    await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(3));
+    release();
+    await expect(Promise.all(reads)).resolves.toHaveLength(6);
+  });
+
+  it("does not cache a failed formal definition read", async () => {
+    const { api, get } = client();
+    get.mockRejectedValueOnce(new Error("temporary unavailable"));
+    get.mockResolvedValueOnce({
+      productCode: "CORN",
+      objectTypeCode: "TRADER",
+      coreFields: [],
+      groups: [],
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    await expect(
+      repository.loadMarketDefinition("CORN", "TRADER"),
+    ).rejects.toThrow("temporary unavailable");
+    await expect(
+      repository.loadMarketDefinition("CORN", "TRADER"),
+    ).resolves.toMatchObject({ productCode: "CORN" });
     expect(get).toHaveBeenCalledTimes(2);
   });
 
@@ -882,6 +1128,44 @@ describe("realtime business repository", () => {
       2,
       "/api/v1/market-records/market%2F1/return",
       { version: 6, reason: "缺少依据" },
+    );
+  });
+
+  it("uses atomic create and resubmit endpoints for formal production and market entry", async () => {
+    const { api, post, put } = client();
+    const repository = createRealtimeBusinessRepository(api) as unknown as {
+      createAndSubmitProduction(input: unknown): Promise<unknown>;
+      updateAndSubmitProduction(id: string, input: unknown): Promise<unknown>;
+      createAndSubmitMarket(input: unknown): Promise<unknown>;
+      updateAndSubmitMarket(id: string, input: unknown): Promise<unknown>;
+    };
+    const production = { productCode: "CORN" };
+    const market = { productCode: "SOYBEAN" };
+
+    await repository.createAndSubmitProduction(production);
+    await repository.updateAndSubmitProduction("production/1", production);
+    await repository.createAndSubmitMarket(market);
+    await repository.updateAndSubmitMarket("market/1", market);
+
+    expect(post).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/production-records/submit",
+      production,
+    );
+    expect(put).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/production-records/production%2F1/submit",
+      production,
+    );
+    expect(post).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/market-records/submit",
+      market,
+    );
+    expect(put).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/market-records/market%2F1/submit",
+      market,
     );
   });
 

@@ -323,6 +323,17 @@
     },
     {
       "application": "production",
+      "section": "regional-annual",
+      "label": "地区产情填报",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/production/RegionalAnnualProductionWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "production",
       "section": "tasks",
       "label": "产情任务",
       "implementationLocations": [
@@ -512,7 +523,7 @@
   "uiInteractionInventory": {
     "path": "docs/production-readiness/stage-one-ui-inventory.json",
     "sourceBoundary": "src/business 下全部非测试 TSX",
-    "itemCount": 419,
+    "itemCount": 477,
     "ownerRepository": "cofco-qiqihar-enterprise-web",
     "status": "IMPLEMENTED",
     "verificationStage": "阶段二/三",
@@ -1005,11 +1016,18 @@
       "paths": [
         "docs/superpowers/plans/2026-08-08-market-submission-evidence-import.md",
         "docs/superpowers/plans/2026-08-17-xlsx-photo-batch-import.md",
+        "docs/superpowers/plans/2026-08-23-annual-sample-network-comparison.md",
+        "docs/superpowers/plans/2026-08-23-local-2026-business-data-reset-and-runtime-publish.md",
+        "docs/superpowers/plans/2026-08-23-multilevel-sample-network-and-coordinate-governance.md",
+        "docs/superpowers/plans/2026-08-28-formal-sample-observation-update.md",
+        "docs/superpowers/plans/2026-08-29-existing-sample-observation-workspace-redesign.md",
         "docs/superpowers/specs/2026-08-08-market-logistics-submission-evidence-import-design.md",
         "docs/superpowers/specs/2026-08-17-xlsx-photo-batch-import-design.md",
         "docs/superpowers/specs/2026-08-19-incremental-supply-inventory-design.md",
         "docs/superpowers/specs/2026-08-19-returned-market-batch-correction-design.md",
-        "docs/superpowers/specs/2026-08-20-sample-identity-deduplication-governance-design.md"
+        "docs/superpowers/specs/2026-08-20-sample-identity-deduplication-governance-design.md",
+        "docs/superpowers/specs/2026-08-23-annual-sample-network-comparison-and-local-reset-design.md",
+        "docs/superpowers/specs/2026-08-28-formal-sample-observation-update-design.md"
       ]
     },
     {
@@ -1023,13 +1041,16 @@
         "docs/superpowers/plans/2026-08-05-overview-map-stabilization.md",
         "docs/superpowers/plans/2026-08-10-supply-period-version-history.md",
         "docs/superpowers/plans/2026-08-11-county-sample-point-icons.md",
+        "docs/superpowers/plans/2026-08-28-overview-data-mode-visual-unification.md",
         "docs/superpowers/specs/2026-08-03-openmct-executive-command-center-design.md",
         "docs/superpowers/specs/2026-08-03-overview-golden-rebuild-design.md",
         "docs/superpowers/specs/2026-08-03-overview-spatial-narration-design.md",
         "docs/superpowers/specs/2026-08-04-township-map-and-region-directory-design.md",
         "docs/superpowers/specs/2026-08-11-county-sample-point-icons-design.md",
         "docs/superpowers/specs/2026-08-18-business-directory-linked-overview-design.md",
-        "docs/superpowers/specs/2026-08-21-overview-map-and-sample-point-supersession.md"
+        "docs/superpowers/specs/2026-08-21-overview-map-and-sample-point-supersession.md",
+        "docs/superpowers/specs/2026-08-23-overview-annual-sample-layer-contract-design.md",
+        "docs/superpowers/specs/2026-08-28-overview-data-mode-visual-unification-design.md"
       ]
     },
     {
@@ -1065,6 +1086,8 @@
         "docs/superpowers/plans/2026-08-13-stage-seven-supervisor-rejection-fixes.md",
         "docs/superpowers/plans/2026-08-16-observable-supply-production-market-analysis-implementation.md",
         "docs/superpowers/plans/2026-08-22-three-repository-ci-pr-gates.md",
+        "docs/superpowers/plans/2026-08-23-sample-network-map-governance-ux.md",
+        "docs/superpowers/plans/2026-08-24-five-business-workspaces-implementation.md",
         "docs/superpowers/specs/2026-07-31-contextual-business-report-export-and-enterprise-shell-optimization-design.md",
         "docs/superpowers/specs/2026-07-31-enterprise-platform-information-architecture-redesign-design.md",
         "docs/superpowers/specs/2026-07-31-enterprise-visual-fusion-design.md",
@@ -1083,7 +1106,10 @@
         "docs/superpowers/specs/2026-08-16-current-template-observable-balance-and-analysis-design.md",
         "docs/superpowers/specs/2026-08-21-analysis-dashboard-clarity-upgrade-design.md",
         "docs/superpowers/specs/2026-08-21-business-analysis-report-and-import-ledger-design.md",
-        "docs/superpowers/specs/2026-08-21-field-backed-analysis-dashboard-visual-redesign.md"
+        "docs/superpowers/specs/2026-08-21-field-backed-analysis-dashboard-visual-redesign.md",
+        "docs/superpowers/specs/2026-08-23-enterprise-workbench-clarity-and-live-operations-design.md",
+        "docs/superpowers/specs/2026-08-23-sample-network-map-and-governance-ux-design.md",
+        "docs/superpowers/specs/2026-08-24-five-business-workspaces-design.md"
       ]
     }
   ],

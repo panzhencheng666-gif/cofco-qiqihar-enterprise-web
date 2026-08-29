@@ -472,7 +472,7 @@ export function RealtimeBusinessOperationsPanel({
         ? { PROD_REPORTER_NAME: authenticatedName }
         : { MKT_REPORTER_NAME: authenticatedName }),
     });
-    setMessage("已新建空白填报，保存后生成正式记录");
+    setMessage("已新建空白填报，提交审核后生成正式记录");
     setError("");
   }
 
@@ -545,11 +545,11 @@ export function RealtimeBusinessOperationsPanel({
           evidencePhotoIds,
         };
         record = selected
-          ? await repository.updateProduction(selected.id, {
+          ? await repository.updateAndSubmitProduction(selected.id, {
               ...payload,
               version: selected.version,
             })
-          : await repository.createProduction(payload);
+          : await repository.createAndSubmitProduction(payload);
       } else {
         const payload = {
           ...marketPayloadFromValues(
@@ -560,11 +560,11 @@ export function RealtimeBusinessOperationsPanel({
           evidencePhotoIds,
         };
         record = selected
-          ? await repository.updateMarket(selected.id, {
+          ? await repository.updateAndSubmitMarket(selected.id, {
               ...payload,
               version: selected.version,
             })
-          : await repository.createMarket(payload);
+          : await repository.createAndSubmitMarket(payload);
       }
       setSelected(record);
       formDirty.current = false;
@@ -575,10 +575,10 @@ export function RealtimeBusinessOperationsPanel({
       );
       await reload(record.productCode);
       onRecordsChanged?.();
-      setMessage("保存成功");
+      setMessage("提交审核成功");
       onSaved?.();
     } catch {
-      setError("保存失败，请核对填报内容后重试。");
+      setError("保存并提交审核失败，请核对填报内容后重试。");
     } finally {
       setBusy(false);
     }
@@ -791,7 +791,7 @@ export function RealtimeBusinessOperationsPanel({
               ? "只读核对原业务单据、现场照片和当前状态，通过或填写原因退回；审核不会新建记录。"
               : mode === "view"
                 ? "只读查看原业务记录及现场照片，不会修改或新建记录。"
-                : "按当前账号的业务范围填写并保存记录，提交后进入审核流程。"}
+                : "按当前账号的业务范围填写记录，保存并提交后直接进入审核流程。"}
           </p>
         </div>
         <div className="realtime-business-header-actions">
@@ -1045,16 +1045,7 @@ export function RealtimeBusinessOperationsPanel({
                 disabled={busy || !definitionReady || existingRecordUnavailable}
                 type="submit"
               >
-                保存业务记录
-              </button>
-            )}
-            {mode === "entry" && selected && allowed.has("SUBMIT") && (
-              <button
-                disabled={busy}
-                type="button"
-                onClick={() => void transition("submit")}
-              >
-                提交审核
+                保存并提交审核
               </button>
             )}
             {mode === "entry" && selected && allowed.has("VOID") && (

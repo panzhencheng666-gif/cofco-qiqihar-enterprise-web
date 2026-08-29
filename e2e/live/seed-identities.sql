@@ -199,4 +199,208 @@ SET node_name = EXCLUDED.node_name,
     region_code = EXCLUDED.region_code,
     active = true;
 
+-- Merge-gate fixtures are deliberately E2E_-named and live only in the
+-- disposable qiqihar_enterprise_e2e database. They exercise the same formal
+-- sample projections and domain writes as production without touching the
+-- long-lived qiqihar_enterprise_dev catalog.
+INSERT INTO overview.administrative_boundary(
+  region_code, geometry, source_name, source_url, source_revision,
+  source_license, source_feature_id, source_effective_on, geometry_sha256
+)
+VALUES (
+  '230208',
+  ST_Multi(ST_MakeEnvelope(123.0, 47.0, 123.5, 47.6, 4326)),
+  'E2E_premerge formal-sample boundary fixture',
+  'https://example.invalid/cofco-premerge-write-auth-boundary',
+  'E2E_premerge-v1',
+  'test fixture - not production geography',
+  'E2E_premerge-230208',
+  DATE '2026-08-29',
+  repeat('e', 64)
+)
+ON CONFLICT(region_code) DO UPDATE
+SET geometry = EXCLUDED.geometry,
+    source_name = EXCLUDED.source_name,
+    source_url = EXCLUDED.source_url,
+    source_revision = EXCLUDED.source_revision,
+    source_license = EXCLUDED.source_license,
+    source_feature_id = EXCLUDED.source_feature_id,
+    source_effective_on = EXCLUDED.source_effective_on,
+    geometry_sha256 = EXCLUDED.geometry_sha256;
+
+INSERT INTO registry.sample_point(
+  sample_point_id, kind_code, canonical_name, region_code, approval_state,
+  location_state, governed_point, effective_from, created_by, updated_by
+)
+VALUES (
+  'e2e00000-0000-0000-0000-000000000001',
+  'SURVEY_SITE',
+  'E2E_合并前正式样本_齐齐哈尔',
+  '230208',
+  'APPROVED',
+  'VALID',
+  ST_SetSRID(ST_MakePoint(123.2, 47.3), 4326),
+  DATE '2026-01-01',
+  'e2e-operator-one',
+  'e2e-operator-one'
+);
+
+INSERT INTO production.production_record(
+  record_id, product_code, object_type_code, region_code, survey_date,
+  reported_at, cultivated_area_mu, yield_per_mu_kg, status_code,
+  last_modified_by, survey_year, survey_period_precision,
+  survey_period_governance_state, sample_point_id
+)
+VALUES (
+  'e2e00000-0000-0000-0000-000000000002',
+  'CORN',
+  'FARMER',
+  '230208',
+  DATE '2026-08-20',
+  TIMESTAMPTZ '2026-08-20 09:30:00+08',
+  100,
+  500,
+  'APPROVED',
+  'e2e-operator-one',
+  2026,
+  'YEAR',
+  'CONFIRMED',
+  'e2e00000-0000-0000-0000-000000000001'
+);
+
+INSERT INTO production.production_record_submission_metadata(
+  record_id, field_code, value
+)
+VALUES
+  ('e2e00000-0000-0000-0000-000000000002', 'PROD_SAMPLE_NAME',
+    'E2E_合并前正式样本_齐齐哈尔'),
+  ('e2e00000-0000-0000-0000-000000000002', 'PROD_SAMPLE_CONTACT',
+    '13800000000'),
+  ('e2e00000-0000-0000-0000-000000000002', 'PROD_SAMPLE_LATITUDE',
+    '47.3000000'),
+  ('e2e00000-0000-0000-0000-000000000002', 'PROD_SAMPLE_LONGITUDE',
+    '123.2000000');
+
+INSERT INTO market.market_record(
+  record_id, product_code, object_type_code, region_code, trade_date,
+  reported_at, purchase_base_price, sale_base_price, trade_direction,
+  carriage_board_amount, packaging_amount, freight_amount, packaging_form,
+  status_code, last_modified_by, survey_year, survey_month,
+  survey_period_precision, survey_period_governance_state, sample_point_id
+)
+VALUES (
+  'e2e00000-0000-0000-0000-000000000003',
+  'CORN',
+  'TRADER',
+  '230208',
+  DATE '2026-08-20',
+  TIMESTAMPTZ '2026-08-20 09:30:00+08',
+  2300,
+  2380,
+  'BOTH',
+  36,
+  12,
+  72,
+  'BULK',
+  'APPROVED',
+  'e2e-operator-one',
+  2026,
+  8,
+  'YEAR_MONTH',
+  'CONFIRMED',
+  'e2e00000-0000-0000-0000-000000000001'
+);
+
+INSERT INTO market.market_record_core_value(
+  record_id, product_code, field_code, domain_binding, value
+)
+VALUES
+  ('e2e00000-0000-0000-0000-000000000003', 'CORN', 'MKT_SAMPLE_NAME',
+    'EXTENSION', 'E2E_合并前正式样本_齐齐哈尔'),
+  ('e2e00000-0000-0000-0000-000000000003', 'CORN', 'MKT_SAMPLE_CONTACT',
+    'EXTENSION', '13800000000'),
+  ('e2e00000-0000-0000-0000-000000000003', 'CORN', 'MKT_SAMPLE_LATITUDE',
+    'EXTENSION', '47.3000000'),
+  ('e2e00000-0000-0000-0000-000000000003', 'CORN', 'MKT_SAMPLE_LONGITUDE',
+    'EXTENSION', '123.2000000');
+
+INSERT INTO logistics.route_event(
+  event_id, product_code, collection_date, reported_at, origin_region_code,
+  destination_region_code, transport_mode_code, direction_code,
+  source_organization, reporter, status_code, version, created_by,
+  last_modified_by, created_at, updated_at, business_region_code,
+  sample_contact, sample_latitude, sample_longitude, survey_year, survey_month,
+  survey_period_precision, survey_period_governance_state, sample_point_id
+)
+VALUES (
+  'e2e00000-0000-0000-0000-000000000004',
+  'CORN',
+  DATE '2026-08-01',
+  TIMESTAMPTZ '2026-08-20 09:30:00+08',
+  '230208',
+  '230208',
+  'ROAD',
+  'INFLOW',
+  'E2E_合并前正式样本_齐齐哈尔',
+  '验收填报员甲',
+  'APPROVED',
+  0,
+  'e2e-operator-one',
+  'e2e-operator-one',
+  now(),
+  now(),
+  '230208',
+  '13800000000',
+  47.3,
+  123.2,
+  2026,
+  8,
+  'YEAR_MONTH',
+  'CONFIRMED',
+  'e2e00000-0000-0000-0000-000000000001'
+);
+
+INSERT INTO logistics.route_fact(event_id, fact_code, value, unit_code)
+VALUES
+  ('e2e00000-0000-0000-0000-000000000004', 'ROUTE_VOLUME', 10, 'TONNE'),
+  ('e2e00000-0000-0000-0000-000000000004', 'FREIGHT_RATE', 80, 'CNY_PER_TONNE');
+
+INSERT INTO production.regional_crop_annual_stat(
+  region_code, data_year, product_code, planted_area_mu, yield_per_mu_kg,
+  version, created_by, updated_by
+)
+VALUES
+  ('230208', 2026, 'CORN', 80000, 500, 0,
+    'e2e-operator-one', 'e2e-operator-one'),
+  ('230208', 2025, 'SOYBEAN', 60000, 400, 0,
+    'e2e-operator-one', 'e2e-operator-one'),
+  ('230208', 2026, 'SOYBEAN', 70000, 450, 0,
+    'e2e-operator-one', 'e2e-operator-one'),
+  ('230208', 2025, 'RICE', 50000, 550, 0,
+    'e2e-operator-one', 'e2e-operator-one'),
+  ('230208', 2026, 'RICE', 55000, 560, 0,
+    'e2e-operator-one', 'e2e-operator-one');
+
+INSERT INTO production.supply_demand_balance(
+  region_code, survey_year, product_code, manual_values, notes, version,
+  created_by, updated_by
+)
+VALUES
+  ('230208', 2026, 'CORN',
+    '{"OPENING_INVENTORY":10,"RESERVE_AUCTION_SALES":1,"EXTERNAL_INFLOW":2,"IMPORTS":3,"DEEP_PROCESSING":4,"FEED_USE":5,"FOOD_SEED_LOSS":6,"RESERVE_AUCTION_BUYS":7,"RAIL_OUTFLOW":8,"ROAD_OUTFLOW":9,"RESERVE_PURCHASE":10}'::jsonb,
+    '{"OPENING_INVENTORY":"E2E_合并前玉米供需基线"}'::jsonb,
+    0, 'e2e-operator-one', 'e2e-operator-one'),
+  ('230208', 2026, 'SOYBEAN',
+    '{"OPENING_INVENTORY":20,"IMPORTS":1,"INFLOW":2,"FOOD_USE":3,"CRUSH_USE":4,"PROTEIN_PROCESSING":5,"POLICY_RESERVE":6,"RAIL_OUTFLOW":7,"ROAD_OUTFLOW":8}'::jsonb,
+    '{"OPENING_INVENTORY":"E2E_低权限拒绝基线"}'::jsonb,
+    0, 'e2e-operator-one', 'e2e-operator-one'),
+  ('230208', 2025, 'RICE',
+    '{"OPENING_INVENTORY":30,"FOOD_USE":2,"OTHER_USE":3,"POLICY_RESERVE":4,"RAIL_OUTFLOW":5,"ROAD_OUTFLOW":6}'::jsonb,
+    '{"OPENING_INVENTORY":"E2E_延迟旧范围供需"}'::jsonb,
+    0, 'e2e-operator-one', 'e2e-operator-one'),
+  ('230208', 2026, 'RICE',
+    '{"OPENING_INVENTORY":40,"FOOD_USE":3,"OTHER_USE":4,"POLICY_RESERVE":5,"RAIL_OUTFLOW":6,"ROAD_OUTFLOW":7}'::jsonb,
+    '{"OPENING_INVENTORY":"E2E_延迟新范围供需"}'::jsonb,
+    0, 'e2e-operator-one', 'e2e-operator-one');
+
 COMMIT;

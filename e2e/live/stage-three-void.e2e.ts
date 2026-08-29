@@ -2,6 +2,8 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, queryE2eDatabase, test } from "./fixtures";
 
 const namespace = "S3C-20260812-";
+const sampleLatitude = "47.37";
+const sampleLongitude = "123.27";
 const validPng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
@@ -19,8 +21,8 @@ async function uploadEvidence(
         buffer: validPng,
       },
       capturedAt: "2026-08-12T01:00:00Z",
-      latitude: "47.3543",
-      longitude: "123.9182",
+      latitude: sampleLatitude,
+      longitude: sampleLongitude,
       watermarkText: `${namespace}${marker}`,
     },
   });
@@ -37,9 +39,10 @@ async function createDrafts(request: APIRequestContext) {
     data: {
       productCode: "RICE",
       objectTypeCode: "FARMER",
-      regionCode: "230208101001",
+      regionCode: "230208",
       cultivarCode: null,
-      surveyDate: "2026-08-12",
+      surveyYear: "2026",
+      surveyMonth: "8",
       cultivatedAreaMu: "10",
       yieldPerMuKilograms: "500",
       quality: { MILLING_YIELD: "68" },
@@ -48,11 +51,10 @@ async function createDrafts(request: APIRequestContext) {
       subsidies: {},
       submissionMetadata: {
         PROD_REPORTER_NAME: "验收填报员甲",
-        PROD_REPORTER_PHONE: "13800000031",
         PROD_SAMPLE_NAME: `${namespace}VOID-RICE-PRODUCTION`,
         PROD_SAMPLE_CONTACT: "13900000031",
-        PROD_SAMPLE_LATITUDE: "47.3543",
-        PROD_SAMPLE_LONGITUDE: "123.9182",
+        PROD_SAMPLE_LATITUDE: sampleLatitude,
+        PROD_SAMPLE_LONGITUDE: sampleLongitude,
       },
       evidencePhotoIds: [productionEvidence],
     },
@@ -62,23 +64,22 @@ async function createDrafts(request: APIRequestContext) {
   const market = await request.post("/api/v1/market-records", {
     data: {
       productCode: "RICE",
+      surveyYear: "2026",
+      surveyMonth: "8",
       coreValues: {
         MKT_OBJECT_TYPE: "TRADER",
-        MKT_REGION: "230208101001",
+        MKT_REGION: "230208",
         MKT_TRADE_DATE: "2026-08-12",
         MKT_PURCHASE_BASE_PRICE: "2860",
         MKT_SALE_BASE_PRICE: "2920",
         MKT_CARRIAGE_BOARD_AMOUNT: "30",
         MKT_PACKAGING_FORM: "BULK",
-        MKT_PACKAGING_AMOUNT: "10",
         MKT_FREIGHT_AMOUNT: "60",
         MKT_REPORTER_NAME: "验收填报员甲",
-        MKT_REPORTER_PHONE: "13800000032",
-        MKT_SAMPLE_SUBJECT_CODE: `${namespace}VOID-MARKET-SUBJECT`,
         MKT_SAMPLE_NAME: `${namespace}VOID-RICE-MARKET`,
         MKT_SAMPLE_CONTACT: "13900000032",
-        MKT_SAMPLE_LATITUDE: "47.3543",
-        MKT_SAMPLE_LONGITUDE: "123.9182",
+        MKT_SAMPLE_LATITUDE: sampleLatitude,
+        MKT_SAMPLE_LONGITUDE: sampleLongitude,
       },
       facts: { PURCHASE_VOLUME: "12", MILLING_YIELD: "68" },
       evidencePhotoIds: [marketEvidence],
@@ -90,16 +91,18 @@ async function createDrafts(request: APIRequestContext) {
     data: {
       productCode: "RICE",
       values: {
-        LOG_PERIOD: "2026-W32",
-        LOG_COLLECTION_DATE: "2026-08-12",
-        LOG_ORIGIN: "E2E_QQ_RAIL",
-        LOG_DESTINATION: "E2E_QQ_ROAD",
+        surveyYear: "2026",
+        surveyMonth: "8",
+        LOG_SAMPLE_NAME: `${namespace}VOID-RICE-LOGISTICS`,
+        LOG_REGION: "230208",
+        LOG_SAMPLE_CONTACT: "13900000033",
+        LOG_SAMPLE_LATITUDE: sampleLatitude,
+        LOG_SAMPLE_LONGITUDE: sampleLongitude,
         LOG_TRANSPORT_MODE: "RAIL",
         LOG_DIRECTION: "INFLOW",
         LOG_ROUTE_VOLUME: "33.5",
         LOG_FREIGHT_RATE: "86.25",
-        LOG_TRANSIT_TIME: "4.5",
-        LOG_SOURCE_ORGANIZATION: `${namespace}VOID-RICE-LOGISTICS`,
+        LOG_BOARD_PRICE: "2650",
       },
     },
   });

@@ -423,10 +423,6 @@ export function marketPayloadFromValues(
     values,
     businessCodes.filter((code) => !coreCodes.has(code)),
   );
-  if (facts.ENDING_INVENTORY && coreValues.MKT_REGION) {
-    coreValues.MKT_STORAGE_REGION_CODE =
-      values.MKT_STORAGE_REGION_CODE?.trim() || coreValues.MKT_REGION;
-  }
   if (!coreValues.MKT_TRADE_DATE && surveyYear) {
     coreValues.MKT_TRADE_DATE = `${surveyYear}-${(surveyMonth || "1").padStart(2, "0")}-01`;
   }

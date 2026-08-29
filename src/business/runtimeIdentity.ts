@@ -11,7 +11,7 @@ export const apiPendingShellIdentity: FormalShellIdentity = {
   account: {
     displayName: "已认证用户",
     menuItems: [],
-    roleLabel: "当前岗位",
+    roleLabel: "当前角色",
     responsibilityLabel: "按当前账号权限展示",
   },
 };

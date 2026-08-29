@@ -39,30 +39,30 @@ export function fillDownloadedXlsx(
 
   const sheetPath = join(unpacked, "xl", "worksheets", "sheet1.xml");
   const xml = readFileSync(sheetPath, "utf8");
-  const headerRow = /<row\b[^>]*\br="2"[^>]*>([\s\S]*?)<\/row>/u.exec(xml)?.[1];
+  const headerRow = /<row\b[^>]*\br="1"[^>]*>([\s\S]*?)<\/row>/u.exec(xml)?.[1];
   if (!headerRow)
-    throw new Error("XLSX template is missing its field-code row");
+    throw new Error("XLSX template is missing its business-header row");
   const cells = [
     ...headerRow.matchAll(
-      /<c\b[^>]*\br="([A-Z]+)2"[^>]*>[\s\S]*?<t(?:\s[^>]*)?>([\s\S]*?)<\/t>[\s\S]*?<\/c>/gu,
+      /<c\b[^>]*\br="([A-Z]+)1"[^>]*>[\s\S]*?<t(?:\s[^>]*)?>([\s\S]*?)<\/t>[\s\S]*?<\/c>/gu,
     ),
   ];
   if (cells.length === 0)
-    throw new Error("XLSX template field-code row is empty");
+    throw new Error("XLSX template business-header row is empty");
   const headers = cells.map((cell) => decodeXml(cell[2] ?? ""));
   const dataCells = cells
     .map((cell, index) => {
       const column = cell[1] ?? "";
       const value = values[headers[index] ?? ""] ?? "";
-      return `<c r="${column}3" t="inlineStr" s="0"><is><t xml:space="preserve">${encodeXml(value)}</t></is></c>`;
+      return `<c r="${column}2" t="inlineStr" s="0"><is><t xml:space="preserve">${encodeXml(value)}</t></is></c>`;
     })
     .join("");
-  const row = `<row r="3">${dataCells}</row>`;
+  const row = `<row r="2">${dataCells}</row>`;
   const filled = xml
     .replace("</sheetData>", `${row}</sheetData>`)
     .replace(
-      /(<dimension\b[^>]*\bref="[A-Z]+1:[A-Z]+)2("[^>]*\/>)/u,
-      (_match, prefix: string, suffix: string) => `${prefix}3${suffix}`,
+      /(<dimension\b[^>]*\bref="[A-Z]+1:[A-Z]+)1("[^>]*\/>)/u,
+      (_match, prefix: string, suffix: string) => `${prefix}2${suffix}`,
     );
   writeFileSync(sheetPath, filled, "utf8");
   execFileSync("zip", ["-q", "-r", output, "."], { cwd: unpacked });

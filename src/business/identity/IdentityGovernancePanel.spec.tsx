@@ -10,8 +10,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   BusinessAuditQuery,
   CurrentSession,
+  EmployeeProfile,
+  IdentityAssignmentOptions,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { IdentityGovernancePanel } from "./IdentityGovernancePanel";
 
 afterEach(cleanup);
@@ -37,7 +40,7 @@ const session: CurrentSession = {
 };
 
 function repository() {
-  const employee = {
+  const employee: EmployeeProfile = {
     subjectId: "employee-1",
     displayName: "张敏",
     workUnitCode: "QIQIHAR_BUSINESS",
@@ -52,9 +55,9 @@ function repository() {
         primaryPosition: true,
       },
     ],
-    regionCodes: ["230202"],
+    regionCodes: ["230202001"],
     version: 3,
-  } as const;
+  };
   const review = {
     reviewId: "review-1",
     name: "三季度权限复核",
@@ -65,9 +68,18 @@ function repository() {
     createdAt: "2026-08-10T00:00:00Z",
     items: [
       {
+        subjectId: "identity-admin",
+        grantType: "ROLE" as const,
+        grantKey: "BUSINESS_REVIEWER",
+        decisionCode: "PENDING" as const,
+        decidedBy: null,
+        decidedAt: null,
+        reason: null,
+      },
+      {
         subjectId: "employee-1",
         grantType: "REGION" as const,
-        grantKey: "230202",
+        grantKey: "230202001",
         decisionCode: "PENDING" as const,
         decidedBy: null,
         decidedAt: null,
@@ -76,18 +88,58 @@ function repository() {
     ],
   };
   const api = {
-    listEmployees: vi.fn(() => Promise.resolve([employee])),
-    loadAssignmentOptions: vi.fn(() =>
+    loadMasterData: vi.fn(() =>
       Promise.resolve({
+        products: [],
+        periods: [],
+        approvedSurveyYears: [2026],
+        regions: [
+          {
+            code: "230200",
+            name: "齐齐哈尔市",
+            parentCode: null,
+            level: "PREFECTURE",
+          },
+          {
+            code: "230202",
+            name: "龙沙区",
+            parentCode: "230200",
+            level: "COUNTY",
+          },
+          {
+            code: "230208",
+            name: "梅里斯达区",
+            parentCode: "230200",
+            level: "COUNTY",
+          },
+          {
+            code: "230202001",
+            name: "测试乡镇",
+            parentCode: "230202",
+            level: "TOWNSHIP",
+          },
+          {
+            code: "230208001",
+            name: "测试乡镇二",
+            parentCode: "230208",
+            level: "TOWNSHIP",
+          },
+        ],
+      }),
+    ),
+    listEmployees: vi.fn(() => Promise.resolve([employee])),
+    loadAssignmentOptions: vi.fn((_workUnitCode?: string) => {
+      void _workUnitCode;
+      return Promise.resolve<IdentityAssignmentOptions>({
         workUnits: [{ code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" }],
         roles: [
           { code: "BUSINESS_OPERATOR", name: "填报员" },
           { code: "BUSINESS_REVIEWER", name: "管理员" },
         ],
         positions: [{ code: "REGIONAL_REPORTER", name: "区域填报专员" }],
-        regionCodes: ["230202", "230208"],
-      }),
-    ),
+        regionCodes: ["230202001", "230208001"],
+      });
+    }),
     inviteEmployee: vi.fn(() => Promise.resolve(employee)),
     updateEmployee: vi.fn(() =>
       Promise.resolve({ ...employee, accountStatus: "SUSPENDED", version: 4 }),
@@ -125,10 +177,22 @@ function repository() {
             occurredAt: "2026-08-10T01:02:03Z",
             detailJson: "{}",
           },
+          {
+            eventId: "audit-local-runtime",
+            aggregateType: "BUSINESS_RECORD",
+            aggregateId: "LOCAL_DEV",
+            actionCode: "BUSINESS_RECORD_UPDATED",
+            actorSubjectId: "identity-admin",
+            actorDisplayName: "李主任",
+            workUnitCode: "QIQIHAR_BUSINESS",
+            workUnitName: "齐齐哈尔经营部",
+            occurredAt: "2026-08-10T01:03:03Z",
+            detailJson: "{}",
+          },
         ],
         pageNumber: 0,
         pageSize: 50,
-        totalElements: 1,
+        totalElements: 2,
         totalPages: 1,
       });
     }),
@@ -156,8 +220,9 @@ describe("IdentityGovernancePanel", () => {
     expect(
       within(unit).getByRole("heading", { name: "齐齐哈尔经营部" }),
     ).toBeVisible();
-    expect(within(unit).getByText("单位负责人")).toBeVisible();
-    expect(within(unit).getByText("230200")).toBeVisible();
+    expect(within(unit).queryByText("单位负责人")).not.toBeInTheDocument();
+    expect(await within(unit).findByText("齐齐哈尔市")).toBeVisible();
+    expect(within(unit).queryByText("230200")).not.toBeInTheDocument();
     expect(within(unit).getByText("李主任")).toBeVisible();
 
     await user.click(
@@ -170,7 +235,7 @@ describe("IdentityGovernancePanel", () => {
     expect(await screen.findByText("张敏")).toBeVisible();
   });
 
-  it("shows the authenticated account, position, organization and responsibility scope", () => {
+  it("shows the authenticated account, organization and responsibility scope without obsolete positions", async () => {
     render(
       <IdentityGovernancePanel
         initialView="profile"
@@ -180,18 +245,55 @@ describe("IdentityGovernancePanel", () => {
       />,
     );
 
-    const dialog = screen.getByRole("dialog", { name: "账号与权限" });
-    expect(within(dialog).getByText("李主任")).toBeVisible();
-    expect(within(dialog).getByText("员工账号 identity-admin")).toBeVisible();
-    expect(within(dialog).getByText("齐齐哈尔经营部")).toBeVisible();
-    expect(within(dialog).getByText("单位编码 QIQIHAR_BUSINESS")).toBeVisible();
-    expect(within(dialog).getAllByText("单位负责人")).toHaveLength(2);
-    expect(within(dialog).getByText("230200")).toBeVisible();
-    expect(within(dialog).getByText("在职 · 账号正常")).toBeVisible();
+    const dialog = screen.getByRole("dialog", { name: "账号与授权" });
+    expect(
+      within(dialog).getByRole("status", { name: "账号状态摘要" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("heading", { name: "身份与任职" }),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("heading", { name: "权限与责任范围" }),
+    ).toBeVisible();
+    expect(within(dialog).getAllByText("李主任")).toHaveLength(2);
+    expect(within(dialog).getAllByText("齐齐哈尔经营部")).toHaveLength(2);
+    expect(within(dialog).queryByText("单位负责人")).not.toBeInTheDocument();
+    expect(await within(dialog).findByText("齐齐哈尔市")).toBeVisible();
+    expect(
+      within(dialog).queryByText("员工账号 identity-admin"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByText("单位编码 QIQIHAR_BUSINESS"),
+    ).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("230200")).not.toBeInTheDocument();
+    expect(within(dialog).getAllByText("在职 · 账号正常")).toHaveLength(2);
     expect(within(dialog).getByText("管理员")).toBeVisible();
     expect(
       within(dialog).queryByText("IDENTITY_ADMIN"),
     ).not.toBeInTheDocument();
+  });
+
+  it("uses a row-based account summary and named responsibility regions", async () => {
+    render(
+      <IdentityGovernancePanel
+        initialView="profile"
+        onClose={vi.fn()}
+        repository={repository() as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "账号与授权" });
+    const summary = within(dialog).getByLabelText("账号资料");
+    expect(summary.tagName).toBe("DL");
+    expect(summary).toHaveAttribute("data-layout", "property-table");
+    expect(within(dialog).getByLabelText("权限资料")).toHaveAttribute(
+      "data-layout",
+      "property-table",
+    );
+    expect(summary.querySelector("article")).toBeNull();
+    expect(await screen.findByText("齐齐哈尔市")).toBeVisible();
+    expect(screen.queryByText("齐齐哈尔市（230200）")).not.toBeInTheDocument();
   });
 
   it("links account security and posts logout with the server CSRF token", () => {
@@ -232,20 +334,26 @@ describe("IdentityGovernancePanel", () => {
     );
 
     await screen.findByText("张敏");
+    expect(screen.getByRole("table", { name: "员工授权清单" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "邀请员工" }));
     await user.type(screen.getByLabelText("员工账号"), "employee-88");
     await user.type(screen.getByLabelText("员工姓名"), "赵蕾");
     expect(screen.getAllByRole("radio")).toHaveLength(2);
+    expect(
+      screen.queryByRole("group", { name: "岗位" }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: "填报员" }));
-    await user.click(screen.getByRole("checkbox", { name: "区域填报专员" }));
-    await user.click(screen.getByRole("checkbox", { name: "责任地区 230202" }));
+    await user.click(
+      screen.getByRole("checkbox", { name: "责任地区 230202001" }),
+    );
     await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
     await waitFor(() =>
       expect(api.inviteEmployee).toHaveBeenCalledWith(
         expect.objectContaining({
           subjectId: "employee-88",
           workUnitCode: "QIQIHAR_BUSINESS",
-          regionCodes: ["230202"],
+          positionCodes: [],
+          regionCodes: ["230202001"],
         }),
       ),
     );
@@ -258,6 +366,210 @@ describe("IdentityGovernancePanel", () => {
         "employee-1",
         expect.objectContaining({ version: 3, accountStatus: "SUSPENDED" }),
       ),
+    );
+  });
+
+  it("reloads the selected work unit responsibility townships", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    let resolveNehe: (options: IdentityAssignmentOptions) => void = () => {};
+    const neheOptions = new Promise<IdentityAssignmentOptions>((resolve) => {
+      resolveNehe = resolve;
+    });
+    api.loadAssignmentOptions.mockImplementation((workUnitCode?: string) => {
+      const options = {
+        workUnits: [
+          { code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" },
+          { code: "NEHE_DEPOT", name: "讷河库" },
+        ],
+        roles: [
+          { code: "BUSINESS_OPERATOR", name: "填报员" },
+          { code: "BUSINESS_REVIEWER", name: "管理员" },
+        ],
+        positions: [],
+        regionCodes:
+          workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+      };
+      return workUnitCode === "NEHE_DEPOT"
+        ? neheOptions
+        : Promise.resolve(options);
+    });
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "邀请员工" }));
+    await user.selectOptions(screen.getByLabelText("工作单位"), "NEHE_DEPOT");
+
+    expect(
+      screen.queryByRole("checkbox", { name: "责任地区 230202001" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("正在读取该单位的责任乡镇…")).toBeVisible();
+    resolveNehe({
+      workUnits: [
+        { code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" },
+        { code: "NEHE_DEPOT", name: "讷河库" },
+      ],
+      roles: [
+        { code: "BUSINESS_OPERATOR", name: "填报员" },
+        { code: "BUSINESS_REVIEWER", name: "管理员" },
+      ],
+      positions: [],
+      regionCodes: ["230281101"],
+    });
+    expect(
+      await screen.findByRole("checkbox", { name: "责任地区 230281101" }),
+    ).toBeVisible();
+    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith("NEHE_DEPOT");
+  });
+
+  it("loads an existing employee's own work unit before editing responsibility townships", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    const [employee] = await api.listEmployees();
+    api.listEmployees.mockResolvedValue([
+      {
+        ...employee,
+        workUnitCode: "NEHE_DEPOT",
+        workUnitName: "讷河库",
+        regionCodes: ["230281101"],
+      },
+    ]);
+    api.loadAssignmentOptions.mockImplementation((workUnitCode?: string) =>
+      Promise.resolve({
+        workUnits: [
+          { code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" },
+          { code: "NEHE_DEPOT", name: "讷河库" },
+        ],
+        roles: [
+          { code: "BUSINESS_OPERATOR", name: "填报员" },
+          { code: "BUSINESS_REVIEWER", name: "管理员" },
+        ],
+        positions: [],
+        regionCodes:
+          workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+      }),
+    );
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "管理张敏的授权" }),
+    );
+
+    expect(
+      await screen.findByRole("checkbox", { name: "责任地区 230281101" }),
+    ).toBeChecked();
+    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith("NEHE_DEPOT");
+  });
+
+  it("does not let a slow employee-list request overwrite the selected unit townships", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    const [employee] = await api.listEmployees();
+    let resolveEmployees: (employees: EmployeeProfile[]) => void = () => {};
+    api.listEmployees.mockReturnValue(
+      new Promise<EmployeeProfile[]>((resolve) => {
+        resolveEmployees = resolve;
+      }),
+    );
+    api.loadAssignmentOptions.mockImplementation((workUnitCode?: string) =>
+      Promise.resolve({
+        workUnits: [
+          { code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" },
+          { code: "NEHE_DEPOT", name: "讷河库" },
+        ],
+        roles: [
+          { code: "BUSINESS_OPERATOR", name: "填报员" },
+          { code: "BUSINESS_REVIEWER", name: "管理员" },
+        ],
+        positions: [],
+        regionCodes:
+          workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+      }),
+    );
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "邀请员工" }));
+    await screen.findByRole("option", { name: "讷河库" });
+    await user.selectOptions(screen.getByLabelText("工作单位"), "NEHE_DEPOT");
+    expect(
+      await screen.findByRole("checkbox", { name: "责任地区 230281101" }),
+    ).toBeVisible();
+
+    resolveEmployees([employee]);
+    await waitFor(() => expect(api.listEmployees).toHaveBeenCalledTimes(2));
+    expect(
+      screen.getByRole("checkbox", { name: "责任地区 230281101" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("checkbox", { name: "责任地区 230202001" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes an employee editor before leaving and reloading the employee view", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    api.loadAssignmentOptions.mockImplementation((workUnitCode?: string) =>
+      Promise.resolve({
+        workUnits: [
+          { code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" },
+          { code: "NEHE_DEPOT", name: "讷河库" },
+        ],
+        roles: [
+          { code: "BUSINESS_OPERATOR", name: "填报员" },
+          { code: "BUSINESS_REVIEWER", name: "管理员" },
+        ],
+        positions: [],
+        regionCodes:
+          workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+      }),
+    );
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "邀请员工" }));
+    await user.selectOptions(screen.getByLabelText("工作单位"), "NEHE_DEPOT");
+    expect(
+      await screen.findByRole("checkbox", { name: "责任地区 230281101" }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "我的账号" }));
+    expect(
+      screen.queryByRole("button", { name: "发送入职邀请" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "员工与授权" }));
+
+    expect(await screen.findByText("张敏")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "发送入职邀请" }),
+    ).not.toBeInTheDocument();
+    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith(
+      "QIQIHAR_BUSINESS",
     );
   });
 
@@ -276,13 +588,14 @@ describe("IdentityGovernancePanel", () => {
     await screen.findByText("三季度权限复核");
     await user.click(screen.getByRole("button", { name: "处理复核" }));
     await user.selectOptions(
-      screen.getByLabelText("230202 的复核结论"),
+      screen.getByLabelText("230202001 的复核结论"),
       "RETAIN",
     );
     await user.type(
-      screen.getByLabelText("230202 的复核说明"),
+      screen.getByLabelText("230202001 的复核说明"),
       "责任区域继续有效",
     );
+    expect(screen.getByText("本人权限由其他管理员复核")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "提交复核结论" }));
 
     await waitFor(() =>
@@ -294,6 +607,96 @@ describe("IdentityGovernancePanel", () => {
       ]),
     );
     expect(await screen.findByText("复核已完成")).toBeVisible();
+  });
+
+  it("normalizes legacy broad region grants to the assignable township anchors", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    const [employee] = await api.listEmployees();
+    api.listEmployees.mockResolvedValue([
+      {
+        ...employee,
+        regionCodes: ["230200", "230208", "230208001", "230208001001"],
+      },
+    ]);
+    api.loadAssignmentOptions.mockResolvedValue({
+      ...(await api.loadAssignmentOptions()),
+      regionCodes: ["230208001"],
+    });
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "管理张敏的授权" }),
+    );
+    await user.click(screen.getByRole("button", { name: "保存授权调整" }));
+
+    await waitFor(() =>
+      expect(api.updateEmployee).toHaveBeenCalledWith(
+        "employee-1",
+        expect.objectContaining({ regionCodes: ["230208001"] }),
+      ),
+    );
+  });
+
+  it("does not offer self administration from the employee list", async () => {
+    const api = repository();
+    const [employee] = await api.listEmployees();
+    api.listEmployees.mockResolvedValue([
+      {
+        ...employee,
+        subjectId: session.subjectId,
+        displayName: session.displayName,
+      },
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    expect(await screen.findByText("本人账号")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "管理李主任的授权" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the safe business error returned by the authorization service", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    api.updateEmployee.mockRejectedValue(
+      new RealtimeApiError({
+        code: "IDENTITY_VERSION_CONFLICT",
+        message: "该员工授权已被其他管理员更新，请刷新后重试",
+        status: 409,
+      }),
+    );
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "管理张敏的授权" }),
+    );
+    await user.click(screen.getByRole("button", { name: "保存授权调整" }));
+
+    expect(
+      await screen.findByText("该员工授权已被其他管理员更新，请刷新后重试"),
+    ).toBeVisible();
   });
 
   it("lets authorized administrators filter and trace immutable business audit events", async () => {
@@ -310,9 +713,9 @@ describe("IdentityGovernancePanel", () => {
 
     expect(await screen.findByText("调整员工账号")).toBeVisible();
     expect(screen.getByText("业务编号 employee-1")).toBeVisible();
-    expect(
-      screen.getByText("齐齐哈尔经营部（QIQIHAR_BUSINESS）"),
-    ).toBeVisible();
+    expect(screen.queryByText(/LOCAL_DEV/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("齐齐哈尔经营部")).toHaveLength(2);
+    expect(screen.queryByText(/QIQIHAR_BUSINESS/)).not.toBeInTheDocument();
     await user.selectOptions(
       screen.getByLabelText("审计业务对象"),
       "SECURITY_USER",

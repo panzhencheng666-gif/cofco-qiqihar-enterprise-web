@@ -69,41 +69,70 @@ export const canonicalEnterpriseEntryPlugin: Plugin = {
   },
 };
 
-function actorFromCookie(cookieHeader: string | undefined): string {
+function actorFromCookie(cookieHeader: string | undefined): string | undefined {
   const actor = cookieHeader
     ?.split(";")
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${localActorCookieName}=`))
     ?.slice(localActorCookieName.length + 1);
+  if (actor === "logged-out") return undefined;
   return actor && localActorPattern.test(actor) ? actor : localAcceptanceActor;
 }
 
 export const localIdentitySwitchPlugin: Plugin = {
   name: "cofco-local-identity-switch",
   configureServer(server) {
-    server.middlewares.use((request, response, next) => {
-      const url = new URL(request.url ?? "/", "http://127.0.0.1");
-      const actor = url.searchParams.get("__local_actor");
-      if (actor === null) {
-        next();
-        return;
-      }
-      if (!localActorPattern.test(actor)) {
-        response.statusCode = 400;
-        response.end();
-        return;
-      }
-      url.searchParams.delete("__local_actor");
-      response.statusCode = 302;
-      response.setHeader(
-        "Set-Cookie",
-        `${localActorCookieName}=${actor}; HttpOnly; SameSite=Strict; Path=/`,
-      );
-      response.setHeader("Location", `${url.pathname}${url.search}`);
-      response.end();
-    });
+    server.middlewares.use(handleLocalIdentitySwitch);
+  },
+  configurePreviewServer(server) {
+    server.middlewares.use(handleLocalIdentitySwitch);
   },
 };
+
+function localActorCookie(actor: string): string {
+  return `${localActorCookieName}=${actor}; HttpOnly; SameSite=Strict; Path=/`;
+}
+
+function handleLocalIdentitySwitch(
+  request: { method?: string; url?: string },
+  response: {
+    statusCode: number;
+    setHeader(name: string, value: string): void;
+    end(): void;
+  },
+  next: () => void,
+) {
+  const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  if (request.method === "POST" && url.pathname === "/api/v1/session/logout") {
+    response.statusCode = 303;
+    response.setHeader("Set-Cookie", localActorCookie("logged-out"));
+    response.setHeader("Location", "/");
+    response.end();
+    return;
+  }
+  if (request.method === "GET" && url.pathname === "/api/v1/session/login") {
+    response.statusCode = 302;
+    response.setHeader("Set-Cookie", localActorCookie(localAcceptanceActor));
+    response.setHeader("Location", "/");
+    response.end();
+    return;
+  }
+  const actor = url.searchParams.get("__local_actor");
+  if (actor === null) {
+    next();
+    return;
+  }
+  if (!localActorPattern.test(actor)) {
+    response.statusCode = 400;
+    response.end();
+    return;
+  }
+  url.searchParams.delete("__local_actor");
+  response.statusCode = 302;
+  response.setHeader("Set-Cookie", localActorCookie(actor));
+  response.setHeader("Location", `${url.pathname}${url.search}`);
+  response.end();
+}
 
 export const enterpriseApiProxy: ProxyOptions = {
   target: localLoopbackProxyTarget(
@@ -115,10 +144,8 @@ export const enterpriseApiProxy: ProxyOptions = {
   configure(proxy) {
     proxy.on("proxyReq", (proxyRequest, request) => {
       proxyRequest.removeHeader("x-actor");
-      proxyRequest.setHeader(
-        "X-Actor",
-        actorFromCookie(request.headers.cookie),
-      );
+      const actor = actorFromCookie(request.headers.cookie);
+      if (actor !== undefined) proxyRequest.setHeader("X-Actor", actor);
     });
   },
 };

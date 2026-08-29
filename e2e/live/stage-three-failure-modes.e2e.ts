@@ -10,6 +10,8 @@ import {
 import { fillDownloadedXlsx } from "./xlsx-fixture";
 
 const namespace = "S3C-20260812-FAILURE-";
+const sampleLatitude = "47.36";
+const sampleLongitude = "123.26";
 const validPng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
@@ -24,8 +26,8 @@ async function uploadEvidence(request: APIRequestContext): Promise<string> {
         buffer: validPng,
       },
       capturedAt: "2026-08-12T01:15:00Z",
-      latitude: "47.3543",
-      longitude: "123.9182",
+      latitude: sampleLatitude,
+      longitude: sampleLongitude,
       watermarkText: namespace,
     },
   });
@@ -94,9 +96,10 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
     data: {
       productCode: "CORN",
       objectTypeCode: "FARMER",
-      regionCode: "230208101001",
+      regionCode: "230208",
       cultivarCode: null,
-      surveyDate: "2026-08-12",
+      surveyYear: "2026",
+      surveyMonth: "8",
       cultivatedAreaMu: "1",
       yieldPerMuKilograms: "1",
       quality: { MOISTURE: "14" },
@@ -105,11 +108,10 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
       subsidies: {},
       submissionMetadata: {
         PROD_REPORTER_NAME: "验收填报员甲",
-        PROD_REPORTER_PHONE: "13800000041",
         PROD_SAMPLE_NAME: `${namespace}REGION-DENIAL`,
         PROD_SAMPLE_CONTACT: "13900000041",
-        PROD_SAMPLE_LATITUDE: "47.3543",
-        PROD_SAMPLE_LONGITUDE: "123.9182",
+        PROD_SAMPLE_LATITUDE: sampleLatitude,
+        PROD_SAMPLE_LONGITUDE: sampleLongitude,
       },
       evidencePhotoIds: [evidencePhotoId],
     },
@@ -164,7 +166,7 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
   await page.goto("/#/产情监测/玉米产情填报");
   await page.getByRole("button", { name: "新建调查记录" }).click();
   const dialog = page.getByRole("dialog", { name: "新建产情填报" });
-  await dialog.getByRole("button", { name: "保存业务记录" }).click();
+  await dialog.getByRole("button", { name: "保存并提交审核" }).click();
   expect(await dialog.locator(":invalid").count()).toBeGreaterThan(0);
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "关闭新建产情填报" }).click();
@@ -176,16 +178,16 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
   const templatePath = testInfo.outputPath("invalid-production-template.xlsx");
   await download.saveAs(templatePath);
   const invalidWorkbook = fillDownloadedXlsx(templatePath, {
-    regionCode: "230208101001",
-    PROD_CULTIVAR_NAME: `${namespace}INVALID-XLSX`,
-    surveyDate: "2026-08-12",
-    cultivatedAreaMu: "NOT_A_NUMBER",
-    yieldPerMuKilograms: "520",
-    PROD_REPORTER_PHONE: "13800000042",
-    PROD_SAMPLE_CONTACT: "13900000042",
-    PROD_SAMPLE_LATITUDE: "47.3543",
-    PROD_SAMPLE_LONGITUDE: "123.9182",
-    evidencePhotoId,
+    样本点类型: "农户",
+    数据年份: "2026",
+    数据月份: "8",
+    样本点名称: `${namespace}INVALID-XLSX`,
+    地区: "齐齐哈尔市 / 梅里斯达斡尔族区",
+    样本点联系方式: "13900000042",
+    "纬度（度）": sampleLatitude,
+    "经度（度）": sampleLongitude,
+    "播种面积（亩）": "NOT_A_NUMBER",
+    "预计单产（公斤/亩）": "520",
   });
   const importResponsePromise = page.waitForResponse(
     (response) =>
@@ -196,9 +198,9 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
   const importResponse = await importResponsePromise;
   expect(importResponse.status()).toBe(201);
   const importJob = (await importResponse.json()) as { data: { id: string } };
-  await expect(page.getByText(/导入完成：成功 0 条，失败 1 条/u)).toBeVisible({
-    timeout: 15_000,
-  });
+  await expect(
+    page.getByText(/导入完成：0 行已处理，.*失败 1 行/u),
+  ).toBeVisible({ timeout: 15_000 });
   const errorDownloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "下载错误清单" }).click();
   const errorDownload = await errorDownloadEvent;

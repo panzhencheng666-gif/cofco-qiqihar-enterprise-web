@@ -7,7 +7,8 @@ import {
 } from "./fixtures";
 
 const marketObject = "E2E-20260809-大豆市场-音钦村贸易商";
-const cultivar = "E2E-黑农市场验收1号";
+const sampleLatitude = "47.33";
+const sampleLongitude = "123.23";
 const validPng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
@@ -71,9 +72,11 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   await page.getByRole("button", { name: "新建采集记录" }).click();
   const createDialog = page.getByRole("dialog", { name: "新建市场填报" });
   const form = createDialog.getByRole("region", { name: "市场采集" });
-  await expect(form.getByLabel("对象采购价格")).toBeVisible();
-  await expect(form.getByLabel("对象销售价格")).toBeVisible();
+  await expect(form.getByLabel("采集对象收购价格")).toBeVisible();
+  await expect(form.getByLabel("采集对象销售价格")).toBeVisible();
   await expect(form.getByLabel(/买卖方向/u)).toHaveCount(0);
+  await form.getByLabel("数据年份").selectOption("2026");
+  await form.getByLabel("数据月份").selectOption("8");
 
   const surveyRegion = form.getByRole("group", { name: "地区", exact: true });
   await surveyRegion
@@ -82,60 +85,43 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   await surveyRegion
     .getByRole("combobox", { name: "区县" })
     .selectOption("230208");
-  await surveyRegion
-    .getByRole("combobox", { name: "乡镇" })
-    .selectOption("230208101");
-  await surveyRegion
-    .getByRole("combobox", { name: "行政村" })
-    .selectOption("230208101001");
-  await form.getByLabel("交易日期").fill("2026-08-09");
-  await form.getByLabel("对象采购价格").fill("4380");
-  await form.getByLabel("对象销售价格").fill("4460");
+  await form.getByLabel("采集对象收购价格").fill("4380");
+  await form.getByLabel("采集对象销售价格").fill("4460");
   await form.getByLabel("车板组成").fill("25");
   await form.getByLabel("包装形态").selectOption("BULK");
-  await form.getByLabel("包装组成").fill("8");
   await form.getByLabel("运费组成").fill("62");
-  await form.getByLabel("填报人联系方式").fill("13800000001");
-  await form.getByLabel("填报对象/客户联系方式").fill("13900000011");
-  await form.getByLabel("样本点纬度").fill("47.3543");
-  await form.getByLabel("样本点经度").fill("123.9182");
-  await form.getByLabel("填报对象/客户名称").fill(marketObject);
-  await form.getByRole("textbox", { name: "具体品种" }).fill(cultivar);
+  await form.getByLabel("样本点联系方式").fill("13900000011");
+  await form.getByLabel("纬度").fill(sampleLatitude);
+  await form.getByLabel("经度").fill(sampleLongitude);
+  await form.getByLabel("样本点名称").fill(marketObject);
   await form.getByLabel("水分").fill("12.5");
   await form.getByLabel("杂质").fill("1.0");
   await form.getByLabel("蛋白").fill("38.5");
   await form.getByLabel("出油率").fill("19.0");
   await form.getByLabel("采购量").fill("120");
   await form.getByLabel("销售量").fill("65");
-  await form.getByLabel("期初库存").fill("300");
-  await form.getByLabel("出库量").fill("70");
-  await form.getByLabel("期末库存").fill("350");
-  await form.getByLabel("库存填报主体唯一标识").fill("e2e-trader-yinqin-1");
-  await form.getByLabel("库存权属").selectOption("OWNED");
-  const storageRegion = form.getByRole("group", { name: "库存存放地区" });
-  await storageRegion
-    .getByRole("combobox", { name: "地级市" })
-    .selectOption("230200");
-  await storageRegion
-    .getByRole("combobox", { name: "区县" })
-    .selectOption("230208");
-  await storageRegion
-    .getByRole("combobox", { name: "乡镇" })
-    .selectOption("230208101");
-  await storageRegion
-    .getByRole("combobox", { name: "行政村" })
-    .selectOption("230208101001");
-  await form.getByLabel("货主唯一标识").fill("e2e-trader-yinqin-1");
-  await form.getByLabel("库存统计截止日").fill("2026-08-09");
-  await form.getByLabel("库存政策属性").selectOption("COMMERCIAL");
+  await form.getByLabel("现有库存").fill("350");
   await form.getByLabel("现场水印照片").setInputFiles({
     name: "e2e-market-scene.png",
     mimeType: "image/png",
     buffer: validPng,
   });
-  await form.getByRole("button", { name: "保存业务记录" }).click();
+  const submitResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/market-records/submit") &&
+      response.request().method() === "POST",
+  );
+  await form.getByRole("button", { name: "保存并提交审核" }).click();
+  const submitResponse = await submitResponsePromise;
+  expect(submitResponse.status()).toBe(201);
+  const submitted = (await submitResponse.json()) as {
+    data: { id: string; status: string };
+  };
+  expect(submitted.data.status).toBe("PENDING_REVIEW");
+  const recordId = submitted.data.id;
+  expect(recordId).toMatch(/^[0-9a-f-]{36}$/u);
   await expect(createDialog).toHaveCount(0);
-  await expect(recordRow(page)).toBeVisible();
+  await expect(recordRow(page)).toHaveCount(0);
 
   const createdResponse = await request.get(
     "/api/v1/market-records?productCode=SOYBEAN&pageKind=MONITORING&pageNumber=0&pageSize=100",
@@ -144,33 +130,16 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   const createdList = (await createdResponse.json()) as {
     data: { items: Array<{ id: string; values: Record<string, string> }> };
   };
-  const recordId =
+  expect(
     createdList.data.items.find(
       ({ values }) => values["MKT_SAMPLE_NAME"] === marketObject,
-    )?.id ?? "";
-  expect(recordId).not.toBe("");
-
-  await recordRow(page).getByRole("button", { name: "查看" }).click();
-  const viewDialog = page.getByRole("dialog", { name: "市场记录详情" });
-  await expect(viewDialog).toBeVisible();
-  await expect(viewDialog.getByLabel("来源说明")).toBeDisabled();
-  await expect(
-    viewDialog.getByRole("button", { name: "保存业务记录" }),
-  ).toHaveCount(0);
-  await viewDialog.getByRole("button", { name: "关闭市场记录详情" }).click();
-
-  await page.goto("/#/我的工作/待我处理");
-  let operatorDialog = await openWorkItem(page, "继续市场填报", "补充市场填报");
-  await operatorDialog.getByRole("button", { name: "提交审核" }).click();
-  await expect(operatorDialog.locator("form > header strong")).toContainText(
-    "待审核",
-  );
-  await expect(
-    operatorDialog.getByRole("button", { name: "提交审核" }),
-  ).toHaveCount(0);
-  await operatorDialog
-    .getByRole("button", { name: "关闭补充市场填报" })
-    .click();
+    ),
+  ).toBeUndefined();
+  expect(
+    queryE2eDatabase(
+      `SELECT status_code FROM market.market_record WHERE record_id = '${recordId}'`,
+    ),
+  ).toBe("PENDING_REVIEW");
 
   await reviewerPage.goto(
     `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
@@ -180,7 +149,7 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
     "审核市场单据",
     "市场单据审核",
   );
-  await expect(reviewerDialog.getByLabel("来源说明")).toBeDisabled();
+  await expect(reviewerDialog.getByLabel("样本点名称")).toBeDisabled();
   await reviewerDialog.getByLabel("退回原因").fill("请补充采购量现场核验说明");
   await reviewerDialog.getByRole("button", { name: "退回补充" }).click();
   await expect(reviewerDialog).toHaveCount(0);
@@ -197,21 +166,20 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
       ),
     )
     .toBeGreaterThan(0);
-  operatorDialog = await openWorkItem(page, "补充市场填报", "补充市场填报");
-  await operatorDialog.getByLabel("来源说明").fill("已补充现场采购量台账核验");
-  await operatorDialog.getByRole("button", { name: "保存业务记录" }).click();
-  await expect(operatorDialog).toHaveCount(0);
-  operatorDialog = await openWorkItem(page, "补充市场填报", "补充市场填报");
-  await operatorDialog.getByRole("button", { name: "提交审核" }).click();
-  await expect(operatorDialog.locator("form > header strong")).toContainText(
-    "待审核",
+  await page.goto("/#/我的工作/待我处理");
+  const operatorDialog = await openWorkItem(
+    page,
+    "补充市场填报",
+    "补充市场填报",
   );
-  await expect(
-    operatorDialog.getByRole("button", { name: "提交审核" }),
-  ).toHaveCount(0);
-  await operatorDialog
-    .getByRole("button", { name: "关闭补充市场填报" })
-    .click();
+  await operatorDialog.getByLabel("采购量").fill("125");
+  await operatorDialog.getByRole("button", { name: "保存并提交审核" }).click();
+  await expect(operatorDialog).toHaveCount(0);
+  expect(
+    queryE2eDatabase(
+      `SELECT status_code FROM market.market_record WHERE record_id = '${recordId}'`,
+    ),
+  ).toBe("PENDING_REVIEW");
 
   reviewerDialog = await openWorkItem(
     reviewerPage,
@@ -242,12 +210,11 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
         MKT_PURCHASE_BASE_PRICE: "4380.0000",
         MKT_SALE_BASE_PRICE: "4460.0000",
         MKT_REPORTER_NAME: "验收填报员甲",
-        MKT_INVENTORY_HOLDER_CODE: "e2e-trader-yinqin-1",
-        MKT_INVENTORY_OWNERSHIP_TYPE: "OWNED",
-        MKT_STORAGE_REGION_CODE: "230208101001",
-        MKT_CARGO_OWNER_CODE: "e2e-trader-yinqin-1",
-        MKT_INVENTORY_CUTOFF_DATE: "2026-08-09",
-        MKT_INVENTORY_POLICY_ATTRIBUTE: "COMMERCIAL",
+        MKT_SAMPLE_NAME: marketObject,
+      },
+      facts: {
+        PURCHASE_VOLUME: "125.0000",
+        ENDING_INVENTORY: "350.0000",
       },
     },
   });

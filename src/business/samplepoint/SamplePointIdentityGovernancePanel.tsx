@@ -38,8 +38,10 @@ function isCoordinateSharingReview(item: SampleIdentityReviewItem): boolean {
 }
 
 export function SamplePointIdentityGovernancePanel({
+  mode = "all",
   repository,
 }: {
+  mode?: "all" | "manage" | "import-review" | "merge-review";
   repository: RealtimeBusinessRepository;
 }) {
   const [session, setSession] = useState<CurrentSession | null>(null);
@@ -62,15 +64,21 @@ export function SamplePointIdentityGovernancePanel({
       const canReview = activeSession.permissions.includes("BUSINESS_APPROVE");
       const canImport = activeSession.permissions.includes("BUSINESS_IMPORT");
       const [nextReviews, nextJobs, nextRequests] = await Promise.all([
-        canReview ? repository.listSampleIdentityReviews?.() : [],
-        canImport ? repository.listSampleIdentityMergeJobs?.() : [],
-        canReview ? repository.listSampleIdentityMergeRequests?.() : [],
+        canReview && (mode === "all" || mode === "import-review")
+          ? repository.listSampleIdentityReviews?.()
+          : [],
+        canImport && (mode === "all" || mode === "manage")
+          ? repository.listSampleIdentityMergeJobs?.()
+          : [],
+        canReview && (mode === "all" || mode === "merge-review")
+          ? repository.listSampleIdentityMergeRequests?.()
+          : [],
       ]);
       setReviews(nextReviews ?? []);
       setJobs(nextJobs ?? []);
       setMergeRequests(nextRequests ?? []);
     },
-    [repository],
+    [mode, repository],
   );
 
   useEffect(() => {
@@ -228,7 +236,7 @@ export function SamplePointIdentityGovernancePanel({
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
 
-      {canReview && (
+      {(mode === "all" || mode === "import-review") && canReview && (
         <div className="sample-coordinate-governance__section">
           <header>
             <div>
@@ -360,7 +368,7 @@ export function SamplePointIdentityGovernancePanel({
         </div>
       )}
 
-      {canImport && (
+      {(mode === "all" || mode === "manage") && canImport && (
         <div className="sample-coordinate-governance__section">
           <header>
             <div>
@@ -398,50 +406,56 @@ export function SamplePointIdentityGovernancePanel({
         </div>
       )}
 
-      <div className="sample-coordinate-governance__section">
-        <header>
-          <div>
-            <h3>身份治理任务历史</h3>
-            <p>刷新或重新登录后仍可查看服务端任务结果。</p>
-          </div>
-        </header>
-        {jobs.length === 0 ? (
-          <p className="sample-coordinate-governance__empty">
-            当前账号暂无历史身份治理任务。
-          </p>
-        ) : (
-          <div className="sample-coordinate-governance__table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>任务</th>
-                  <th>状态</th>
-                  <th>结果</th>
-                  <th>提交时间</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobs.map((job) => (
-                  <tr key={job.jobId}>
-                    <td>
-                      <strong>{job.jobId}</strong>
-                      <small>批次 {job.batchId}</small>
-                    </td>
-                    <td>{jobStatus(job.statusCode)}</td>
-                    <td>
-                      待审核 {job.pendingRequests} · 保持现状 {job.skippedRows}{" "}
-                      · 失败 {job.failedRows}
-                    </td>
-                    <td>{new Date(job.createdAt).toLocaleString("zh-CN")}</td>
+      {(mode === "all" || mode === "manage") && (
+        <div className="sample-coordinate-governance__section">
+          <header>
+            <div>
+              <h3>身份治理任务历史</h3>
+              <p>刷新或重新登录后仍可查看服务端任务结果。</p>
+            </div>
+          </header>
+          {jobs.length === 0 ? (
+            <p className="sample-coordinate-governance__empty">
+              当前账号暂无历史身份治理任务。
+            </p>
+          ) : (
+            <div className="sample-coordinate-governance__table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>任务</th>
+                    <th>状态</th>
+                    <th>结果</th>
+                    <th>提交时间</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {jobs.map((job) => (
+                    <tr key={job.jobId}>
+                      <td>
+                        <strong>历史重复身份治理</strong>
+                        <small>
+                          {job.pendingRequests > 0
+                            ? "待复核治理申请"
+                            : "已处理治理任务"}
+                        </small>
+                      </td>
+                      <td>{jobStatus(job.statusCode)}</td>
+                      <td>
+                        待审核 {job.pendingRequests} · 保持现状{" "}
+                        {job.skippedRows} · 失败 {job.failedRows}
+                      </td>
+                      <td>{new Date(job.createdAt).toLocaleString("zh-CN")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-      {canReview && (
+      {(mode === "all" || mode === "merge-review") && canReview && (
         <div className="sample-coordinate-governance__section">
           <header>
             <div>

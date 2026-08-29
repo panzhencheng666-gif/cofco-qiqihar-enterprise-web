@@ -14,6 +14,7 @@ import {
   type RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { ObservableAnalysisFilters } from "./ObservableAnalysisFilters";
+import { SampleNetworkCoverageStrip } from "./SampleNetworkCoverageStrip";
 import {
   AnalysisBarChart,
   AnalysisDashboardGrid,
@@ -108,15 +109,16 @@ export function ProductionAnalysisPanel({
 
   return (
     <div
-      className="enterprise-ledger-workbench observable-analysis-page"
+      className="enterprise-ledger-workbench observable-analysis-page analysis-workbench-page"
       data-dashboard="production"
     >
       <div className="enterprise-ledger-workbench__breadcrumb">
         产情监测 / 产情分析
       </div>
-      <div
+      <section
+        aria-label="产情分析范围"
         className="observable-analysis-dashboard__masthead"
-        data-layout="compact"
+        data-layout="linear-workbench"
       >
         <header className="enterprise-ledger-title observable-analysis-title">
           <div>
@@ -143,7 +145,18 @@ export function ProductionAnalysisPanel({
         ) : (
           <p>正在读取分析范围…</p>
         )}
-      </div>
+        <SampleNetworkCoverageStrip
+          productCode={query.productCode}
+          refreshKey={
+            snapshot
+              ? `${snapshot.analysisVersion}|${snapshot.generatedAt}`
+              : status
+          }
+          regionCode={query.regionCode}
+          repository={repository}
+          year={query.surveyYear}
+        />
+      </section>
       {masterError ? <p role="alert">{masterError}</p> : null}
       {error ? <p role="alert">{error.message}</p> : null}
       {status === "loading" && !snapshot ? <p>正在汇总核定产情数据…</p> : null}

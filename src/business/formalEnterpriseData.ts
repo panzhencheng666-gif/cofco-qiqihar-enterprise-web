@@ -274,6 +274,10 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           route: createFormalRoute("production", "rice-collection"),
           label: "稻谷产情填报",
         },
+        {
+          route: createFormalRoute("production", "regional-annual"),
+          label: "地区产情填报",
+        },
         { route: createFormalRoute("production", "tasks"), label: "产情任务" },
         {
           route: createFormalRoute("production", "objects"),

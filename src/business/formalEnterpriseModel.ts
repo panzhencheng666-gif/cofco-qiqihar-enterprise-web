@@ -22,6 +22,7 @@ export const formalSectionsByApplication = {
     "corn-collection",
     "soybean-collection",
     "rice-collection",
+    "regional-annual",
     "tasks",
     "objects",
     "review",
@@ -109,6 +110,7 @@ const formalBusinessRouteNames = {
   production: {
     application: "产情监测",
     sections: {
+      "regional-annual": "地区产情填报",
       "corn-collection": "玉米产情填报",
       "soybean-collection": "大豆产情填报",
       "rice-collection": "稻谷产情填报",

@@ -110,6 +110,120 @@ export interface AnnualComparisonDefinition {
   aggregationCode: "SUM" | "AVERAGE";
 }
 
+export type SampleNetworkStatus =
+  "DRAFT" | "IN_REVIEW" | "PUBLISHED" | "RETIRED";
+export type SampleNetworkMembershipStatus =
+  "CANDIDATE" | "ACTIVE" | "PAUSED" | "REMOVED";
+
+export interface AnnualSampleNetworkMembership {
+  samplePointId: string;
+  samplePointName: string;
+  samplePointKindCode: string;
+  locatedRegionCode: string;
+  locatedRegionName: string;
+  locatedRegionLevel: "PREFECTURE" | "COUNTY" | "TOWNSHIP" | "VILLAGE";
+  statusCode: SampleNetworkMembershipStatus;
+  sourceCode: "CARRIED_FORWARD" | "NEW" | "MANUAL";
+  decisionReason: string | null;
+  version: number;
+  longitude: number | null;
+  latitude: number | null;
+  locationState: string;
+}
+
+export interface AnnualSampleNetwork {
+  networkYear: number;
+  statusCode: SampleNetworkStatus;
+  carriedFromYear: number | null;
+  version: number;
+  createdBy: string;
+  createdAt: string;
+  submittedBy: string | null;
+  submittedAt: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewReason: string | null;
+  memberships: readonly AnnualSampleNetworkMembership[];
+}
+
+export interface SampleNetworkDesignPoint {
+  villageRegionCode: string;
+  villageName: string;
+  townshipRegionCode: string;
+  townshipName: string;
+  countyRegionCode: string;
+  countyName: string;
+  designLongitude: number;
+  designLatitude: number;
+  coordinateReviewStatus?: string | null;
+  coordinateSourceName?: string | null;
+  coordinateSourceRevision?: string | null;
+  coordinateMatchConfidence?: string | null;
+}
+
+export interface SampleNetworkActualPoint {
+  samplePointId: string;
+  samplePointName: string;
+  samplePointKindCode: string;
+  membershipStatusCode: SampleNetworkMembershipStatus;
+  locatedRegionCode: string;
+  locatedRegionName: string;
+  locatedRegionLevel: "PREFECTURE" | "COUNTY" | "TOWNSHIP" | "VILLAGE";
+  actualLongitude: number | null;
+  actualLatitude: number | null;
+  locationState: string;
+}
+
+export type SampleNetworkRelationType =
+  "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION" | "REGIONAL_ASSOCIATION";
+
+export interface SampleNetworkRelation {
+  samplePointId: string;
+  designVillageRegionCode: string;
+  relationType: SampleNetworkRelationType;
+  evidenceReference: string | null;
+  reviewStatus: string | null;
+  createdBy: string | null;
+  createdAt: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+}
+
+export interface SampleNetworkComparison {
+  networkYear: number;
+  networkStatus: SampleNetworkStatus | "NOT_CREATED";
+  designPointCount: number;
+  designCoordinateCount: number;
+  activeSamplePointCount: number;
+  approvedSubmissionSamplePointCount: number;
+  pendingVerificationDesignPointCount: number;
+  multipleActualPerDesignPointCount: number;
+  anomalyCount: number;
+  exactCoveredDesignPointCount: number;
+  representedDesignPointCount: number;
+  regionalAssociationDesignPointCount: number;
+  unrelatedDesignPointCount: number;
+  actualLevelCounts: {
+    prefecture: number;
+    county: number;
+    township: number;
+    village: number;
+  };
+  designPoints: readonly SampleNetworkDesignPoint[];
+  actualPoints: readonly SampleNetworkActualPoint[];
+  relations: readonly SampleNetworkRelation[];
+}
+
+export interface SampleNetworkMemberDecision {
+  designVillageRegionCode?: string;
+  relationType?: "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION";
+  evidenceReference?: string;
+  statusCode: SampleNetworkMembershipStatus;
+  sourceCode: "CARRIED_FORWARD" | "NEW" | "MANUAL";
+  reason: string;
+  version: number;
+}
+
 export interface ReportDefinition {
   code: string;
   name: string;
@@ -287,6 +401,7 @@ export interface BusinessNotificationRow {
   aggregateId: string;
   actionCode: string;
   productCode: string | null;
+  surveyYear?: number | null;
   regionCodes: readonly string[];
   occurredAt: string;
   read: boolean;
@@ -423,6 +538,57 @@ export interface ProductionDraftPayload {
   submissionMetadata: Record<string, string>;
   evidencePhotoIds: readonly string[];
   version?: number;
+}
+
+export type FormalSampleObservationDomain =
+  "PRODUCTION" | "MARKET" | "LOGISTICS";
+
+export interface EligibleFormalSample {
+  samplePointId: string;
+  sampleName: string;
+  objectTypeCode: string | null;
+  objectTypeName: string | null;
+  domain: FormalSampleObservationDomain;
+  productCode: string;
+  regionCode: string;
+  regionName: string;
+  latitude: string;
+  longitude: string;
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  latestObservationId: string;
+  latestObservedAt: string;
+  latestValues: Record<string, string>;
+}
+
+export interface FormalSampleObservationResult {
+  observationId: string;
+  samplePointId: string;
+  domain: FormalSampleObservationDomain;
+  productCode: string;
+  observedAt: string;
+  officialSavedAt: string;
+  projectionVersion: string;
+  synchronizedModules: readonly string[];
+  values: Record<string, string>;
+}
+
+export interface FormalSampleObservationHistoryItem {
+  observationId: string | null;
+  observedAt: string;
+  officialSavedAt: string;
+  actorDisplayName: string;
+  projectionVersion: string | null;
+  synchronizedModules: readonly string[];
+  values: Record<string, string>;
+  latest: boolean;
+}
+
+export interface FormalSampleObservationHistoryPage {
+  items: readonly FormalSampleObservationHistoryItem[];
+  totalElements: number;
+  pageNumber: number;
+  pageSize: number;
 }
 
 export interface EvidencePhotoRow {
@@ -1194,6 +1360,31 @@ export interface RealtimeBusinessRepository {
     surveyYear: number;
     indicatorCode: string;
   }): Promise<AnnualComparisonView>;
+  getSampleNetwork?(year: number): Promise<AnnualSampleNetwork>;
+  getSampleNetworkComparison?(
+    year: number,
+    regionCode?: string,
+    productCode?: string,
+  ): Promise<SampleNetworkComparison>;
+  generateSampleNetworkCandidates?(
+    year: number,
+    carriedFromYear?: number,
+  ): Promise<AnnualSampleNetwork>;
+  updateSampleNetworkMember?(
+    year: number,
+    samplePointId: string,
+    decision: SampleNetworkMemberDecision,
+  ): Promise<AnnualSampleNetwork>;
+  submitSampleNetwork?(
+    year: number,
+    version: number,
+  ): Promise<AnnualSampleNetwork>;
+  reviewSampleNetwork?(
+    year: number,
+    version: number,
+    decision: "APPROVE" | "RETURN",
+    reason: string,
+  ): Promise<AnnualSampleNetwork>;
   loadReportParameterOptions(): Promise<ReportParameterOptions>;
   createReportPreview(input: {
     definitionCode: string;
@@ -1222,6 +1413,33 @@ export interface RealtimeBusinessRepository {
     productCode: string,
     objectTypeCode?: string,
   ): Promise<ProductionDefinition>;
+  listEligibleFormalSamples?(input: {
+    domain: FormalSampleObservationDomain;
+    productCode: string;
+    regionCode?: string;
+    objectTypeCode?: string;
+    keyword?: string;
+    year: number;
+    observedAt: string;
+  }): Promise<readonly EligibleFormalSample[]>;
+  listFormalSampleObservationHistory?(input: {
+    domain: FormalSampleObservationDomain;
+    samplePointId: string;
+    productCode: string;
+    year: number;
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<FormalSampleObservationHistoryPage>;
+  saveFormalSampleObservation?(
+    input: {
+      domain: FormalSampleObservationDomain;
+      samplePointId: string;
+      productCode: string;
+      observedAt: string;
+      payload: unknown;
+    },
+    idempotencyKey: string,
+  ): Promise<FormalSampleObservationResult>;
   loadMarketDefinition(
     productCode: string,
     objectTypeCode?: string,
@@ -1249,7 +1467,14 @@ export interface RealtimeBusinessRepository {
   ): Promise<Page<BusinessRecordListItem>>;
   getProduction(id: string): Promise<ProductionRecordRow>;
   createProduction(draft: ProductionDraftPayload): Promise<ProductionRecordRow>;
+  createAndSubmitProduction(
+    draft: ProductionDraftPayload,
+  ): Promise<ProductionRecordRow>;
   updateProduction(
+    id: string,
+    draft: ProductionDraftPayload & { version: number },
+  ): Promise<ProductionRecordRow>;
+  updateAndSubmitProduction(
     id: string,
     draft: ProductionDraftPayload & { version: number },
   ): Promise<ProductionRecordRow>;
@@ -1264,7 +1489,12 @@ export interface RealtimeBusinessRepository {
   ): Promise<Page<BusinessRecordListItem>>;
   getMarket(id: string): Promise<MarketRecordRow>;
   createMarket(draft: MarketDraftPayload): Promise<MarketRecordRow>;
+  createAndSubmitMarket(draft: MarketDraftPayload): Promise<MarketRecordRow>;
   updateMarket(
+    id: string,
+    draft: MarketDraftPayload & { version: number },
+  ): Promise<MarketRecordRow>;
+  updateAndSubmitMarket(
     id: string,
     draft: MarketDraftPayload & { version: number },
   ): Promise<MarketRecordRow>;
@@ -1509,17 +1739,113 @@ export function createRealtimeBusinessRepository(
     options.eventSourceFactory ??
     ((url: string) => new EventSource(url, { withCredentials: true }));
   const productionDefinitionCache = new Map<string, ProductionDefinition>();
+  const productionDefinitionRequests = new Map<
+    string,
+    Promise<ProductionDefinition>
+  >();
+  const marketDefinitionCache = new Map<string, MarketDefinition>();
+  const marketDefinitionRequests = new Map<string, Promise<MarketDefinition>>();
+  const logisticsDefinitionCache = new Map<string, LogisticsDefinition>();
+  const logisticsDefinitionRequests = new Map<
+    string,
+    Promise<LogisticsDefinition>
+  >();
+  const observableSnapshotRequests = new Map<
+    string,
+    Promise<ObservableAnalysisSnapshot>
+  >();
+  function cachedDefinitionRead<T>(
+    cache: Map<string, T>,
+    requests: Map<string, Promise<T>>,
+    key: string,
+    read: () => Promise<T>,
+  ): Promise<T> {
+    const cached = cache.get(key);
+    if (cached) return Promise.resolve(cached);
+    const active = requests.get(key);
+    if (active) return active;
+    const request = read()
+      .then((value) => {
+        cache.set(key, value);
+        return value;
+      })
+      .finally(() => {
+        requests.delete(key);
+      });
+    requests.set(key, request);
+    return request;
+  }
   return {
-    loadObservableAnalysisSnapshot: async (input) =>
-      parseObservableAnalysisSnapshot(
-        await client.get<unknown>("/api/v1/observable-analysis/snapshots", {
-          productCode: input.productCode,
-          regionCode: input.regionCode,
-          surveyYear: input.surveyYear,
-          surveyMonth: input.surveyMonth,
-          cultivarCode: input.cultivarCode,
-          subjectTypeCode: input.subjectTypeCode,
-        }),
+    listEligibleFormalSamples: (input) =>
+      client.get<readonly EligibleFormalSample[]>(
+        "/api/v1/formal-sample-observations/eligible-samples",
+        input,
+      ),
+    listFormalSampleObservationHistory: (input) =>
+      client.get<FormalSampleObservationHistoryPage>(
+        "/api/v1/formal-sample-observations/observations",
+        input,
+      ),
+    saveFormalSampleObservation: (input, idempotencyKey) =>
+      client.post<FormalSampleObservationResult>(
+        "/api/v1/formal-sample-observations/observations",
+        input,
+        { headers: { "Idempotency-Key": idempotencyKey } },
+      ),
+    loadObservableAnalysisSnapshot: (input) => {
+      const query = {
+        productCode: input.productCode,
+        regionCode: input.regionCode,
+        surveyYear: input.surveyYear,
+        surveyMonth: input.surveyMonth,
+        cultivarCode: input.cultivarCode,
+        subjectTypeCode: input.subjectTypeCode,
+      };
+      const key = JSON.stringify(query);
+      const existing = observableSnapshotRequests.get(key);
+      if (existing) return existing;
+      const request = client
+        .get<unknown>("/api/v1/observable-analysis/snapshots", query)
+        .then(parseObservableAnalysisSnapshot);
+      observableSnapshotRequests.set(key, request);
+      const clear = () => {
+        if (observableSnapshotRequests.get(key) === request) {
+          observableSnapshotRequests.delete(key);
+        }
+      };
+      void request.then(clear, clear);
+      return request;
+    },
+    getSampleNetwork: (year) =>
+      client.get<AnnualSampleNetwork>(`/api/v1/sample-networks/${year}`),
+    getSampleNetworkComparison: (year, regionCode, productCode) =>
+      client.get<SampleNetworkComparison>(
+        `/api/v1/sample-networks/${year}/comparison`,
+        productCode || regionCode
+          ? {
+              ...(productCode ? { productCode } : {}),
+              ...(regionCode ? { regionCode } : {}),
+            }
+          : undefined,
+      ),
+    generateSampleNetworkCandidates: (year, carriedFromYear) =>
+      client.post<AnnualSampleNetwork>(`/api/v1/sample-networks/${year}`, {
+        carriedFromYear: carriedFromYear ?? null,
+      }),
+    updateSampleNetworkMember: (year, samplePointId, decision) =>
+      client.put<AnnualSampleNetwork>(
+        `/api/v1/sample-networks/${year}/members/${encodeURIComponent(samplePointId)}`,
+        decision,
+      ),
+    submitSampleNetwork: (year, version) =>
+      client.post<AnnualSampleNetwork>(
+        `/api/v1/sample-networks/${year}/submit`,
+        { version },
+      ),
+    reviewSampleNetwork: (year, version, decision, reason) =>
+      client.post<AnnualSampleNetwork>(
+        `/api/v1/sample-networks/${year}/review`,
+        { version, decision, reason },
       ),
     loadCurrentSession: () => client.get<CurrentSession>(enterpriseSessionPath),
     listEmployees: () =>
@@ -1681,30 +2007,35 @@ export function createRealtimeBusinessRepository(
         objectTypeCode,
         PRODUCTION_SURVEY_CONTRACT_DIGEST,
       );
-      const cached = productionDefinitionCache.get(expectedCacheKey);
-      if (cached) return cached;
-      const definition = parseProductionDefinition(
-        await client.get<unknown>("/api/v1/production-record-definitions", {
-          productCode,
-          objectTypeCode,
-          contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
-          contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
-        }),
-        { productCode, objectTypeCode },
+      return cachedDefinitionRead(
+        productionDefinitionCache,
+        productionDefinitionRequests,
+        expectedCacheKey,
+        async () =>
+          parseProductionDefinition(
+            await client.get<unknown>("/api/v1/production-record-definitions", {
+              productCode,
+              objectTypeCode,
+              contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
+              contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
+            }),
+            { productCode, objectTypeCode },
+          ),
       );
-      const cacheKey = productionDefinitionCacheKey(
-        definition.productCode,
-        definition.objectTypeCode,
-        definition.contractDigest,
-      );
-      productionDefinitionCache.set(cacheKey, definition);
-      return definition;
     },
-    loadMarketDefinition: (productCode, objectTypeCode) =>
-      client.get<MarketDefinition>("/api/v1/market-record-definitions", {
-        productCode,
-        objectTypeCode,
-      }),
+    loadMarketDefinition: (productCode, objectTypeCode) => {
+      const key = `${productCode}:${objectTypeCode ?? "ALL"}`;
+      return cachedDefinitionRead(
+        marketDefinitionCache,
+        marketDefinitionRequests,
+        key,
+        () =>
+          client.get<MarketDefinition>("/api/v1/market-record-definitions", {
+            productCode,
+            objectTypeCode,
+          }),
+      );
+    },
     listMarketObjects: () =>
       client.get<readonly MarketObjectRow[]>("/api/v1/market-objects"),
     createMarketObject: (input) =>
@@ -1741,9 +2072,19 @@ export function createRealtimeBusinessRepository(
       ),
     createProduction: (draft) =>
       client.post<ProductionRecordRow>("/api/v1/production-records", draft),
+    createAndSubmitProduction: (draft) =>
+      client.post<ProductionRecordRow>(
+        "/api/v1/production-records/submit",
+        draft,
+      ),
     updateProduction: (id, draft) =>
       client.put<ProductionRecordRow>(
         `/api/v1/production-records/${encodeURIComponent(id)}`,
+        draft,
+      ),
+    updateAndSubmitProduction: (id, draft) =>
+      client.put<ProductionRecordRow>(
+        `/api/v1/production-records/${encodeURIComponent(id)}/submit`,
         draft,
       ),
     transitionProduction: (id, action, version, reason) =>
@@ -1762,9 +2103,16 @@ export function createRealtimeBusinessRepository(
       ),
     createMarket: (draft) =>
       client.post<MarketRecordRow>("/api/v1/market-records", draft),
+    createAndSubmitMarket: (draft) =>
+      client.post<MarketRecordRow>("/api/v1/market-records/submit", draft),
     updateMarket: (id, draft) =>
       client.put<MarketRecordRow>(
         `/api/v1/market-records/${encodeURIComponent(id)}`,
+        draft,
+      ),
+    updateAndSubmitMarket: (id, draft) =>
+      client.put<MarketRecordRow>(
+        `/api/v1/market-records/${encodeURIComponent(id)}/submit`,
         draft,
       ),
     transitionMarket: (id, action, version, reason) =>
@@ -2018,9 +2366,16 @@ export function createRealtimeBusinessRepository(
         `/api/v1/import-drafts/jobs/${encodeURIComponent(importJobId)}/submit`,
       ),
     loadLogisticsDefinition: (productCode) =>
-      client.get<LogisticsDefinition>("/api/v1/logistics-record-definitions", {
+      cachedDefinitionRead(
+        logisticsDefinitionCache,
+        logisticsDefinitionRequests,
         productCode,
-      }),
+        () =>
+          client.get<LogisticsDefinition>(
+            "/api/v1/logistics-record-definitions",
+            { productCode },
+          ),
+      ),
     listLogistics: (input) =>
       client.get<Page<LogisticsRecordRow>>("/api/v1/logistics-records", {
         productCode: input.productCode,

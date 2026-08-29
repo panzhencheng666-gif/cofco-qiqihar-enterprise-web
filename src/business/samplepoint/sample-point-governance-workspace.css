@@ -1,0 +1,698 @@
+.sample-point-governance-route {
+  padding: 0;
+}
+
+.sample-point-governance-workspace {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  color: #17364d;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.sample-point-governance-workspace > .unified-page-header {
+  min-height: auto;
+  margin: 0;
+  padding: 2px 0 12px;
+  border: 0;
+  background: transparent;
+}
+
+.sample-point-governance-workspace__status-line {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0 16px;
+  border-right: 1px solid #b9d2df;
+  border-bottom: 1px solid #b9d2df;
+  border-left: 1px solid #b9d2df;
+  background: #e9f4fa;
+  overflow-x: auto;
+}
+
+.sample-point-governance-workspace__status-line > div {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.sample-point-governance-workspace__status-line dt {
+  color: #607887;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace__status-line dd {
+  margin: 0;
+  color: #0d689d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sample-point-governance-workspace__tabs {
+  display: flex;
+  gap: 24px;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid #b9d2df;
+  border-radius: 6px 6px 0 0;
+  background: #fff;
+}
+
+.sample-point-governance-workspace__context {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 50px;
+  padding: 9px 18px;
+  border-right: 1px solid #b9d2df;
+  border-bottom: 1px solid #d7e3e9;
+  border-left: 1px solid #b9d2df;
+  background: #f6fafc;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace__context strong {
+  flex: 0 0 auto;
+  color: #17384d;
+  font-size: 14px;
+}
+
+.sample-point-governance-workspace__context span {
+  color: #667f8f;
+}
+
+.sample-point-governance-workspace__context-year {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #355b73 !important;
+  font-weight: 700;
+}
+
+.sample-point-governance-workspace__tabs button {
+  position: relative;
+  padding: 0 2px;
+  border: 0;
+  color: #526c7c;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sample-point-governance-workspace__tabs button[aria-selected="true"] {
+  color: #0c5a78;
+}
+
+.sample-point-governance-workspace__tabs button[aria-selected="true"]::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  background: #1486a9;
+  content: "";
+}
+
+.sample-point-governance-workspace__main {
+  min-width: 0;
+  padding: 18px;
+  border-right: 1px solid #b9d2df;
+  border-bottom: 1px solid #b9d2df;
+  border-left: 1px solid #b9d2df;
+  border-radius: 0 0 6px 6px;
+  background: #fff;
+}
+
+.sample-point-governance-workspace__review-switch {
+  display: flex;
+  gap: 0;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #d7e1e6;
+}
+
+.sample-point-governance-workspace__review-switch button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid #c7d5dc;
+  border-bottom: 0;
+  color: #4b6575;
+  background: #f7fafb;
+  cursor: pointer;
+}
+
+.sample-point-governance-workspace__review-switch button[aria-pressed="true"] {
+  color: #0c5a78;
+  background: #fff;
+  font-weight: 700;
+}
+
+.sample-point-governance-workspace__table-region > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  padding: 0 0 14px;
+}
+
+.sample-point-governance-workspace__table-region h2,
+.sample-point-governance-workspace__table-region p {
+  margin: 0;
+}
+
+.sample-point-governance-workspace__table-region h2 {
+  font-size: 20px;
+}
+
+.sample-point-governance-workspace__table-region p {
+  margin-top: 6px;
+  color: #667d8b;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace__table-scroll {
+  overflow: auto;
+  border: 1px solid #d4dfe5;
+}
+
+.sample-point-governance-workspace table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.sample-point-governance-workspace th,
+.sample-point-governance-workspace td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #e1e8ec;
+  text-align: left;
+  vertical-align: top;
+}
+
+.sample-point-governance-workspace th {
+  color: #4b6474;
+  background: #f4f7f8;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace .annual-sample-network-panel,
+.sample-point-governance-workspace .sample-coordinate-governance,
+.sample-point-governance-workspace .sample-coordinate-governance__section,
+.sample-point-governance-workspace
+  .sample-coordinate-governance__review-grid
+  article {
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  color: #17364d;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header {
+  padding: 0 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header span {
+  color: #14766f;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header h2 {
+  margin: 3px 0 5px;
+  color: #17384d;
+  font-size: 20px;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header p {
+  max-width: 940px;
+  color: #667f8f;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__section {
+  gap: 10px;
+  padding: 15px 0;
+  border-top: 1px solid #d7e3e9;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header
+  h3 {
+  color: #17384d;
+  font-size: 16px;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header
+  p {
+  color: #667f8f;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__upload {
+  padding: 10px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__empty {
+  margin: 0;
+  padding: 20px;
+  border: 1px dashed #c6d8e1;
+  border-radius: 4px;
+  background: #fbfdfe;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance button {
+  border-color: #78a9bd;
+  border-radius: 4px;
+  color: #0b679c;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__section {
+  padding-inline: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__review-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border: 1px solid #d4dfe5;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__review-grid
+  article {
+  border-bottom: 1px solid #dfe7eb;
+}
+
+@media (max-width: 1100px) {
+  .sample-point-governance-workspace__context {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .sample-point-governance-workspace__context-year {
+    margin-left: 0;
+  }
+}
+
+/* Carbon sample-point workspace:start */
+.sample-point-governance-workspace {
+  color: #161616;
+  font-family:
+    "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  letter-spacing: 0.16px;
+}
+
+.sample-point-governance-workspace > .unified-page-header span {
+  color: #525252;
+}
+
+.sample-point-governance-workspace > .unified-page-header h1,
+.sample-point-governance-workspace__context strong,
+.sample-point-governance-workspace__table-region h2 {
+  color: #161616;
+  font-weight: 400;
+}
+
+.sample-point-governance-workspace__tabs {
+  gap: 0;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 0;
+}
+
+.sample-point-governance-workspace__tabs button {
+  min-height: 48px;
+  padding: 0 20px;
+  color: #525252;
+  font-weight: 400;
+}
+
+.sample-point-governance-workspace__tabs button[aria-selected="true"] {
+  color: #161616;
+  font-weight: 600;
+}
+
+.sample-point-governance-workspace__tabs button[aria-selected="true"]::after {
+  height: 2px;
+  background: #0f62fe;
+}
+
+.sample-point-governance-workspace__context {
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f4f4f4;
+}
+
+.sample-point-governance-workspace__context span,
+.sample-point-governance-workspace__table-region p {
+  color: #525252;
+}
+
+.sample-point-governance-workspace__status-line {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+  background: #edf6fb;
+}
+
+.sample-point-governance-workspace__status-line dt {
+  color: #525252;
+}
+
+.sample-point-governance-workspace__status-line dd {
+  color: #0f62fe;
+}
+
+.sample-point-governance-workspace__main {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+}
+
+.sample-point-governance-workspace__review-switch {
+  margin-bottom: 20px;
+  border-color: #e0e0e0;
+}
+
+.sample-point-governance-workspace__review-switch button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-color: #e0e0e0;
+  border-radius: 0;
+  background: #f4f4f4;
+  color: #525252;
+}
+
+.sample-point-governance-workspace__review-switch button[aria-pressed="true"] {
+  border-bottom: 2px solid #0f62fe;
+  color: #161616;
+}
+
+.sample-point-governance-workspace__table-scroll,
+.sample-point-governance-workspace .sample-coordinate-governance__review-grid {
+  border-color: #e0e0e0;
+}
+
+.sample-point-governance-workspace th {
+  background: #e8eef4;
+  color: #161616;
+}
+
+.sample-point-governance-workspace th,
+.sample-point-governance-workspace td {
+  border-color: #e0e0e0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__section {
+  border-color: #e0e0e0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__empty {
+  border: 1px solid #e0e0e0;
+  border-radius: 0;
+  background: #f4f4f4;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance button,
+.sample-point-governance-workspace :is(input, select, textarea, button) {
+  border-radius: 0;
+}
+
+.sample-point-governance-workspace :is(input, select, textarea) {
+  border: 0;
+  border-bottom: 1px solid #8d8d8d;
+  background: #f4f4f4;
+}
+
+.sample-point-governance-workspace__filters {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) repeat(3, minmax(150px, 1fr)) auto;
+  gap: 1px;
+  align-items: end;
+  margin: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sample-point-governance-workspace__filters label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sample-point-governance-workspace__filters label > span {
+  color: #525252;
+  font-size: 11px;
+}
+
+.sample-point-governance-workspace__filters :is(input, select) {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  color: #161616;
+}
+
+.sample-point-governance-workspace__filters button,
+.sample-point-governance-workspace__pagination button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid #0f62fe;
+  color: #0f62fe;
+  background: #fff;
+}
+
+.sample-point-governance-workspace__filters button:disabled,
+.sample-point-governance-workspace__pagination button:disabled {
+  border-color: #c6c6c6;
+  color: #8d8d8d;
+  cursor: not-allowed;
+}
+
+.sample-point-governance-workspace__table-scroll--bounded {
+  height: clamp(360px, 58vh, 620px);
+  border-top: 0;
+  scrollbar-gutter: stable;
+}
+
+.sample-point-governance-workspace__table-scroll--bounded thead th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+}
+
+.sample-point-governance-workspace__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 4px 0 0 12px;
+  color: #525252;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace__pagination > div {
+  display: flex;
+}
+
+.sample-point-governance-workspace__pagination button + button {
+  border-left: 0;
+}
+
+@media (max-width: 1180px) {
+  .sample-point-governance-workspace__filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sample-point-governance-workspace__filters button {
+    justify-self: start;
+  }
+}
+
+/* Carbon sample-point workspace:end */
+
+/* Formal ledger refinement:start */
+.sample-point-governance-workspace[data-layout="ledger-workbench"] {
+  --ledger-border: #c6d6df;
+  --ledger-head: #deedf5;
+  --ledger-band: #edf6fb;
+}
+
+.sample-point-governance-workspace__toolbar {
+  border-top: 1px solid var(--ledger-border);
+  border-bottom: 1px solid var(--ledger-border);
+}
+
+.sample-point-governance-workspace__table-region > header {
+  min-height: 68px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ledger-border);
+}
+
+.sample-point-governance-workspace__table-region > header > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 18px;
+  min-width: 0;
+}
+
+.sample-point-governance-workspace__table-region > header p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sample-point-governance-workspace__filters {
+  padding-inline: 16px;
+  border-bottom: 0;
+}
+
+.sample-point-governance-workspace__table-scroll,
+.sample-point-governance-workspace__table-region,
+.sample-point-governance-workspace :is(button, input, select, textarea) {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.sample-point-governance-workspace__table-scroll--bounded {
+  border-right: 0;
+  border-left: 0;
+}
+
+.sample-point-governance-workspace__table-scroll--bounded thead th {
+  background: var(--ledger-head);
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header {
+  min-height: 76px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ledger-border);
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header > div {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  grid-template-areas:
+    "eyebrow description"
+    "title description";
+  align-items: center;
+  gap: 2px 20px;
+  width: 100%;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header span {
+  grid-area: eyebrow;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header h2 {
+  grid-area: title;
+  margin: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header p {
+  grid-area: description;
+  margin: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__section {
+  padding: 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--ledger-border);
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 16px;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header
+  > div {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header
+  :is(h3, p) {
+  margin: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__upload,
+.sample-point-governance-workspace .sample-coordinate-governance__empty {
+  margin: 0 16px 16px;
+  border-radius: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__empty {
+  padding: 16px;
+  border-style: solid;
+}
+
+.sample-point-governance-workspace__review-switch {
+  min-height: 44px;
+  margin: 0;
+  padding: 0 16px;
+}
+
+@media (max-width: 1100px) {
+  .sample-point-governance-workspace
+    .sample-coordinate-governance__header
+    > div {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "eyebrow"
+      "title"
+      "description";
+  }
+
+  .sample-point-governance-workspace__table-region > header > div,
+  .sample-point-governance-workspace
+    .sample-coordinate-governance__section
+    > header
+    > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}
+/* Formal ledger refinement:end */

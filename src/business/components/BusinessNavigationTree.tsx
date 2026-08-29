@@ -33,6 +33,7 @@ const visibleSectionsByApplication: Readonly<
     "corn-collection",
     "soybean-collection",
     "rice-collection",
+    "regional-annual",
     "analysis",
   ],
   market: [

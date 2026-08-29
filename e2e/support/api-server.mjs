@@ -1193,7 +1193,14 @@ const server = createServer(async (request, response) => {
     );
     return;
   }
-  if (method === "POST" && url.pathname === "/api/v1/production-records") {
+  if (
+    method === "POST" &&
+    [
+      "/api/v1/production-records",
+      "/api/v1/production-records/submit",
+    ].includes(url.pathname)
+  ) {
+    const submitImmediately = url.pathname.endsWith("/submit");
     const body = await readBody(request);
     const record = {
       id: `E2E-PRODUCTION-${productionRecords.length + 1}`,
@@ -1219,13 +1226,18 @@ const server = createServer(async (request, response) => {
       },
       evidencePhotos: [],
       reportedAt: "2026-08-09T08:00:00Z",
-      status: "DRAFT",
+      status: submitImmediately ? "PENDING_REVIEW" : "DRAFT",
       returnReason: null,
-      allowedActions: ["SUBMIT"],
-      version: 1,
+      allowedActions: submitImmediately ? [] : ["SUBMIT"],
+      version: submitImmediately ? 2 : 1,
     };
     productionRecords.push(record);
-    writes.push({ action: "create-production", body });
+    writes.push({
+      action: submitImmediately
+        ? "create-and-submit-production"
+        : "create-production",
+      body,
+    });
     actorHeaders.push(request.headers["x-actor"] ?? null);
     json(response, 201, { data: record });
     return;
@@ -1253,7 +1265,13 @@ const server = createServer(async (request, response) => {
     data(response, record);
     return;
   }
-  if (method === "POST" && url.pathname === "/api/v1/market-records") {
+  if (
+    method === "POST" &&
+    ["/api/v1/market-records", "/api/v1/market-records/submit"].includes(
+      url.pathname,
+    )
+  ) {
+    const submitImmediately = url.pathname.endsWith("/submit");
     const body = await readBody(request);
     const record = {
       id: `E2E-MARKET-${marketRecords.length + 1}`,
@@ -1263,13 +1281,16 @@ const server = createServer(async (request, response) => {
       fillingDate: "2026-08-09",
       coreValues: body.coreValues,
       facts: body.facts,
-      status: "DRAFT",
+      status: submitImmediately ? "PENDING_REVIEW" : "DRAFT",
       returnReason: null,
-      allowedActions: ["SUBMIT"],
-      version: 1,
+      allowedActions: submitImmediately ? [] : ["SUBMIT"],
+      version: submitImmediately ? 2 : 1,
     };
     marketRecords.push(record);
-    writes.push({ action: "create-market", body });
+    writes.push({
+      action: submitImmediately ? "create-and-submit-market" : "create-market",
+      body,
+    });
     actorHeaders.push(request.headers["x-actor"] ?? null);
     data(response, record);
     return;

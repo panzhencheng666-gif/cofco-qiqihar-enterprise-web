@@ -31,6 +31,7 @@ describe("BusinessNavigationTree", () => {
     ).toHaveAttribute("aria-current", "page");
     expect(navigation).toHaveTextContent("大豆产情填报");
     expect(navigation).toHaveTextContent("稻谷产情填报");
+    expect(navigation).toHaveTextContent("地区产情填报");
 
     within(navigation).getByRole("button", { name: "玉米产情填报" }).focus();
     await user.keyboard("{Enter}");

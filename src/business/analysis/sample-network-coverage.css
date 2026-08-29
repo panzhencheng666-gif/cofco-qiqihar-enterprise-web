@@ -1,0 +1,49 @@
+.sample-network-coverage-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 12px;
+  border: 1px solid var(--enterprise-border, #d7e2ea);
+  border-radius: 8px;
+  background: var(--enterprise-surface-muted, #f6f9fb);
+}
+
+.sample-network-coverage-strip dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.sample-network-coverage-strip dl > div {
+  display: flex;
+  gap: 5px;
+}
+
+.sample-network-coverage-strip dt,
+.sample-network-coverage-strip dd,
+.sample-network-coverage-strip p,
+.sample-network-coverage-strip small {
+  margin: 0;
+}
+
+.sample-network-coverage-strip dd {
+  font-weight: 700;
+}
+
+.sample-network-coverage-strip small {
+  color: var(--enterprise-text-secondary, #5f6f7b);
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .sample-network-coverage-strip {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sample-network-coverage-strip small {
+    text-align: left;
+  }
+}

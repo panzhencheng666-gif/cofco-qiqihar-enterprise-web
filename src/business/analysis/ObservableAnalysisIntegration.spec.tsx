@@ -1,7 +1,6 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { RealtimeSupplyBalancePanel } from "@/business/realtime/RealtimeSupplyBalancePanel";
 import { validSnapshot } from "@/platform/api/observableAnalysisContract.fixture";
 import type {
   BusinessNotificationRow,
@@ -99,24 +98,23 @@ function source() {
 }
 
 describe("observable analysis cross-menu integration", () => {
-  it("keeps drafts out and refreshes all three menus to one approved version", async () => {
+  it("keeps drafts out and refreshes both sample analysis menus to one approved version", async () => {
     const data = source();
     const { container } = render(
       <>
-        <RealtimeSupplyBalancePanel repository={data.api} />
         <ProductionAnalysisPanel repository={data.api} />
         <MarketAnalysisPanel repository={data.api} />
       </>,
     );
 
     await waitFor(() =>
-      expect(data.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(39),
+      expect(data.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(26),
     );
-    await waitFor(() => expect(data.activeListenerCount()).toBe(3));
+    await waitFor(() => expect(data.activeListenerCount()).toBe(2));
     await waitFor(() =>
       expect(
         container.querySelectorAll("[data-analysis-version]").length,
-      ).toBeGreaterThan(12),
+      ).toBeGreaterThan(5),
     );
     expect(versions(container)).toEqual(
       new Set([validSnapshot().analysisVersion]),
@@ -124,34 +122,30 @@ describe("observable analysis cross-menu integration", () => {
 
     act(() => data.emit("PRODUCTION_RECORD", "PRODUCTION_RECORD_CREATED", 1));
     await Promise.resolve();
-    expect(data.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(39);
+    expect(data.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(26);
 
     const approved = data.advance();
     act(() => data.emit("MARKET_RECORD", "MARKET_RECORD_APPROVED", 2));
     await waitFor(() =>
-      expect(data.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(78),
+      expect(data.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(52),
     );
     await waitFor(() =>
       expect(versions(container)).toEqual(new Set([approved.analysisVersion])),
     );
-    expect(
-      screen.getByText("企业端最近已审核库存（按期末替代）").parentElement,
-    ).toHaveTextContent("25.00 吨");
   });
 
-  it("shows no fabricated cutoff in all three menus when there is no approved data", async () => {
+  it("shows no fabricated cutoff in both sample analysis menus when there is no approved data", async () => {
     const data = source();
     data.noApprovedData();
     render(
       <>
-        <RealtimeSupplyBalancePanel repository={data.api} />
         <ProductionAnalysisPanel repository={data.api} />
         <MarketAnalysisPanel repository={data.api} />
       </>,
     );
 
     await waitFor(() =>
-      expect(screen.getAllByText("数据截止：暂无核定数据")).toHaveLength(3),
+      expect(screen.getAllByText("数据截止：暂无核定数据")).toHaveLength(2),
     );
   });
 });

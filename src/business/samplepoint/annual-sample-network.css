@@ -1,0 +1,288 @@
+.annual-sample-network-panel {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--enterprise-surface, #fff);
+}
+
+.annual-sample-network-panel > header,
+.annual-sample-network-panel__summary,
+.annual-sample-network-panel__review,
+.annual-sample-network-panel td > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.annual-sample-network-panel > header {
+  justify-content: space-between;
+  min-height: 84px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #c6d6df;
+}
+
+.annual-sample-network-panel h2,
+.annual-sample-network-panel p {
+  margin: 3px 0;
+}
+
+.annual-sample-network-panel__toolbar-actions label,
+.annual-sample-network-panel__filters label,
+.annual-sample-network-panel__add-fields label {
+  display: grid;
+  gap: 5px;
+  color: #525252;
+  font-size: 12px;
+}
+
+.annual-sample-network-panel > header select {
+  min-width: 104px;
+}
+
+.annual-sample-network-panel__toolbar-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.annual-sample-network-panel__rule {
+  min-height: 36px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #c6d6df;
+  background: #f4f4f4;
+  color: var(--enterprise-text-secondary, #5f6f7b);
+}
+
+.annual-sample-network-panel__ledger {
+  display: grid;
+  min-width: 0;
+}
+
+.annual-sample-network-panel__summary {
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 12px;
+  border-top: 0;
+  border-bottom: 1px solid #e0e0e0;
+  background: #edf6fb;
+}
+
+.annual-sample-network-panel__summary > div,
+.annual-sample-network-panel__pagination > div,
+.annual-sample-network-panel__submit,
+.annual-sample-network-panel__submit > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.annual-sample-network-panel__filters {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) repeat(2, minmax(160px, 1fr)) auto;
+  gap: 1px;
+  align-items: end;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid #c6d6df;
+}
+
+.annual-sample-network-panel__filters label > span {
+  font-size: 11px;
+}
+
+.annual-sample-network-panel__filters :is(input, select),
+.annual-sample-network-panel__add-fields :is(input, select) {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid #8d8d8d;
+  border-radius: 0;
+  background: #f4f4f4;
+}
+
+.annual-sample-network-panel__table {
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid #c6d6df;
+}
+
+.annual-sample-network-panel__table-scroll {
+  max-height: min(52vh, 520px);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.annual-sample-network-panel table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.annual-sample-network-panel th,
+.annual-sample-network-panel td {
+  padding: 9px;
+  border-bottom: 1px solid var(--enterprise-border, #d7e2ea);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.annual-sample-network-panel th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  background: #e8eef4;
+}
+
+.annual-sample-network-panel input,
+.annual-sample-network-panel textarea,
+.annual-sample-network-panel select,
+.annual-sample-network-panel button {
+  min-height: 34px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.annual-sample-network-panel__review {
+  flex-wrap: wrap;
+}
+
+.annual-sample-network-panel button {
+  padding: 0 14px;
+  border: 1px solid #0f62fe;
+  color: #0f62fe;
+  background: #fff;
+  cursor: pointer;
+}
+
+.annual-sample-network-panel button:disabled {
+  border-color: #c6c6c6;
+  color: #8d8d8d;
+  cursor: not-allowed;
+}
+
+.annual-sample-network-panel__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  margin-top: 0;
+  padding-left: 12px;
+  border: 0;
+  border-bottom: 1px solid #c6d6df;
+  border-top: 0;
+  color: #525252;
+  font-size: 12px;
+}
+
+.annual-sample-network-panel__pagination button + button {
+  border-left: 0;
+}
+
+.annual-sample-network-panel__add {
+  padding: 16px;
+  border-top: 0;
+  border-bottom: 1px solid #c6d6df;
+  background: #f4f4f4;
+}
+
+.annual-sample-network-panel__add-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.annual-sample-network-panel__add-heading span {
+  color: #525252;
+  font-size: 12px;
+}
+
+.annual-sample-network-panel__add-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.annual-sample-network-panel__add-reason {
+  grid-column: 1 / -1;
+}
+
+.annual-sample-network-panel__add-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.annual-sample-network-panel__submit {
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 8px 12px;
+  border-top: 0;
+  border-bottom: 1px solid #9fb8c5;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.annual-sample-network-panel__submit > div {
+  flex-wrap: wrap;
+}
+
+.annual-sample-network-panel__submit span {
+  color: #525252;
+  font-size: 12px;
+}
+
+.annual-sample-network-panel__submit > button {
+  min-width: 112px;
+  border-color: #0f62fe;
+  color: #fff;
+  background: #0f62fe;
+}
+
+.annual-sample-network-panel__review textarea {
+  min-width: min(420px, 100%);
+}
+
+.annual-sample-network-panel__review {
+  min-height: 60px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #9fb8c5;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 1080px) {
+  .annual-sample-network-panel__filters,
+  .annual-sample-network-panel__add-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .annual-sample-network-panel__filters button {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .annual-sample-network-panel > header,
+  .annual-sample-network-panel__summary,
+  .annual-sample-network-panel__submit {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .annual-sample-network-panel__toolbar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .annual-sample-network-panel__filters,
+  .annual-sample-network-panel__add-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .annual-sample-network-panel__add-reason {
+    grid-column: auto;
+  }
+}

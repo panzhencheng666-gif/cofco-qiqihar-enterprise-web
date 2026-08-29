@@ -144,6 +144,17 @@ describe("formal enterprise route model", () => {
       "#/市场监测/玉米市场采集",
     );
   });
+
+  it("retires the former sample-point management route to the work queue", () => {
+    expect(readFormalRoute("#/我的工作/样本点管理")).toEqual({
+      application: "work",
+      section: "tasks",
+    });
+    expect(readFormalRoute("?page=work&section=sample-governance")).toEqual({
+      application: "work",
+      section: "tasks",
+    });
+  });
 });
 
 describe("formal location", () => {

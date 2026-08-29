@@ -43,12 +43,17 @@ export function useObservableAnalysisSeries({
 
   useEffect(() => {
     const sequence = ++requestSequence.current;
+    let cancelled = false;
     queueMicrotask(() => {
       if (sequence === requestSequence.current) setStatus("loading");
     });
 
-    const requests = Array.from({ length: 12 }, (_, index) => index + 1).map(
-      async (month): Promise<ObservableAnalysisSeriesPoint> => {
+    const next: ObservableAnalysisSeriesPoint[] = [];
+    let nextMonth = 1;
+    const worker = async () => {
+      while (!cancelled && nextMonth <= 12) {
+        const month = nextMonth;
+        nextMonth += 1;
         try {
           const snapshot = await repository.loadObservableAnalysisSnapshot({
             productCode,
@@ -58,18 +63,18 @@ export function useObservableAnalysisSeries({
             ...(subjectTypeCode ? { subjectTypeCode } : {}),
             surveyMonth: month,
           });
-          return { month, snapshot, error: null };
+          next[month - 1] = { month, snapshot, error: null };
         } catch {
-          return {
+          next[month - 1] = {
             month,
             snapshot: null,
             error: "该月数据暂时无法读取",
           };
         }
-      },
-    );
+      }
+    };
 
-    void Promise.all(requests).then((next) => {
+    void Promise.all([worker(), worker()]).then(() => {
       if (sequence !== requestSequence.current) return;
       setPoints(next);
       setStatus(
@@ -78,6 +83,7 @@ export function useObservableAnalysisSeries({
     });
 
     return () => {
+      cancelled = true;
       requestSequence.current += 1;
     };
   }, [

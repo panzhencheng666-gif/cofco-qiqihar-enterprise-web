@@ -29,23 +29,26 @@ function seedApprovedComparisonFacts(): void {
     INSERT INTO production.production_record(
       record_id,product_code,object_type_code,region_code,survey_date,reported_at,
       cultivated_area_mu,yield_per_mu_kg,status_code,last_modified_by
-    ) VALUES ${productionRows};
+    ) VALUES ${productionRows}
+    ON CONFLICT DO NOTHING;
 
     INSERT INTO production.production_record_submission_metadata(
       record_id, field_code, value
-    ) VALUES ${productionCultivars};
+    ) VALUES ${productionCultivars}
+    ON CONFLICT DO NOTHING;
 
     INSERT INTO market.market_record(
       record_id,product_code,object_type_code,region_code,trade_date,reported_at,
       purchase_base_price,trade_direction,carriage_board_amount,packaging_amount,
       freight_amount,packaging_form,status_code,last_modified_by
-    ) VALUES ${marketRows};
+    ) VALUES ${marketRows}
+    ON CONFLICT DO NOTHING;
   `);
 }
 
 test.beforeAll(() => seedApprovedComparisonFacts());
 
-test("reads dynamic production and market indicators with interactive enterprise charts", async ({
+test("reads current production and market analysis from approved records", async ({
   browser,
 }) => {
   const context = await browser.newContext();
@@ -53,44 +56,39 @@ test("reads dynamic production and market indicators with interactive enterprise
 
   await page.goto(`${liveBrowserAccounts.reporter.url}/#/产情监测/产情分析`);
   await expect(
-    page.getByRole("heading", { name: "产情年度对比分析" }),
+    page.getByRole("heading", { name: "产情分析", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("group", { name: "统计地区" })).toBeVisible();
-  await expect(
-    page.getByRole("searchbox", { name: "搜索地级市" }),
-  ).toBeVisible();
+  await expect(page.getByRole("group", { name: "分析范围" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "责任地区" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "区县" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "乡镇" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "行政村" })).toBeVisible();
-  await expect(page.getByLabel("分析指标")).toContainText("核定播种面积");
-  await expect(page.getByLabel(/四年对比柱状图/)).toBeVisible();
-  await expect(page.getByLabel(/四年趋势折线图/)).toBeVisible();
-  await expect(page.getByLabel(/四年合计占比环图/)).toBeVisible();
-  const productionPoint = page.getByRole("button", {
-    name: /柱状图 2025年/,
-  });
-  await productionPoint.hover();
   await expect(
-    page.getByRole("status", { name: "当前图表数据" }),
-  ).toContainText("2025年");
+    page.getByText("核定播种面积", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText("加权预计单产", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "产情核定数据来源" }),
+  ).toBeVisible();
 
   await page.goto(`${liveBrowserAccounts.reporter.url}/#/市场监测/市场分析`);
   await expect(
-    page.getByRole("heading", { name: "市场年度对比分析" }),
+    page.getByRole("heading", { name: "市场分析", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("分析指标")).toContainText("平均成交价");
-  await expect(page.getByLabel(/四年对比柱状图/)).toBeVisible();
-  await expect(page.getByLabel(/四年趋势折线图/)).toBeVisible();
-  await expect(page.getByLabel(/四年合计占比环图/)).toBeVisible();
-  await page.getByRole("button", { name: /柱状图 2024年/ }).hover();
+  await expect(page.getByRole("group", { name: "分析范围" })).toBeVisible();
   await expect(
-    page.getByRole("status", { name: "当前图表数据" }),
-  ).toContainText("2024年");
+    page.getByText("平均采集对象收购价格", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "市场地区与主体来源" }),
+  ).toBeVisible();
 
   await context.close();
 });
 
-test("offers twelve scoped report types and exports only a previewed range", async ({
+test("offers the three comprehensive report types and exports one immutable range", async ({
   browser,
 }) => {
   const context = await browser.newContext({ acceptDownloads: true });
@@ -98,39 +96,29 @@ test("offers twelve scoped report types and exports only a previewed range", asy
 
   await page.goto(`${liveBrowserAccounts.reporter.url}/#/报表中心/业务报告`);
   await expect(page.getByRole("heading", { name: "业务报告" })).toBeVisible();
-  const definitions = page.getByLabel("报告类型").locator("option");
-  await expect(definitions).toHaveCount(12);
-  await expect(page.getByLabel("报告类型")).toContainText("产情日报");
-  await expect(page.getByLabel("报告类型")).toContainText("产情周报");
-  await expect(page.getByLabel("报告类型")).toContainText("产情月报");
-  await expect(page.getByLabel("报告类型")).toContainText("市场日报");
-  await expect(page.getByLabel("报告类型")).toContainText("物流周报");
-  await expect(page.getByLabel("报告类型")).toContainText("供需月报");
-  await expect(page.getByRole("textbox", { name: "具体品种" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /综合经营(日报|周报|月报)/u }),
+  ).toHaveCount(3);
+  await expect(
+    page.getByRole("button", { name: "综合经营日报" }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("group", { name: "统计地区" })).toBeVisible();
 
-  await page.getByLabel("报告类型").selectOption("PRODUCTION_DAILY");
-  await page
-    .getByRole("textbox", { name: "具体品种" })
-    .fill("E2E-四年图表玉米");
-  await page.getByRole("button", { name: "生成报告预览" }).click();
-  await expect(page.getByRole("region", { name: "报告预览" })).toContainText(
-    "核定数据条数",
-  );
+  await page.getByLabel("报告日期").fill("2026-08-05");
   await page.getByLabel("导出格式").selectOption("XLSX");
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "导出当前报告" }).click();
+  await page.getByRole("button", { name: "生成并下载报告" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.xlsx$/i);
+  await expect(
+    page.getByRole("region", { name: "报告生成结果" }),
+  ).toContainText("核定数据条数");
 
   await page.goto(`${liveBrowserAccounts.reporter.url}/#/供需分析/供需平衡`);
   await expect(
-    page.getByRole("heading", { name: "实时供需平衡" }),
+    page.getByRole("heading", { name: "供需平衡", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("group", { name: "统计地区" })).toBeVisible();
-  await expect(
-    page.getByRole("searchbox", { name: "搜索地级市" }),
-  ).toBeVisible();
+  await expect(page.getByLabel("供需地区")).toBeVisible();
   await expect(
     page.getByRole("button", { name: /批准|创建不可变输入集|运行并发布/ }),
   ).toHaveCount(0);

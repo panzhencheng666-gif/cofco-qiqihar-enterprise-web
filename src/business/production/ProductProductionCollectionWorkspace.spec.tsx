@@ -182,6 +182,62 @@ function contractField(
 }
 
 describe("product production collection workspace", () => {
+  it("resolves persisted Chinese production object-type labels through formal master data", async () => {
+    const loadProductionDefinition = vi
+      .fn()
+      .mockResolvedValue(await productionDefinition());
+    const repository = {
+      listProduction: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: "PROD-VILLAGE-001",
+            values: {
+              PROD_OBJECT_TYPE: "村委会",
+              PROD_SAMPLE_NAME: "正式村级样本",
+              PROD_SURVEY_YEAR: "2026",
+              PROD_SURVEY_MONTH: "8",
+              PROD_REGION: "龙江县",
+              PROD_STATUS: "APPROVED",
+            },
+          },
+        ],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+      }),
+      listObjectTypes: vi.fn().mockResolvedValue([
+        { code: "FARMER", name: "农户", domain: "PRODUCTION" },
+        {
+          code: "VILLAGE_COMMITTEE",
+          name: "村委会",
+          domain: "PRODUCTION",
+        },
+      ]),
+      loadMasterData,
+      loadProductionDefinition,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductProductionCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(loadProductionDefinition).toHaveBeenCalledWith(
+        "CORN",
+        "VILLAGE_COMMITTEE",
+      ),
+    );
+    expect(screen.getAllByText("村委会")).toHaveLength(2);
+  });
+
   it("adopts the latest approved survey year instead of hiding records behind the calendar year", async () => {
     const listProduction = vi
       .fn<RealtimeBusinessRepository["listProduction"]>()
@@ -224,9 +280,12 @@ describe("product production collection workspace", () => {
     expect(screen.getByRole("combobox", { name: "数据年份" })).toHaveValue(
       "2024",
     );
+    expect(
+      screen.getByText("2025年及以前属于历史业务记录，不计入现有样本数量。"),
+    ).toBeVisible();
   });
 
-  it("queries by mandatory survey year, optional month, real filling dates and status", async () => {
+  it("queries by mandatory survey year, optional month and status without filling-date filters", async () => {
     const user = userEvent.setup();
     const listProduction = vi
       .fn<RealtimeBusinessRepository["listProduction"]>()
@@ -262,22 +321,26 @@ describe("product production collection workspace", () => {
       screen.getByRole("combobox", { name: "数据月份" }),
       "8",
     );
-    await user.type(screen.getByLabelText("填报日期起"), "2026-08-01");
-    await user.type(screen.getByLabelText("填报日期止"), "2026-08-31");
     await user.selectOptions(
       screen.getByRole("combobox", { name: "填报状态" }),
       "待审核",
     );
 
-    await waitFor(() =>
-      expect(listProduction.mock.lastCall?.[0].filters).toMatchObject({
+    await waitFor(() => {
+      const filters = listProduction.mock.lastCall?.[0].filters;
+      expect(filters).toMatchObject({
         surveyYear: "2026",
         surveyMonth: "8",
-        fillingDateFrom: "2026-08-01",
-        fillingDateTo: "2026-08-31",
         status: "PENDING_REVIEW",
-      }),
-    );
+      });
+      expect(filters).not.toHaveProperty("fillingDateFrom");
+      expect(filters).not.toHaveProperty("fillingDateTo");
+    });
+    expect(screen.queryByLabelText("填报日期起")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("填报日期止")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "填报日期" }),
+    ).toBeVisible();
     expect(screen.queryByLabelText("调查日期")).not.toBeInTheDocument();
   });
 
@@ -363,6 +426,7 @@ describe("product production collection workspace", () => {
             PROD_REGION: "克山县",
             PROD_CULTIVAR_NAME: "圆粒粳稻",
             PROD_AREA_MU: "320 亩",
+            cultivatedAreaMu: "320",
             PROD_YIELD_PER_MU: "510 公斤/亩",
             PROD_ESTIMATED_OUTPUT: "163200 公斤",
             PROD_REPORTER_NAME: "张三",
@@ -428,6 +492,9 @@ describe("product production collection workspace", () => {
     );
 
     expect(await screen.findByText("克山县第一调查点")).toBeVisible();
+    expect(screen.getByRole("group", { name: "批量导入" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "退回修正" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "单条录入" })).toBeVisible();
     expect(screen.getAllByRole("columnheader")[0]).toHaveTextContent("序号");
     expect(
       screen.getByRole("columnheader", { name: "数据时间" }),
@@ -447,23 +514,26 @@ describe("product production collection workspace", () => {
       screen.queryByRole("columnheader", { name: "具体品种" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "销售数量" }),
+      await screen.findByRole("columnheader", { name: "种植面积（亩）" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "自用数量" }),
-    ).toBeVisible();
+      screen.queryByRole("columnheader", { name: "销售数量" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "期初库存" }),
-    ).toBeVisible();
+      screen.queryByRole("columnheader", { name: "自用数量" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "期末余粮" }),
-    ).toBeVisible();
+      screen.queryByRole("columnheader", { name: "期初库存" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "期末余粮" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "未销售余粮" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "预计总产" }),
-    ).toBeVisible();
+      screen.queryByRole("columnheader", { name: "预计总产" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "填报人" })).toBeVisible();
     expect(
       screen.getByRole("columnheader", { name: "调研人联系方式" }),
@@ -720,5 +790,37 @@ describe("product production collection workspace", () => {
       ),
     ).toBeVisible();
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
+  });
+
+  it("never opens the fixture draft workbench in the formal realtime path", async () => {
+    const listProduction = vi.fn().mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    const repository = {
+      listProduction,
+      loadProductionDefinition: productionDefinition,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductProductionCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={scope}
+        section="corn-collection"
+        selection={{ type: "work-item", id: "WORK-PRODUCTION-FILL-W31" }}
+      />,
+    );
+
+    await waitFor(() => expect(listProduction).toHaveBeenCalled());
+    expect(
+      screen.queryByRole("region", { name: /单据工作台$/u }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("保存草稿")).not.toBeInTheDocument();
   });
 });

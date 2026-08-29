@@ -8,6 +8,8 @@ import {
 } from "./fixtures";
 
 const marker = "S3C-20260812-CONSUMER-RICE";
+const sampleLatitude = "47.31";
+const sampleLongitude = "123.21";
 const validPng = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
@@ -18,8 +20,8 @@ async function uploadEvidence(request: APIRequestContext): Promise<string> {
     multipart: {
       file: { name: `${marker}.png`, mimeType: "image/png", buffer: validPng },
       capturedAt: "2026-08-09T12:00:00Z",
-      latitude: "47.3543",
-      longitude: "123.9182",
+      latitude: sampleLatitude,
+      longitude: sampleLongitude,
       watermarkText: marker,
     },
   });
@@ -37,9 +39,10 @@ test("reconciles one approved source identity across list, work, notification, o
     data: {
       productCode: "RICE",
       objectTypeCode: "FARMER",
-      regionCode: "230208101001",
+      regionCode: "230208",
       cultivarCode: null,
-      surveyDate: "2026-08-09",
+      surveyYear: "2026",
+      surveyMonth: "8",
       cultivatedAreaMu: "2",
       yieldPerMuKilograms: "500",
       quality: { MILLING_YIELD: "68" },
@@ -48,13 +51,10 @@ test("reconciles one approved source identity across list, work, notification, o
       subsidies: {},
       submissionMetadata: {
         PROD_REPORTER_NAME: "验收填报员甲",
-        PROD_REPORTER_PHONE: "13800000051",
-        PROD_CULTIVAR_NAME: marker,
-        PROD_SAMPLE_SUBJECT_CODE: `${marker}-SUBJECT`,
         PROD_SAMPLE_NAME: marker,
         PROD_SAMPLE_CONTACT: "13900000051",
-        PROD_SAMPLE_LATITUDE: "47.3543",
-        PROD_SAMPLE_LONGITUDE: "123.9182",
+        PROD_SAMPLE_LATITUDE: sampleLatitude,
+        PROD_SAMPLE_LONGITUDE: sampleLongitude,
       },
       evidencePhotoIds: [photoId],
     },
@@ -138,7 +138,7 @@ test("reconciles one approved source identity across list, work, notification, o
   const comparison = await request.get("/api/v1/overview/annual-comparisons", {
     params: {
       productCode: "RICE",
-      regionCode: "230208101001",
+      regionCode: "230208",
       surveyYear: 2026,
       indicatorCode: indicatorCode ?? "",
     },
@@ -160,7 +160,7 @@ test("reconciles one approved source identity across list, work, notification, o
       sourceRecordId: recordId,
       sourceVersion: 2,
       productCode: "RICE",
-      regionCode: "230208101001",
+      regionCode: "230208",
       periodCode: "2026-Q3",
       roleCode: "LOCAL_PRODUCTION",
       sourceFieldCode: "PROD_ESTIMATED_OUTPUT",
@@ -183,10 +183,9 @@ test("reconciles one approved source identity across list, work, notification, o
       data: {
         definitionCode: "PRODUCTION_DAILY",
         productCode: "RICE",
-        cultivarCode: marker,
-        regionLevel: "VILLAGE",
-        regionCode: "230208101001",
-        periodCode: "2026-W32",
+        regionLevel: "COUNTY",
+        regionCode: "230208",
+        periodCode: "2026-08-01",
       },
     },
   );
@@ -199,21 +198,19 @@ test("reconciles one approved source identity across list, work, notification, o
   );
   expect(
     queryE2eDatabase(
-      `SELECT parameter_snapshot->>'cultivarCode' FROM reporting.report_preview WHERE dataset_id='${previewBody.data.datasetId}'`,
+      `SELECT parameter_snapshot->>'regionCode' FROM reporting.report_preview WHERE dataset_id='${previewBody.data.datasetId}'`,
     ),
-  ).toBe(marker);
+  ).toBe("230208");
 
   await page.goto("/#/经营总览/风险关注");
   await expect(page.getByRole("main")).toContainText("粮食商情经营总览");
   await page.goto("/#/供需分析/供需平衡");
-  await expect(
-    page.getByRole("heading", { name: "实时供需平衡" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "供需平衡" })).toBeVisible();
   await reporterPage.goto(
     `${liveBrowserAccounts.reporter.url}/#/产情监测/产情分析`,
   );
   await expect(
-    reporterPage.getByRole("heading", { name: "产情年度对比分析" }),
+    reporterPage.getByRole("heading", { name: "产情分析" }),
   ).toBeVisible();
   await reporterPage.goto(
     `${liveBrowserAccounts.reporter.url}/#/报表中心/业务报告`,

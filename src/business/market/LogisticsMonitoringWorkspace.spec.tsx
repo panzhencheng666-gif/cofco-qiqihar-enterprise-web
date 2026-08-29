@@ -85,7 +85,7 @@ describe("logistics monitoring workspace", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("uses a fixed public logistics list contract instead of backend display metadata", async () => {
+  it("uses the same backend business-field definition as the update form", async () => {
     const repository = {
       listLogistics: vi.fn().mockResolvedValue({
         items: [
@@ -129,6 +129,30 @@ describe("logistics monitoring workspace", () => {
         productCode: "CORN",
         fields: [
           {
+            code: "LOG_FREIGHT_RATE",
+            label: "物流运价（不含车板价）",
+            controlType: "DECIMAL",
+            unit: "元/吨",
+            precision: 18,
+            scale: 4,
+            required: true,
+            readOnly: false,
+            sortOrder: 10,
+            options: [],
+          },
+          {
+            code: "LOG_BOARD_PRICE",
+            label: "车板价",
+            controlType: "DECIMAL",
+            unit: "元/吨",
+            precision: 18,
+            scale: 4,
+            required: false,
+            readOnly: false,
+            sortOrder: 20,
+            options: [],
+          },
+          {
             code: "LOG_INTERNAL_LOCATION_KEY",
             label: "内部位置键",
             controlType: "TEXT",
@@ -137,7 +161,7 @@ describe("logistics monitoring workspace", () => {
             scale: null,
             required: false,
             readOnly: false,
-            sortOrder: 1,
+            sortOrder: 30,
             options: [],
           },
         ],
@@ -186,7 +210,7 @@ describe("logistics monitoring workspace", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("queries by survey year and month, real filling dates and logistics status", async () => {
+  it("queries by survey year, month and logistics status without filling-date filters", async () => {
     const user = userEvent.setup();
     const listLogistics = vi
       .fn<RealtimeBusinessRepository["listLogistics"]>()
@@ -225,22 +249,26 @@ describe("logistics monitoring workspace", () => {
       screen.getByRole("combobox", { name: "调查月份" }),
       "8",
     );
-    await user.type(screen.getByLabelText("填报日期起"), "2026-08-01");
-    await user.type(screen.getByLabelText("填报日期止"), "2026-08-31");
     await user.selectOptions(
       screen.getByRole("combobox", { name: "填报状态" }),
       "PENDING_REVIEW",
     );
 
-    await waitFor(() =>
-      expect(listLogistics.mock.lastCall?.[0].filters).toMatchObject({
+    await waitFor(() => {
+      const filters = listLogistics.mock.lastCall?.[0].filters;
+      expect(filters).toMatchObject({
         surveyYear: "2026",
         surveyMonth: "8",
-        fillingDateFrom: "2026-08-01",
-        fillingDateTo: "2026-08-31",
         status: "PENDING_REVIEW",
-      }),
-    );
+      });
+      expect(filters).not.toHaveProperty("fillingDateFrom");
+      expect(filters).not.toHaveProperty("fillingDateTo");
+    });
+    expect(screen.queryByLabelText("填报日期起")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("填报日期止")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "填报日期" }),
+    ).toBeVisible();
     expect(
       screen.queryByRole("combobox", { name: "监测期" }),
     ).not.toBeInTheDocument();
@@ -366,6 +394,10 @@ describe("logistics monitoring workspace", () => {
         fields: [],
         actions: [],
       }),
+      downloadLogisticsXlsxTemplate: vi
+        .fn()
+        .mockResolvedValue(new Blob(["template"])),
+      importLogisticsWorkbook: vi.fn(),
       downloadReturnedCorrectionWorkbook: vi
         .fn()
         .mockResolvedValue(new Blob(["correction"])),
@@ -388,6 +420,9 @@ describe("logistics monitoring workspace", () => {
     expect(
       await screen.findByRole("button", { name: "下载退回记录修正表" }),
     ).toBeEnabled();
+    expect(screen.getByRole("group", { name: "批量导入" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "退回修正" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "单条录入" })).toBeVisible();
     const file = new File(["correction"], "玉米物流退回记录修正表.xlsx", {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });

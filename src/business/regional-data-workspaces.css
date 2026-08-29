@@ -1,0 +1,102 @@
+.regional-data-workspace {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  color: #13251d;
+}
+.regional-data-workspace header {
+  border-bottom: 1px solid #d9e3dd;
+  padding-bottom: 16px;
+}
+.regional-data-workspace header p {
+  color: #547064;
+  font-size: 13px;
+  margin: 0 0 4px;
+}
+.regional-data-workspace header h2 {
+  font-size: 24px;
+  margin: 0 0 6px;
+}
+.regional-data-workspace header span {
+  color: #52645c;
+}
+.regional-data-workspace__filters {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.regional-data-workspace__filters label {
+  color: #496056;
+  display: grid;
+  font-size: 13px;
+  gap: 5px;
+  min-width: 180px;
+}
+.regional-data-workspace :is(select, input) {
+  background: #fff;
+  border: 1px solid #bdcbc4;
+  border-radius: 6px;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 6px 9px;
+  width: 100%;
+}
+.regional-data-workspace__table-wrap {
+  border: 1px solid #d6e0da;
+  border-radius: 8px;
+  overflow: auto;
+}
+.regional-data-workspace table {
+  border-collapse: collapse;
+  min-width: 760px;
+  width: 100%;
+}
+.regional-data-workspace :is(th, td) {
+  border-bottom: 1px solid #e4ebe7;
+  padding: 10px 12px;
+  text-align: left;
+}
+.regional-data-workspace thead th {
+  background: #f2f6f4;
+  color: #385247;
+  font-size: 13px;
+}
+.regional-data-workspace tbody th {
+  font-weight: 600;
+}
+.regional-data-workspace__summary-row {
+  background: #eaf3ee;
+  color: #244f3d;
+}
+.regional-data-workspace button {
+  background: #176d47;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  min-height: 36px;
+  padding: 7px 16px;
+}
+.regional-data-workspace button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.regional-data-workspace__issue {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  color: #a61d24;
+  margin: 0;
+  padding: 10px 12px;
+}
+.regional-data-workspace__notice {
+  background: #f5f8f6;
+  color: #52645c;
+  margin: 0;
+  padding: 10px 12px;
+}
+.regional-data-workspace__actions {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}

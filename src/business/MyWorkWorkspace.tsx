@@ -350,6 +350,13 @@ function workClassificationOptions(
 function Filters({
   scope,
   onScopeChange,
+  query,
+  status,
+  statusOptions,
+  onApply,
+  onQueryChange,
+  onReset,
+  onStatusChange,
   domainOptions,
   regionOptions,
   productOptions,
@@ -358,6 +365,13 @@ function Filters({
 }: {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
+  query: string;
+  status: string;
+  statusOptions: readonly string[];
+  onApply: () => void;
+  onQueryChange: (value: string) => void;
+  onReset: () => void;
+  onStatusChange: (value: string) => void;
   domainOptions: readonly {
     id: BusinessWorkItem["domain"];
     label: string;
@@ -403,8 +417,6 @@ function Filters({
     scope.coordinates.productId !== undefined &&
     !products.some(({ id }) => id === scope.coordinates.productId);
   const activeAdvancedCount = scope.coordinates.businessSubtypeId ? 1 : 0;
-  const showDomain = domainOptions.length > 1 || domainInvalid;
-  const showRegion = regionOptions.length > 1 || regionInvalid;
   const showProduct = products.length > 1 || productInvalid;
   const periodInvalid = Boolean(
     scope.coordinates.periodKey &&
@@ -413,128 +425,91 @@ function Filters({
   const showPeriod = periods.length > 1 || periodInvalid;
   const showAdvanced =
     classificationOptions.length > 1 || classificationInvalid;
-
-  if (
-    !showDomain &&
-    !showRegion &&
-    !showProduct &&
-    !showPeriod &&
-    !showAdvanced
-  ) {
-    return null;
-  }
+  const showAdvancedControls = showProduct || showPeriod || showAdvanced;
 
   return (
     <section aria-label="我的工作筛选" className="my-work-task5-filter-surface">
       <div className="my-work-task5-filter-grid my-work-task5-filter-grid--primary">
-        {showDomain && (
-          <label>
-            <span>业务类型</span>
-            <select
-              aria-label="业务类型"
-              value={scope.coordinates.businessDomainId ?? ""}
-              onChange={(event) =>
-                onScopeChange({
-                  businessDomainId: event.target.value || undefined,
-                  businessSubtypeId: undefined,
-                })
-              }
-            >
-              <option value="">全部业务类型</option>
-              {domainInvalid && (
-                <option disabled value={scope.coordinates.businessDomainId}>
-                  业务类型无效（请重新选择）
-                </option>
-              )}
-              {domainOptions.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {showRegion && (
-          <label>
-            <span>业务地区</span>
-            <select
-              aria-label="业务地区"
-              value={scope.coordinates.regionId}
-              onChange={(event) =>
-                onScopeChange({ regionId: event.target.value })
-              }
-            >
-              <option value="authorized-all">全部地区</option>
-              {regionInvalid && (
-                <option disabled value={scope.coordinates.regionId}>
-                  业务地区无效（请重新选择）
-                </option>
-              )}
-              {regionOptions.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {showProduct && (
-          <label>
-            <span>产品或作物</span>
-            <select
-              aria-label="产品或作物"
-              value={scope.coordinates.productId ?? ""}
-              onChange={(event) =>
-                onScopeChange({
-                  productId: event.target.value || undefined,
-                  cultivarId: undefined,
-                })
-              }
-            >
-              <option value="">全部产品或作物</option>
-              {productInvalid && (
-                <option disabled value={scope.coordinates.productId}>
-                  产品名称无效（请重新选择）
-                </option>
-              )}
-              {products.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {showPeriod && (
-          <label>
-            <span>任务期间</span>
-            <select
-              aria-label="任务期间"
-              value={scope.coordinates.periodKey ?? ""}
-              onChange={(event) =>
-                onScopeChange({ periodKey: event.target.value || undefined })
-              }
-            >
-              <option value="">全部任务期间</option>
-              {periods.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-              {scope.coordinates.periodKey &&
-                !periods.some(
-                  ({ id }) => id === scope.coordinates.periodKey,
-                ) && (
-                  <option disabled value={scope.coordinates.periodKey}>
-                    任务期间无效（请重新选择）
-                  </option>
-                )}
-            </select>
-          </label>
-        )}
+        <label className="my-work-task5-search-field">
+          <span>搜索事项</span>
+          <input
+            aria-label="搜索事项名称或单据编号"
+            placeholder="搜索事项名称或单据编号"
+            type="search"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") onApply();
+            }}
+          />
+        </label>
+        <label>
+          <span>业务类型</span>
+          <select
+            aria-label="业务类型"
+            value={scope.coordinates.businessDomainId ?? ""}
+            onChange={(event) =>
+              onScopeChange({
+                businessDomainId: event.target.value || undefined,
+                businessSubtypeId: undefined,
+              })
+            }
+          >
+            <option value="">全部业务类型</option>
+            {domainInvalid && (
+              <option disabled value={scope.coordinates.businessDomainId}>
+                业务类型无效（请重新选择）
+              </option>
+            )}
+            {domainOptions.map(({ id, label }) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>业务地区</span>
+          <select
+            aria-label="业务地区"
+            value={scope.coordinates.regionId}
+            onChange={(event) =>
+              onScopeChange({ regionId: event.target.value })
+            }
+          >
+            <option value="authorized-all">全部地区</option>
+            {regionInvalid && (
+              <option disabled value={scope.coordinates.regionId}>
+                业务地区无效（请重新选择）
+              </option>
+            )}
+            {regionOptions.map(({ id, label }) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{statusOptions.length > 0 ? "办理状态" : "状态"}</span>
+          <select
+            aria-label="待处理状态"
+            value={status}
+            onChange={(event) => onStatusChange(event.target.value)}
+          >
+            <option value="">
+              全部{statusOptions.length > 0 ? "办理" : ""}状态
+            </option>
+            {statusOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
-      {showAdvanced && (
-        <div className="my-work-task5-filter-actions">
+      <div className="my-work-task5-filter-actions">
+        {showAdvancedControls && (
           <button
             aria-controls="my-work-more-filters"
             aria-expanded={advancedOpen}
@@ -546,41 +521,104 @@ function Filters({
               ? `更多筛选（已启用 ${activeAdvancedCount} 项）`
               : "更多筛选"}
           </button>
-        </div>
-      )}
-      {showAdvanced && advancedOpen && (
+        )}
+        <span className="my-work-task5-filter-spacer" />
+        <button type="button" onClick={onReset}>
+          重置
+        </button>
+        <button className="is-primary" type="button" onClick={onApply}>
+          查询
+        </button>
+      </div>
+      {showAdvancedControls && advancedOpen && (
         <div
           className="my-work-task5-filter-grid my-work-task5-filter-grid--advanced"
           id="my-work-more-filters"
         >
-          <label>
-            <span>业务分类</span>
-            <select
-              aria-label="业务分类"
-              value={
-                selectedClassification ??
-                scope.coordinates.businessSubtypeId ??
-                ""
-              }
-              onChange={(event) =>
-                onScopeChange({
-                  businessSubtypeId: event.target.value || undefined,
-                })
-              }
-            >
-              <option value="">全部业务分类</option>
-              {classificationInvalid && (
-                <option disabled value={scope.coordinates.businessSubtypeId}>
-                  业务分类无效（请重新选择）
-                </option>
-              )}
-              {classificationOptions.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {showProduct && (
+            <label>
+              <span>产品或作物</span>
+              <select
+                aria-label="产品或作物"
+                value={scope.coordinates.productId ?? ""}
+                onChange={(event) =>
+                  onScopeChange({
+                    productId: event.target.value || undefined,
+                    cultivarId: undefined,
+                  })
+                }
+              >
+                <option value="">全部产品或作物</option>
+                {productInvalid && (
+                  <option disabled value={scope.coordinates.productId}>
+                    产品名称无效（请重新选择）
+                  </option>
+                )}
+                {products.map(({ id, label }) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {showPeriod && (
+            <label>
+              <span>任务期间</span>
+              <select
+                aria-label="任务期间"
+                value={scope.coordinates.periodKey ?? ""}
+                onChange={(event) =>
+                  onScopeChange({ periodKey: event.target.value || undefined })
+                }
+              >
+                <option value="">全部任务期间</option>
+                {periods.map(({ id, label }) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+                {scope.coordinates.periodKey &&
+                  !periods.some(
+                    ({ id }) => id === scope.coordinates.periodKey,
+                  ) && (
+                    <option disabled value={scope.coordinates.periodKey}>
+                      任务期间无效（请重新选择）
+                    </option>
+                  )}
+              </select>
+            </label>
+          )}
+          {showAdvanced && (
+            <label>
+              <span>业务分类</span>
+              <select
+                aria-label="业务分类"
+                value={
+                  selectedClassification ??
+                  scope.coordinates.businessSubtypeId ??
+                  ""
+                }
+                onChange={(event) =>
+                  onScopeChange({
+                    businessSubtypeId: event.target.value || undefined,
+                  })
+                }
+              >
+                <option value="">全部业务分类</option>
+                {classificationInvalid && (
+                  <option disabled value={scope.coordinates.businessSubtypeId}>
+                    业务分类无效（请重新选择）
+                  </option>
+                )}
+                {classificationOptions.map(({ id, label }) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       )}
     </section>
@@ -596,7 +634,6 @@ export function FormalMyWorkWorkspace({
   canBatchApprove = false,
   onBatchApprove,
   onReviewItem,
-  coordinateGovernance,
   importTasks,
 }: {
   section: WorkSection;
@@ -605,7 +642,6 @@ export function FormalMyWorkWorkspace({
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems?: readonly BusinessWorkItem[];
   canBatchApprove?: boolean;
-  coordinateGovernance?: ReactNode;
   importTasks?: ReactNode;
   onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
   onReviewItem?: (
@@ -629,7 +665,6 @@ export function FormalMyWorkWorkspace({
         canBatchApprove={canBatchApprove}
         onBatchApprove={onBatchApprove}
         onReviewItem={onReviewItem}
-        coordinateGovernance={coordinateGovernance}
         importTasks={importTasks}
       />
     </FormalWorkspaceScopeProvider>
@@ -645,7 +680,6 @@ export function MyWorkWorkspace({
   canBatchApprove = false,
   onBatchApprove,
   onReviewItem,
-  coordinateGovernance,
   importTasks,
 }: {
   section: WorkSection;
@@ -654,7 +688,6 @@ export function MyWorkWorkspace({
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems?: readonly BusinessWorkItem[];
   canBatchApprove?: boolean;
-  coordinateGovernance?: ReactNode;
   importTasks?: ReactNode;
   onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
   onReviewItem?: (
@@ -669,7 +702,7 @@ export function MyWorkWorkspace({
         <WorkspaceHeader
           eyebrow="统一工作门户 / 我的工作"
           title="导入任务"
-          summary="查看导入结果并处理失败数据。"
+          summary="按产情、市场、物流查看真实导入批次，失败行可下载、修正并重试。"
         />
         {importTasks ?? (
           <div className="my-work-task5-alert" role="status">
@@ -689,7 +722,6 @@ export function MyWorkWorkspace({
       canBatchApprove={canBatchApprove}
       onBatchApprove={onBatchApprove}
       onReviewItem={onReviewItem}
-      coordinateGovernance={coordinateGovernance}
     />
   );
 }
@@ -703,7 +735,6 @@ function MyWorkLedger({
   canBatchApprove,
   onBatchApprove,
   onReviewItem,
-  coordinateGovernance,
 }: {
   section: MyWorkLedgerSection;
   scope: OperationalScope;
@@ -711,7 +742,6 @@ function MyWorkLedger({
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems: readonly BusinessWorkItem[];
   canBatchApprove: boolean;
-  coordinateGovernance?: ReactNode;
   onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
   onReviewItem?: (
     item: BusinessWorkItem,
@@ -730,6 +760,10 @@ function MyWorkLedger({
   const [returningWorkId, setReturningWorkId] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
+  const [queryDraft, setQueryDraft] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
+  const [statusDraft, setStatusDraft] = useState("");
+  const [appliedStatus, setAppliedStatus] = useState("");
   const domainOptions = workDomainOptions(workItems);
   const regionOptions = workRegionOptions(workItems);
   const productOptions = workProductOptions(workItems);
@@ -751,9 +785,32 @@ function MyWorkLedger({
     [periodKeys, queryAllowed, scope, workItems],
   );
   const view = myWorkViews[section];
-  const visible = projections.filter(({ savedViewGroup }) =>
+  const completedView = section === "completed";
+  const viewItems = projections.filter(({ savedViewGroup }) =>
     view.groups.includes(savedViewGroup),
   );
+  const statusOptions = [
+    ...new Set(viewItems.map(({ item }) => currentProcessingNode(item))),
+  ];
+  const normalizedQuery = appliedQuery.trim().toLocaleLowerCase("zh-CN");
+  const visible = viewItems.filter(({ item }) => {
+    const matchesStatus =
+      !appliedStatus || currentProcessingNode(item) === appliedStatus;
+    if (!matchesStatus) return false;
+    if (!normalizedQuery) return true;
+    return [
+      item.workId,
+      item.title,
+      governedSubjectName(item),
+      item.regionLabel,
+      item.businessLabel,
+      item.responsiblePerson,
+      governedProductName(item),
+    ]
+      .join(" ")
+      .toLocaleLowerCase("zh-CN")
+      .includes(normalizedQuery);
+  });
   const reviewableCount = visible.filter(
     ({ savedViewGroup, item }) =>
       savedViewGroup === "待审核" &&
@@ -769,7 +826,7 @@ function MyWorkLedger({
     const confirmed =
       typeof window === "undefined" ||
       window.confirm(
-        `确认审核通过当前筛选下的 ${reviewableCount} 条待审核业务记录吗？审核后将自动发布并进入总揽监测、分析和供需平衡。`,
+        `确认审核通过当前筛选下的 ${reviewableCount} 条待审核业务记录吗？审核后将自动发布并进入总揽监测和业务分析。`,
       );
     if (!confirmed) return;
     setBatchReviewStatus("running");
@@ -823,19 +880,15 @@ function MyWorkLedger({
       <WorkspaceHeader
         eyebrow="统一工作门户 / 我的工作"
         title={view.label}
-        summary="统一汇总本人待填报、待审核、退回、异常与逾期事项，按截止时间和风险排序，并直达原业务单据。"
+        summary={
+          completedView
+            ? "查询本人已完成事项，核对办理结果，并可返回原业务单据。"
+            : "只展示现在需要本人操作的事项；优先处理退回、异常和临近截止任务。"
+        }
       />
-      {coordinateGovernance && (
-        <details className="my-work-coordinate-governance-entry">
-          <summary>
-            <span>样本点治理</span>
-            <small>坐标修正、身份核验、历史归并与独立审核</small>
-          </summary>
-          <div className="my-work-coordinate-governance-entry__body">
-            {coordinateGovernance}
-          </div>
-        </details>
-      )}
+      <span className="my-work-task5-sync-state" role="status">
+        {queryAllowed ? "数据已同步" : "当前数据范围受限"}
+      </span>
       <Filters
         availableClassificationOptions={classificationOptions}
         domainOptions={domainOptions}
@@ -843,11 +896,56 @@ function MyWorkLedger({
           setPage(1);
           onScopeChange(coordinates);
         }}
+        onApply={() => {
+          setPage(1);
+          setAppliedQuery(queryDraft);
+          setAppliedStatus(statusDraft);
+        }}
+        onQueryChange={setQueryDraft}
+        onReset={() => {
+          setPage(1);
+          setQueryDraft("");
+          setAppliedQuery("");
+          setStatusDraft("");
+          setAppliedStatus("");
+          onScopeChange({
+            regionId: "authorized-all",
+            businessDomainId: undefined,
+            businessSubtypeId: undefined,
+            productId: undefined,
+            cultivarId: undefined,
+            periodKey: undefined,
+          });
+        }}
+        onStatusChange={setStatusDraft}
         productOptions={productOptions}
+        query={queryDraft}
         regionOptions={regionOptions}
         periodOptions={periodOptions}
         scope={scope}
+        status={statusDraft}
+        statusOptions={statusOptions}
       />
+      <div
+        aria-label={completedView ? "已办事项概况" : "待我处理概况"}
+        className="my-work-task5-summary-band"
+        role="status"
+      >
+        <strong>共 {viewItems.length} 项</strong>
+        {statusOptions.slice(0, 3).map((statusLabel) => (
+          <span key={statusLabel}>
+            {statusLabel}{" "}
+            {
+              viewItems.filter(
+                ({ item }) => currentProcessingNode(item) === statusLabel,
+              ).length
+            }
+          </span>
+        ))}
+        <span className="my-work-task5-summary-sort">
+          {completedView ? "按完成时间倒序" : "按风险与截止时间排序"}
+        </span>
+      </div>
       {!queryAllowed && (
         <div className="my-work-task5-alert" role="alert">
           <strong>当前筛选范围超出您的数据权限</strong>
@@ -862,7 +960,9 @@ function MyWorkLedger({
           <div>
             <h2>{view.label}任务台账</h2>
             <p>
-              汇总待填报、待审核、退回、异常和逾期事项；同一业务事项只保留一个当前处理节点。
+              {completedView
+                ? "按完成时间查看办理结果；点击“查看”返回原业务单据。"
+                : "先处理退回和质量阻断，再处理临近截止事项；点击“处理”直接进入原业务单据。"}
             </p>
           </div>
           <div className="my-work-task5-batch-actions">
@@ -893,210 +993,214 @@ function MyWorkLedger({
             {reviewMessage}
           </div>
         )}
-        <div
-          aria-label="本人工作台账横向滚动区域"
-          className="my-work-task5-ledger-scroll"
-          tabIndex={0}
-        >
-          <table aria-label="本人工作台账" className="my-work-task5-ledger">
-            <thead>
-              <tr>
-                <th className="my-work-task5-sticky" scope="col">
-                  任务与业务对象
-                </th>
-                <th scope="col">业务与分类</th>
-                <th scope="col">地区与产品</th>
-                <th scope="col">期间与截止</th>
-                <th scope="col">责任与完成度</th>
-                <th scope="col">当前处理节点</th>
-                <th scope="col">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((projection) => {
-                const { item } = projection;
-                const reviewable =
-                  canBatchApprove &&
-                  projection.savedViewGroup === "待审核" &&
-                  (item.domain === "production" || item.domain === "market") &&
-                  Boolean(onReviewItem);
-                const cultivars = governedCultivarNames(item);
-                const states = [
-                  ["义务状态", obligationLabels[item.obligationStatus]],
-                  ["单据状态", documentLabels[item.documentStatus]],
-                  ["审核状态", reviewLabels[item.reviewStatus]],
-                  ["质量状态", qualityLabels[item.qualityStatus]],
-                  ["发布状态", releaseLabels[item.releaseStatus]],
-                ] as const;
-                const currentNode = currentProcessingNode(item);
-                const isResponsible =
-                  item.responsibleUserId === scope.identity.userId;
-                return (
-                  <tr key={item.workId}>
-                    <th className="my-work-task5-sticky" scope="row">
-                      <span className="my-work-task5-cell-stack">
-                        <strong>{item.title || "未提供任务名称"}</strong>
-                        <small>{governedSubjectName(item)}</small>
-                      </span>
+        <div className="my-work-task5-ledger-split">
+          <div className="my-work-task5-ledger-table-side">
+            <div
+              aria-label="本人工作台账横向滚动区域"
+              className="my-work-task5-ledger-scroll"
+              tabIndex={0}
+            >
+              <table aria-label="本人工作台账" className="my-work-task5-ledger">
+                <thead>
+                  <tr>
+                    <th className="my-work-task5-sticky" scope="col">
+                      事项
                     </th>
-                    <td>
-                      <span className="my-work-task5-cell-stack">
-                        <strong>{domainLabels[item.domain]}</strong>
-                        <small>{item.businessLabel || "未提供业务分类"}</small>
-                      </span>
-                    </td>
-                    <td>
-                      <span className="my-work-task5-cell-stack">
-                        <strong>{item.regionLabel || "未提供业务地区"}</strong>
-                        <small>
-                          {governedProductName(item)}
-                          {cultivars ? ` · ${cultivars}` : ""}
-                        </small>
-                      </span>
-                    </td>
-                    <td>
-                      <span className="my-work-task5-cell-stack">
-                        <strong>{governedPeriodName(item)}</strong>
-                        <small>
-                          截止：{formatProductionDateTime(item.deadline)}
-                        </small>
-                      </span>
-                    </td>
-                    <td>
-                      <span className="my-work-task5-cell-stack">
-                        <strong>
-                          {item.responsiblePerson || "未提供责任人"} ·{" "}
-                          {item.responsiblePost || "未提供责任岗位"}
-                        </strong>
-                        <small>
-                          {isResponsible ? "本人负责" : "本人审核"}
-                          {item.applicableFields > 0
-                            ? ` · 已完成 ${item.completedFields}/${item.applicableFields} 项`
-                            : " · 系统流程任务"}
-                        </small>
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`my-work-task5-state ${stateTone(currentNode)}`.trim()}
-                      >
-                        {currentNode}
-                      </span>
-                      <details className="my-work-task5-state-details">
-                        <summary>查看全部状态</summary>
-                        <dl>
-                          {states.map(([label, value]) => (
-                            <div key={`${item.workId}-${label}`}>
-                              <dt>{label}</dt>
-                              <dd>{value}</dd>
-                            </div>
-                          ))}
-                        </dl>
-                      </details>
-                    </td>
-                    <td>
-                      <span className="my-work-task5-cell-stack">
-                        <button
-                          className="my-work-task5-row-action"
-                          type="button"
-                          onClick={() =>
-                            onOpenBusiness(
-                              projection.destination.route,
-                              projection.destination.selection,
-                            )
-                          }
-                        >
-                          {projection.actionLabel}
-                        </button>
-                        {reviewable && (
-                          <>
+                    <th scope="col">业务范围</th>
+                    <th scope="col">期间与截止</th>
+                    <th scope="col">责任人</th>
+                    <th scope="col">当前状态</th>
+                    <th scope="col">处理</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((projection) => {
+                    const { item } = projection;
+                    const reviewable =
+                      canBatchApprove &&
+                      projection.savedViewGroup === "待审核" &&
+                      (item.domain === "production" ||
+                        item.domain === "market") &&
+                      Boolean(onReviewItem);
+                    const cultivars = governedCultivarNames(item);
+                    const states = [
+                      ["义务状态", obligationLabels[item.obligationStatus]],
+                      ["单据状态", documentLabels[item.documentStatus]],
+                      ["审核状态", reviewLabels[item.reviewStatus]],
+                      ["质量状态", qualityLabels[item.qualityStatus]],
+                      ["发布状态", releaseLabels[item.releaseStatus]],
+                    ] as const;
+                    const currentNode = currentProcessingNode(item);
+                    const isResponsible =
+                      item.responsibleUserId === scope.identity.userId;
+                    return (
+                      <tr key={item.workId}>
+                        <th className="my-work-task5-sticky" scope="row">
+                          <span className="my-work-task5-cell-stack">
+                            <strong>{item.title || "未提供任务名称"}</strong>
+                            <small>{governedSubjectName(item)}</small>
+                          </span>
+                        </th>
+                        <td>
+                          <span className="my-work-task5-cell-stack">
+                            <strong>
+                              {domainLabels[item.domain]} ·{" "}
+                              {item.businessLabel || "未提供业务分类"}
+                            </strong>
+                            <small>
+                              {item.regionLabel || "未提供业务地区"} ·{" "}
+                              {governedProductName(item)}
+                              {cultivars ? ` · ${cultivars}` : ""}
+                            </small>
+                          </span>
+                        </td>
+                        <td>
+                          <span className="my-work-task5-cell-stack">
+                            <strong>{governedPeriodName(item)}</strong>
+                            <small>
+                              截止：{formatProductionDateTime(item.deadline)}
+                            </small>
+                          </span>
+                        </td>
+                        <td>
+                          <span className="my-work-task5-cell-stack">
+                            <strong>
+                              {item.responsiblePerson || "未提供责任人"}
+                            </strong>
+                            <small>
+                              {item.responsiblePost || "未提供责任岗位"} ·{" "}
+                              {isResponsible ? "本人负责" : "本人审核"}
+                              {item.applicableFields > 0
+                                ? ` · 已完成 ${item.completedFields}/${item.applicableFields} 项`
+                                : " · 系统流程任务"}
+                            </small>
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`my-work-task5-state ${stateTone(currentNode)}`.trim()}
+                          >
+                            {currentNode}
+                          </span>
+                          <details className="my-work-task5-state-details">
+                            <summary>查看全部状态</summary>
+                            <dl>
+                              {states.map(([label, value]) => (
+                                <div key={`${item.workId}-${label}`}>
+                                  <dt>{label}</dt>
+                                  <dd>{value}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                          </details>
+                        </td>
+                        <td>
+                          <span className="my-work-task5-cell-stack">
                             <button
                               className="my-work-task5-row-action"
-                              disabled={activeReviewWorkId !== null}
                               type="button"
-                              onClick={() => {
-                                void reviewOne(item, "approve");
-                              }}
+                              onClick={() =>
+                                onOpenBusiness(
+                                  projection.destination.route,
+                                  projection.destination.selection,
+                                )
+                              }
                             >
-                              审核通过
+                              {completedView
+                                ? "查看原业务单据"
+                                : projection.actionLabel}
                             </button>
-                            <button
-                              className="my-work-task5-row-action"
-                              disabled={activeReviewWorkId !== null}
-                              type="button"
-                              onClick={() => {
-                                setReturningWorkId(item.workId);
-                                setReturnReason("");
-                                setReviewMessage("");
-                              }}
-                            >
-                              驳回
-                            </button>
-                            {returningWorkId === item.workId && (
-                              <div className="my-work-task5-return-form">
-                                <label>
-                                  驳回原因
-                                  <textarea
-                                    aria-label="驳回原因"
-                                    value={returnReason}
-                                    onChange={(event) =>
-                                      setReturnReason(event.target.value)
-                                    }
-                                  />
-                                </label>
+                            {reviewable && (
+                              <>
                                 <button
                                   className="my-work-task5-row-action"
-                                  disabled={
-                                    !returnReason.trim() ||
-                                    activeReviewWorkId !== null
-                                  }
+                                  disabled={activeReviewWorkId !== null}
                                   type="button"
                                   onClick={() => {
-                                    void reviewOne(item, "return");
+                                    void reviewOne(item, "approve");
                                   }}
                                 >
-                                  确认驳回
+                                  审核通过
                                 </button>
                                 <button
                                   className="my-work-task5-row-action"
                                   disabled={activeReviewWorkId !== null}
                                   type="button"
                                   onClick={() => {
-                                    setReturningWorkId(null);
+                                    setReturningWorkId(item.workId);
                                     setReturnReason("");
+                                    setReviewMessage("");
                                   }}
                                 >
-                                  取消
+                                  驳回
                                 </button>
-                              </div>
+                                {returningWorkId === item.workId && (
+                                  <div className="my-work-task5-return-form">
+                                    <label>
+                                      驳回原因
+                                      <textarea
+                                        aria-label="驳回原因"
+                                        value={returnReason}
+                                        onChange={(event) =>
+                                          setReturnReason(event.target.value)
+                                        }
+                                      />
+                                    </label>
+                                    <button
+                                      className="my-work-task5-row-action"
+                                      disabled={
+                                        !returnReason.trim() ||
+                                        activeReviewWorkId !== null
+                                      }
+                                      type="button"
+                                      onClick={() => {
+                                        void reviewOne(item, "return");
+                                      }}
+                                    >
+                                      确认驳回
+                                    </button>
+                                    <button
+                                      className="my-work-task5-row-action"
+                                      disabled={activeReviewWorkId !== null}
+                                      type="button"
+                                      onClick={() => {
+                                        setReturningWorkId(null);
+                                        setReturnReason("");
+                                      }}
+                                    >
+                                      取消
+                                    </button>
+                                  </div>
+                                )}
+                              </>
                             )}
-                          </>
-                        )}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <WorkspacePagination
-          end={
-            visible.length === 0
-              ? 0
-              : Math.min(startIndex + pageSize, visible.length)
-          }
-          onPageChange={setPage}
-          page={currentPage}
-          pages={pages}
-          start={visible.length === 0 ? 0 : startIndex + 1}
-          total={visible.length}
-        />
-        {queryAllowed && visible.length === 0 && (
-          <div className="my-work-task5-empty" role="status">
-            当前筛选条件或状态视图下没有本人事项，请调整筛选条件后重试。
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <WorkspacePagination
+              end={
+                visible.length === 0
+                  ? 0
+                  : Math.min(startIndex + pageSize, visible.length)
+              }
+              onPageChange={setPage}
+              page={currentPage}
+              pages={pages}
+              start={visible.length === 0 ? 0 : startIndex + 1}
+              total={visible.length}
+            />
+            {queryAllowed && visible.length === 0 && (
+              <div className="my-work-task5-empty" role="status">
+                当前筛选条件或状态视图下没有本人事项，请调整筛选条件后重试。
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </section>
     </div>
   );

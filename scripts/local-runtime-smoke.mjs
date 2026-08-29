@@ -13,7 +13,7 @@ const BUSINESS_FAILURE =
   /业务数据读取失败|当前供需结果暂时无法读取|系统服务异常/u;
 const TECHNICAL_LEAK =
   /8090|63182|后端端口|本地数据库|演示数据|VITE_|\bmock\b|\bdemo\b/iu;
-const SETTLED_ANALYSIS = /数据截止：|当前范围暂无已审核/u;
+const SETTLED_ANALYSIS = /数据截止：|当前范围暂无已审核|尚未填报地区产情/u;
 
 export function assertSuccessfulNavigation(response, route) {
   if (response) {

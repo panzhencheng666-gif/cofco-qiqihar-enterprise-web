@@ -28,7 +28,7 @@ test("reads service-owned work and opens its canonical business route", async ({
   await expect(dialog.getByLabel("采集对象收购价格")).toHaveValue("2410.00");
   await expect(dialog.getByLabel("采集对象销售价格")).toHaveValue("2430.00");
   await expect(
-    dialog.getByRole("button", { name: "保存业务记录" }),
+    dialog.getByRole("button", { name: "保存并提交审核" }),
   ).toBeVisible();
   await expect(dialog.getByText("新建填报", { exact: true })).toHaveCount(0);
 
@@ -80,7 +80,7 @@ test("persists a market record and returns to its service-owned list", async ({
     mimeType: "image/png",
     buffer: Buffer.from([137, 80, 78, 71]),
   });
-  await panel.getByRole("button", { name: "保存业务记录" }).click();
+  await panel.getByRole("button", { name: "保存并提交审核" }).click();
   await expect(
     page.getByRole("table", { name: "玉米市场采集表" }),
   ).toBeVisible();
@@ -100,7 +100,7 @@ test("persists a market record and returns to its service-owned list", async ({
     };
   };
   expect(payload.data.writes.map(({ action }) => action)).toEqual([
-    "create-market",
+    "create-and-submit-market",
   ]);
   expect(payload.data.writes[0]?.body).toMatchObject({
     productCode: "CORN",
@@ -178,7 +178,7 @@ test("keeps product-owned entry and workbook contracts aligned across business d
     mimeType: "image/png",
     buffer: Buffer.from([137, 80, 78, 71]),
   });
-  await productionPanel.getByRole("button", { name: "保存业务记录" }).click();
+  await productionPanel.getByRole("button", { name: "保存并提交审核" }).click();
   await expect(productionDialog).toHaveCount(0);
   await expect(
     page
@@ -244,7 +244,7 @@ test("keeps product-owned entry and workbook contracts aligned across business d
   };
   expect(payload.data.writes).toContainEqual(
     expect.objectContaining({
-      action: "create-production",
+      action: "create-and-submit-production",
       body: expect.objectContaining({
         productCode: "SOYBEAN",
         surveyYear: "2026",
@@ -339,7 +339,9 @@ test("keeps reports fail-closed when the report API is not implemented", async (
   );
   await page.goto("/#/报表中心/业务报告");
 
-  await expect(page.getByRole("heading", { name: "业务报告" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "业务报告", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("第31周粮食商情周报")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "生成报告预览" })).toHaveCount(
     0,

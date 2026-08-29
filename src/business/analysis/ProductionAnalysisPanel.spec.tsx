@@ -64,6 +64,9 @@ function repository(): RealtimeBusinessRepository {
         ],
       },
     }),
+    getSampleNetworkComparison: vi
+      .fn()
+      .mockResolvedValue(sampleNetworkCoverage()),
     listNotifications: vi.fn().mockResolvedValue({ items: [], unreadCount: 0 }),
     subscribeBusinessEvents: vi.fn(() => vi.fn()),
   } as unknown as RealtimeBusinessRepository;
@@ -184,10 +187,17 @@ describe("ProductionAnalysisPanel", () => {
     expect(
       await screen.findByRole("heading", { name: "产情分析" }),
     ).toBeVisible();
+    expect(
+      await screen.findByRole("region", { name: "样本网络覆盖" }),
+    ).toHaveTextContent("设计村总数2,332");
     expect(container.firstElementChild).toHaveAttribute(
       "data-dashboard",
       "production",
     );
+    expect(container.firstElementChild).toHaveClass("analysis-workbench-page");
+    expect(
+      screen.getByRole("region", { name: "产情分析范围" }),
+    ).toHaveAttribute("data-layout", "linear-workbench");
     for (const heading of [
       "面积与产出",
       "成本与保障",
@@ -303,7 +313,7 @@ describe("ProductionAnalysisPanel", () => {
     ).toBeVisible();
     expect(
       container.querySelector(
-        '.observable-analysis-dashboard__masthead[data-layout="compact"]',
+        '.observable-analysis-dashboard__masthead[data-layout="linear-workbench"]',
       ),
     ).toBeVisible();
     expect(
@@ -314,3 +324,25 @@ describe("ProductionAnalysisPanel", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+function sampleNetworkCoverage() {
+  return {
+    networkYear: 2026,
+    networkStatus: "PUBLISHED" as const,
+    designPointCount: 2332,
+    designCoordinateCount: 2300,
+    activeSamplePointCount: 650,
+    approvedSubmissionSamplePointCount: 520,
+    pendingVerificationDesignPointCount: 32,
+    multipleActualPerDesignPointCount: 6,
+    anomalyCount: 3,
+    exactCoveredDesignPointCount: 600,
+    representedDesignPointCount: 40,
+    regionalAssociationDesignPointCount: 0,
+    unrelatedDesignPointCount: 1692,
+    actualLevelCounts: { prefecture: 0, county: 0, township: 0, village: 650 },
+    designPoints: [],
+    actualPoints: [],
+    relations: [],
+  };
+}

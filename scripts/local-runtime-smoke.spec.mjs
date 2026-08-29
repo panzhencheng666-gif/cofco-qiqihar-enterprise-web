@@ -45,4 +45,10 @@ test("waits for an analysis result or explicit approved-data gap", async () => {
     ),
     true,
   );
+  assert.equal(
+    smokeModule.hasSettledAnalysisText(
+      "当前地区、年度和品种尚未填报地区产情，面积、单产和总产暂不显示。",
+    ),
+    true,
+  );
 });

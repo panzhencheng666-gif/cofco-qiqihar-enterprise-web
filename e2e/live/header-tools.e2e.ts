@@ -130,11 +130,11 @@ test("uses durable notifications, permission-scoped work navigation, and page he
     name: "产情单据审核",
   });
   await expect(recordDialog).toBeVisible();
-  await expect(recordDialog.getByLabel("调查日期")).toHaveValue("2026-08-09");
-  await expect(recordDialog.getByLabel("种植面积")).toHaveValue("135.0000");
-  await expect(recordDialog.getByLabel("调查日期")).toBeDisabled();
+  await expect(recordDialog.getByLabel("填报日期")).toHaveText("2026-08-09");
+  await expect(recordDialog.getByLabel("播种面积")).toHaveValue("135.0000");
+  await expect(recordDialog.getByLabel("数据年份")).toBeDisabled();
   await expect(
-    recordDialog.getByRole("button", { name: "保存业务记录" }),
+    recordDialog.getByRole("button", { name: "保存并提交审核" }),
   ).toHaveCount(0);
   await expect(
     recordDialog.getByRole("button", { name: "审核通过" }),
