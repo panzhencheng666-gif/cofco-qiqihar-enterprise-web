@@ -144,6 +144,61 @@ function repository(): RealtimeBusinessRepository {
 }
 
 describe("RealtimeLogisticsOperationsPanel", () => {
+  it("uses logistics decimal scales as number input steps", async () => {
+    const service = {
+      ...repository(),
+      loadLogisticsDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        fields: publicLogisticsFields.map((field) => {
+          if (
+            field.code === "LOG_SAMPLE_LATITUDE" ||
+            field.code === "LOG_SAMPLE_LONGITUDE"
+          ) {
+            return {
+              ...field,
+              controlType: "DECIMAL",
+              precision: 9,
+              scale: 6,
+            };
+          }
+          if (
+            field.code === "LOG_ROUTE_VOLUME" ||
+            field.code === "LOG_FREIGHT_RATE" ||
+            field.code === "LOG_BOARD_PRICE"
+          ) {
+            return {
+              ...field,
+              controlType: "DECIMAL",
+              precision: 18,
+              scale: 4,
+            };
+          }
+          return field;
+        }),
+        actions: [],
+      }),
+    };
+
+    render(
+      <RealtimeLogisticsOperationsPanel
+        actorName="物流测试员"
+        editorOnly
+        repository={service}
+      />,
+    );
+
+    expect(await screen.findByLabelText("纬度")).toHaveAttribute(
+      "step",
+      "0.000001",
+    );
+    expect(screen.getByLabelText("经度")).toHaveAttribute("step", "0.000001");
+    expect(screen.getByLabelText("运输数量")).toHaveAttribute("step", "0.0001");
+    expect(screen.getByLabelText("物流运价（不含车板价）")).toHaveAttribute(
+      "step",
+      "0.0001",
+    );
+  });
+
   it("renders only the approved logistics business contract even when backend metadata adds internal fields", async () => {
     const field = (
       code: string,

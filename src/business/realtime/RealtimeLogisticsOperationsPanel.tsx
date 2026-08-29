@@ -69,6 +69,15 @@ function fieldInputType(controlType: string): "date" | "number" | "text" {
   return "text";
 }
 
+function fieldInputStep(
+  controlType: string,
+  scale: number | null,
+): string | undefined {
+  if (!controlType.includes("DECIMAL")) return undefined;
+  if (scale === null) return "any";
+  return scale > 0 ? `0.${"0".repeat(scale - 1)}1` : "1";
+}
+
 export function RealtimeLogisticsOperationsPanel({
   productCode = "CORN",
   actorName = "当前登录员工",
@@ -604,6 +613,7 @@ export function RealtimeLogisticsOperationsPanel({
                         }
                         required={field.required}
                         readOnly={field.readOnly}
+                        step={fieldInputStep(field.controlType, field.scale)}
                         type={fieldInputType(field.controlType)}
                         value={values[field.code] ?? ""}
                         onChange={(event) =>
