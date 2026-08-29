@@ -332,11 +332,29 @@ describe("realtime record form model", () => {
       MKT_SAMPLE_CONTACT: "13900000000",
       MKT_SAMPLE_LATITUDE: "47.35",
       MKT_SAMPLE_LONGITUDE: "123.92",
-      MKT_STORAGE_REGION_CODE: "230202",
       MKT_TRADE_DATE: "2026-01-01",
     });
+  });
 
-    const editing = marketPayloadFromValues(
+  it("does not submit the system-managed storage region when inventory exists", () => {
+    const definition = {
+      productCode: "CORN",
+      objectTypeCode: "TRADER",
+      coreFields: [
+        marketCoreField("MKT_REGION", "行政区划"),
+        marketCoreField("MKT_STORAGE_REGION_CODE", "库存存放地区"),
+      ],
+      groups: [
+        {
+          category: "INVENTORY",
+          label: "库存",
+          sortOrder: 1,
+          fields: [definitionField("ENDING_INVENTORY", "期末库存")],
+        },
+      ],
+    };
+
+    const payload = marketPayloadFromValues(
       {
         surveyYear: "2026",
         MKT_REGION: "230202",
@@ -346,7 +364,9 @@ describe("realtime record form model", () => {
       "CORN",
       definition,
     );
-    expect(editing.coreValues.MKT_STORAGE_REGION_CODE).toBe("230208");
+
+    expect(payload.facts).toEqual({ ENDING_INVENTORY: "9" });
+    expect(payload.coreValues).not.toHaveProperty("MKT_STORAGE_REGION_CODE");
   });
 });
 
