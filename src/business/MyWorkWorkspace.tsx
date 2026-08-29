@@ -29,10 +29,7 @@ import {
 import type { BatchReviewWorkItemsResult } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
-type MyWorkLedgerSection = Exclude<
-  WorkSection,
-  "imports" | "sample-governance"
->;
+type MyWorkLedgerSection = Exclude<WorkSection, "imports">;
 
 function reviewErrorMessage(error: unknown): string {
   if (error instanceof RealtimeApiError && error.clientMessage) {
@@ -637,7 +634,6 @@ export function FormalMyWorkWorkspace({
   canBatchApprove = false,
   onBatchApprove,
   onReviewItem,
-  samplePointGovernance,
   importTasks,
 }: {
   section: WorkSection;
@@ -646,7 +642,6 @@ export function FormalMyWorkWorkspace({
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems?: readonly BusinessWorkItem[];
   canBatchApprove?: boolean;
-  samplePointGovernance?: ReactNode;
   importTasks?: ReactNode;
   onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
   onReviewItem?: (
@@ -670,7 +665,6 @@ export function FormalMyWorkWorkspace({
         canBatchApprove={canBatchApprove}
         onBatchApprove={onBatchApprove}
         onReviewItem={onReviewItem}
-        samplePointGovernance={samplePointGovernance}
         importTasks={importTasks}
       />
     </FormalWorkspaceScopeProvider>
@@ -686,7 +680,6 @@ export function MyWorkWorkspace({
   canBatchApprove = false,
   onBatchApprove,
   onReviewItem,
-  samplePointGovernance,
   importTasks,
 }: {
   section: WorkSection;
@@ -695,7 +688,6 @@ export function MyWorkWorkspace({
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
   workItems?: readonly BusinessWorkItem[];
   canBatchApprove?: boolean;
-  samplePointGovernance?: ReactNode;
   importTasks?: ReactNode;
   onBatchApprove?: () => Promise<BatchReviewWorkItemsResult>;
   onReviewItem?: (
@@ -704,17 +696,6 @@ export function MyWorkWorkspace({
     reason?: string,
   ) => Promise<void>;
 }) {
-  if (section === "sample-governance") {
-    return (
-      <div className="unified-workspace sample-point-governance-route">
-        {samplePointGovernance ?? (
-          <div className="my-work-task5-alert" role="status">
-            当前账号没有样本点管理权限。
-          </div>
-        )}
-      </div>
-    );
-  }
   if (section === "imports") {
     return (
       <div className="unified-workspace my-work-import-task-workspace">
@@ -779,7 +760,6 @@ function MyWorkLedger({
   const [returningWorkId, setReturningWorkId] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
-  const [selectedWorkId, setSelectedWorkId] = useState<string | null>(null);
   const [queryDraft, setQueryDraft] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
   const [statusDraft, setStatusDraft] = useState("");
@@ -841,28 +821,12 @@ function MyWorkLedger({
   const currentPage = Math.min(page, pages);
   const startIndex = (currentPage - 1) * pageSize;
   const pageRows = visible.slice(startIndex, startIndex + pageSize);
-  const selectedProjection =
-    pageRows.find(({ item }) => item.workId === selectedWorkId) ?? pageRows[0];
-  const selectedItem = selectedProjection?.item;
-  const selectedNode = selectedItem
-    ? currentProcessingNode(selectedItem)
-    : undefined;
-  const selectedStates = selectedItem
-    ? [
-        ["义务状态", obligationLabels[selectedItem.obligationStatus]],
-        ["单据状态", documentLabels[selectedItem.documentStatus]],
-        ["审核状态", reviewLabels[selectedItem.reviewStatus]],
-        ["质量状态", qualityLabels[selectedItem.qualityStatus]],
-        ["发布状态", releaseLabels[selectedItem.releaseStatus]],
-      ]
-    : [];
-
   const approveVisibleRecords = async () => {
     if (!onBatchApprove) return;
     const confirmed =
       typeof window === "undefined" ||
       window.confirm(
-        `确认审核通过当前筛选下的 ${reviewableCount} 条待审核业务记录吗？审核后将自动发布并进入总揽监测、分析和供需平衡。`,
+        `确认审核通过当前筛选下的 ${reviewableCount} 条待审核业务记录吗？审核后将自动发布并进入总揽监测和业务分析。`,
       );
     if (!confirmed) return;
     setBatchReviewStatus("running");
@@ -1070,13 +1034,7 @@ function MyWorkLedger({
                     const isResponsible =
                       item.responsibleUserId === scope.identity.userId;
                     return (
-                      <tr
-                        aria-selected={
-                          selectedProjection?.item.workId === item.workId
-                        }
-                        key={item.workId}
-                        onClick={() => setSelectedWorkId(item.workId)}
-                      >
+                      <tr key={item.workId}>
                         <th className="my-work-task5-sticky" scope="row">
                           <span className="my-work-task5-cell-stack">
                             <strong>{item.title || "未提供任务名称"}</strong>
@@ -1148,7 +1106,9 @@ function MyWorkLedger({
                                 )
                               }
                             >
-                              {projection.actionLabel}
+                              {completedView
+                                ? "查看原业务单据"
+                                : projection.actionLabel}
                             </button>
                             {reviewable && (
                               <>
@@ -1240,89 +1200,6 @@ function MyWorkLedger({
               </div>
             )}
           </div>
-          <aside
-            aria-label={completedView ? "已办事项详情" : "当前事项详情"}
-            className="my-work-task5-detail-drawer"
-          >
-            {selectedItem && selectedProjection && selectedNode ? (
-              <>
-                <header>
-                  <small>{completedView ? "办理结果" : "当前事项"}</small>
-                  <h3>{selectedItem.title || "未提供任务名称"}</h3>
-                  <p>{governedSubjectName(selectedItem)}</p>
-                </header>
-                <dl>
-                  <div>
-                    <dt>业务范围</dt>
-                    <dd>
-                      {domainLabels[selectedItem.domain]} ·{" "}
-                      {governedProductName(selectedItem)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>地区</dt>
-                    <dd>{selectedItem.regionLabel || "未提供业务地区"}</dd>
-                  </div>
-                  <div>
-                    <dt>期间</dt>
-                    <dd>{governedPeriodName(selectedItem)}</dd>
-                  </div>
-                  <div>
-                    <dt>{completedView ? "办理结果" : "当前处理节点"}</dt>
-                    <dd>
-                      <span
-                        className={`my-work-task5-state ${stateTone(selectedNode)}`.trim()}
-                      >
-                        {selectedNode}
-                      </span>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>责任人</dt>
-                    <dd>{selectedItem.responsiblePerson || "未提供责任人"}</dd>
-                  </div>
-                </dl>
-                <details className="my-work-task5-detail-states">
-                  <summary>查看完整流转状态</summary>
-                  <dl>
-                    {selectedStates.map(([label, value]) => (
-                      <div key={`${selectedItem.workId}-detail-${label}`}>
-                        <dt>{label}</dt>
-                        <dd>{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </details>
-                <footer>
-                  <button
-                    aria-label={
-                      completedView
-                        ? "从详情查看原业务单据"
-                        : `从详情打开${selectedProjection.actionLabel}`
-                    }
-                    className="my-work-task5-row-action is-primary"
-                    type="button"
-                    onClick={() =>
-                      onOpenBusiness(
-                        selectedProjection.destination.route,
-                        selectedProjection.destination.selection,
-                      )
-                    }
-                  >
-                    {completedView
-                      ? "查看原业务单据"
-                      : selectedProjection.actionLabel}
-                  </button>
-                </footer>
-              </>
-            ) : (
-              <div className="my-work-task5-detail-empty">
-                {completedView
-                  ? "当前筛选范围内暂无已办事项。"
-                  : "当前筛选范围内暂无待处理事项。"}
-              </div>
-            )}
-          </aside>
         </div>
       </section>
     </div>

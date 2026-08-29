@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type {
   BusinessRecordListItem,
@@ -62,7 +62,6 @@ import {
   formatExplicitSurveyPeriod,
   formatRealFillingTime,
   formatSurveyPeriodFromDate,
-  matchesFillingDateRange,
   matchesSurveyPeriod,
   surveyMonthOptions,
   surveyYearOptions,
@@ -70,6 +69,12 @@ import {
 import { useRealtimeMasterData } from "../realtime/useRealtimeMasterData";
 import { WorkspacePagination } from "../UnifiedWorkspacePrimitives";
 import { MarketReturnedCorrectionStatus } from "./MarketReturnedCorrectionStatus";
+import { ExistingSampleObservationPanel } from "../formal-sample/ExistingSampleObservationPanel";
+import {
+  mergeObservationFields,
+  observationFields,
+  type ObservationField,
+} from "../formal-sample/formalSampleObservationFields";
 
 const collectionPageSize = 20;
 
@@ -271,6 +276,15 @@ function formalMarketObjectTypeOptions(types: readonly MasterObjectType[]) {
   });
 }
 
+function formalMarketObjectTypeCode(
+  storedValue: string,
+  options: readonly { id: MarketBusinessObjectTypeId; label: string }[],
+): string | undefined {
+  if (marketObjectTypeIdByCode[storedValue]) return storedValue;
+  const matched = options.find(({ label }) => label === storedValue);
+  return matched ? marketObjectTypeCode[matched.id] : undefined;
+}
+
 const marketBaseListCodes = new Set([
   "MKT_OBJECT_TYPE",
   "MKT_REGION",
@@ -353,11 +367,17 @@ function objectTypeForWork(item: BusinessWorkItem): MarketBusinessObjectTypeId {
   return normalizeMarketObjectType(storedType, task?.role);
 }
 
-function fieldHeader(field: ApplicableBusinessField) {
+type LedgerDisplayField = Pick<ObservationField, "code" | "label" | "unit">;
+
+function fieldHeader(field: LedgerDisplayField) {
+  const fieldCode = field.code;
   const scopeHint =
-    field.id === "purchasePrice" || field.id === "salesPrice"
+    fieldCode === "purchasePrice" ||
+    fieldCode === "salesPrice" ||
+    fieldCode === "MKT_PURCHASE_BASE_PRICE" ||
+    fieldCode === "MKT_SALE_BASE_PRICE"
       ? "未含车板、包装、运费"
-      : field.id === "transactionPrice"
+      : fieldCode === "transactionPrice"
         ? "含车板、包装、运费"
         : undefined;
   return (
@@ -477,8 +497,6 @@ export function ProductMarketCollectionWorkspace({
   const [realtimeRegionCode, setRealtimeRegionCode] = useState("");
   const [surveyYear, setSurveyYear] = useState(currentSurveyYear);
   const [surveyMonth, setSurveyMonth] = useState("");
-  const [fillingDateFrom, setFillingDateFrom] = useState("");
-  const [fillingDateTo, setFillingDateTo] = useState("");
   const [persistedRecords, setPersistedRecords] = useState<
     readonly BusinessRecordListItem[]
   >([]);
@@ -494,6 +512,9 @@ export function ProductMarketCollectionWorkspace({
     repository: RealtimeBusinessRepository;
     values: readonly { id: MarketBusinessObjectTypeId; label: string }[];
   } | null>(null);
+  const [ledgerDefinitions, setLedgerDefinitions] = useState<
+    readonly MarketDefinition[]
+  >([]);
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
@@ -506,12 +527,22 @@ export function ProductMarketCollectionWorkspace({
   const usesFormalObjectTypes =
     realtimeRepository &&
     typeof realtimeRepository.listObjectTypes === "function";
-  const objectTypes = !usesFormalObjectTypes
-    ? getMarketObjectTypeOptions(context.productId)
-    : formalObjectTypeSnapshot?.productCode === productCode &&
-        formalObjectTypeSnapshot.repository === realtimeRepository
-      ? formalObjectTypeSnapshot.values
-      : [];
+  const objectTypes = useMemo(
+    () =>
+      !usesFormalObjectTypes
+        ? getMarketObjectTypeOptions(context.productId)
+        : formalObjectTypeSnapshot?.productCode === productCode &&
+            formalObjectTypeSnapshot.repository === realtimeRepository
+          ? formalObjectTypeSnapshot.values
+          : [],
+    [
+      context.productId,
+      formalObjectTypeSnapshot,
+      productCode,
+      realtimeRepository,
+      usesFormalObjectTypes,
+    ],
+  );
   useEffect(() => {
     if (!realtimeRepository?.listObjectTypes) return;
     let cancelled = false;
@@ -539,6 +570,51 @@ export function ProductMarketCollectionWorkspace({
       cancelled = true;
     };
   }, [productCode, realtimeRepository]);
+  useEffect(() => {
+    if (!realtimeRepository?.loadMarketDefinition) return;
+    const recordTypeCodes = persistedRecords
+      .map(({ values }) =>
+        values.MKT_OBJECT_TYPE
+          ? formalMarketObjectTypeCode(values.MKT_OBJECT_TYPE, objectTypes)
+          : undefined,
+      )
+      .filter((code): code is string => Boolean(code));
+    const requestedTypeCodes = [
+      ...(objectType ? [marketObjectTypeCode[objectType]] : []),
+      ...recordTypeCodes,
+    ];
+    const uniqueTypeCodes = [...new Set(requestedTypeCodes)];
+    if (uniqueTypeCodes.length === 0) {
+      queueMicrotask(() => setLedgerDefinitions([]));
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      uniqueTypeCodes.map((typeCode) =>
+        realtimeRepository.loadMarketDefinition(productCode, typeCode),
+      ),
+    )
+      .then((definitions) => {
+        if (!cancelled) setLedgerDefinitions(definitions);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLedgerDefinitions([]);
+          setRecordsError(
+            "市场业务字段定义读取失败，请稍后重试，系统未使用旧字段口径。",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    objectType,
+    objectTypes,
+    persistedRecords,
+    productCode,
+    realtimeRepository,
+  ]);
   const scopedRegion = pathValue(
     getEnterpriseRegionPath(scope.coordinates.regionId),
   );
@@ -643,8 +719,6 @@ export function ProductMarketCollectionWorkspace({
           regionCode: realtimeRegionCode || undefined,
           surveyYear,
           surveyMonth: surveyMonth || undefined,
-          fillingDateFrom: fillingDateFrom || undefined,
-          fillingDateTo: fillingDateTo || undefined,
           objectTypeCode: objectType
             ? marketObjectTypeCode[objectType]
             : undefined,
@@ -686,14 +760,17 @@ export function ProductMarketCollectionWorkspace({
     state,
     surveyMonth,
     surveyYear,
-    fillingDateFrom,
-    fillingDateTo,
   ]);
 
   const persistedRows: readonly MarketCollectionRow[] = persistedRecords.map(
     (record, index) => {
       const rawObjectType = record.values.MKT_OBJECT_TYPE ?? "TRADER";
+      const formalObjectType = objectTypes.find(
+        ({ id, label }) =>
+          label === rawObjectType || marketObjectTypeCode[id] === rawObjectType,
+      );
       const itemObjectTypeId =
+        formalObjectType?.id ??
         marketObjectTypeIdByCode[rawObjectType] ??
         normalizeMarketObjectType(
           rawObjectType.toLowerCase().replaceAll("_", "-"),
@@ -714,9 +791,11 @@ export function ProductMarketCollectionWorkspace({
           record.values.MKT_OBJECT_NAME ??
           rawObjectType,
         objectType:
+          formalObjectType?.label ??
           getMarketObjectTypeOptions(context.productId).find(
             ({ id }) => id === itemObjectTypeId,
-          )?.label ?? rawObjectType,
+          )?.label ??
+          rawObjectType,
         objectTypeId: itemObjectTypeId,
         county: record.values.MKT_REGION ?? "—",
         reporter: record.values.MKT_REPORTER_NAME ?? "—",
@@ -737,20 +816,7 @@ export function ProductMarketCollectionWorkspace({
         transactionVolume: persistedMarketValue(record, "transactionVolume"),
         salesVolume: persistedMarketValue(record, "salesVolume"),
         state: persistedMarketState(record.values.MKT_STATUS),
-        values: Object.fromEntries(
-          getMarketCapabilityGroups(context.productId, itemObjectTypeId)
-            .flatMap(({ fields }) => fields)
-            .map(({ id }) => {
-              if (id === "inventoryLocation") {
-                const regionCode = persistedMarketValue(record, id);
-                const regionName = masterData?.regions.find(
-                  ({ code }) => code === regionCode,
-                )?.name;
-                return [id, regionName ?? "—"];
-              }
-              return [id, persistedMarketValue(record, id)];
-            }),
-        ),
+        values: record.values,
       };
     },
   );
@@ -760,16 +826,7 @@ export function ProductMarketCollectionWorkspace({
       (row) =>
         realtimeRepository || !objectType || row.objectTypeId === objectType,
     )
-    .filter((row) => realtimeRepository || !state || row.state === state)
-    .filter(
-      (row) =>
-        realtimeRepository ||
-        matchesFillingDateRange(
-          row.submittedAt,
-          fillingDateFrom,
-          fillingDateTo,
-        ),
-    );
+    .filter((row) => realtimeRepository || !state || row.state === state);
   const pageCount = realtimeRepository
     ? serverTotalPages
     : Math.max(1, Math.ceil(filteredRows.length / collectionPageSize));
@@ -811,10 +868,35 @@ export function ProductMarketCollectionWorkspace({
   ).length;
   const displayedObjectType: MarketBusinessObjectTypeId =
     objectType || rows[0]?.objectTypeId || objectTypes[0]?.id || "trader";
-  const displayedGroups = getMarketCapabilityGroups(
-    context.productId,
-    displayedObjectType,
+  const formalLedgerFields = mergeObservationFields(
+    ledgerDefinitions.map((definition) =>
+      observationFields("MARKET", definition),
+    ),
   );
+  const displayedGroups: readonly {
+    id: string;
+    label: string;
+    fields: readonly LedgerDisplayField[];
+  }[] = realtimeRepository
+    ? [...new Set(formalLedgerFields.map(({ section }) => section))].map(
+        (section) => ({
+          id: section,
+          label: section,
+          fields: formalLedgerFields.filter(
+            (field) => field.section === section,
+          ),
+        }),
+      )
+    : getMarketCapabilityGroups(context.productId, displayedObjectType).map(
+        (group) => ({
+          ...group,
+          fields: group.fields.map((field) => ({
+            code: field.id,
+            label: field.label,
+            unit: field.unit ?? null,
+          })),
+        }),
+      );
   const displayedFields = displayedGroups.flatMap(({ fields }) => fields);
 
   const importRecords = async (file: File | undefined) => {
@@ -1014,446 +1096,466 @@ export function ProductMarketCollectionWorkspace({
       <div className="enterprise-ledger-workbench__breadcrumb">
         市场监测 / {context.productLabel}市场采集
       </div>
-
-      <section
-        aria-label={`${context.productLabel}市场查询条件`}
-        className="enterprise-ledger-query enterprise-ledger-query--market"
-        role="search"
+      <ExistingSampleObservationPanel
+        domain="MARKET"
+        productCode={productCode}
+        repository={realtimeRepository}
+        onSaved={() => setRecordsRevision((value) => value + 1)}
       >
-        <label>
-          <span>数据年份</span>
-          <select
-            aria-label="数据年份"
-            required
-            value={surveyYear}
-            onChange={(event) => {
-              setSurveyYear(event.target.value);
-              setPageNumber(0);
-            }}
-          >
-            {surveyYearOptions.map((year) => (
-              <option key={year} value={year}>
-                {year} 年
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>数据月份</span>
-          <select
-            aria-label="数据月份"
-            value={surveyMonth}
-            onChange={(event) => {
-              setSurveyMonth(event.target.value);
-              setPageNumber(0);
-            }}
-          >
-            <option value="">全年（含年度与月度数据）</option>
-            {surveyMonthOptions.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {realtimeRepository ? (
-          <RealtimeRegionFilterSelect
-            authorizedRegionCodes={scope.authorization.authorizedRegionIds}
-            disabled={!masterData}
-            onChange={(regionCode) => {
-              setRealtimeRegionCode(regionCode);
-              setPageNumber(0);
-            }}
-            regions={masterData?.regions ?? []}
-            value={realtimeRegionCode}
-          />
-        ) : (
-          <RegionCascadeSelector
-            authorizedRegionIds={scope.authorization.authorizedRegionIds}
-            maxLevel="village"
-            value={regionValue}
-            onChange={(value) => {
-              setLowerRegion(value);
-              setPageNumber(0);
-              onScopeChange({ regionId: scopeRegionId(value) });
-            }}
-          />
-        )}
-        {!realtimeRepository && (
+        <section
+          aria-label={`${context.productLabel}市场查询条件`}
+          className="enterprise-ledger-query enterprise-ledger-query--market"
+          role="search"
+        >
           <label>
-            <span>监测批次</span>
+            <span>数据年份</span>
             <select
-              aria-label="监测批次"
-              value={scope.coordinates.periodKey ?? ""}
+              aria-label="数据年份"
+              required
+              value={surveyYear}
               onChange={(event) => {
+                setSurveyYear(event.target.value);
                 setPageNumber(0);
-                onScopeChange({ periodKey: event.target.value || undefined });
               }}
             >
-              <option value="">全部可用监测期</option>
-              {marketTaskPeriods.map((period) => (
-                <option key={period.id} value={period.id}>
-                  {period.label}
+              {surveyYearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year} 年
                 </option>
               ))}
             </select>
           </label>
-        )}
-        <label>
-          <span>样本点类型</span>
-          <select
-            aria-label="样本点类型"
-            value={objectType}
-            onChange={(event) => {
-              setPageNumber(0);
-              setObjectType(
-                event.target.value as "" | MarketBusinessObjectTypeId,
-              );
-            }}
-          >
-            <option value="">全部适用样本点</option>
-            {objectTypes.map(({ id, label }) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>填报日期起</span>
-          <input
-            aria-label="填报日期起"
-            type="date"
-            value={fillingDateFrom}
-            onChange={(event) => {
-              setFillingDateFrom(event.target.value);
-              setPageNumber(0);
-            }}
-          />
-        </label>
-        <label>
-          <span>填报日期止</span>
-          <input
-            aria-label="填报日期止"
-            type="date"
-            value={fillingDateTo}
-            onChange={(event) => {
-              setFillingDateTo(event.target.value);
-              setPageNumber(0);
-            }}
-          />
-        </label>
-        <label>
-          <span>填报状态</span>
-          <select
-            aria-label="填报状态"
-            value={state}
-            onChange={(event) => {
-              setState(event.target.value);
-              setPageNumber(0);
-            }}
-          >
-            <option value="">全部状态</option>
-            <option value="待审核">待审核</option>
-            <option value="已核定">已核定</option>
-            <option value="需补充">需补充</option>
-            <option value="已作废">已作废</option>
-          </select>
-        </label>
-        <div className="enterprise-ledger-query__actions">
-          <button
-            className="is-primary"
-            type="button"
-            onClick={() => setRecordsRevision((value) => value + 1)}
-          >
-            查询
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setObjectType("");
-              setState("");
-              setSurveyYear(currentSurveyYear);
-              setSurveyMonth("");
-              setFillingDateFrom("");
-              setFillingDateTo("");
-              setLowerRegion({});
-              setRealtimeRegionCode("");
-              setPageNumber(0);
-              onScopeChange({
-                regionId: "authorized-all",
-                periodKey: undefined,
-                cultivarId: undefined,
-              });
-            }}
-          >
-            重置
-          </button>
-        </div>
-      </section>
-
-      {!queryAllowed && (
-        <div className="market-task6-alert" role="alert">
-          当前查询条件超出您的授权范围，系统未展示其他地区的数据。
-        </div>
-      )}
-
-      {recordsError && (
-        <div className="market-task6-alert" role="alert">
-          {recordsError}
-        </div>
-      )}
-      {masterDataError && (
-        <div className="market-task6-alert" role="alert">
-          {masterDataError}
-        </div>
-      )}
-
-      <BusinessImportStatus
-        busy={importing}
-        className="market-task6-alert"
-        job={importJob}
-        onDownloadErrors={() => void downloadImportErrors()}
-        onRetry={() => void retryImport()}
-      />
-      <MarketReturnedCorrectionStatus
-        busy={correcting}
-        className="market-task6-alert"
-        job={correctionJob}
-        onDownloadErrors={() => void downloadReturnedCorrectionErrors()}
-      />
-
-      <header className="enterprise-ledger-title">
-        <h1>{context.productLabel}市场采集表</h1>
-        <p>当前业务对象 · {businessDate(sourceItem)} · 当前授权地区</p>
-        <p className="enterprise-ledger-title__sample-note">
-          {annualSampleStatusNote(surveyYear)}
-        </p>
-      </header>
-
-      <section
-        className="enterprise-ledger-table enterprise-ledger-table--market"
-        aria-label={`${context.productLabel}市场采集表区域`}
-      >
-        <div className="enterprise-ledger-table__toolbar">
-          <strong>
-            {recordsLoading
-              ? "正在读取市场采集记录"
-              : `共 ${rows.length} 个样本点，当前显示 ${rows.length > 0 ? 1 : 0}–${rows.length}`}
-          </strong>
-          <div>
-            {realtimeRepository && (
-              <>
-                <button
-                  disabled={
-                    importing || !realtimeRepository.downloadMarketXlsxTemplate
-                  }
-                  type="button"
-                  onClick={() => void downloadTemplate()}
-                >
-                  下载 XLSX 模板
-                </button>
-                <label className="realtime-business-file-action">
-                  {importing ? "正在导入" : "批量导入 XLSX"}
-                  <input
-                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    aria-label="批量导入市场采集记录"
-                    disabled={
-                      importing || !realtimeRepository.importMarketWorkbook
-                    }
-                    type="file"
-                    onChange={(event) => {
-                      void importRecords(event.target.files?.[0]);
-                      event.target.value = "";
-                    }}
-                  />
-                </label>
-                <button
-                  disabled={
-                    correcting ||
-                    !realtimeRepository.downloadMarketReturnedCorrectionWorkbook
-                  }
-                  type="button"
-                  onClick={() => void downloadReturnedCorrectionWorkbook()}
-                >
-                  下载退回记录修正表
-                </button>
-                <label className="realtime-business-file-action">
-                  {correcting ? "正在修正" : "批量导入修正结果"}
-                  <input
-                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    aria-label="批量导入市场退回修正结果"
-                    disabled={
-                      correcting ||
-                      !realtimeRepository.importMarketReturnedCorrectionWorkbook
-                    }
-                    type="file"
-                    onChange={(event) => {
-                      void correctReturnedRecords(event.target.files?.[0]);
-                      event.target.value = "";
-                    }}
-                  />
-                </label>
-                <label className="realtime-business-file-action">
-                  随本次 XLSX 一并上传照片（已选 {importPhotos.length} 张）
-                  <input
-                    accept="image/jpeg,image/png"
-                    aria-label="附加市场照片"
-                    disabled={importing}
-                    multiple
-                    type="file"
-                    onChange={(event) =>
-                      setImportPhotos(Array.from(event.target.files ?? []))
-                    }
-                  />
-                </label>
-              </>
-            )}
-            <button type="button" onClick={() => onCreateRecord?.(productCode)}>
-              新建采集记录
+          <label>
+            <span>数据月份</span>
+            <select
+              aria-label="数据月份"
+              value={surveyMonth}
+              onChange={(event) => {
+                setSurveyMonth(event.target.value);
+                setPageNumber(0);
+              }}
+            >
+              <option value="">全年（含年度与月度数据）</option>
+              {surveyMonthOptions.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {realtimeRepository ? (
+            <RealtimeRegionFilterSelect
+              authorizedRegionCodes={scope.authorization.authorizedRegionIds}
+              disabled={!masterData}
+              onChange={(regionCode) => {
+                setRealtimeRegionCode(regionCode);
+                setPageNumber(0);
+              }}
+              regions={masterData?.regions ?? []}
+              value={realtimeRegionCode}
+            />
+          ) : (
+            <RegionCascadeSelector
+              authorizedRegionIds={scope.authorization.authorizedRegionIds}
+              maxLevel="village"
+              value={regionValue}
+              onChange={(value) => {
+                setLowerRegion(value);
+                setPageNumber(0);
+                onScopeChange({ regionId: scopeRegionId(value) });
+              }}
+            />
+          )}
+          {!realtimeRepository && (
+            <label>
+              <span>监测批次</span>
+              <select
+                aria-label="监测批次"
+                value={scope.coordinates.periodKey ?? ""}
+                onChange={(event) => {
+                  setPageNumber(0);
+                  onScopeChange({ periodKey: event.target.value || undefined });
+                }}
+              >
+                <option value="">全部可用监测期</option>
+                {marketTaskPeriods.map((period) => (
+                  <option key={period.id} value={period.id}>
+                    {period.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            <span>样本点类型</span>
+            <select
+              aria-label="样本点类型"
+              value={objectType}
+              onChange={(event) => {
+                setPageNumber(0);
+                setObjectType(
+                  event.target.value as "" | MarketBusinessObjectTypeId,
+                );
+              }}
+            >
+              <option value="">全部适用样本点</option>
+              {objectTypes.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>填报状态</span>
+            <select
+              aria-label="填报状态"
+              value={state}
+              onChange={(event) => {
+                setState(event.target.value);
+                setPageNumber(0);
+              }}
+            >
+              <option value="">全部状态</option>
+              <option value="待审核">待审核</option>
+              <option value="已核定">已核定</option>
+              <option value="需补充">需补充</option>
+              <option value="已作废">已作废</option>
+            </select>
+          </label>
+          <div className="enterprise-ledger-query__actions">
+            <button
+              className="is-primary"
+              type="button"
+              onClick={() => setRecordsRevision((value) => value + 1)}
+            >
+              查询
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setObjectType("");
+                setState("");
+                setSurveyYear(currentSurveyYear);
+                setSurveyMonth("");
+                setLowerRegion({});
+                setRealtimeRegionCode("");
+                setPageNumber(0);
+                onScopeChange({
+                  regionId: "authorized-all",
+                  periodKey: undefined,
+                  cultivarId: undefined,
+                });
+              }}
+            >
+              重置
             </button>
           </div>
-        </div>
-        <div className="enterprise-ledger-table__scroll" tabIndex={0}>
-          <table aria-label={`${context.productLabel}市场采集表`}>
-            <thead>
-              <tr>
-                <th rowSpan={2}>序号</th>
-                <th rowSpan={2}>数据时间</th>
-                <th rowSpan={2}>填报日期</th>
-                <th rowSpan={2}>样本点名称</th>
-                <th rowSpan={2}>样本点类型</th>
-                <th rowSpan={2}>地区</th>
-                <th colSpan={6}>填报与定位</th>
-                {displayedGroups.map((group) => (
-                  <th colSpan={group.fields.length} key={group.id}>
-                    {group.label}
-                  </th>
-                ))}
-                <th rowSpan={2}>填报状态</th>
-                <th rowSpan={2}>操作</th>
-              </tr>
-              <tr>
-                <th>填报人</th>
-                <th>调研人</th>
-                <th>调研人联系方式</th>
-                <th>样本点联系方式</th>
-                <th>纬度</th>
-                <th>经度</th>
-                {displayedFields.map((field) => (
-                  <th aria-label={field.label} key={field.id}>
-                    {fieldHeader(field)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.rowId}>
-                  <td>{row.number}</td>
-                  <td>{row.collectionDate}</td>
-                  <td>{row.submittedAt}</td>
-                  <th scope="row">{row.subject}</th>
-                  <td>{row.objectType}</td>
-                  <td>{row.county}</td>
-                  <td>{row.reporter}</td>
-                  <td>{row.surveyor}</td>
-                  <td>{row.surveyorPhone}</td>
-                  <td>{row.sampleContact}</td>
-                  <td className="is-operational">{row.latitude}</td>
-                  <td className="is-operational">{row.longitude}</td>
-                  {displayedFields.map(({ id }) => (
-                    <td className="is-operational" key={id}>
-                      {row.values[id] ?? "—"}
-                    </td>
-                  ))}
-                  <td>
-                    <span className={`enterprise-ledger-state is-${row.state}`}>
-                      {row.state}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="enterprise-ledger-row-action"
-                      type="button"
-                      onClick={() => {
-                        if (realtimeRepository && onEditRecord) {
-                          onEditRecord(productCode, row.workId);
-                          return;
-                        }
-                        onSelectionChange({
-                          type: "work-item",
-                          id: row.workId,
-                        });
-                      }}
-                    >
-                      查看记录
-                    </button>
-                    <button
-                      className="enterprise-ledger-row-action"
-                      type="button"
-                      onClick={() => {
-                        if (realtimeRepository && onEditRecord) {
-                          onEditRecord(productCode, row.workId);
-                          return;
-                        }
-                        onSelectionChange({
-                          type: "work-item",
-                          id: row.workId,
-                        });
-                      }}
-                    >
-                      查看照片
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td
-                    className="enterprise-ledger-table__empty"
-                    colSpan={14 + displayedFields.length}
-                  >
-                    当前范围暂无{context.productLabel}市场采集记录
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <footer>
-          <span>
-            本页已填 {completedFields} 项，缺失 {missingFields} 项，异常{" "}
-            {abnormalRows} 项
-          </span>
-          <WorkspacePagination
-            end={rowEnd}
-            onPageChange={(nextPage) => setPageNumber(nextPage - 1)}
-            page={currentPageNumber + 1}
-            pages={pageCount}
-            start={rowStart}
-            total={rowTotal}
-          />
-        </footer>
-      </section>
+        </section>
 
-      {!realtimeRepository && selectedItem && selectedDocument && (
-        <MarketDocumentWorkbench
-          actor={{
-            userId: scope.identity.userId,
-            displayName: scope.identity.displayName ?? "当前登录人员",
-            canRelease:
-              scope.authorization.permissionKeys.includes("market:release"),
-          }}
-          document={selectedDocument}
-          draft={documentDrafts[selectedItem.workId]}
-          item={selectedItem}
-          onDraftChange={(draft) =>
-            onDocumentDraftChange(selectedItem.workId, draft)
-          }
-          onItemChange={onWorkItemChange}
+        {!queryAllowed && (
+          <div className="market-task6-alert" role="alert">
+            当前查询条件超出您的授权范围，系统未展示其他地区的数据。
+          </div>
+        )}
+
+        {recordsError && (
+          <div className="market-task6-alert" role="alert">
+            {recordsError}
+          </div>
+        )}
+        {masterDataError && (
+          <div className="market-task6-alert" role="alert">
+            {masterDataError}
+          </div>
+        )}
+
+        <BusinessImportStatus
+          busy={importing}
+          className="market-task6-alert"
+          job={importJob}
+          onDownloadErrors={() => void downloadImportErrors()}
+          onRetry={() => void retryImport()}
         />
-      )}
+        <MarketReturnedCorrectionStatus
+          busy={correcting}
+          className="market-task6-alert"
+          job={correctionJob}
+          onDownloadErrors={() => void downloadReturnedCorrectionErrors()}
+        />
+
+        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
+          <h1>{context.productLabel}市场采集表</h1>
+          <p>当前业务对象 · {businessDate(sourceItem)} · 当前授权地区</p>
+          <p className="enterprise-ledger-title__sample-note">
+            {annualSampleStatusNote(surveyYear)}
+          </p>
+        </header>
+
+        <section
+          className="enterprise-ledger-table enterprise-ledger-table--market"
+          aria-label={`${context.productLabel}市场采集表区域`}
+        >
+          <div className="enterprise-ledger-table__toolbar enterprise-ledger-table__toolbar--collection">
+            <strong>
+              {recordsLoading
+                ? "正在读取市场采集记录"
+                : `共 ${rows.length} 个样本点，当前显示 ${rows.length > 0 ? 1 : 0}–${rows.length}`}
+            </strong>
+            <div className="enterprise-ledger-table__actions">
+              {realtimeRepository && (
+                <>
+                  <div
+                    aria-label="批量导入"
+                    className="enterprise-ledger-action-group"
+                    role="group"
+                  >
+                    <span className="enterprise-ledger-action-group__label">
+                      批量导入
+                    </span>
+                    <button
+                      disabled={
+                        importing ||
+                        !realtimeRepository.downloadMarketXlsxTemplate
+                      }
+                      type="button"
+                      onClick={() => void downloadTemplate()}
+                    >
+                      下载 XLSX 模板
+                    </button>
+                    <label className="realtime-business-file-action">
+                      {importing ? "正在导入" : "批量导入 XLSX"}
+                      <input
+                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        aria-label="批量导入市场采集记录"
+                        disabled={
+                          importing || !realtimeRepository.importMarketWorkbook
+                        }
+                        type="file"
+                        onChange={(event) => {
+                          void importRecords(event.target.files?.[0]);
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <label className="realtime-business-file-action">
+                      随 XLSX 上传照片（{importPhotos.length} 张）
+                      <input
+                        accept="image/jpeg,image/png"
+                        aria-label="附加市场照片"
+                        disabled={importing}
+                        multiple
+                        type="file"
+                        onChange={(event) =>
+                          setImportPhotos(Array.from(event.target.files ?? []))
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div
+                    aria-label="退回修正"
+                    className="enterprise-ledger-action-group"
+                    role="group"
+                  >
+                    <span className="enterprise-ledger-action-group__label">
+                      退回修正
+                    </span>
+                    <button
+                      disabled={
+                        correcting ||
+                        !realtimeRepository.downloadMarketReturnedCorrectionWorkbook
+                      }
+                      type="button"
+                      onClick={() => void downloadReturnedCorrectionWorkbook()}
+                    >
+                      下载退回记录修正表
+                    </button>
+                    <label className="realtime-business-file-action">
+                      {correcting ? "正在修正" : "批量导入修正结果"}
+                      <input
+                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        aria-label="批量导入市场退回修正结果"
+                        disabled={
+                          correcting ||
+                          !realtimeRepository.importMarketReturnedCorrectionWorkbook
+                        }
+                        type="file"
+                        onChange={(event) => {
+                          void correctReturnedRecords(event.target.files?.[0]);
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+              <div
+                aria-label="单条录入"
+                className="enterprise-ledger-action-group enterprise-ledger-action-group--primary"
+                role="group"
+              >
+                <span className="enterprise-ledger-action-group__label">
+                  单条录入
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onCreateRecord?.(productCode)}
+                >
+                  新建采集记录
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="enterprise-ledger-table__scroll" tabIndex={0}>
+            <table aria-label={`${context.productLabel}市场采集表`}>
+              <thead>
+                <tr>
+                  <th rowSpan={2}>序号</th>
+                  <th rowSpan={2}>数据时间</th>
+                  <th rowSpan={2}>填报日期</th>
+                  <th rowSpan={2}>样本点名称</th>
+                  <th rowSpan={2}>样本点类型</th>
+                  <th rowSpan={2}>地区</th>
+                  <th colSpan={6}>填报与定位</th>
+                  {displayedGroups.map((group) => (
+                    <th colSpan={group.fields.length} key={group.id}>
+                      {group.label}
+                    </th>
+                  ))}
+                  <th rowSpan={2}>填报状态</th>
+                  <th rowSpan={2}>操作</th>
+                </tr>
+                <tr>
+                  <th>填报人</th>
+                  <th>调研人</th>
+                  <th>调研人联系方式</th>
+                  <th>样本点联系方式</th>
+                  <th>纬度</th>
+                  <th>经度</th>
+                  {displayedFields.map((field) => (
+                    <th
+                      aria-label={field.label}
+                      data-field-code={field.code}
+                      key={field.code}
+                    >
+                      {fieldHeader(field)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.rowId}>
+                    <td>{row.number}</td>
+                    <td>{row.collectionDate}</td>
+                    <td>{row.submittedAt}</td>
+                    <th scope="row">{row.subject}</th>
+                    <td>{row.objectType}</td>
+                    <td>{row.county}</td>
+                    <td>{row.reporter}</td>
+                    <td>{row.surveyor}</td>
+                    <td>{row.surveyorPhone}</td>
+                    <td>{row.sampleContact}</td>
+                    <td className="is-operational">{row.latitude}</td>
+                    <td className="is-operational">{row.longitude}</td>
+                    {displayedFields.map((field) => {
+                      const code = field.code;
+                      return (
+                        <td className="is-operational" key={code}>
+                          {row.values[code] ?? "—"}
+                        </td>
+                      );
+                    })}
+                    <td>
+                      <span
+                        className={`enterprise-ledger-state is-${row.state}`}
+                      >
+                        {row.state}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className="enterprise-ledger-row-action"
+                        type="button"
+                        onClick={() => {
+                          if (realtimeRepository && onEditRecord) {
+                            onEditRecord(productCode, row.workId);
+                            return;
+                          }
+                          onSelectionChange({
+                            type: "work-item",
+                            id: row.workId,
+                          });
+                        }}
+                      >
+                        查看记录
+                      </button>
+                      <button
+                        className="enterprise-ledger-row-action"
+                        type="button"
+                        onClick={() => {
+                          if (realtimeRepository && onEditRecord) {
+                            onEditRecord(productCode, row.workId);
+                            return;
+                          }
+                          onSelectionChange({
+                            type: "work-item",
+                            id: row.workId,
+                          });
+                        }}
+                      >
+                        查看照片
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td
+                      className="enterprise-ledger-table__empty"
+                      colSpan={14 + displayedFields.length}
+                    >
+                      当前范围暂无{context.productLabel}市场采集记录
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <footer>
+            <span>
+              本页已填 {completedFields} 项，缺失 {missingFields} 项，异常{" "}
+              {abnormalRows} 项
+            </span>
+            <WorkspacePagination
+              end={rowEnd}
+              onPageChange={(nextPage) => setPageNumber(nextPage - 1)}
+              page={currentPageNumber + 1}
+              pages={pageCount}
+              start={rowStart}
+              total={rowTotal}
+            />
+          </footer>
+        </section>
+
+        {!realtimeRepository && selectedItem && selectedDocument && (
+          <MarketDocumentWorkbench
+            actor={{
+              userId: scope.identity.userId,
+              displayName: scope.identity.displayName ?? "当前登录人员",
+              canRelease:
+                scope.authorization.permissionKeys.includes("market:release"),
+            }}
+            document={selectedDocument}
+            draft={documentDrafts[selectedItem.workId]}
+            item={selectedItem}
+            onDraftChange={(draft) =>
+              onDocumentDraftChange(selectedItem.workId, draft)
+            }
+            onItemChange={onWorkItemChange}
+          />
+        )}
+      </ExistingSampleObservationPanel>
     </div>
   );
 }

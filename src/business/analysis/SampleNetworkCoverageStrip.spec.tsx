@@ -189,4 +189,65 @@ describe("SampleNetworkCoverageStrip", () => {
       expect(screen.getByText("2027年度网络尚未创建")).toBeVisible(),
     );
   });
+
+  it("requeries the current sample count when the realtime analysis version changes", async () => {
+    const comparison = (activeSamplePointCount: number) => ({
+      networkYear: 2026,
+      networkStatus: "PUBLISHED",
+      designPointCount: 2,
+      designCoordinateCount: 2,
+      activeSamplePointCount,
+      approvedSubmissionSamplePointCount: activeSamplePointCount,
+      pendingVerificationDesignPointCount: 0,
+      multipleActualPerDesignPointCount: 0,
+      anomalyCount: 0,
+      exactCoveredDesignPointCount: activeSamplePointCount,
+      representedDesignPointCount: 0,
+      regionalAssociationDesignPointCount: 0,
+      unrelatedDesignPointCount: 2 - activeSamplePointCount,
+      actualLevelCounts: {
+        prefecture: 0,
+        county: 0,
+        township: 0,
+        village: activeSamplePointCount,
+      },
+      designPoints: [],
+      actualPoints: [],
+      relations: [],
+    });
+    const getSampleNetworkComparison = vi
+      .fn()
+      .mockResolvedValueOnce(comparison(2))
+      .mockResolvedValueOnce(comparison(1));
+    const repository = {
+      getSampleNetworkComparison,
+    } as unknown as RealtimeBusinessRepository;
+    const { rerender } = render(
+      <SampleNetworkCoverageStrip
+        refreshKey="analysis-v1"
+        repository={repository}
+        year={2026}
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText("年度现有样本点").nextElementSibling,
+      ).toHaveTextContent("2"),
+    );
+
+    rerender(
+      <SampleNetworkCoverageStrip
+        refreshKey="analysis-v2"
+        repository={repository}
+        year={2026}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(getSampleNetworkComparison).toHaveBeenCalledTimes(2),
+    );
+    expect(
+      screen.getByText("年度现有样本点").nextElementSibling,
+    ).toHaveTextContent("1");
+  });
 });

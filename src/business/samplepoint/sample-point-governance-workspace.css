@@ -315,3 +315,384 @@
     margin-left: 0;
   }
 }
+
+/* Carbon sample-point workspace:start */
+.sample-point-governance-workspace {
+  color: #161616;
+  font-family:
+    "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  letter-spacing: 0.16px;
+}
+
+.sample-point-governance-workspace > .unified-page-header span {
+  color: #525252;
+}
+
+.sample-point-governance-workspace > .unified-page-header h1,
+.sample-point-governance-workspace__context strong,
+.sample-point-governance-workspace__table-region h2 {
+  color: #161616;
+  font-weight: 400;
+}
+
+.sample-point-governance-workspace__tabs {
+  gap: 0;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+  border-radius: 0;
+}
+
+.sample-point-governance-workspace__tabs button {
+  min-height: 48px;
+  padding: 0 20px;
+  color: #525252;
+  font-weight: 400;
+}
+
+.sample-point-governance-workspace__tabs button[aria-selected="true"] {
+  color: #161616;
+  font-weight: 600;
+}
+
+.sample-point-governance-workspace__tabs button[aria-selected="true"]::after {
+  height: 2px;
+  background: #0f62fe;
+}
+
+.sample-point-governance-workspace__context {
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f4f4f4;
+}
+
+.sample-point-governance-workspace__context span,
+.sample-point-governance-workspace__table-region p {
+  color: #525252;
+}
+
+.sample-point-governance-workspace__status-line {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+  background: #edf6fb;
+}
+
+.sample-point-governance-workspace__status-line dt {
+  color: #525252;
+}
+
+.sample-point-governance-workspace__status-line dd {
+  color: #0f62fe;
+}
+
+.sample-point-governance-workspace__main {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+}
+
+.sample-point-governance-workspace__review-switch {
+  margin-bottom: 20px;
+  border-color: #e0e0e0;
+}
+
+.sample-point-governance-workspace__review-switch button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-color: #e0e0e0;
+  border-radius: 0;
+  background: #f4f4f4;
+  color: #525252;
+}
+
+.sample-point-governance-workspace__review-switch button[aria-pressed="true"] {
+  border-bottom: 2px solid #0f62fe;
+  color: #161616;
+}
+
+.sample-point-governance-workspace__table-scroll,
+.sample-point-governance-workspace .sample-coordinate-governance__review-grid {
+  border-color: #e0e0e0;
+}
+
+.sample-point-governance-workspace th {
+  background: #e8eef4;
+  color: #161616;
+}
+
+.sample-point-governance-workspace th,
+.sample-point-governance-workspace td {
+  border-color: #e0e0e0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__section {
+  border-color: #e0e0e0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__empty {
+  border: 1px solid #e0e0e0;
+  border-radius: 0;
+  background: #f4f4f4;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance button,
+.sample-point-governance-workspace :is(input, select, textarea, button) {
+  border-radius: 0;
+}
+
+.sample-point-governance-workspace :is(input, select, textarea) {
+  border: 0;
+  border-bottom: 1px solid #8d8d8d;
+  background: #f4f4f4;
+}
+
+.sample-point-governance-workspace__filters {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) repeat(3, minmax(150px, 1fr)) auto;
+  gap: 1px;
+  align-items: end;
+  margin: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sample-point-governance-workspace__filters label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sample-point-governance-workspace__filters label > span {
+  color: #525252;
+  font-size: 11px;
+}
+
+.sample-point-governance-workspace__filters :is(input, select) {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  color: #161616;
+}
+
+.sample-point-governance-workspace__filters button,
+.sample-point-governance-workspace__pagination button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid #0f62fe;
+  color: #0f62fe;
+  background: #fff;
+}
+
+.sample-point-governance-workspace__filters button:disabled,
+.sample-point-governance-workspace__pagination button:disabled {
+  border-color: #c6c6c6;
+  color: #8d8d8d;
+  cursor: not-allowed;
+}
+
+.sample-point-governance-workspace__table-scroll--bounded {
+  height: clamp(360px, 58vh, 620px);
+  border-top: 0;
+  scrollbar-gutter: stable;
+}
+
+.sample-point-governance-workspace__table-scroll--bounded thead th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+}
+
+.sample-point-governance-workspace__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 4px 0 0 12px;
+  color: #525252;
+  font-size: 12px;
+}
+
+.sample-point-governance-workspace__pagination > div {
+  display: flex;
+}
+
+.sample-point-governance-workspace__pagination button + button {
+  border-left: 0;
+}
+
+@media (max-width: 1180px) {
+  .sample-point-governance-workspace__filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sample-point-governance-workspace__filters button {
+    justify-self: start;
+  }
+}
+
+/* Carbon sample-point workspace:end */
+
+/* Formal ledger refinement:start */
+.sample-point-governance-workspace[data-layout="ledger-workbench"] {
+  --ledger-border: #c6d6df;
+  --ledger-head: #deedf5;
+  --ledger-band: #edf6fb;
+}
+
+.sample-point-governance-workspace__toolbar {
+  border-top: 1px solid var(--ledger-border);
+  border-bottom: 1px solid var(--ledger-border);
+}
+
+.sample-point-governance-workspace__table-region > header {
+  min-height: 68px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ledger-border);
+}
+
+.sample-point-governance-workspace__table-region > header > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 18px;
+  min-width: 0;
+}
+
+.sample-point-governance-workspace__table-region > header p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sample-point-governance-workspace__filters {
+  padding-inline: 16px;
+  border-bottom: 0;
+}
+
+.sample-point-governance-workspace__table-scroll,
+.sample-point-governance-workspace__table-region,
+.sample-point-governance-workspace :is(button, input, select, textarea) {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.sample-point-governance-workspace__table-scroll--bounded {
+  border-right: 0;
+  border-left: 0;
+}
+
+.sample-point-governance-workspace__table-scroll--bounded thead th {
+  background: var(--ledger-head);
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header {
+  min-height: 76px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ledger-border);
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header > div {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  grid-template-areas:
+    "eyebrow description"
+    "title description";
+  align-items: center;
+  gap: 2px 20px;
+  width: 100%;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header span {
+  grid-area: eyebrow;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header h2 {
+  grid-area: title;
+  margin: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__header p {
+  grid-area: description;
+  margin: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__section {
+  padding: 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--ledger-border);
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 16px;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header
+  > div {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.sample-point-governance-workspace
+  .sample-coordinate-governance__section
+  > header
+  :is(h3, p) {
+  margin: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__upload,
+.sample-point-governance-workspace .sample-coordinate-governance__empty {
+  margin: 0 16px 16px;
+  border-radius: 0;
+}
+
+.sample-point-governance-workspace .sample-coordinate-governance__empty {
+  padding: 16px;
+  border-style: solid;
+}
+
+.sample-point-governance-workspace__review-switch {
+  min-height: 44px;
+  margin: 0;
+  padding: 0 16px;
+}
+
+@media (max-width: 1100px) {
+  .sample-point-governance-workspace
+    .sample-coordinate-governance__header
+    > div {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "eyebrow"
+      "title"
+      "description";
+  }
+
+  .sample-point-governance-workspace__table-region > header > div,
+  .sample-point-governance-workspace
+    .sample-coordinate-governance__section
+    > header
+    > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}
+/* Formal ledger refinement:end */

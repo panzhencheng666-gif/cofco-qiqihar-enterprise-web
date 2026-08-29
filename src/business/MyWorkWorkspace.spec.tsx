@@ -1,6 +1,7 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { businessWorkFixtures } from "./data/businessWorkFixtures";
 import { fixtureOperationalIdentity } from "./formalEnterpriseData";
 import { MyWorkWorkspace } from "./MyWorkWorkspace";
 
@@ -33,13 +34,9 @@ describe("my work sample point governance entry", () => {
       expect(screen.getByRole("columnheader", { name: heading })).toBeVisible();
     }
     expect(ledger.querySelectorAll("thead th")).toHaveLength(6);
-    expect(within(ledger).getAllByRole("row")[1]).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
     expect(
-      screen.getByRole("complementary", { name: "当前事项详情" }),
-    ).toBeVisible();
+      screen.queryByRole("complementary", { name: "当前事项详情" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("searchbox", { name: "搜索事项名称或单据编号" }),
     ).toBeVisible();
@@ -60,6 +57,16 @@ describe("my work sample point governance entry", () => {
           savedView: null,
         }}
         section="completed"
+        workItems={[
+          {
+            ...businessWorkFixtures[0],
+            obligationStatus: "on-time",
+            documentStatus: "submitted",
+            reviewStatus: "approved",
+            qualityStatus: "passed",
+            releaseStatus: "published",
+          },
+        ]}
       />,
     );
 
@@ -77,30 +84,14 @@ describe("my work sample point governance entry", () => {
       ),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("complementary", { name: "已办事项详情" }),
-    ).toBeVisible();
+      screen.queryByRole("complementary", { name: "已办事项详情" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("status", { name: "已办事项概况" })).toBeVisible();
-  });
-
-  it("renders sample governance as an independent route and never inside the work ledger", () => {
-    render(
-      <MyWorkWorkspace
-        samplePointGovernance={<div>企业级样本点管理工作区</div>}
-        onOpenBusiness={vi.fn()}
-        onScopeChange={vi.fn()}
-        scope={{
-          ...fixtureOperationalIdentity,
-          coordinates: { regionId: "authorized-all" },
-          savedView: null,
-        }}
-        section="sample-governance"
-        workItems={[]}
-      />,
-    );
-
-    expect(screen.getByText("企业级样本点管理工作区")).toBeVisible();
     expect(
-      screen.queryByRole("region", { name: "本人工作台账区域" }),
+      screen.getAllByRole("button", { name: "查看原业务单据" }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole("button", { name: /继续.*填报/u }),
     ).not.toBeInTheDocument();
   });
 

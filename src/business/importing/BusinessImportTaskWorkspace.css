@@ -168,3 +168,157 @@
   font-weight: 700;
   color: #136b68 !important;
 }
+
+/* Carbon import workspace:start */
+.business-import-task-workspace {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+}
+
+.business-import-task-workspace__domains {
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.business-import-task-workspace__domains button {
+  min-height: 48px;
+  padding: 0 20px;
+  color: #525252;
+  font-weight: 400;
+}
+
+.business-import-task-workspace__domains button[aria-pressed="true"] {
+  background: #fff;
+  color: #161616;
+  font-weight: 600;
+}
+
+.business-import-task-workspace__domains button[aria-pressed="true"]::after {
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: #0f62fe;
+}
+
+.business-import-task-workspace__detail {
+  min-height: 100%;
+  padding: 0 24px 24px;
+  color: #161616;
+}
+
+.business-import-task-workspace__detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 -24px;
+  padding: 20px 24px 16px;
+  border-color: #e0e0e0;
+  background: #f4f4f4;
+}
+
+.business-import-task-workspace__detail-header h3 {
+  color: #161616;
+  font-weight: 400;
+}
+
+.business-import-task-workspace__detail-header p,
+.business-import-task-workspace__detail-header small {
+  color: #525252;
+}
+
+.business-import-task-workspace__detail-close,
+.business-import-task-workspace__result button,
+.business-import-task-workspace__photos button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid #0f62fe;
+  border-radius: 0;
+  background: #fff;
+  color: #0f62fe;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.business-import-task-workspace__photos button {
+  background: #0f62fe;
+  color: #fff;
+}
+
+/* Carbon import workspace:end */
+
+/* Formal import ledger refinement:start */
+.business-import-task-workspace__detail {
+  min-height: 0;
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.business-import-task-workspace__detail-header {
+  min-height: 68px;
+  align-items: center;
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid #c6d6df;
+  background: #f4f4f4;
+}
+
+.business-import-task-workspace__detail-header > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "eyebrow description"
+    "title description";
+  align-items: center;
+  gap: 2px 20px;
+}
+
+.business-import-task-workspace__detail-header small {
+  grid-area: eyebrow;
+}
+
+.business-import-task-workspace__detail-header h3 {
+  grid-area: title;
+  margin: 0;
+}
+
+.business-import-task-workspace__detail-header p {
+  grid-area: description;
+  margin: 0;
+}
+
+.business-import-task-workspace__result,
+.business-import-task-workspace__photos,
+.business-import-task-workspace__message {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid #d7e1e6;
+}
+
+.business-import-task-workspace__photos {
+  border-top: 0;
+}
+
+.business-import-task-workspace :is(button, input, select),
+.business-import-task-workspace__detail {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 900px) {
+  .business-import-task-workspace__detail-header > div {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "eyebrow"
+      "title"
+      "description";
+  }
+}
+/* Formal import ledger refinement:end */

@@ -44,13 +44,14 @@ import {
   formatExplicitSurveyPeriod,
   formatRealFillingTime,
   formatSurveyPeriodFromDate,
-  matchesFillingDateRange,
   matchesSurveyPeriod,
   surveyMonthOptions,
   surveyYearOptions,
 } from "../realtime/explicitRecordTime";
 import { useRealtimeMasterData } from "../realtime/useRealtimeMasterData";
 import { WorkspacePagination } from "../UnifiedWorkspacePrimitives";
+import { ExistingSampleObservationPanel } from "../formal-sample/ExistingSampleObservationPanel";
+import { observationFields } from "../formal-sample/formalSampleObservationFields";
 
 const collectionPageSize = 20;
 
@@ -102,6 +103,8 @@ const publicLogisticsListFields = [
   { code: "LOG_FREIGHT_RATE", label: "物流运价（不含车板价）（元/吨）" },
   { code: "LOG_BOARD_PRICE", label: "车板价（元/吨）" },
 ] as const;
+
+const logisticsIdentityListFields = publicLogisticsListFields.slice(0, 8);
 
 const logisticsProducts = [
   { code: "CORN", label: "玉米" },
@@ -293,8 +296,6 @@ export function LogisticsMonitoringWorkspace({
   const [realtimeRegionCode, setRealtimeRegionCode] = useState("");
   const [surveyYear, setSurveyYear] = useState(currentSurveyYear);
   const [surveyMonth, setSurveyMonth] = useState("");
-  const [fillingDateFrom, setFillingDateFrom] = useState("");
-  const [fillingDateTo, setFillingDateTo] = useState("");
   const [status, setStatus] = useState("");
   const [persistedRecords, setPersistedRecords] = useState<
     readonly LogisticsRecordRow[]
@@ -313,7 +314,9 @@ export function LogisticsMonitoringWorkspace({
     useState<ProductionImportJob | null>(null);
   const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
   const [recordsRevision, setRecordsRevision] = useState(0);
-  const [, setDefinition] = useState<LogisticsDefinition | null>(null);
+  const [definition, setDefinition] = useState<LogisticsDefinition | null>(
+    null,
+  );
   const { masterData, masterDataError } =
     useRealtimeMasterData(realtimeRepository);
 
@@ -502,8 +505,6 @@ export function LogisticsMonitoringWorkspace({
           regionCode: realtimeRegionCode || undefined,
           surveyYear,
           surveyMonth: surveyMonth || undefined,
-          fillingDateFrom: fillingDateFrom || undefined,
-          fillingDateTo: fillingDateTo || undefined,
           status: status || undefined,
           nodeTypeCode: nodeType
             ? logisticsNodeTypeCodeById[nodeType]
@@ -536,8 +537,6 @@ export function LogisticsMonitoringWorkspace({
     };
   }, [
     nodeType,
-    fillingDateFrom,
-    fillingDateTo,
     pageNumber,
     productCode,
     realtimeRefreshToken,
@@ -607,6 +606,15 @@ export function LogisticsMonitoringWorkspace({
       workItems,
     ],
   );
+  const ledgerListFields = realtimeRepository
+    ? [
+        ...logisticsIdentityListFields,
+        ...observationFields("LOGISTICS", definition).map((field) => ({
+          code: field.code,
+          label: field.unit ? `${field.label}（${field.unit}）` : field.label,
+        })),
+      ]
+    : publicLogisticsListFields;
   const rows: readonly LogisticsRow[] = items.map((item, index) => {
     const objectTypeId =
       item.subject.kind === "monitoring-object"
@@ -643,9 +651,7 @@ export function LogisticsMonitoringWorkspace({
       state: `${marketLifecycleLabels.review[item.reviewStatus]} · ${marketLifecycleLabels.quality[item.qualityStatus]}`,
     };
   });
-  const filteredRows = rows.filter((row) =>
-    matchesFillingDateRange(row.fillingTime, fillingDateFrom, fillingDateTo),
-  );
+  const filteredRows = rows;
   const fixturePageCount = Math.max(
     1,
     Math.ceil(filteredRows.length / collectionPageSize),
@@ -697,425 +703,453 @@ export function LogisticsMonitoringWorkspace({
       <div className="enterprise-ledger-workbench__breadcrumb">
         物流监测 / 物流业务监测
       </div>
-      <section
-        aria-label="物流业务查询条件"
-        className="enterprise-ledger-query enterprise-ledger-query--logistics"
-        role="search"
+      <ExistingSampleObservationPanel
+        domain="LOGISTICS"
+        productCode={productCode}
+        repository={realtimeRepository}
+        onSaved={() => setRecordsRevision((value) => value + 1)}
       >
-        <label>
-          <span>调查年份</span>
-          <select
-            aria-label="调查年份"
-            required
-            value={surveyYear}
-            onChange={(event) => {
-              setSurveyYear(event.target.value);
-              setPageNumber(0);
-            }}
-          >
-            {surveyYearOptions.map((year) => (
-              <option key={year} value={year}>
-                {year} 年
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>调查月份</span>
-          <select
-            aria-label="调查月份"
-            value={surveyMonth}
-            onChange={(event) => {
-              setSurveyMonth(event.target.value);
-              setPageNumber(0);
-            }}
-          >
-            <option value="">全年（含年度与月度数据）</option>
-            {surveyMonthOptions.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {realtimeRepository ? (
-          <RealtimeRegionFilterSelect
-            authorizedRegionCodes={scope.authorization.authorizedRegionIds}
-            disabled={!masterData}
-            onChange={(regionCode) => {
-              setRealtimeRegionCode(regionCode);
-              setPageNumber(0);
-            }}
-            regions={masterData?.regions ?? []}
-            value={realtimeRegionCode}
-          />
-        ) : (
-          <RegionCascadeSelector
-            authorizedRegionIds={scope.authorization.authorizedRegionIds}
-            maxLevel="county"
-            value={regionValue}
-            onChange={(value) => {
-              setLowerRegion(value);
-              setPageNumber(0);
-              onScopeChange({ regionId: scopeRegionId(value) });
-            }}
-          />
-        )}
-        <label>
-          <span>运输方式</span>
-          <select
-            aria-label="运输方式"
-            value={nodeType}
-            onChange={(event) => {
-              setNodeType(event.target.value);
-              setPageNumber(0);
-            }}
-          >
-            <option value="">全部运输方式</option>
-            <option value="rail-node">铁路</option>
-            <option value="road-node">公路</option>
-          </select>
-        </label>
-        <label>
-          <span>填报日期起</span>
-          <input
-            aria-label="填报日期起"
-            type="date"
-            value={fillingDateFrom}
-            onChange={(event) => {
-              setFillingDateFrom(event.target.value);
-              setPageNumber(0);
-            }}
-          />
-        </label>
-        <label>
-          <span>填报日期止</span>
-          <input
-            aria-label="填报日期止"
-            type="date"
-            value={fillingDateTo}
-            onChange={(event) => {
-              setFillingDateTo(event.target.value);
-              setPageNumber(0);
-            }}
-          />
-        </label>
-        <label>
-          <span>填报状态</span>
-          <select
-            aria-label="填报状态"
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPageNumber(0);
-            }}
-          >
-            <option value="">全部状态</option>
-            <option value="PENDING_REVIEW">待审核</option>
-            <option value="APPROVED">已核定</option>
-            <option value="RETURNED">退回待补充</option>
-            <option value="VOIDED">已作废</option>
-          </select>
-        </label>
-        <div className="enterprise-ledger-query__actions">
-          <button
-            className="is-primary"
-            type="button"
-            onClick={() => setRecordsRevision((value) => value + 1)}
-          >
-            查询
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setNodeType("");
-              setLowerRegion({});
-              setRealtimeRegionCode("");
-              setSurveyYear(currentSurveyYear);
-              setSurveyMonth("");
-              setFillingDateFrom("");
-              setFillingDateTo("");
-              setStatus("");
-              setPageNumber(0);
-              onScopeChange({
-                regionId: "qiqihar-all",
-                periodKey: undefined,
-              });
-            }}
-          >
-            重置
-          </button>
-        </div>
-      </section>
-
-      {!queryAllowed && (
-        <div className="market-task6-alert" role="alert">
-          当前查询条件超出您的授权范围，系统未展示其他地区的数据。
-        </div>
-      )}
-
-      {recordsError && (
-        <div className="market-task6-alert" role="alert">
-          {recordsError}
-        </div>
-      )}
-      {masterDataError && (
-        <div className="market-task6-alert" role="alert">
-          {masterDataError}
-        </div>
-      )}
-      {!importJob && importMessage && (
-        <div className="market-task6-alert" role="status">
-          {importMessage}
-        </div>
-      )}
-      <BusinessImportStatus
-        busy={importing}
-        className="market-task6-alert"
-        job={importJob}
-        onDownloadErrors={() => void downloadImportErrors()}
-        onRetry={() => void retryImport()}
-      />
-      <ReturnedCorrectionStatus
-        busy={correcting}
-        className="market-task6-alert"
-        job={correctionJob}
-        onDownloadErrors={() => void downloadReturnedCorrectionErrors()}
-      />
-
-      <header className="enterprise-ledger-title">
-        <h1>粮食物流监测表</h1>
-        <p>
-          物流运输业务 · {surveyYear}年
-          {surveyMonth ? `${Number(surveyMonth)}月` : "全年"} · 当前授权地区
-        </p>
-      </header>
-
-      <section
-        aria-label="粮食物流监测表区域"
-        className="enterprise-ledger-table"
-      >
-        <div className="enterprise-ledger-table__toolbar">
-          <strong>
-            {recordsLoading
-              ? "正在读取物流监测记录"
-              : `共 ${displayedRows.length} 条物流记录，当前显示 ${displayedRows.length > 0 ? 1 : 0}–${displayedRows.length}`}
-          </strong>
-          <div>
-            {realtimeRepository?.downloadLogisticsXlsxTemplate && (
-              <button type="button" onClick={() => void downloadTemplate()}>
-                下载 XLSX 模板
-              </button>
-            )}
-            {realtimeRepository?.importLogisticsWorkbook && (
-              <label className="realtime-business-file-action">
-                {importing ? "正在导入" : "批量导入 XLSX"}
-                <input
-                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                  aria-label="批量导入物流记录"
-                  disabled={importing}
-                  type="file"
-                  onChange={(event) => {
-                    void importWorkbook(event.target.files?.[0]);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-            )}
-            {realtimeRepository?.downloadReturnedCorrectionWorkbook && (
-              <button
-                disabled={importing || correcting}
-                type="button"
-                onClick={() => void downloadReturnedCorrectionWorkbook()}
-              >
-                下载退回记录修正表
-              </button>
-            )}
-            {realtimeRepository?.importReturnedCorrectionWorkbook && (
-              <label className="realtime-business-file-action">
-                {correcting ? "正在修正" : "批量导入修正结果"}
-                <input
-                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                  aria-label="批量导入物流退回修正结果"
-                  disabled={importing || correcting}
-                  type="file"
-                  onChange={(event) => {
-                    void correctReturnedRecords(event.target.files?.[0]);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-            )}
-            {realtimeRepository?.importLogisticsWorkbook && (
-              <label className="realtime-business-file-action">
-                随本次 XLSX 一并上传照片（已选 {importPhotos.length} 张）
-                <input
-                  accept="image/jpeg,image/png"
-                  aria-label="附加物流照片"
-                  disabled={importing}
-                  multiple
-                  type="file"
-                  onChange={(event) =>
-                    setImportPhotos(Array.from(event.target.files ?? []))
-                  }
-                />
-              </label>
-            )}
-            <button type="button" onClick={() => onCreateRecord?.(productCode)}>
-              新建监测记录
+        <section
+          aria-label="物流业务查询条件"
+          className="enterprise-ledger-query enterprise-ledger-query--logistics"
+          role="search"
+        >
+          <label>
+            <span>调查年份</span>
+            <select
+              aria-label="调查年份"
+              required
+              value={surveyYear}
+              onChange={(event) => {
+                setSurveyYear(event.target.value);
+                setPageNumber(0);
+              }}
+            >
+              {surveyYearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year} 年
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>调查月份</span>
+            <select
+              aria-label="调查月份"
+              value={surveyMonth}
+              onChange={(event) => {
+                setSurveyMonth(event.target.value);
+                setPageNumber(0);
+              }}
+            >
+              <option value="">全年（含年度与月度数据）</option>
+              {surveyMonthOptions.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {realtimeRepository ? (
+            <RealtimeRegionFilterSelect
+              authorizedRegionCodes={scope.authorization.authorizedRegionIds}
+              disabled={!masterData}
+              onChange={(regionCode) => {
+                setRealtimeRegionCode(regionCode);
+                setPageNumber(0);
+              }}
+              regions={masterData?.regions ?? []}
+              value={realtimeRegionCode}
+            />
+          ) : (
+            <RegionCascadeSelector
+              authorizedRegionIds={scope.authorization.authorizedRegionIds}
+              maxLevel="county"
+              value={regionValue}
+              onChange={(value) => {
+                setLowerRegion(value);
+                setPageNumber(0);
+                onScopeChange({ regionId: scopeRegionId(value) });
+              }}
+            />
+          )}
+          <label>
+            <span>运输方式</span>
+            <select
+              aria-label="运输方式"
+              value={nodeType}
+              onChange={(event) => {
+                setNodeType(event.target.value);
+                setPageNumber(0);
+              }}
+            >
+              <option value="">全部运输方式</option>
+              <option value="rail-node">铁路</option>
+              <option value="road-node">公路</option>
+            </select>
+          </label>
+          <label>
+            <span>填报状态</span>
+            <select
+              aria-label="填报状态"
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPageNumber(0);
+              }}
+            >
+              <option value="">全部状态</option>
+              <option value="PENDING_REVIEW">待审核</option>
+              <option value="APPROVED">已核定</option>
+              <option value="RETURNED">退回待补充</option>
+              <option value="VOIDED">已作废</option>
+            </select>
+          </label>
+          <div className="enterprise-ledger-query__actions">
+            <button
+              className="is-primary"
+              type="button"
+              onClick={() => setRecordsRevision((value) => value + 1)}
+            >
+              查询
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setNodeType("");
+                setLowerRegion({});
+                setRealtimeRegionCode("");
+                setSurveyYear(currentSurveyYear);
+                setSurveyMonth("");
+                setStatus("");
+                setPageNumber(0);
+                onScopeChange({
+                  regionId: "qiqihar-all",
+                  periodKey: undefined,
+                });
+              }}
+            >
+              重置
             </button>
           </div>
-        </div>
-        <div className="enterprise-ledger-table__scroll" tabIndex={0}>
-          <table aria-label="粮食物流监测表">
-            <thead>
-              <tr>
-                <th>序号</th>
-                <th>数据时间</th>
-                <th>填报日期</th>
-                {publicLogisticsListFields.map((field) => (
-                  <th key={field.code}>{field.label}</th>
-                ))}
-                <th>填报状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {realtimeRepository
-                ? persistedRecords.map((record, index) => (
-                    <tr key={record.id}>
-                      <td>
-                        {currentPageNumber * collectionPageSize + index + 1}
-                      </td>
-                      <td>{persistedSurveyPeriod(record)}</td>
-                      <td>{persistedFillingTime(record)}</td>
-                      {publicLogisticsListFields.map(({ code }) => (
-                        <td className="is-operational" key={code}>
-                          {persistedValue(record, code)}
-                        </td>
-                      ))}
-                      <td>
-                        {logisticsStatusLabels[record.status] ?? record.status}
-                      </td>
-                      <td>
-                        <button
-                          className="enterprise-ledger-row-action"
-                          type="button"
-                          onClick={() => {
-                            if (onEditRecord) {
-                              onEditRecord(productCode, record.id);
-                              return;
-                            }
-                            setSelectedPersistedId(record.id);
+        </section>
+
+        {!queryAllowed && (
+          <div className="market-task6-alert" role="alert">
+            当前查询条件超出您的授权范围，系统未展示其他地区的数据。
+          </div>
+        )}
+
+        {recordsError && (
+          <div className="market-task6-alert" role="alert">
+            {recordsError}
+          </div>
+        )}
+        {masterDataError && (
+          <div className="market-task6-alert" role="alert">
+            {masterDataError}
+          </div>
+        )}
+        {!importJob && importMessage && (
+          <div className="market-task6-alert" role="status">
+            {importMessage}
+          </div>
+        )}
+        <BusinessImportStatus
+          busy={importing}
+          className="market-task6-alert"
+          job={importJob}
+          onDownloadErrors={() => void downloadImportErrors()}
+          onRetry={() => void retryImport()}
+        />
+        <ReturnedCorrectionStatus
+          busy={correcting}
+          className="market-task6-alert"
+          job={correctionJob}
+          onDownloadErrors={() => void downloadReturnedCorrectionErrors()}
+        />
+
+        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
+          <h1>粮食物流监测表</h1>
+          <p>
+            物流运输业务 · {surveyYear}年
+            {surveyMonth ? `${Number(surveyMonth)}月` : "全年"} · 当前授权地区
+          </p>
+        </header>
+
+        <section
+          aria-label="粮食物流监测表区域"
+          className="enterprise-ledger-table"
+        >
+          <div className="enterprise-ledger-table__toolbar enterprise-ledger-table__toolbar--collection">
+            <strong>
+              {recordsLoading
+                ? "正在读取物流监测记录"
+                : `共 ${displayedRows.length} 条物流记录，当前显示 ${displayedRows.length > 0 ? 1 : 0}–${displayedRows.length}`}
+            </strong>
+            <div className="enterprise-ledger-table__actions">
+              {(realtimeRepository?.downloadLogisticsXlsxTemplate ||
+                realtimeRepository?.importLogisticsWorkbook) && (
+                <div
+                  aria-label="批量导入"
+                  className="enterprise-ledger-action-group"
+                  role="group"
+                >
+                  <span className="enterprise-ledger-action-group__label">
+                    批量导入
+                  </span>
+                  {realtimeRepository.downloadLogisticsXlsxTemplate && (
+                    <button
+                      type="button"
+                      onClick={() => void downloadTemplate()}
+                    >
+                      下载 XLSX 模板
+                    </button>
+                  )}
+                  {realtimeRepository.importLogisticsWorkbook && (
+                    <>
+                      <label className="realtime-business-file-action">
+                        {importing ? "正在导入" : "批量导入 XLSX"}
+                        <input
+                          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                          aria-label="批量导入物流记录"
+                          disabled={importing}
+                          type="file"
+                          onChange={(event) => {
+                            void importWorkbook(event.target.files?.[0]);
+                            event.target.value = "";
                           }}
-                        >
-                          查看
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                : displayedRows.map((row) => (
-                    <tr key={row.workId}>
-                      <td>{row.number}</td>
-                      <td>{row.surveyPeriod}</td>
-                      <td>{row.fillingTime}</td>
-                      {publicLogisticsListFields.map(({ code }) => (
-                        <td className="is-operational" key={code}>
-                          {fixturePublicValue(row, code)}
+                        />
+                      </label>
+                      <label className="realtime-business-file-action">
+                        随 XLSX 上传照片（{importPhotos.length} 张）
+                        <input
+                          accept="image/jpeg,image/png"
+                          aria-label="附加物流照片"
+                          disabled={importing}
+                          multiple
+                          type="file"
+                          onChange={(event) =>
+                            setImportPhotos(
+                              Array.from(event.target.files ?? []),
+                            )
+                          }
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
+              {(realtimeRepository?.downloadReturnedCorrectionWorkbook ||
+                realtimeRepository?.importReturnedCorrectionWorkbook) && (
+                <div
+                  aria-label="退回修正"
+                  className="enterprise-ledger-action-group"
+                  role="group"
+                >
+                  <span className="enterprise-ledger-action-group__label">
+                    退回修正
+                  </span>
+                  {realtimeRepository.downloadReturnedCorrectionWorkbook && (
+                    <button
+                      disabled={importing || correcting}
+                      type="button"
+                      onClick={() => void downloadReturnedCorrectionWorkbook()}
+                    >
+                      下载退回记录修正表
+                    </button>
+                  )}
+                  {realtimeRepository.importReturnedCorrectionWorkbook && (
+                    <label className="realtime-business-file-action">
+                      {correcting ? "正在修正" : "批量导入修正结果"}
+                      <input
+                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        aria-label="批量导入物流退回修正结果"
+                        disabled={importing || correcting}
+                        type="file"
+                        onChange={(event) => {
+                          void correctReturnedRecords(event.target.files?.[0]);
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              )}
+              <div
+                aria-label="单条录入"
+                className="enterprise-ledger-action-group enterprise-ledger-action-group--primary"
+                role="group"
+              >
+                <span className="enterprise-ledger-action-group__label">
+                  单条录入
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onCreateRecord?.(productCode)}
+                >
+                  新建监测记录
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="enterprise-ledger-table__scroll" tabIndex={0}>
+            <table aria-label="粮食物流监测表">
+              <thead>
+                <tr>
+                  <th>序号</th>
+                  <th>数据时间</th>
+                  <th>填报日期</th>
+                  {ledgerListFields.map((field) => (
+                    <th data-field-code={field.code} key={field.code}>
+                      {field.label}
+                    </th>
+                  ))}
+                  <th>填报状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {realtimeRepository
+                  ? persistedRecords.map((record, index) => (
+                      <tr key={record.id}>
+                        <td>
+                          {currentPageNumber * collectionPageSize + index + 1}
                         </td>
-                      ))}
-                      <td>{row.state}</td>
-                      <td>
-                        <button
-                          className="enterprise-ledger-row-action"
-                          type="button"
-                          onClick={() => {
-                            if (realtimeRepository) {
+                        <td>{persistedSurveyPeriod(record)}</td>
+                        <td>{persistedFillingTime(record)}</td>
+                        {ledgerListFields.map(({ code }) => (
+                          <td className="is-operational" key={code}>
+                            {persistedValue(record, code)}
+                          </td>
+                        ))}
+                        <td>
+                          {logisticsStatusLabels[record.status] ??
+                            record.status}
+                        </td>
+                        <td>
+                          <button
+                            className="enterprise-ledger-row-action"
+                            type="button"
+                            onClick={() => {
                               if (onEditRecord) {
-                                onEditRecord(productCode, row.workId);
+                                onEditRecord(productCode, record.id);
                                 return;
                               }
-                              setSelectedPersistedId(row.workId);
-                            } else {
-                              onSelectionChange({
-                                type: "work-item",
-                                id: row.workId,
-                              });
-                            }
-                          }}
-                        >
-                          查看
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              {displayedRows.length === 0 && !recordsLoading && (
-                <tr>
-                  <td
-                    className="enterprise-ledger-table__empty"
-                    colSpan={publicLogisticsListFields.length + 5}
-                  >
-                    当前范围暂无粮食物流监测记录
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <footer>
-          <span>
-            {realtimeRepository
-              ? `本页共 ${displayedRows.length} 条业务记录`
-              : `本页已填 ${completedFields} 项，缺失 ${missingFields} 项`}
-          </span>
-          <WorkspacePagination
-            end={rowEnd}
-            onPageChange={(nextPage) => setPageNumber(nextPage - 1)}
-            page={currentPageNumber + 1}
-            pages={pageCount}
-            start={rowStart}
-            total={rowTotal}
-          />
-        </footer>
-      </section>
-
-      {selectedPersistedRecord && (
-        <section aria-label="物流记录详情" className="enterprise-ledger-title">
-          <h2>物流记录详情</h2>
-          <p>
-            {persistedValue(selectedPersistedRecord, "LOG_SAMPLE_NAME")} ·{" "}
-            {persistedValue(selectedPersistedRecord, "LOG_REGION")} ·{" "}
-            {persistedSurveyPeriod(selectedPersistedRecord)} ·{" "}
-            {persistedFillingTime(selectedPersistedRecord)}
-          </p>
-          <dl>
-            {publicLogisticsListFields.map(({ code, label }) => (
-              <div key={code}>
-                <dt>{label}</dt>
-                <dd>{persistedValue(selectedPersistedRecord, code)}</dd>
-              </div>
-            ))}
-          </dl>
+                              setSelectedPersistedId(record.id);
+                            }}
+                          >
+                            查看
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  : displayedRows.map((row) => (
+                      <tr key={row.workId}>
+                        <td>{row.number}</td>
+                        <td>{row.surveyPeriod}</td>
+                        <td>{row.fillingTime}</td>
+                        {ledgerListFields.map(({ code }) => (
+                          <td className="is-operational" key={code}>
+                            {fixturePublicValue(row, code)}
+                          </td>
+                        ))}
+                        <td>{row.state}</td>
+                        <td>
+                          <button
+                            className="enterprise-ledger-row-action"
+                            type="button"
+                            onClick={() => {
+                              if (realtimeRepository) {
+                                if (onEditRecord) {
+                                  onEditRecord(productCode, row.workId);
+                                  return;
+                                }
+                                setSelectedPersistedId(row.workId);
+                              } else {
+                                onSelectionChange({
+                                  type: "work-item",
+                                  id: row.workId,
+                                });
+                              }
+                            }}
+                          >
+                            查看
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                {displayedRows.length === 0 && !recordsLoading && (
+                  <tr>
+                    <td
+                      className="enterprise-ledger-table__empty"
+                      colSpan={ledgerListFields.length + 5}
+                    >
+                      当前范围暂无粮食物流监测记录
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <footer>
+            <span>
+              {realtimeRepository
+                ? `本页共 ${displayedRows.length} 条业务记录`
+                : `本页已填 ${completedFields} 项，缺失 ${missingFields} 项`}
+            </span>
+            <WorkspacePagination
+              end={rowEnd}
+              onPageChange={(nextPage) => setPageNumber(nextPage - 1)}
+              page={currentPageNumber + 1}
+              pages={pageCount}
+              start={rowStart}
+              total={rowTotal}
+            />
+          </footer>
         </section>
-      )}
 
-      {selectedItem && selectedDocument && (
-        <MarketDocumentWorkbench
-          actor={{
-            userId: scope.identity.userId,
-            displayName: scope.identity.displayName ?? "当前登录人员",
-            canRelease:
-              scope.authorization.permissionKeys.includes("market:release"),
-          }}
-          document={selectedDocument}
-          draft={documentDrafts[selectedItem.workId]}
-          item={selectedItem}
-          onDraftChange={(draft) =>
-            onDocumentDraftChange(selectedItem.workId, draft)
-          }
-          onItemChange={onWorkItemChange}
-        />
-      )}
+        {selectedPersistedRecord && (
+          <section
+            aria-label="物流记录详情"
+            className="enterprise-ledger-title"
+          >
+            <h2>物流记录详情</h2>
+            <p>
+              {persistedValue(selectedPersistedRecord, "LOG_SAMPLE_NAME")} ·{" "}
+              {persistedValue(selectedPersistedRecord, "LOG_REGION")} ·{" "}
+              {persistedSurveyPeriod(selectedPersistedRecord)} ·{" "}
+              {persistedFillingTime(selectedPersistedRecord)}
+            </p>
+            <dl>
+              {ledgerListFields.map(({ code, label }) => (
+                <div key={code}>
+                  <dt>{label}</dt>
+                  <dd>{persistedValue(selectedPersistedRecord, code)}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+
+        {selectedItem && selectedDocument && (
+          <MarketDocumentWorkbench
+            actor={{
+              userId: scope.identity.userId,
+              displayName: scope.identity.displayName ?? "当前登录人员",
+              canRelease:
+                scope.authorization.permissionKeys.includes("market:release"),
+            }}
+            document={selectedDocument}
+            draft={documentDrafts[selectedItem.workId]}
+            item={selectedItem}
+            onDraftChange={(draft) =>
+              onDocumentDraftChange(selectedItem.workId, draft)
+            }
+            onItemChange={onWorkItemChange}
+          />
+        )}
+      </ExistingSampleObservationPanel>
     </div>
   );
 }

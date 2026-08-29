@@ -234,10 +234,6 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
         { route: createFormalRoute("work", "completed"), label: "已办事项" },
         { route: createFormalRoute("work", "imports"), label: "导入任务" },
         {
-          route: createFormalRoute("work", "sample-governance"),
-          label: "样本点管理",
-        },
-        {
           route: createFormalRoute("work", "obligations"),
           label: "填报履职周报",
         },
@@ -277,6 +273,10 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
         {
           route: createFormalRoute("production", "rice-collection"),
           label: "稻谷产情填报",
+        },
+        {
+          route: createFormalRoute("production", "regional-annual"),
+          label: "地区产情填报",
         },
         { route: createFormalRoute("production", "tasks"), label: "产情任务" },
         {

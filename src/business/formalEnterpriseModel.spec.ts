@@ -28,7 +28,6 @@ describe("formal enterprise route model", () => {
       ["work", "review", "#/我的工作/待我审核"],
       ["work", "exceptions", "#/我的工作/退回与异常"],
       ["work", "completed", "#/我的工作/已办事项"],
-      ["work", "sample-governance", "#/我的工作/样本点管理"],
       ["work", "imports", "#/我的工作/导入任务"],
       ["overview", "operations", "#/经营总览/经营运行"],
       ["overview", "risks", "#/经营总览/风险关注"],
@@ -144,6 +143,17 @@ describe("formal enterprise route model", () => {
     expect(writeFormalRoute(readFormalRoute("#/市场监测/内部代码-001"))).toBe(
       "#/市场监测/玉米市场采集",
     );
+  });
+
+  it("retires the former sample-point management route to the work queue", () => {
+    expect(readFormalRoute("#/我的工作/样本点管理")).toEqual({
+      application: "work",
+      section: "tasks",
+    });
+    expect(readFormalRoute("?page=work&section=sample-governance")).toEqual({
+      application: "work",
+      section: "tasks",
+    });
   });
 });
 

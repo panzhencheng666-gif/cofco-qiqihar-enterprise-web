@@ -433,8 +433,12 @@ export function SamplePointIdentityGovernancePanel({
                   {jobs.map((job) => (
                     <tr key={job.jobId}>
                       <td>
-                        <strong>{job.jobId}</strong>
-                        <small>批次 {job.batchId}</small>
+                        <strong>历史重复身份治理</strong>
+                        <small>
+                          {job.pendingRequests > 0
+                            ? "待复核治理申请"
+                            : "已处理治理任务"}
+                        </small>
                       </td>
                       <td>{jobStatus(job.statusCode)}</td>
                       <td>

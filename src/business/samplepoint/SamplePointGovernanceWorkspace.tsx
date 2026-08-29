@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type {
   CurrentSession,
@@ -18,10 +18,13 @@ type ReviewModule = "coordinate" | "identity-import" | "identity-merge";
 
 const modules = [
   ["registry", "样本点名册"],
+  ["annual", "年度样本"],
   ["design", "设计参考点"],
-  ["annual", "年度现有样本"],
-  ["review", "待办审核"],
+  ["review", "变更与审核"],
 ] as const satisfies readonly (readonly [GovernanceModule, string])[];
+
+const DESIGN_REFERENCE_PAGE_SIZE = 50;
+const EMPTY_DESIGN_POINTS: readonly SampleNetworkDesignPoint[] = [];
 
 const moduleGuidance: Readonly<
   Record<GovernanceModule, { title: string; description: string }>
@@ -37,14 +40,14 @@ const moduleGuidance: Readonly<
       "2,332 个行政村设计参考点不随年份变化，仅用于与年度现有样本进行覆盖对照。",
   },
   annual: {
-    title: "年度现有样本",
+    title: "年度样本",
     description:
       "从 2026 年开始逐年确认当年实际使用名单；沿用上年只复制成员关系，不复制业务数据。",
   },
   review: {
-    title: "待办审核",
+    title: "变更与审核",
     description:
-      "集中处理坐标修正、新导入身份和历史身份归并，审核通过后才更新正式治理结果。",
+      "按治理类型查看变更申请，完成授权范围内的独立审核并保留处理结果。",
   },
 };
 
@@ -106,11 +109,15 @@ export function SamplePointGovernanceWorkspace({
   }, [repository, selectedYearRefreshSequence, year]);
 
   return (
-    <main className="sample-point-governance-workspace">
+    <main
+      aria-label="样本点管理工作台"
+      className="sample-point-governance-workspace"
+      data-layout="ledger-workbench"
+    >
       <WorkspaceHeader
         eyebrow="平台运营管理部 / 数据治理"
         title="样本点管理"
-        summary="维护样本点名册、设计参考点和年度现有样本；审核事项集中进入待办审核。"
+        summary="分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
       />
 
       <nav
@@ -136,43 +143,55 @@ export function SamplePointGovernanceWorkspace({
       <div className="sample-point-governance-workspace__context">
         <strong>{moduleGuidance[activeModule].title}</strong>
         <span>{moduleGuidance[activeModule].description}</span>
-        <span className="sample-point-governance-workspace__context-year">
-          管理年度：{year}年
-        </span>
+        {(activeModule === "annual" || activeModule === "design") && (
+          <span className="sample-point-governance-workspace__context-year">
+            管理年度：{year}年
+          </span>
+        )}
       </div>
 
-      <dl
-        aria-label="样本网络概况"
-        className="sample-point-governance-workspace__status-line"
-        role="status"
-      >
-        <Status
-          label="设计参考点"
-          value={summaryValue(comparisonState, comparison?.designPointCount)}
-        />
-        <Status
-          label={`${year}年度现有样本`}
-          value={summaryValue(
-            comparisonState,
-            comparison?.activeSamplePointCount,
-          )}
-        />
-        <Status
-          label="待权威坐标核验"
-          value={summaryValue(
-            comparisonState,
-            comparison?.pendingVerificationDesignPointCount,
-          )}
-        />
-        <Status
-          label="对照异常"
-          value={summaryValue(comparisonState, comparison?.anomalyCount)}
-        />
-        <div className="sample-point-governance-workspace__status-note">
-          <dt>业务口径</dt>
-          <dd>设计参考点共 2,332 个，不随年份变化</dd>
-        </div>
-      </dl>
+      {activeModule === "annual" ? (
+        <dl
+          aria-label="年度样本概况"
+          className="sample-point-governance-workspace__status-line"
+          role="status"
+        >
+          <Status
+            label={`${year}年度样本`}
+            value={summaryValue(
+              comparisonState,
+              comparison?.activeSamplePointCount,
+            )}
+          />
+          <Status
+            label="对照异常"
+            value={summaryValue(comparisonState, comparison?.anomalyCount)}
+          />
+        </dl>
+      ) : null}
+      {activeModule === "design" ? (
+        <dl
+          aria-label="设计参考点概况"
+          className="sample-point-governance-workspace__status-line"
+          role="status"
+        >
+          <Status
+            label="设计参考点"
+            value={summaryValue(comparisonState, comparison?.designPointCount)}
+          />
+          <Status
+            label="待权威坐标核验"
+            value={summaryValue(
+              comparisonState,
+              comparison?.pendingVerificationDesignPointCount,
+            )}
+          />
+          <Status
+            label="对照异常"
+            value={summaryValue(comparisonState, comparison?.anomalyCount)}
+          />
+        </dl>
+      ) : null}
 
       <section
         aria-labelledby={`sample-governance-tab-${activeModule}`}
@@ -279,6 +298,65 @@ function DesignReferenceTable({
   state: "loading" | "ready" | "unavailable";
   year: number;
 }) {
+  const [query, setQuery] = useState("");
+  const [countyCode, setCountyCode] = useState("");
+  const [townshipCode, setTownshipCode] = useState("");
+  const [verification, setVerification] = useState<"" | "APPROVED" | "PENDING">(
+    "",
+  );
+  const [page, setPage] = useState(1);
+  const designPoints = comparison?.designPoints ?? EMPTY_DESIGN_POINTS;
+  const countyOptions = useMemo(
+    () =>
+      uniqueRegionOptions(
+        designPoints.map(
+          (point) => [point.countyRegionCode, point.countyName] as const,
+        ),
+      ),
+    [designPoints],
+  );
+  const townshipOptions = useMemo(
+    () =>
+      uniqueRegionOptions(
+        designPoints
+          .filter((point) => point.countyRegionCode === countyCode)
+          .map(
+            (point) => [point.townshipRegionCode, point.townshipName] as const,
+          ),
+      ),
+    [countyCode, designPoints],
+  );
+  const filteredPoints = useMemo(() => {
+    const term = query.trim().toLocaleLowerCase("zh-CN");
+    return designPoints.filter((point) => {
+      const matchesQuery =
+        !term ||
+        [point.villageName, point.townshipName, point.countyName].some(
+          (value) => value.toLocaleLowerCase("zh-CN").includes(term),
+        );
+      const authorityApproved =
+        point.coordinateReviewStatus === "AUTHORITY_APPROVED";
+      return (
+        matchesQuery &&
+        (!countyCode || point.countyRegionCode === countyCode) &&
+        (!townshipCode || point.townshipRegionCode === townshipCode) &&
+        (!verification ||
+          (verification === "APPROVED"
+            ? authorityApproved
+            : !authorityApproved))
+      );
+    });
+  }, [countyCode, designPoints, query, townshipCode, verification]);
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredPoints.length / DESIGN_REFERENCE_PAGE_SIZE),
+  );
+  const currentPage = Math.min(page, pageCount);
+  const visiblePoints = filteredPoints.slice(
+    (currentPage - 1) * DESIGN_REFERENCE_PAGE_SIZE,
+    currentPage * DESIGN_REFERENCE_PAGE_SIZE,
+  );
+
   if (state === "loading") return <p role="status">正在读取设计参考点清单…</p>;
   if (state === "unavailable" || !comparison) {
     return <p role="alert">设计参考点清单暂不可用，请稍后重试。</p>;
@@ -295,7 +373,107 @@ function DesignReferenceTable({
         </div>
         <strong>{comparison.designPointCount} 个行政村</strong>
       </header>
-      <div className="sample-point-governance-workspace__table-scroll">
+      <div
+        aria-label="设计参考点台账工具栏"
+        className="sample-point-governance-workspace__toolbar"
+        role="toolbar"
+      >
+        <form
+          aria-label="设计参考点筛选"
+          className="sample-point-governance-workspace__filters"
+          onSubmit={(event) => event.preventDefault()}
+          role="search"
+        >
+          <label className="sample-point-governance-workspace__filter-query">
+            <span>关键词</span>
+            <input
+              aria-label="搜索行政村、乡镇或区县"
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="搜索行政村、乡镇或区县"
+              type="search"
+              value={query}
+            />
+          </label>
+          <label>
+            <span>区县</span>
+            <select
+              aria-label="所属区县"
+              onChange={(event) => {
+                setCountyCode(event.target.value);
+                setTownshipCode("");
+                setPage(1);
+              }}
+              value={countyCode}
+            >
+              <option value="">全部区县</option>
+              {countyOptions.map(([code, name]) => (
+                <option key={code} value={code}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {countyCode ? (
+            <label>
+              <span>乡镇</span>
+              <select
+                aria-label="所属乡镇"
+                onChange={(event) => {
+                  setTownshipCode(event.target.value);
+                  setPage(1);
+                }}
+                value={townshipCode}
+              >
+                <option value="">全部乡镇</option>
+                {townshipOptions.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <label>
+            <span>核验状态</span>
+            <select
+              aria-label="坐标核验状态"
+              onChange={(event) => {
+                setVerification(
+                  event.target.value as "" | "APPROVED" | "PENDING",
+                );
+                setPage(1);
+              }}
+              value={verification}
+            >
+              <option value="">全部状态</option>
+              <option value="APPROVED">权威核验通过</option>
+              <option value="PENDING">待权威核验</option>
+            </select>
+          </label>
+          <button
+            disabled={!query && !countyCode && !townshipCode && !verification}
+            onClick={() => {
+              setQuery("");
+              setCountyCode("");
+              setTownshipCode("");
+              setVerification("");
+              setPage(1);
+            }}
+            type="button"
+          >
+            清除筛选
+          </button>
+        </form>
+      </div>
+      <div
+        aria-label="设计参考点滚动清单"
+        className="sample-point-governance-workspace__table-scroll sample-point-governance-workspace__table-scroll--bounded"
+        role="region"
+        tabIndex={0}
+      >
         <table aria-label="设计参考点清单">
           <thead>
             <tr>
@@ -307,13 +485,50 @@ function DesignReferenceTable({
             </tr>
           </thead>
           <tbody>
-            {comparison.designPoints.map((point) => (
+            {visiblePoints.map((point) => (
               <DesignReferenceRow key={point.villageRegionCode} point={point} />
             ))}
+            {visiblePoints.length === 0 ? (
+              <tr>
+                <td colSpan={5}>没有符合当前筛选条件的设计参考点。</td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
+      <nav
+        aria-label="设计参考点分页"
+        className="sample-point-governance-workspace__pagination"
+      >
+        <span>
+          共 {filteredPoints.length} 条 · 第 {currentPage} / {pageCount} 页
+        </span>
+        <div>
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+            type="button"
+          >
+            上一页
+          </button>
+          <button
+            disabled={currentPage === pageCount}
+            onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+            type="button"
+          >
+            下一页
+          </button>
+        </div>
+      </nav>
     </div>
+  );
+}
+
+function uniqueRegionOptions(
+  options: ReadonlyArray<readonly [string, string]>,
+) {
+  return [...new Map(options).entries()].sort((left, right) =>
+    left[1].localeCompare(right[1], "zh-CN"),
   );
 }
 

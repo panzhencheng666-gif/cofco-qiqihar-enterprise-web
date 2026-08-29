@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -83,7 +83,12 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
 
     expect(screen.getByRole("heading", { name: "样本点管理" })).toBeVisible();
-    expect(screen.getByRole("status", { name: "样本网络概况" })).toBeVisible();
+    expect(
+      screen.getByRole("main", { name: "样本点管理工作台" }),
+    ).toHaveAttribute("data-layout", "ledger-workbench");
+    expect(
+      screen.queryByRole("status", { name: "样本网络概况" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("tablist", { name: "样本点治理模块" }),
     ).toBeVisible();
@@ -91,6 +96,8 @@ describe("SamplePointGovernanceWorkspace", () => {
       "aria-selected",
       "true",
     );
+    expect(screen.getByRole("tab", { name: "年度样本" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "变更与审核" })).toBeVisible();
     expect(
       await screen.findByRole("region", { name: "样本点身份治理" }),
     ).toBeVisible();
@@ -103,6 +110,15 @@ describe("SamplePointGovernanceWorkspace", () => {
 
     expect(
       await screen.findByRole("table", { name: "设计参考点清单" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("toolbar", { name: "设计参考点台账工具栏" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "设计参考点滚动清单" }),
+    ).toHaveAttribute("tabindex", "0");
+    expect(
+      screen.getByRole("status", { name: "设计参考点概况" }),
     ).toBeVisible();
     expect(screen.getByText("众兴村")).toBeVisible();
     expect(
@@ -169,5 +185,76 @@ describe("SamplePointGovernanceWorkspace", () => {
       "aria-selected",
       "true",
     );
+  });
+
+  it("filters design references progressively and keeps the long list paged", async () => {
+    const getSampleNetworkComparison = vi.fn().mockResolvedValue({
+      networkYear: 2026,
+      networkStatus: "PUBLISHED",
+      designPointCount: 55,
+      designCoordinateCount: 28,
+      activeSamplePointCount: 0,
+      approvedSubmissionSamplePointCount: 0,
+      pendingVerificationDesignPointCount: 27,
+      multipleActualPerDesignPointCount: 0,
+      anomalyCount: 0,
+      exactCoveredDesignPointCount: 0,
+      representedDesignPointCount: 0,
+      regionalAssociationDesignPointCount: 0,
+      unrelatedDesignPointCount: 55,
+      actualLevelCounts: { prefecture: 0, county: 0, township: 0, village: 0 },
+      designPoints: Array.from({ length: 55 }, (_, index) => ({
+        villageRegionCode: `230231100${String(index + 1).padStart(3, "0")}`,
+        villageName: `参考村${index + 1}`,
+        townshipRegionCode: index < 52 ? "230231100" : "230232100",
+        townshipName: index < 52 ? "兴农镇" : "目标乡",
+        countyRegionCode: index < 52 ? "230231" : "230232",
+        countyName: index < 52 ? "拜泉县" : "目标县",
+        designLongitude: 126.1,
+        designLatitude: 47.62,
+        coordinateReviewStatus:
+          index % 2 === 0 ? "AUTHORITY_APPROVED" : undefined,
+      })),
+      actualPoints: [],
+      relations: [],
+    });
+    const data = {
+      ...repository(),
+      getSampleNetworkComparison,
+    } as RealtimeBusinessRepository;
+
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        repository={data}
+        session={session}
+      />,
+    );
+    await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
+
+    const filters = await screen.findByRole("search", {
+      name: "设计参考点筛选",
+    });
+    const table = screen.getByRole("table", { name: "设计参考点清单" });
+    expect(within(table).getAllByRole("row")).toHaveLength(51);
+    expect(screen.getByText("共 55 条 · 第 1 / 2 页")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "下一页" }));
+    expect(screen.getByText("参考村55")).toBeVisible();
+
+    await userEvent.selectOptions(
+      within(filters).getByRole("combobox", { name: "所属区县" }),
+      "目标县",
+    );
+    expect(
+      within(filters).getByRole("combobox", { name: "所属乡镇" }),
+    ).toBeVisible();
+    await userEvent.type(
+      within(filters).getByRole("searchbox", {
+        name: "搜索行政村、乡镇或区县",
+      }),
+      "参考村55",
+    );
+    expect(screen.getByText("共 1 条 · 第 1 / 1 页")).toBeVisible();
+    expect(screen.getByText("参考村55")).toBeVisible();
   });
 });

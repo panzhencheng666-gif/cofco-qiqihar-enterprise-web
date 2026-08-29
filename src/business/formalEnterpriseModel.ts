@@ -15,7 +15,6 @@ export const formalSectionsByApplication = {
     "exceptions",
     "completed",
     "imports",
-    "sample-governance",
     "obligations",
   ],
   overview: ["operations", "risks", "duty", "releases", "map"],
@@ -23,6 +22,7 @@ export const formalSectionsByApplication = {
     "corn-collection",
     "soybean-collection",
     "rice-collection",
+    "regional-annual",
     "tasks",
     "objects",
     "review",
@@ -91,7 +91,6 @@ const formalBusinessRouteNames = {
       exceptions: "退回与异常",
       completed: "已办事项",
       imports: "导入任务",
-      "sample-governance": "样本点管理",
       obligations: "填报履职周报",
     },
   },
@@ -111,6 +110,7 @@ const formalBusinessRouteNames = {
   production: {
     application: "产情监测",
     sections: {
+      "regional-annual": "地区产情填报",
       "corn-collection": "玉米产情填报",
       "soybean-collection": "大豆产情填报",
       "rice-collection": "稻谷产情填报",

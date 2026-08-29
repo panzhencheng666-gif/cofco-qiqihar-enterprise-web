@@ -194,6 +194,10 @@ describe("ProductionAnalysisPanel", () => {
       "data-dashboard",
       "production",
     );
+    expect(container.firstElementChild).toHaveClass("analysis-workbench-page");
+    expect(
+      screen.getByRole("region", { name: "产情分析范围" }),
+    ).toHaveAttribute("data-layout", "linear-workbench");
     for (const heading of [
       "面积与产出",
       "成本与保障",
@@ -309,7 +313,7 @@ describe("ProductionAnalysisPanel", () => {
     ).toBeVisible();
     expect(
       container.querySelector(
-        '.observable-analysis-dashboard__masthead[data-layout="compact"]',
+        '.observable-analysis-dashboard__masthead[data-layout="linear-workbench"]',
       ),
     ).toBeVisible();
     expect(

@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -74,6 +80,9 @@ describe("AnnualSampleNetworkPanel", () => {
       screen.getByRole("heading", { name: "2027年度现有样本名单" }),
     ).toBeVisible();
     expect(
+      screen.getByRole("toolbar", { name: "年度样本工具栏" }),
+    ).toBeVisible();
+    expect(
       screen.queryByText("设计样本点与现有样本点对照"),
     ).not.toBeInTheDocument();
     expect(await screen.findByText("契约测试村现有样本点")).toBeVisible();
@@ -93,6 +102,9 @@ describe("AnnualSampleNetworkPanel", () => {
     );
 
     const memberTable = screen.getByRole("region", { name: "年度样本成员" });
+    expect(
+      screen.getByRole("region", { name: "年度样本台账" }),
+    ).toContainElement(memberTable);
     expect(memberTable).toHaveTextContent("所在地层级/区域");
     expect(memberTable).toHaveTextContent("村级 / 契约测试村");
     expect(memberTable).toHaveTextContent("设计关系");
@@ -100,7 +112,12 @@ describe("AnnualSampleNetworkPanel", () => {
       expect(memberTable).toHaveTextContent("区域关联（系统推导）"),
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "提交独立审核" }));
+    const submitAction = screen.getByRole("region", {
+      name: "年度样本提交操作",
+    });
+    const submitButton = screen.getByRole("button", { name: "提交审核" });
+    expect(submitAction).toContainElement(submitButton);
+    await userEvent.click(submitButton);
     await waitFor(() =>
       expect(submitSampleNetwork).toHaveBeenCalledWith(2027, 3),
     );
@@ -278,6 +295,7 @@ describe("AnnualSampleNetworkPanel", () => {
     );
 
     await screen.findByText("契约测试村现有样本点");
+    await userEvent.click(screen.getByRole("button", { name: "新增样本" }));
     await userEvent.type(
       screen.getByRole("textbox", { name: "稳定样本点ID" }),
       "94000000-0000-0000-0000-000000000099",
@@ -395,6 +413,7 @@ describe("AnnualSampleNetworkPanel", () => {
     );
 
     await screen.findByText("契约测试村现有样本点");
+    await userEvent.click(screen.getByRole("button", { name: "新增样本" }));
     await userEvent.type(
       screen.getByRole("textbox", { name: "稳定样本点ID" }),
       "94000000-0000-0000-0000-000000000099",
@@ -438,6 +457,7 @@ describe("AnnualSampleNetworkPanel", () => {
     );
 
     await screen.findByText("契约测试村现有样本点");
+    await userEvent.click(screen.getByRole("button", { name: "新增样本" }));
     await userEvent.type(
       screen.getByRole("textbox", { name: "稳定样本点ID" }),
       "94000000-0000-0000-0000-000000000099",
@@ -484,6 +504,55 @@ describe("AnnualSampleNetworkPanel", () => {
       ),
     );
   });
+
+  it("keeps annual filters focused and expands the add form only on demand", async () => {
+    const current = networkWithMembers();
+    const repository = {
+      getSampleNetwork: vi.fn().mockResolvedValue(current),
+      getSampleNetworkComparison: vi.fn().mockResolvedValue({ relations: [] }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <AnnualSampleNetworkPanel
+        currentYear={2027}
+        repository={repository}
+        session={session}
+      />,
+    );
+
+    const filters = await screen.findByRole("search", {
+      name: "年度样本筛选",
+    });
+    expect(
+      screen.queryByRole("region", { name: "新增年度样本点" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(filters).getByRole("searchbox", { name: "搜索样本点或区域" }),
+    ).toBeVisible();
+    expect(
+      within(filters).getByRole("combobox", { name: "成员状态" }),
+    ).toBeVisible();
+    expect(
+      within(filters).getByRole("combobox", { name: "成员来源" }),
+    ).toBeVisible();
+
+    await userEvent.type(
+      within(filters).getByRole("searchbox", { name: "搜索样本点或区域" }),
+      "目标样本点",
+    );
+    expect(screen.getByText("目标样本点")).toBeVisible();
+    expect(screen.queryByText("契约测试村现有样本点")).not.toBeInTheDocument();
+    expect(screen.getByText("共 1 条 · 第 1 / 1 页")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "新增样本" }));
+    expect(
+      screen.getByRole("region", { name: "新增年度样本点" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "年度样本提交操作" }),
+    ).toHaveTextContent("当前草稿 · 成员 2 个；提交后进入独立审核");
+    expect(screen.getByRole("button", { name: "提交审核" })).toBeVisible();
+  });
 });
 
 function relation({
@@ -521,6 +590,24 @@ function networkWithNewMember() {
         ...current.memberships[0],
         samplePointId: "94000000-0000-0000-0000-000000000099",
         samplePointName: "新增精确样本点",
+        sourceCode: "NEW" as const,
+      },
+    ],
+  };
+}
+
+function networkWithMembers() {
+  const current = network("DRAFT");
+  return {
+    ...current,
+    memberships: [
+      ...current.memberships,
+      {
+        ...current.memberships[0],
+        samplePointId: "94000000-0000-0000-0000-000000000002",
+        samplePointName: "目标样本点",
+        locatedRegionName: "目标县",
+        statusCode: "ACTIVE" as const,
         sourceCode: "NEW" as const,
       },
     ],

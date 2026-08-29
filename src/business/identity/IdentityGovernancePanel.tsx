@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AccessReviewCampaign,
   AccessReviewDecision,
@@ -11,6 +11,7 @@ import type {
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { csrfTokenFromCookies } from "@/platform/api/browserSession";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 type GovernanceView =
   "profile" | "organization" | "employees" | "reviews" | "audit";
@@ -48,7 +49,9 @@ function employmentLabel(value: string): string {
 }
 
 function grantTypeLabel(value: string): string {
-  return { ROLE: "角色", POSITION: "岗位", REGION: "责任地区" }[value] ?? value;
+  return (
+    { ROLE: "角色", POSITION: "历史授权", REGION: "责任地区" }[value] ?? value
+  );
 }
 
 function roleLabel(value: string): string {
@@ -127,6 +130,12 @@ function toggle(values: readonly string[], value: string): string[] {
     : [...values, value];
 }
 
+function businessError(error: unknown, fallback: string): string {
+  return error instanceof RealtimeApiError && error.clientMessage
+    ? error.clientMessage
+    : fallback;
+}
+
 interface AssignmentDraft {
   subjectId: string;
   displayName: string;
@@ -134,7 +143,6 @@ interface AssignmentDraft {
   accountStatus: string;
   employmentStatus: string;
   roleCodes: string[];
-  positionCodes: string[];
   regionCodes: string[];
   version: number;
 }
@@ -147,7 +155,6 @@ function invitationDraft(session: CurrentSession): AssignmentDraft {
     accountStatus: "INVITED",
     employmentStatus: "ACTIVE",
     roleCodes: [],
-    positionCodes: [],
     regionCodes: [],
     version: 0,
   };
@@ -161,7 +168,6 @@ function employeeDraft(employee: EmployeeProfile): AssignmentDraft {
     accountStatus: employee.accountStatus,
     employmentStatus: employee.employmentStatus,
     roleCodes: employee.roles.map(({ code }) => code),
-    positionCodes: employee.positions.map(({ code }) => code),
     regionCodes: [...employee.regionCodes],
     version: employee.version,
   };
@@ -173,19 +179,31 @@ function AssignmentEditor({
   options,
   onCancel,
   onChange,
+  onWorkUnitChange,
   onSubmit,
   regionNames,
   saving,
+  loadingOptions,
 }: {
   draft: AssignmentDraft;
   invite: boolean;
   options: IdentityAssignmentOptions;
   onCancel: () => void;
   onChange: (draft: AssignmentDraft) => void;
+  onWorkUnitChange: (workUnitCode: string) => void;
   onSubmit: () => void;
   regionNames: ReadonlyMap<string, string>;
   saving: boolean;
+  loadingOptions: boolean;
 }) {
+  const [regionSearch, setRegionSearch] = useState("");
+  const normalizedSearch = regionSearch.trim().toLocaleLowerCase("zh-CN");
+  const visibleRegionCodes = options.regionCodes.filter((code) => {
+    if (!normalizedSearch) return true;
+    return `${displayRegion(code, regionNames)} ${code}`
+      .toLocaleLowerCase("zh-CN")
+      .includes(normalizedSearch);
+  });
   return (
     <section
       className="identity-governance-editor"
@@ -224,9 +242,7 @@ function AssignmentEditor({
           <select
             aria-label="工作单位"
             value={draft.workUnitCode}
-            onChange={(event) =>
-              onChange({ ...draft, workUnitCode: event.target.value })
-            }
+            onChange={(event) => onWorkUnitChange(event.target.value)}
           >
             {options.workUnits.map((option) => (
               <option key={option.code} value={option.code}>
@@ -292,29 +308,23 @@ function AssignmentEditor({
         </div>
       </fieldset>
       <fieldset>
-        <legend>岗位</legend>
-        <div className="identity-governance-choice-grid">
-          {options.positions.map((option) => (
-            <label key={option.code}>
-              <input
-                checked={draft.positionCodes.includes(option.code)}
-                type="checkbox"
-                onChange={() =>
-                  onChange({
-                    ...draft,
-                    positionCodes: toggle(draft.positionCodes, option.code),
-                  })
-                }
-              />
-              {option.name}
-            </label>
-          ))}
+        <legend>责任乡镇</legend>
+        <div className="identity-region-picker">
+          <label>
+            搜索责任乡镇
+            <input
+              aria-label="搜索责任乡镇"
+              placeholder="输入乡镇名称"
+              value={regionSearch}
+              onChange={(event) => setRegionSearch(event.target.value)}
+            />
+          </label>
+          <strong className="identity-region-summary">
+            已选择 {draft.regionCodes.length} 个责任乡镇
+          </strong>
         </div>
-      </fieldset>
-      <fieldset>
-        <legend>责任地区</legend>
-        <div className="identity-governance-choice-grid">
-          {options.regionCodes.map((code) => (
+        <div className="identity-governance-choice-grid identity-region-options">
+          {visibleRegionCodes.map((code) => (
             <label key={code}>
               <input
                 aria-label={`责任地区 ${code}`}
@@ -330,6 +340,11 @@ function AssignmentEditor({
               {displayRegion(code, regionNames)}
             </label>
           ))}
+          {loadingOptions ? (
+            <p>正在读取该单位的责任乡镇…</p>
+          ) : (
+            visibleRegionCodes.length === 0 && <p>没有匹配的责任乡镇。</p>
+          )}
         </div>
       </fieldset>
       <footer>
@@ -339,7 +354,10 @@ function AssignmentEditor({
         <button
           className="is-primary"
           disabled={
-            saving || !draft.subjectId.trim() || !draft.displayName.trim()
+            saving ||
+            loadingOptions ||
+            !draft.subjectId.trim() ||
+            !draft.displayName.trim()
           }
           type="button"
           onClick={onSubmit}
@@ -391,13 +409,12 @@ export function IdentityGovernancePanel({
   const [auditFrom, setAuditFrom] = useState("");
   const [auditTo, setAuditTo] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingAssignmentOptions, setLoadingAssignmentOptions] =
+    useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const primaryPosition =
-    session.positions.find(({ primaryPosition }) => primaryPosition) ??
-    session.positions[0];
+  const assignmentOptionsRequest = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -405,8 +422,26 @@ export function IdentityGovernancePanel({
       .loadMasterData()
       .then((snapshot) => {
         if (!active) return;
+        const byCode = new Map(
+          snapshot.regions.map((region) => [region.code, region]),
+        );
         setRegionNames(
-          new Map(snapshot.regions.map((region) => [region.code, region.name])),
+          new Map(
+            snapshot.regions.map((region) => {
+              const names: string[] = [];
+              const visited = new Set<string>();
+              let current: (typeof snapshot.regions)[number] | undefined =
+                region;
+              while (current && !visited.has(current.code)) {
+                names.unshift(current.name);
+                visited.add(current.code);
+                current = current.parentCode
+                  ? byCode.get(current.parentCode)
+                  : undefined;
+              }
+              return [region.code, names.join(" / ")];
+            }),
+          ),
         );
       })
       .catch(() => {
@@ -418,6 +453,7 @@ export function IdentityGovernancePanel({
     };
   }, [repository]);
   const loadEmployees = async () => {
+    const assignmentOptionsGeneration = assignmentOptionsRequest.current;
     setLoading(true);
     setError(null);
     try {
@@ -426,7 +462,12 @@ export function IdentityGovernancePanel({
         repository.loadAssignmentOptions(session.workUnitCode),
       ]);
       setEmployees(nextEmployees);
-      setOptions(nextOptions);
+      if (
+        assignmentOptionsRequest.current === assignmentOptionsGeneration &&
+        !editor
+      ) {
+        setOptions(nextOptions);
+      }
     } catch {
       setError("员工与授权信息读取失败，请稍后重试。");
     } finally {
@@ -492,24 +533,102 @@ export function IdentityGovernancePanel({
   const pendingItems = useMemo(
     () =>
       selectedReview?.items.filter(
-        ({ decisionCode }) => decisionCode === "PENDING",
+        ({ decisionCode, subjectId }) =>
+          decisionCode === "PENDING" && subjectId !== session.subjectId,
       ) ?? [],
-    [selectedReview],
+    [selectedReview, session.subjectId],
   );
+
+  const requestAssignmentOptions = async (
+    workUnitCode: string,
+    requestedRegionCodes: readonly string[],
+  ) => {
+    const requestId = assignmentOptionsRequest.current + 1;
+    assignmentOptionsRequest.current = requestId;
+    setError(null);
+    setLoadingAssignmentOptions(true);
+    setOptions((current) => ({ ...current, regionCodes: [] }));
+    try {
+      const nextOptions = await repository.loadAssignmentOptions(workUnitCode);
+      if (assignmentOptionsRequest.current === requestId) {
+        const assignableRegions = new Set(nextOptions.regionCodes);
+        setOptions(nextOptions);
+        setEditor((current) =>
+          current && current.draft.workUnitCode === workUnitCode
+            ? {
+                ...current,
+                draft: {
+                  ...current.draft,
+                  regionCodes: requestedRegionCodes.filter((code) =>
+                    assignableRegions.has(code),
+                  ),
+                },
+              }
+            : current,
+        );
+      }
+    } catch {
+      if (assignmentOptionsRequest.current === requestId) {
+        setError("责任乡镇读取失败，请重新选择工作单位。");
+      }
+    } finally {
+      if (assignmentOptionsRequest.current === requestId) {
+        setLoadingAssignmentOptions(false);
+      }
+    }
+  };
+
+  const openAssignmentEditor = (invite: boolean, draft: AssignmentDraft) => {
+    setEditor({ invite, draft: { ...draft, regionCodes: [] } });
+    void requestAssignmentOptions(draft.workUnitCode, draft.regionCodes);
+  };
+
+  const closeAssignmentEditor = () => {
+    assignmentOptionsRequest.current += 1;
+    setLoadingAssignmentOptions(false);
+    setEditor(null);
+  };
+
+  const changeView = (nextView: GovernanceView) => {
+    if (view === "employees" && nextView !== "employees") {
+      closeAssignmentEditor();
+    }
+    setView(nextView);
+  };
+
+  const changeAssignmentWorkUnit = (workUnitCode: string) => {
+    setEditor((current) =>
+      current
+        ? {
+            ...current,
+            draft: { ...current.draft, workUnitCode, regionCodes: [] },
+          }
+        : current,
+    );
+    void requestAssignmentOptions(workUnitCode, []);
+  };
 
   const saveAssignment = async () => {
     if (!editor) return;
+    const draft = editor.draft;
+    if (draft.roleCodes.length !== 1) {
+      setError("请选择一个业务角色。");
+      return;
+    }
+    if (draft.regionCodes.length === 0) {
+      setError("请至少选择一个责任乡镇。");
+      return;
+    }
     setSaving(true);
     setError(null);
     setMessage(null);
     try {
-      const draft = editor.draft;
       if (editor.invite) {
         const input: EmployeeInvitation = {
           subjectId: draft.subjectId.trim(),
           displayName: draft.displayName.trim(),
           workUnitCode: draft.workUnitCode,
-          positionCodes: draft.positionCodes,
+          positionCodes: [],
           roleCodes: draft.roleCodes,
           regionCodes: draft.regionCodes,
         };
@@ -522,17 +641,19 @@ export function IdentityGovernancePanel({
           workUnitCode: draft.workUnitCode,
           accountStatus: draft.accountStatus,
           employmentStatus: draft.employmentStatus,
-          positionCodes: draft.positionCodes,
+          positionCodes: [],
           roleCodes: draft.roleCodes,
           regionCodes: draft.regionCodes,
         };
         await repository.updateEmployee(draft.subjectId, input);
         setMessage("员工账号与授权已更新，下次请求立即按新权限执行。");
       }
-      setEditor(null);
+      closeAssignmentEditor();
       await loadEmployees();
-    } catch {
-      setError("保存失败，请检查账号、岗位、角色和责任地区后重试。");
+    } catch (caught) {
+      setError(
+        businessError(caught, "保存失败，请检查账号、角色和责任乡镇后重试。"),
+      );
     } finally {
       setSaving(false);
     }
@@ -553,8 +674,10 @@ export function IdentityGovernancePanel({
       setNewReviewName("");
       setNewReviewDueAt("");
       setMessage("权限复核已创建，请逐项确认保留或撤销。");
-    } catch {
-      setError("权限复核创建失败，请检查名称和截止时间。");
+    } catch (caught) {
+      setError(
+        businessError(caught, "权限复核创建失败，请检查名称和截止时间。"),
+      );
     } finally {
       setSaving(false);
     }
@@ -594,8 +717,13 @@ export function IdentityGovernancePanel({
       setMessage(
         updated.statusCode === "COMPLETED" ? "复核已完成" : "复核结论已保存",
       );
-    } catch {
-      setError("复核结论提交失败，权限可能已被其他管理员调整，请刷新后重试。");
+    } catch (caught) {
+      setError(
+        businessError(
+          caught,
+          "复核结论提交失败，权限可能已被其他管理员调整，请刷新后重试。",
+        ),
+      );
     } finally {
       setSaving(false);
     }
@@ -604,31 +732,32 @@ export function IdentityGovernancePanel({
   return (
     <div className="identity-governance-overlay">
       <section
-        aria-label="账号与权限"
+        aria-label="账号与授权"
+        aria-modal="true"
         className="identity-governance-panel"
         role="dialog"
       >
         <header className="identity-governance-header">
           <div>
             <small>企业身份与访问治理</small>
-            <h2>账号与权限</h2>
+            <h2>账号与授权</h2>
           </div>
-          <button aria-label="关闭账号与权限" type="button" onClick={onClose}>
-            ×
+          <button aria-label="返回业务页面" type="button" onClick={onClose}>
+            返回
           </button>
         </header>
-        <nav aria-label="账号与权限功能">
+        <nav aria-label="账号与授权功能">
           <button
             aria-current={view === "profile" ? "page" : undefined}
             type="button"
-            onClick={() => setView("profile")}
+            onClick={() => changeView("profile")}
           >
             我的账号
           </button>
           <button
             aria-current={view === "organization" ? "page" : undefined}
             type="button"
-            onClick={() => setView("organization")}
+            onClick={() => changeView("organization")}
           >
             当前单位
           </button>
@@ -636,7 +765,7 @@ export function IdentityGovernancePanel({
             <button
               aria-current={view === "employees" ? "page" : undefined}
               type="button"
-              onClick={() => setView("employees")}
+              onClick={() => changeView("employees")}
             >
               员工与授权
             </button>
@@ -645,7 +774,7 @@ export function IdentityGovernancePanel({
             <button
               aria-current={view === "reviews" ? "page" : undefined}
               type="button"
-              onClick={() => setView("reviews")}
+              onClick={() => changeView("reviews")}
             >
               权限复核
             </button>
@@ -654,7 +783,7 @@ export function IdentityGovernancePanel({
             <button
               aria-current={view === "audit" ? "page" : undefined}
               type="button"
-              onClick={() => setView("audit")}
+              onClick={() => changeView("audit")}
             >
               审计追溯
             </button>
@@ -677,19 +806,16 @@ export function IdentityGovernancePanel({
               className="identity-profile-view"
             >
               <header
-                aria-label="账号身份概览"
+                aria-label="账号状态摘要"
                 className="identity-profile-hero"
-                role="region"
+                role="status"
               >
                 <span aria-hidden="true" className="identity-profile-avatar">
                   {session.displayName.trim().slice(0, 1) || "员"}
                 </span>
                 <div>
                   <h3>{session.displayName}</h3>
-                  <p>
-                    {session.workUnitName} ·{" "}
-                    {primaryPosition?.name ?? "未分配岗位"}
-                  </p>
+                  <p>{session.workUnitName}</p>
                 </div>
                 <strong>
                   {employmentLabel(session.employmentStatus)} ·{" "}
@@ -699,7 +825,11 @@ export function IdentityGovernancePanel({
 
               <section className="identity-profile-section">
                 <h3>身份与任职</h3>
-                <dl aria-label="账号资料" className="identity-account-summary">
+                <dl
+                  aria-label="账号资料"
+                  className="identity-account-summary"
+                  data-layout="property-table"
+                >
                   <div>
                     <dt>员工</dt>
                     <dd>
@@ -712,16 +842,6 @@ export function IdentityGovernancePanel({
                     <dd>
                       <strong>{session.workUnitName}</strong>
                       <small>当前登录账号所属单位</small>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>主岗位</dt>
-                    <dd>
-                      <strong>{primaryPosition?.name ?? "未分配岗位"}</strong>
-                      <small>
-                        {session.positions.map(({ name }) => name).join("、") ||
-                          "暂无岗位"}
-                      </small>
                     </dd>
                   </div>
                   <div>
@@ -739,7 +859,11 @@ export function IdentityGovernancePanel({
 
               <section className="identity-profile-section">
                 <h3>权限与责任范围</h3>
-                <dl aria-label="权限资料" className="identity-account-summary">
+                <dl
+                  aria-label="权限资料"
+                  className="identity-account-summary"
+                  data-layout="property-table"
+                >
                   <div>
                     <dt>业务角色</dt>
                     <dd>
@@ -766,7 +890,11 @@ export function IdentityGovernancePanel({
 
               <section className="identity-profile-section">
                 <h3>账号服务</h3>
-                <dl aria-label="账号服务" className="identity-account-summary">
+                <dl
+                  aria-label="账号服务"
+                  className="identity-account-summary"
+                  data-layout="property-table"
+                >
                   <div>
                     <dt>登录安全</dt>
                     <dd className="identity-profile-actions">
@@ -803,7 +931,7 @@ export function IdentityGovernancePanel({
                   <small>当前登录账号所属单位</small>
                   <h3>{session.workUnitName}</h3>
                   <p>
-                    展示本单位岗位、业务角色与责任地区；所有业务操作均按当前账号的有效授权执行。
+                    展示本单位业务角色与责任地区；所有业务操作均按当前账号的有效授权执行。
                   </p>
                 </div>
                 {mayReadEmployees && (
@@ -822,22 +950,6 @@ export function IdentityGovernancePanel({
                   <dd>
                     <strong>{session.displayName}</strong>
                     <small>企业员工身份已认证</small>
-                  </dd>
-                </div>
-                <div>
-                  <dt>主岗位</dt>
-                  <dd>
-                    <strong>{primaryPosition?.name ?? "未分配岗位"}</strong>
-                    <small>
-                      {session.positions.length > 1
-                        ? `兼任：${session.positions
-                            .filter(
-                              ({ code }) => code !== primaryPosition?.code,
-                            )
-                            .map(({ name }) => name)
-                            .join("、")}`
-                        : "已配置为主岗位"}
-                    </small>
                   </dd>
                 </div>
                 <div>
@@ -868,19 +980,14 @@ export function IdentityGovernancePanel({
               <div className="identity-governance-toolbar">
                 <div>
                   <h3>员工与授权</h3>
-                  <p>
-                    按员工维护单位、岗位、业务角色、责任地区和账号生命周期。
-                  </p>
+                  <p>按员工维护单位、业务角色、责任地区和账号生命周期。</p>
                 </div>
                 {mayAdminister && (
                   <button
                     className="is-primary"
                     type="button"
                     onClick={() =>
-                      setEditor({
-                        invite: true,
-                        draft: invitationDraft(session),
-                      })
+                      openAssignmentEditor(true, invitationDraft(session))
                     }
                   >
                     邀请员工
@@ -898,7 +1005,7 @@ export function IdentityGovernancePanel({
                     <thead>
                       <tr>
                         <th scope="col">员工</th>
-                        <th scope="col">单位与岗位</th>
+                        <th scope="col">工作单位</th>
                         <th scope="col">角色与责任地区</th>
                         <th scope="col">账号状态</th>
                         <th scope="col">处理</th>
@@ -913,11 +1020,6 @@ export function IdentityGovernancePanel({
                           </th>
                           <td>
                             <strong>{employee.workUnitName}</strong>
-                            <small>
-                              {employee.positions
-                                .map(({ name }) => name)
-                                .join("、") || "未分配岗位"}
-                            </small>
                           </td>
                           <td>
                             <strong>
@@ -937,15 +1039,17 @@ export function IdentityGovernancePanel({
                             {accountLabel(employee.accountStatus)}
                           </td>
                           <td>
-                            {mayAdminister ? (
+                            {employee.subjectId === session.subjectId ? (
+                              <span>本人账号</span>
+                            ) : mayAdminister ? (
                               <button
                                 aria-label={`管理${employee.displayName}的授权`}
                                 type="button"
                                 onClick={() =>
-                                  setEditor({
-                                    invite: false,
-                                    draft: employeeDraft(employee),
-                                  })
+                                  openAssignmentEditor(
+                                    false,
+                                    employeeDraft(employee),
+                                  )
                                 }
                               >
                                 管理授权
@@ -969,12 +1073,16 @@ export function IdentityGovernancePanel({
                 <AssignmentEditor
                   draft={editor.draft}
                   invite={editor.invite}
-                  onCancel={() => setEditor(null)}
+                  onCancel={closeAssignmentEditor}
                   onChange={(draft) => setEditor({ ...editor, draft })}
+                  onWorkUnitChange={(workUnitCode) =>
+                    void changeAssignmentWorkUnit(workUnitCode)
+                  }
                   onSubmit={() => void saveAssignment()}
                   options={options}
                   regionNames={regionNames}
                   saving={saving}
+                  loadingOptions={loadingAssignmentOptions}
                 />
               )}
             </section>
@@ -985,7 +1093,7 @@ export function IdentityGovernancePanel({
                 <div>
                   <h3>权限复核</h3>
                   <p>
-                    定期逐项确认员工角色、岗位和责任地区，撤销结论立即生效。
+                    定期确认其他员工的角色和责任乡镇；本人权限由其他管理员复核，撤销结论立即生效。
                   </p>
                 </div>
               </div>
@@ -1091,7 +1199,12 @@ export function IdentityGovernancePanel({
                             {grantTypeLabel(item.grantType)} · {item.grantKey}
                           </span>
                         </div>
-                        {item.decisionCode === "PENDING" ? (
+                        {item.decisionCode === "PENDING" &&
+                        item.subjectId === session.subjectId ? (
+                          <span className="identity-review-delegated">
+                            本人权限由其他管理员复核
+                          </span>
+                        ) : item.decisionCode === "PENDING" ? (
                           <>
                             <select
                               aria-label={`${item.grantKey} 的复核结论`}

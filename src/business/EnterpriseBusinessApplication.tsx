@@ -21,13 +21,15 @@ import {
 } from "./businessReportWorkflow";
 import { EnterpriseShell } from "./EnterpriseShell";
 import { IdentityGovernancePanel } from "./identity/IdentityGovernancePanel";
-import { SamplePointGovernanceWorkspace } from "./samplepoint/SamplePointGovernanceWorkspace";
 import { BusinessImportTaskWorkspace } from "./importing/BusinessImportTaskWorkspace";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
 import { FormalMyWorkWorkspace } from "./MyWorkWorkspace";
 import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
 import { FormalSupplyDemandWorkspace } from "./SupplyDemandWorkspace";
+import { RegionalAnnualProductionWorkspace } from "./production/RegionalAnnualProductionWorkspace";
+import { SupplyBalanceWorkspace } from "./SupplyBalanceWorkspace";
+import "./regional-data-workspaces.css";
 import { useFormalEnterpriseLocation } from "./useFormalEnterpriseLocation";
 import {
   fixtureOperationalIdentity,
@@ -60,7 +62,6 @@ import type {
   WorkItemRow,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeBusinessOperationsPanel } from "./realtime/RealtimeBusinessOperationsPanel";
-import { RealtimeSupplyBalancePanel } from "./realtime/RealtimeSupplyBalancePanel";
 import { RealtimeLogisticsOperationsPanel } from "./realtime/RealtimeLogisticsOperationsPanel";
 import { RealtimeReportCenterPanel } from "./realtime/RealtimeReportCenterPanel";
 import { RealtimeWorkObligationReportPanel } from "./realtime/RealtimeWorkObligationReportPanel";
@@ -165,7 +166,7 @@ function EnterpriseSessionBoundary({
     status === "loading"
       ? {
           title: "正在确认企业身份",
-          detail: "正在校验账号、工作单位、岗位和责任范围。",
+          detail: "正在校验账号、工作单位、业务角色和责任范围。",
         }
       : status === "unauthenticated"
         ? {
@@ -176,7 +177,7 @@ function EnterpriseSessionBoundary({
           ? {
               title: "账号暂不可用",
               detail:
-                "账号尚未激活、已停用或未分配岗位与责任范围，请联系本单位系统管理员处理。",
+                "账号尚未激活、已停用或未分配业务角色与责任范围，请联系本单位系统管理员处理。",
             }
           : {
               title: "身份服务暂时不可用",
@@ -215,6 +216,27 @@ function normalizeCurrentSession(session: CurrentSession): CurrentSession {
     permissions: session.permissions ?? [],
     regionCodes: session.regionCodes ?? [],
   };
+}
+
+function sessionBusinessRole(session: CurrentSession): {
+  label: "填报员" | "管理员";
+  postId: "business-operator" | "business-reviewer";
+} {
+  const administrator =
+    session.roleCodes.some((roleCode) =>
+      ["BUSINESS_REVIEWER", "IDENTITY_ADMIN", "PLATFORM_ADMIN"].includes(
+        roleCode,
+      ),
+    ) ||
+    session.permissions.some((permission) =>
+      ["BUSINESS_APPROVE", "BUSINESS_RETURN", "IDENTITY_ADMIN"].includes(
+        permission,
+      ),
+    );
+
+  return administrator
+    ? { label: "管理员", postId: "business-reviewer" }
+    : { label: "填报员", postId: "business-operator" };
 }
 
 function routeProductCode(section: string): RealtimeProductCode | null {
@@ -295,18 +317,8 @@ const localBackendRegionCodes: Readonly<Record<string, string>> = {
   "qiqihar-baiquan": "230231",
 };
 
-function realtimeSupplyProductCode(section: string): string {
-  if (section === "soybean-balance") return "SOYBEAN";
-  if (section === "paddy-balance") return "RICE";
-  return "CORN";
-}
-
 export function resolveRealtimeAnalysisRegionCode(regionId: string): string {
   return localBackendRegionCodes[regionId] ?? ALL_AUTHORIZED_REGION_CODE;
-}
-
-function realtimeSupplyPeriodCode(periodKey: string | undefined): string {
-  return periodKey?.trim() ?? "";
 }
 
 function scopeIssueSummary(issues: readonly OperationalScopeIssue[]): string {
@@ -449,10 +461,7 @@ export function EnterpriseBusinessApplication({
               },
               identity: {
                 userId: currentSession.subjectId,
-                postId:
-                  currentSession.positions.find(
-                    ({ primaryPosition }) => primaryPosition,
-                  )?.code ?? "unassigned-position",
+                postId: sessionBusinessRole(currentSession).postId,
                 displayName: currentSession.displayName,
               },
               authorization: {
@@ -478,10 +487,7 @@ export function EnterpriseBusinessApplication({
           account: {
             ...apiPendingShellIdentity.account,
             displayName: currentSession.displayName,
-            roleLabel:
-              currentSession.positions.find(
-                ({ primaryPosition }) => primaryPosition,
-              )?.name ?? "未分配岗位",
+            roleLabel: sessionBusinessRole(currentSession).label,
             responsibilityLabel: `${currentSession.regionCodes.length} 个责任地区`,
           },
         }
@@ -534,10 +540,9 @@ export function EnterpriseBusinessApplication({
     "connecting" | "connected" | "empty" | "error" | "fixtures"
   >(realtimeMode ? "connecting" : "fixtures");
   const [realtimeRefreshToken, setRealtimeRefreshToken] = useState(0);
-  const [
-    sampleNetworkRefreshSequenceByYear,
-    setSampleNetworkRefreshSequenceByYear,
-  ] = useState<Readonly<Record<number, number>>>({});
+  const [, setSampleNetworkRefreshSequenceByYear] = useState<
+    Readonly<Record<number, number>>
+  >({});
   const [businessNotifications, setBusinessNotifications] = useState<
     readonly BusinessNotificationRow[]
   >([]);
@@ -969,6 +974,14 @@ export function EnterpriseBusinessApplication({
           />
         );
       case "production":
+        if (realtimeMode && location.route.section === "regional-annual") {
+          return (
+            <RegionalAnnualProductionWorkspace
+              authorizedRegionCodes={currentSession?.regionCodes ?? ["*"]}
+              repository={repository}
+            />
+          );
+        }
         return (
           <FormalProductionMonitoringWorkspace
             queryAllowed={queryAllowed}
@@ -1071,17 +1084,8 @@ export function EnterpriseBusinessApplication({
       case "supply":
         if (realtimeMode) {
           return (
-            <RealtimeSupplyBalancePanel
+            <SupplyBalanceWorkspace
               authorizedRegionCodes={currentSession?.regionCodes ?? ["*"]}
-              permissions={currentSession?.permissions ?? []}
-              productCode={realtimeSupplyProductCode(location.route.section)}
-              regionCode={resolveRealtimeAnalysisRegionCode(
-                scope.coordinates.regionId,
-              )}
-              periodCode={realtimeSupplyPeriodCode(scope.coordinates.periodKey)}
-              onPeriodCodeChange={(periodKey) =>
-                updateCoordinates({ periodKey })
-              }
               repository={repository}
             />
           );
@@ -1155,26 +1159,6 @@ export function EnterpriseBusinessApplication({
               realtimeMode ? batchApproveCurrentWorkScope : undefined
             }
             onReviewItem={realtimeMode ? reviewCurrentWorkItem : undefined}
-            samplePointGovernance={
-              realtimeMode &&
-              currentSession &&
-              [
-                "BUSINESS_CREATE",
-                "BUSINESS_UPDATE",
-                "BUSINESS_SUBMIT",
-                "BUSINESS_APPROVE",
-                "BUSINESS_RETURN",
-                "BUSINESS_IMPORT",
-              ].some((permission) =>
-                currentSession.permissions.includes(permission),
-              ) ? (
-                <SamplePointGovernanceWorkspace
-                  refreshSequenceByYear={sampleNetworkRefreshSequenceByYear}
-                  repository={repository}
-                  session={currentSession}
-                />
-              ) : undefined
-            }
             importTasks={
               realtimeMode &&
               currentSession?.permissions.includes("BUSINESS_IMPORT") ? (
@@ -1385,7 +1369,7 @@ export function EnterpriseBusinessApplication({
       )}
       {!realtimeMode && reportContext && (
         <BusinessReportComposer
-          actorPost={reportActorPosts[scope.identity.postId] ?? "当前登录岗位"}
+          actorPost={reportActorPosts[scope.identity.postId] ?? "当前登录角色"}
           context={reportContext}
           onClose={() => setReportContext(null)}
           permissionKeys={scope.authorization.permissionKeys}

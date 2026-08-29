@@ -46,10 +46,10 @@ describe("business import task workspace", () => {
 
     expect(
       await screen.findByRole("region", { name: "导入任务列表" }),
-    ).toBeVisible();
+    ).toHaveAttribute("data-layout", "ledger-workbench");
     expect(
-      screen.getByRole("complementary", { name: "当前导入批次详情" }),
-    ).toHaveTextContent("选择一条导入任务");
+      screen.queryByRole("complementary", { name: "当前导入批次详情" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("searchbox", { name: "搜索导入批次" }),
     ).toBeVisible();
@@ -87,8 +87,11 @@ describe("business import task workspace", () => {
     );
     const detail = screen.getByRole("region", { name: "导入任务详情" });
     expect(
-      screen.getByRole("complementary", { name: "当前导入批次详情" }),
+      screen.getByRole("region", { name: "当前导入批次处理" }),
     ).toContainElement(detail);
+    expect(
+      screen.queryByRole("complementary", { name: "当前导入批次详情" }),
+    ).not.toBeInTheDocument();
     expect(detail).not.toHaveTextContent("已完成 216 行");
     expect(detail).not.toHaveTextContent("待修正 56 行");
     expect(
@@ -101,6 +104,10 @@ describe("business import task workspace", () => {
       within(detail).getByRole("group", { name: "导入任务操作" }),
     );
     expect(screen.queryByText(productionJob.id)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "关闭导入任务详情" }));
+    expect(
+      screen.queryByRole("region", { name: "当前导入批次处理" }),
+    ).not.toBeInTheDocument();
   });
 
   it("updates the original batch row to completed after all pending rows succeed", async () => {
@@ -154,6 +161,44 @@ describe("business import task workspace", () => {
     expect(
       screen.getAllByRole("button", { name: /查看第 1 项导入结果/u }),
     ).toHaveLength(1);
+  });
+
+  it("keeps the detail open while a retry is running", async () => {
+    const user = userEvent.setup();
+    let resolveRetry!: (job: ProductionImportJob) => void;
+    const retryPromise = new Promise<ProductionImportJob>((resolve) => {
+      resolveRetry = resolve;
+    });
+    const repository = {
+      listImportJobs: vi.fn().mockResolvedValue({
+        items: [productionJob],
+        pageNumber: 0,
+        pageSize: 5,
+        totalElements: 1,
+        totalPages: 1,
+      }),
+      retryImportJob: vi.fn(() => retryPromise),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(<BusinessImportTaskWorkspace repository={repository} />);
+    await user.click(
+      await screen.findByRole("button", { name: "查看第 1 项导入结果" }),
+    );
+    const close = screen.getByRole("button", {
+      name: "关闭导入任务详情",
+    });
+    await user.click(screen.getByRole("button", { name: "仅重试待修正行" }));
+    expect(close).toBeDisabled();
+
+    resolveRetry({
+      ...productionJob,
+      id: "retry-action-2",
+      actionJobId: "retry-action-2",
+      statusCode: "COMPLETED",
+      importedRows: 56,
+      failedRows: 0,
+    });
+    await waitFor(() => expect(close).toBeEnabled());
   });
 
   it("filters a historical photo folder by the task manifest and uploads only eligible files", async () => {

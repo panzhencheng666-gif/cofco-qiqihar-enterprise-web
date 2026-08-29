@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type {
   AnnualSampleNetwork,
@@ -13,7 +13,9 @@ import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import "./annual-sample-network.css";
 
 const ANNUAL_NETWORK_DISCOVERY_START_YEAR = 2026;
+const ANNUAL_MEMBER_PAGE_SIZE = 50;
 const EMPTY_RELATIONS: readonly SampleNetworkRelation[] = [];
+const EMPTY_MEMBERSHIPS: readonly AnnualSampleNetworkMembership[] = [];
 
 type ComparisonState =
   | { year: number; status: "LOADING" | "UNAVAILABLE" }
@@ -60,6 +62,11 @@ export function AnnualSampleNetworkPanel({
   >("");
   const [newEvidenceReference, setNewEvidenceReference] = useState("");
   const [newReason, setNewReason] = useState("");
+  const [memberQuery, setMemberQuery] = useState("");
+  const [memberStatus, setMemberStatus] = useState("");
+  const [memberSource, setMemberSource] = useState("");
+  const [memberPage, setMemberPage] = useState(1);
+  const [showAddMember, setShowAddMember] = useState(false);
 
   function rememberNetwork(next: AnnualSampleNetwork) {
     setKnownYears((years) =>
@@ -141,6 +148,36 @@ export function AnnualSampleNetworkPanel({
   const loading = resolvedYear !== year;
   const currentNetwork = loading ? undefined : network;
   const currentNotCreated = !loading && notCreated;
+  const memberships = currentNetwork?.memberships ?? EMPTY_MEMBERSHIPS;
+  const filteredMemberships = useMemo(() => {
+    const term = memberQuery.trim().toLocaleLowerCase("zh-CN");
+    return memberships.filter(
+      (member) =>
+        (!term ||
+          [member.samplePointName, member.locatedRegionName].some((value) =>
+            value.toLocaleLowerCase("zh-CN").includes(term),
+          )) &&
+        (!memberStatus || member.statusCode === memberStatus) &&
+        (!memberSource || member.sourceCode === memberSource),
+    );
+  }, [memberQuery, memberSource, memberStatus, memberships]);
+  const memberPageCount = Math.max(
+    1,
+    Math.ceil(filteredMemberships.length / ANNUAL_MEMBER_PAGE_SIZE),
+  );
+  const currentMemberPage = Math.min(memberPage, memberPageCount);
+  const visibleMemberships = filteredMemberships.slice(
+    (currentMemberPage - 1) * ANNUAL_MEMBER_PAGE_SIZE,
+    currentMemberPage * ANNUAL_MEMBER_PAGE_SIZE,
+  );
+  const memberStatusOptions = useMemo(
+    () => [...new Set(memberships.map((member) => member.statusCode))],
+    [memberships],
+  );
+  const memberSourceOptions = useMemo(
+    () => [...new Set(memberships.map((member) => member.sourceCode))],
+    [memberships],
+  );
 
   async function run(
     action: string,
@@ -249,6 +286,7 @@ export function AnnualSampleNetworkPanel({
       setNewRelationType("");
       setNewEvidenceReference("");
       setNewReason("");
+      setShowAddMember(false);
     });
   }
 
@@ -298,7 +336,7 @@ export function AnnualSampleNetworkPanel({
       aria-label="年度样本网络管理"
       className="annual-sample-network-panel"
     >
-      <header>
+      <header aria-label="年度样本工具栏" role="toolbar">
         <div>
           <span>年度样本点管理</span>
           <h2>{year}年度现有样本名单</h2>
@@ -306,25 +344,43 @@ export function AnnualSampleNetworkPanel({
             从2026年开始逐年确认当年实际使用的样本点；可沿用上年名单，也可新增、暂停或移除。
           </p>
         </div>
-        <label>
-          年度
-          <select
-            value={year}
-            onChange={(event) => {
-              const nextYear = Number(event.target.value);
-              setInternalYear(nextYear);
-              onSelectedYearChange?.(nextYear);
-            }}
-          >
-            {knownYearList([...knownYears, currentYear + 1]).map(
-              (optionYear) => (
-                <option key={optionYear} value={optionYear}>
-                  {optionYear}年
-                </option>
-              ),
-            )}
-          </select>
-        </label>
+        <div className="annual-sample-network-panel__toolbar-actions">
+          <label>
+            年度
+            <select
+              value={year}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setInternalYear(nextYear);
+                setMemberQuery("");
+                setMemberStatus("");
+                setMemberSource("");
+                setMemberPage(1);
+                setShowAddMember(false);
+                onSelectedYearChange?.(nextYear);
+              }}
+            >
+              {knownYearList([...knownYears, currentYear + 1]).map(
+                (optionYear) => (
+                  <option key={optionYear} value={optionYear}>
+                    {optionYear}年
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
+          {currentNetwork?.statusCode === "DRAFT" &&
+          canUpdate &&
+          currentNetwork.memberships.length > 0 ? (
+            <button
+              aria-expanded={showAddMember}
+              onClick={() => setShowAddMember((visible) => !visible)}
+              type="button"
+            >
+              {showAddMember ? "收起新增" : "新增样本"}
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {error ? <p role="alert">{error}</p> : null}
@@ -352,96 +408,224 @@ export function AnnualSampleNetworkPanel({
       ) : null}
 
       {currentNetwork ? (
-        <>
+        <div
+          aria-label="年度样本台账"
+          className="annual-sample-network-panel__ledger"
+          role="region"
+        >
           <div className="annual-sample-network-panel__summary">
-            <strong>{currentNetwork.networkYear}年度</strong>
-            <span>{networkStatusLabel(currentNetwork.statusCode)}</span>
-            <span>成员 {currentNetwork.memberships.length} 个</span>
-          </div>
-          <div
-            className="annual-sample-network-panel__table"
-            role="region"
-            aria-label="年度样本成员"
-          >
-            <table>
-              <thead>
-                <tr>
-                  <th>样本点</th>
-                  <th>所在地层级/区域</th>
-                  <th>设计关系</th>
-                  <th>来源</th>
-                  <th>状态</th>
-                  <th>处理</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentNetwork.memberships.map((member) => (
-                  <tr key={member.samplePointId}>
-                    <td>{member.samplePointName}</td>
-                    <td>{locationLabel(member)}</td>
-                    <td>
-                      {relationLabel(
-                        relationIndex.get(member.samplePointId),
-                        relationStatus,
-                      )}
-                    </td>
-                    <td>{sourceLabel(member.sourceCode)}</td>
-                    <td>{membershipStatusLabel(member.statusCode)}</td>
-                    <td>
-                      {currentNetwork.statusCode === "DRAFT" && canUpdate ? (
-                        <div>
-                          <button
-                            onClick={() => decide(member, "ACTIVE")}
-                            type="button"
-                          >
-                            启用
-                          </button>
-                          <button
-                            onClick={() => decide(member, "PAUSED")}
-                            type="button"
-                          >
-                            暂停
-                          </button>
-                          <button
-                            onClick={() => decide(member, "REMOVED")}
-                            type="button"
-                          >
-                            移除
-                          </button>
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {currentNetwork.memberships.length === 0 ? (
-                  <tr>
-                    <td colSpan={6}>
-                      <div
-                        aria-label="年度样本空状态"
-                        className="annual-sample-network-panel__member-empty"
-                        role="status"
-                      >
-                        <strong>
-                          {currentNetwork.networkYear}
-                          年度尚未纳入现有样本点
-                        </strong>
-                        <span>
-                          可在下方录入稳定样本点并说明设计关系；提交审核前不会进入年度正式名单。
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
+            <div>
+              <strong>{currentNetwork.networkYear}年度</strong>
+              <span>{networkStatusLabel(currentNetwork.statusCode)}</span>
+              <span>成员 {currentNetwork.memberships.length} 个</span>
+            </div>
           </div>
 
-          {currentNetwork.statusCode === "DRAFT" && canUpdate ? (
+          {currentNetwork.memberships.length > 0 ? (
+            <form
+              aria-label="年度样本筛选"
+              className="annual-sample-network-panel__filters"
+              onSubmit={(event) => event.preventDefault()}
+              role="search"
+            >
+              <label className="annual-sample-network-panel__filter-query">
+                <span>关键词</span>
+                <input
+                  aria-label="搜索样本点或区域"
+                  onChange={(event) => {
+                    setMemberQuery(event.target.value);
+                    setMemberPage(1);
+                  }}
+                  placeholder="搜索样本点或区域"
+                  type="search"
+                  value={memberQuery}
+                />
+              </label>
+              <label>
+                <span>状态</span>
+                <select
+                  aria-label="成员状态"
+                  onChange={(event) => {
+                    setMemberStatus(event.target.value);
+                    setMemberPage(1);
+                  }}
+                  value={memberStatus}
+                >
+                  <option value="">全部状态</option>
+                  {memberStatusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {membershipStatusLabel(status)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>来源</span>
+                <select
+                  aria-label="成员来源"
+                  onChange={(event) => {
+                    setMemberSource(event.target.value);
+                    setMemberPage(1);
+                  }}
+                  value={memberSource}
+                >
+                  <option value="">全部来源</option>
+                  {memberSourceOptions.map((source) => (
+                    <option key={source} value={source}>
+                      {sourceLabel(source)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                disabled={!memberQuery && !memberStatus && !memberSource}
+                onClick={() => {
+                  setMemberQuery("");
+                  setMemberStatus("");
+                  setMemberSource("");
+                  setMemberPage(1);
+                }}
+                type="button"
+              >
+                清除筛选
+              </button>
+            </form>
+          ) : null}
+
+          <div
+            aria-label="年度样本成员"
+            className="annual-sample-network-panel__table"
+            role="region"
+          >
             <div
-              className="annual-sample-network-panel__add"
+              aria-label="年度样本滚动清单"
+              className="annual-sample-network-panel__table-scroll"
+              role="region"
+              tabIndex={0}
+            >
+              <table>
+                <thead>
+                  <tr>
+                    <th>样本点</th>
+                    <th>所在地层级/区域</th>
+                    <th>设计关系</th>
+                    <th>来源</th>
+                    <th>状态</th>
+                    <th>处理</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleMemberships.map((member) => (
+                    <tr key={member.samplePointId}>
+                      <td>{member.samplePointName}</td>
+                      <td>{locationLabel(member)}</td>
+                      <td>
+                        {relationLabel(
+                          relationIndex.get(member.samplePointId),
+                          relationStatus,
+                        )}
+                      </td>
+                      <td>{sourceLabel(member.sourceCode)}</td>
+                      <td>{membershipStatusLabel(member.statusCode)}</td>
+                      <td>
+                        {currentNetwork.statusCode === "DRAFT" && canUpdate ? (
+                          <div>
+                            <button
+                              onClick={() => decide(member, "ACTIVE")}
+                              type="button"
+                            >
+                              启用
+                            </button>
+                            <button
+                              onClick={() => decide(member, "PAUSED")}
+                              type="button"
+                            >
+                              暂停
+                            </button>
+                            <button
+                              onClick={() => decide(member, "REMOVED")}
+                              type="button"
+                            >
+                              移除
+                            </button>
+                          </div>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {currentNetwork.memberships.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <div
+                          aria-label="年度样本空状态"
+                          className="annual-sample-network-panel__member-empty"
+                          role="status"
+                        >
+                          <strong>
+                            {currentNetwork.networkYear}
+                            年度尚未纳入现有样本点
+                          </strong>
+                          <span>
+                            可在下方录入稳定样本点并说明设计关系；提交审核前不会进入年度正式名单。
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                  {currentNetwork.memberships.length > 0 &&
+                  visibleMemberships.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>没有符合当前筛选条件的年度样本。</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {currentNetwork.memberships.length > 0 ? (
+            <nav
+              aria-label="年度样本分页"
+              className="annual-sample-network-panel__pagination"
+            >
+              <span>
+                共 {filteredMemberships.length} 条 · 第 {currentMemberPage} /{" "}
+                {memberPageCount} 页
+              </span>
+              <div>
+                <button
+                  disabled={currentMemberPage === 1}
+                  onClick={() =>
+                    setMemberPage((value) => Math.max(1, value - 1))
+                  }
+                  type="button"
+                >
+                  上一页
+                </button>
+                <button
+                  disabled={currentMemberPage === memberPageCount}
+                  onClick={() =>
+                    setMemberPage((value) =>
+                      Math.min(memberPageCount, value + 1),
+                    )
+                  }
+                  type="button"
+                >
+                  下一页
+                </button>
+              </div>
+            </nav>
+          ) : null}
+
+          {currentNetwork.statusCode === "DRAFT" &&
+          canUpdate &&
+          (currentNetwork.memberships.length === 0 || showAddMember) ? (
+            <div
               aria-label="新增年度样本点"
+              className="annual-sample-network-panel__add"
+              role="region"
             >
               <div className="annual-sample-network-panel__add-heading">
                 <strong>新增年度现有样本</strong>
@@ -449,86 +633,109 @@ export function AnnualSampleNetworkPanel({
                   录入已经建立稳定身份的样本点；设计关系可按实际情况选择。
                 </span>
               </div>
-              <label>
-                稳定样本点ID
-                <input
-                  aria-label="稳定样本点ID"
-                  placeholder="输入稳定样本点ID"
-                  value={newSamplePointId}
-                  onChange={(event) => setNewSamplePointId(event.target.value)}
-                />
-              </label>
-              <label>
-                设计关系
-                <select
-                  aria-label="设计关系"
-                  value={newRelationType}
-                  onChange={(event) =>
-                    setNewRelationType(
-                      event.target.value as
-                        "" | "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION",
-                    )
-                  }
+              <div className="annual-sample-network-panel__add-fields">
+                <label>
+                  稳定样本点ID
+                  <input
+                    aria-label="稳定样本点ID"
+                    onChange={(event) =>
+                      setNewSamplePointId(event.target.value)
+                    }
+                    placeholder="输入稳定样本点ID"
+                    value={newSamplePointId}
+                  />
+                </label>
+                <label>
+                  设计关系
+                  <select
+                    aria-label="设计关系"
+                    onChange={(event) =>
+                      setNewRelationType(
+                        event.target.value as
+                          "" | "EXACT_VILLAGE" | "EXPLICIT_REPRESENTATION",
+                      )
+                    }
+                    value={newRelationType}
+                  >
+                    <option value="">不关联设计村</option>
+                    <option value="EXACT_VILLAGE">精确对应</option>
+                    <option value="EXPLICIT_REPRESENTATION">明确代表</option>
+                  </select>
+                </label>
+                {newRelationType ? (
+                  <label>
+                    设计行政村代码
+                    <input
+                      aria-label="设计行政村代码"
+                      onChange={(event) =>
+                        setNewDesignVillageCode(event.target.value)
+                      }
+                      placeholder="输入设计行政村代码"
+                      value={newDesignVillageCode}
+                    />
+                  </label>
+                ) : null}
+                {newRelationType === "EXPLICIT_REPRESENTATION" ? (
+                  <label>
+                    明确代表依据
+                    <input
+                      aria-label="明确代表依据"
+                      onChange={(event) =>
+                        setNewEvidenceReference(event.target.value)
+                      }
+                      placeholder="填写代表关系依据"
+                      value={newEvidenceReference}
+                    />
+                  </label>
+                ) : null}
+                <label className="annual-sample-network-panel__add-reason">
+                  新增理由
+                  <input
+                    aria-label="新增理由"
+                    onChange={(event) => setNewReason(event.target.value)}
+                    placeholder="填写纳入本年度的理由"
+                    value={newReason}
+                  />
+                </label>
+              </div>
+              <div className="annual-sample-network-panel__add-actions">
+                <button
+                  disabled={!canAddMember}
+                  onClick={addMember}
+                  type="button"
                 >
-                  <option value="">不关联设计村</option>
-                  <option value="EXACT_VILLAGE">精确对应</option>
-                  <option value="EXPLICIT_REPRESENTATION">明确代表</option>
-                </select>
-              </label>
-              {newRelationType ? (
-                <label>
-                  设计行政村代码
-                  <input
-                    aria-label="设计行政村代码"
-                    placeholder="输入设计行政村代码"
-                    value={newDesignVillageCode}
-                    onChange={(event) =>
-                      setNewDesignVillageCode(event.target.value)
-                    }
-                  />
-                </label>
-              ) : null}
-              {newRelationType === "EXPLICIT_REPRESENTATION" ? (
-                <label>
-                  明确代表依据
-                  <input
-                    aria-label="明确代表依据"
-                    placeholder="填写代表关系依据"
-                    value={newEvidenceReference}
-                    onChange={(event) =>
-                      setNewEvidenceReference(event.target.value)
-                    }
-                  />
-                </label>
-              ) : null}
-              <label>
-                新增理由
-                <input
-                  aria-label="新增理由"
-                  placeholder="填写纳入本年度的理由"
-                  value={newReason}
-                  onChange={(event) => setNewReason(event.target.value)}
-                />
-              </label>
-              <button
-                disabled={!canAddMember}
-                onClick={addMember}
-                type="button"
-              >
-                新增现有样本点
-              </button>
+                  新增现有样本点
+                </button>
+              </div>
             </div>
           ) : null}
 
           {currentNetwork.statusCode === "DRAFT" && canSubmit ? (
-            <button disabled={Boolean(busy)} onClick={submit} type="button">
-              提交独立审核
-            </button>
+            <div
+              aria-label="年度样本提交操作"
+              className="annual-sample-network-panel__submit"
+              role="region"
+            >
+              <div>
+                <strong>提交年度名单审核</strong>
+                <span>
+                  当前草稿 · 成员 {currentNetwork.memberships.length}
+                  {" 个；提交后进入独立审核"}
+                </span>
+              </div>
+              <button disabled={Boolean(busy)} onClick={submit} type="button">
+                提交审核
+              </button>
+            </div>
           ) : null}
 
           {currentNetwork.statusCode === "IN_REVIEW" &&
           (canApprove || canReturn) ? (
-            <div className="annual-sample-network-panel__review">
+            <div
+              aria-label="年度样本审核操作"
+              className="annual-sample-network-panel__review"
+              role="region"
+            >
               <textarea
                 aria-label="年度样本网络审核理由"
                 value={reviewReason}
@@ -554,7 +761,7 @@ export function AnnualSampleNetworkPanel({
               ) : null}
             </div>
           ) : null}
-        </>
+        </div>
       ) : null}
     </section>
   );

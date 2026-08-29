@@ -221,6 +221,10 @@ describe("MarketAnalysisPanel", () => {
       "data-dashboard",
       "market",
     );
+    expect(container.firstElementChild).toHaveClass("analysis-workbench-page");
+    expect(
+      screen.getByRole("region", { name: "市场分析范围" }),
+    ).toHaveAttribute("data-layout", "linear-workbench");
     for (const heading of [
       "价格与购销",
       "库存与流通费用",
@@ -333,7 +337,7 @@ describe("MarketAnalysisPanel", () => {
     ).toBeVisible();
     expect(
       container.querySelector(
-        '.observable-analysis-dashboard__masthead[data-layout="compact"]',
+        '.observable-analysis-dashboard__masthead[data-layout="linear-workbench"]',
       ),
     ).toBeVisible();
     expect(

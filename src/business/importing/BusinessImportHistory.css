@@ -131,19 +131,19 @@
 }
 
 .business-import-history__split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(290px, 22vw, 332px);
-  min-height: 420px;
+  display: block;
+  min-height: 0;
 }
 
 .business-import-history__table-side {
   min-width: 0;
-  border-right: 1px solid #d6e3e9;
+  border-right: 0;
 }
 
-.business-import-history__detail-drawer {
+.business-import-history__detail-workspace {
   min-width: 0;
-  background: #fbfdfe;
+  border-top: 2px solid #6f96aa;
+  background: #fff;
 }
 
 .business-import-history table {
@@ -314,14 +314,108 @@
 
 @media (max-width: 1024px) {
   .business-import-history__split {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
   }
 
   .business-import-history__table-side {
     border-right: 0;
   }
 
-  .business-import-history__detail-drawer {
+  .business-import-history__detail-workspace {
     border-top: 1px solid #d6e3e9;
   }
 }
+
+/* Carbon import ledger:start */
+.business-import-history {
+  color: #161616;
+  font-family:
+    "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  letter-spacing: 0.16px;
+}
+
+.business-import-history__filters {
+  padding: 12px 16px;
+  border-color: #e0e0e0;
+}
+
+.business-import-history__filters :is(input, select) {
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid #8d8d8d;
+  border-radius: 0;
+  background: #f4f4f4;
+  color: #161616;
+}
+
+.business-import-history__filters :is(input, select):focus {
+  border-bottom: 2px solid #0f62fe;
+  outline: 2px solid #0f62fe;
+  outline-offset: -2px;
+}
+
+.business-import-history__summary-band {
+  border-color: #e0e0e0;
+  background: #edf6fb;
+  color: #525252;
+}
+
+.business-import-history__summary-band strong,
+.business-import-history__header strong,
+.business-import-history tbody th {
+  color: #161616;
+}
+
+.business-import-history__split {
+  display: block;
+  min-height: 0;
+}
+
+.business-import-history__table-side {
+  border-right: 0;
+}
+
+.business-import-history table {
+  min-width: 920px;
+  color: #161616;
+  font-size: 13px;
+}
+
+.business-import-history th,
+.business-import-history td {
+  border-color: #e0e0e0;
+}
+
+.business-import-history thead th {
+  background: #e8eef4;
+  color: #161616;
+}
+
+.business-import-history tbody tr:hover,
+.business-import-history tbody tr.business-import-history__selected {
+  background: #f4f4f4;
+}
+
+.business-import-history button {
+  min-height: 36px;
+  padding: 0 16px;
+  border-color: #0f62fe;
+  border-radius: 0;
+  color: #0f62fe;
+}
+
+.business-import-history__pagination {
+  border-color: #e0e0e0;
+}
+
+.business-import-history__detail-workspace {
+  position: static;
+  width: 100%;
+  overflow: visible;
+  border-top: 2px solid #6f96aa;
+  border-left: 0;
+  background: #fff;
+}
+
+/* Carbon import ledger:end */

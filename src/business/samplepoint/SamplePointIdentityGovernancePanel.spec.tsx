@@ -160,6 +160,9 @@ describe("sample point identity governance", () => {
     expect(
       await screen.findByRole("region", { name: "样本点身份治理" }),
     ).toHaveTextContent("王振锋");
+    expect(screen.getByText("待复核治理申请")).toBeVisible();
+    expect(screen.queryByText(mergeJob.jobId)).not.toBeInTheDocument();
+    expect(screen.queryByText(mergeJob.batchId)).not.toBeInTheDocument();
     await user.selectOptions(
       screen.getByLabelText("选择王振锋的规范样本点"),
       "point-1",

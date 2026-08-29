@@ -54,6 +54,24 @@ function point(
 }
 
 describe("observable analysis report components", () => {
+  it("defines a linear business-workbench shell instead of floating analysis cards", () => {
+    const css = readFileSync("src/business/unified-workspaces.css", "utf8");
+
+    expect(css).toContain("/* analysis-workbench linear architecture:start */");
+    expect(css).toMatch(
+      /\.analysis-workbench-page\s+\.observable-analysis-dashboard__masthead\[data-layout="linear-workbench"\][\s\S]{0,240}grid-template-columns: minmax\(0, 1fr\);[\s\S]{0,160}border-radius: 0;[\s\S]{0,120}box-shadow: none;/u,
+    );
+    expect(css).toMatch(
+      /\.analysis-workbench-page\s+\.sample-network-coverage-strip[\s\S]{0,160}grid-column: 1 \/ -1;[\s\S]{0,160}border-radius: 0;/u,
+    );
+    expect(css).toMatch(
+      /\.analysis-workbench-page\s+\.observable-analysis-report__metric-band[\s\S]{0,180}gap: 0;[\s\S]{0,180}border: 1px solid/u,
+    );
+    expect(css).toMatch(
+      /\.analysis-workbench-page\s+\.observable-analysis-report__section[\s\S]{0,180}border-radius: 0;[\s\S]{0,120}box-shadow: none;/u,
+    );
+  });
+
   it("renders a reference-style business metric card band", () => {
     const metric = {
       code: "EXPECTED_OUTPUT",

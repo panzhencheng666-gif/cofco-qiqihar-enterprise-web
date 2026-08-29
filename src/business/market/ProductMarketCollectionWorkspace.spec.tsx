@@ -56,6 +56,126 @@ const loadMasterData = vi.fn().mockResolvedValue({
 });
 
 describe("product market collection workspace", () => {
+  it("resolves persisted Chinese object-type labels to formal definition codes", async () => {
+    const loadMarketDefinition = vi.fn().mockResolvedValue({
+      productCode: "CORN",
+      objectTypeCode: "FEED_MILL",
+      coreFields: [],
+      groups: [],
+    });
+    const repository = {
+      listMarket: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: "MKT-FEED-001",
+            values: {
+              MKT_OBJECT_TYPE: "饲料厂",
+              MKT_SAMPLE_NAME: "正式饲料样本",
+              MKT_SURVEY_YEAR: "2026",
+              MKT_SURVEY_MONTH: "8",
+              MKT_FILLING_AT: "2026-08-29T04:46:46Z",
+              MKT_REGION: "龙江县",
+              MKT_STATUS: "已审核",
+            },
+          },
+        ],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+      }),
+      listObjectTypes: vi.fn().mockResolvedValue([
+        { code: "TRADER", name: "贸易商", domain: "MARKET" },
+        { code: "FEED_MILL", name: "饲料厂", domain: "MARKET" },
+      ]),
+      loadMasterData,
+      loadMarketDefinition,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductMarketCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(loadMarketDefinition).toHaveBeenCalledWith("CORN", "FEED_MILL"),
+    );
+    expect(
+      screen.queryByText(/市场业务字段定义读取失败/u),
+    ).not.toBeInTheDocument();
+  });
+
+  it("clears a transient field-definition error after a successful retry", async () => {
+    const user = userEvent.setup();
+    const definition = {
+      productCode: "CORN",
+      objectTypeCode: "FEED_MILL",
+      coreFields: [],
+      groups: [],
+    };
+    const loadMarketDefinition = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("temporary unavailable"))
+      .mockResolvedValue(definition);
+    const repository = {
+      listMarket: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: "MKT-FEED-RETRY",
+            values: {
+              MKT_OBJECT_TYPE: "饲料厂",
+              MKT_SAMPLE_NAME: "重试样本",
+              MKT_SURVEY_YEAR: "2026",
+              MKT_SURVEY_MONTH: "8",
+              MKT_REGION: "龙江县",
+              MKT_STATUS: "已审核",
+            },
+          },
+        ],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+      }),
+      listObjectTypes: vi
+        .fn()
+        .mockResolvedValue([
+          { code: "FEED_MILL", name: "饲料厂", domain: "MARKET" },
+        ]),
+      loadMasterData,
+      loadMarketDefinition,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductMarketCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    expect(await screen.findByText(/市场业务字段定义读取失败/u)).toBeVisible();
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "样本点类型" }),
+      "feed-mill",
+    );
+    await waitFor(() => expect(loadMarketDefinition).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/市场业务字段定义读取失败/u),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
   it("uses the formal product object-type applicability and names from the backend", async () => {
     const listObjectTypes = vi.fn().mockResolvedValue([
       { code: "TRADER", name: "贸易商", domain: "MARKET" },
@@ -101,7 +221,7 @@ describe("product market collection workspace", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("queries by mandatory survey year, optional month and real filling dates", async () => {
+  it("queries by mandatory survey year, optional month and status without filling-date filters", async () => {
     const user = userEvent.setup();
     const listMarket = vi
       .fn<RealtimeBusinessRepository["listMarket"]>()
@@ -146,22 +266,26 @@ describe("product market collection workspace", () => {
       screen.getByRole("combobox", { name: "数据月份" }),
       "8",
     );
-    await user.type(screen.getByLabelText("填报日期起"), "2026-08-01");
-    await user.type(screen.getByLabelText("填报日期止"), "2026-08-31");
     await user.selectOptions(
       screen.getByRole("combobox", { name: "填报状态" }),
       "待审核",
     );
 
-    await waitFor(() =>
-      expect(listMarket.mock.lastCall?.[0].filters).toMatchObject({
+    await waitFor(() => {
+      const filters = listMarket.mock.lastCall?.[0].filters;
+      expect(filters).toMatchObject({
         surveyYear: "2026",
         surveyMonth: "8",
-        fillingDateFrom: "2026-08-01",
-        fillingDateTo: "2026-08-31",
         status: "PENDING_REVIEW",
-      }),
-    );
+      });
+      expect(filters).not.toHaveProperty("fillingDateFrom");
+      expect(filters).not.toHaveProperty("fillingDateTo");
+    });
+    expect(screen.queryByLabelText("填报日期起")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("填报日期止")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "填报日期" }),
+    ).toBeVisible();
     expect(screen.queryByLabelText("采集日期")).not.toBeInTheDocument();
   });
 
@@ -293,6 +417,19 @@ describe("product market collection workspace", () => {
           sortOrder: 2,
           options: [],
         },
+        {
+          code: "MKT_SALE_BASE_PRICE",
+          label: "采集对象销售价格",
+          controlType: "DECIMAL",
+          unit: "元/吨",
+          description: null,
+          capability: null,
+          required: true,
+          precision: 18,
+          scale: 4,
+          sortOrder: 3,
+          options: [],
+        },
       ],
       groups: [
         {
@@ -380,6 +517,9 @@ describe("product market collection workspace", () => {
     expect(
       await screen.findByRole("button", { name: "下载 XLSX 模板" }),
     ).toBeEnabled();
+    expect(screen.getByRole("group", { name: "批量导入" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "退回修正" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "单条录入" })).toBeVisible();
     expect(screen.getAllByRole("columnheader")[0]).toHaveTextContent("序号");
     expect(
       screen.getByRole("columnheader", { name: "数据时间" }),
@@ -414,32 +554,34 @@ describe("product market collection workspace", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByText("13900000001")).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "采集对象收购价格" }),
+      await screen.findByRole("columnheader", {
+        name: "采集对象收购价格",
+      }),
     ).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "采集对象销售价格" }),
+      screen.getByRole("columnheader", {
+        name: "采集对象销售价格",
+      }),
     ).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "现有库存" }),
-    ).toBeVisible();
+      screen.queryByRole("columnheader", { name: "现有库存" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "库存量" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("columnheader", { name: "期末库存" }),
-    ).not.toBeInTheDocument();
+      await screen.findByRole("columnheader", { name: "期末库存" }),
+    ).toBeVisible();
     expect(
       screen.queryByRole("columnheader", { name: "库存存放地" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "具体品种" }),
     ).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "出库量" })).toBeVisible();
     expect(
-      screen.queryByRole("columnheader", { name: "出库量" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("columnheader", { name: "加工投入量" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("columnheader", { name: "加工投入量" }),
+    ).toBeVisible();
     expect(screen.getByText("2026年8月")).toBeVisible();
     expect(screen.queryByText("INTERNAL-MARKET-001")).not.toBeInTheDocument();
     expect(screen.queryByText("OWNED")).not.toBeInTheDocument();

@@ -129,7 +129,11 @@ export function BusinessImportHistory({
     page.items.filter((job) => job.statusCode === code).length;
 
   return (
-    <section aria-label="导入任务列表" className="business-import-history">
+    <section
+      aria-label="导入任务列表"
+      className="business-import-history"
+      data-layout="ledger-workbench"
+    >
       <div className="business-import-history__filters">
         <label>
           <span>搜索批次</span>
@@ -209,7 +213,9 @@ export function BusinessImportHistory({
           </p>
         )}
 
-      <div className="business-import-history__split">
+      <div
+        className={`business-import-history__split${selectedDetail ? " is-detail-open" : ""}`}
+      >
         <div className="business-import-history__table-side">
           {displayedJobs.length > 0 && (
             <div className="business-import-history__table-wrap">
@@ -303,19 +309,14 @@ export function BusinessImportHistory({
             </div>
           </footer>
         </div>
-        <aside
-          aria-label="当前导入批次详情"
-          className="business-import-history__detail-drawer"
-        >
-          {selectedDetail ?? (
-            <div className="business-import-history__detail-empty">
-              <strong>选择一条导入任务</strong>
-              <p>
-                点击左侧“查看”，可核对失败原因、下载错误清单并继续处理当前真实批次。
-              </p>
-            </div>
-          )}
-        </aside>
+        {selectedDetail ? (
+          <section
+            aria-label="当前导入批次处理"
+            className="business-import-history__detail-workspace"
+          >
+            {selectedDetail}
+          </section>
+        ) : null}
       </div>
     </section>
   );

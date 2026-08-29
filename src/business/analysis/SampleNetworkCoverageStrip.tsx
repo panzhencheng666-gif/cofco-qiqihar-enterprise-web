@@ -10,11 +10,13 @@ import "./sample-network-coverage.css";
 
 export function SampleNetworkCoverageStrip({
   productCode,
+  refreshKey,
   regionCode,
   repository,
   year,
 }: {
   productCode?: string;
+  refreshKey?: string;
   regionCode?: string;
   repository: RealtimeBusinessRepository;
   year: number;
@@ -45,7 +47,7 @@ export function SampleNetworkCoverageStrip({
     return () => {
       active = false;
     };
-  }, [productCode, repository, requestKey, scopedRegion, year]);
+  }, [productCode, refreshKey, repository, requestKey, scopedRegion, year]);
 
   const current = result?.key === requestKey ? result : undefined;
   const comparison = current?.comparison;

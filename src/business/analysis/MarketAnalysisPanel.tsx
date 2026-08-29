@@ -102,15 +102,16 @@ export function MarketAnalysisPanel({
 
   return (
     <div
-      className="enterprise-ledger-workbench observable-analysis-page"
+      className="enterprise-ledger-workbench observable-analysis-page analysis-workbench-page"
       data-dashboard="market"
     >
       <div className="enterprise-ledger-workbench__breadcrumb">
         市场监测 / 市场分析
       </div>
-      <div
+      <section
+        aria-label="市场分析范围"
         className="observable-analysis-dashboard__masthead"
-        data-layout="compact"
+        data-layout="linear-workbench"
       >
         <header className="enterprise-ledger-title observable-analysis-title">
           <div>
@@ -138,11 +139,16 @@ export function MarketAnalysisPanel({
         )}
         <SampleNetworkCoverageStrip
           productCode={query.productCode}
+          refreshKey={
+            snapshot
+              ? `${snapshot.analysisVersion}|${snapshot.generatedAt}`
+              : status
+          }
           regionCode={query.regionCode}
           repository={repository}
           year={query.surveyYear}
         />
-      </div>
+      </section>
       {masterError ? <p role="alert">{masterError}</p> : null}
       {error ? <p role="alert">{error.message}</p> : null}
       {status === "loading" && !snapshot ? <p>正在汇总核定市场数据…</p> : null}
