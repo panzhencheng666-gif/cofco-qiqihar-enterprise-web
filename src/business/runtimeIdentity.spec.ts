@@ -10,7 +10,7 @@ describe("API runtime identity placeholder", () => {
       displayName: "已认证用户",
       menuItems: [],
       responsibilityLabel: "按当前账号权限展示",
-      roleLabel: "当前岗位",
+      roleLabel: "当前角色",
     });
     expect(apiPendingOperationalIdentity.identity).toEqual({
       userId: "authenticated-user",

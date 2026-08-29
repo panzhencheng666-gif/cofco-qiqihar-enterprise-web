@@ -143,6 +143,35 @@ describe("enterprise local acceptance API proxy", () => {
     );
   });
 
+  it("forwards a logged-out browser as unauthenticated instead of as a disabled employee", () => {
+    let proxyRequestHandler:
+      | ((
+          request: {
+            removeHeader(name: string): void;
+            setHeader(name: string, value: string): void;
+          },
+          incoming?: { headers: { cookie?: string } },
+        ) => void)
+      | undefined;
+    const proxy = {
+      on: vi.fn((event: string, handler: typeof proxyRequestHandler) => {
+        if (event === "proxyReq") proxyRequestHandler = handler;
+      }),
+    };
+    const request = {
+      removeHeader: vi.fn(),
+      setHeader: vi.fn(),
+    };
+
+    enterpriseApiProxy.configure?.(proxy as never, {});
+    proxyRequestHandler?.(request, {
+      headers: { cookie: "cofco_local_actor=logged-out" },
+    });
+
+    expect(request.removeHeader).toHaveBeenCalledWith("x-actor");
+    expect(request.setHeader).not.toHaveBeenCalled();
+  });
+
   it("issues an HttpOnly identity cookie from the loopback development entry", () => {
     expect(localIdentitySwitchPlugin.name).toBe("cofco-local-identity-switch");
 
@@ -190,6 +219,69 @@ describe("enterprise local acceptance API proxy", () => {
     );
     expect(response.setHeader).toHaveBeenCalledWith("Location", "/");
     expect(response.end).toHaveBeenCalledOnce();
+  });
+
+  it("provides local logout and login transitions in both dev and managed preview", () => {
+    const configurations = [
+      localIdentitySwitchPlugin.configureServer,
+      localIdentitySwitchPlugin.configurePreviewServer,
+    ];
+
+    configurations.forEach((configure) => {
+      let middleware:
+        | ((
+            request: { method?: string; url?: string },
+            response: {
+              statusCode: number;
+              setHeader(name: string, value: string): void;
+              end(): void;
+            },
+            next: () => void,
+          ) => void)
+        | undefined;
+      const server = {
+        middlewares: {
+          use: (handler: NonNullable<typeof middleware>) => {
+            middleware = handler;
+          },
+        },
+      };
+      (configure as ((value: typeof server) => void) | undefined)?.(server);
+
+      const logoutResponse = {
+        statusCode: 200,
+        setHeader: vi.fn(),
+        end: vi.fn(),
+      };
+      middleware?.(
+        { method: "POST", url: "/api/v1/session/logout" },
+        logoutResponse,
+        vi.fn(),
+      );
+      expect(logoutResponse.statusCode).toBe(303);
+      expect(logoutResponse.setHeader).toHaveBeenCalledWith(
+        "Set-Cookie",
+        "cofco_local_actor=logged-out; HttpOnly; SameSite=Strict; Path=/",
+      );
+      expect(logoutResponse.setHeader).toHaveBeenCalledWith("Location", "/");
+
+      const loginResponse = {
+        statusCode: 200,
+        setHeader: vi.fn(),
+        end: vi.fn(),
+      };
+      middleware?.(
+        { method: "GET", url: "/api/v1/session/login" },
+        loginResponse,
+        vi.fn(),
+      );
+      expect(loginResponse.statusCode).toBe(302);
+      expect(loginResponse.setHeader).toHaveBeenCalledWith(
+        "Set-Cookie",
+        `cofco_local_actor=${localAcceptanceActor}; HttpOnly; SameSite=Strict; Path=/`,
+      );
+      expect(loginResponse.setHeader).toHaveBeenCalledWith("Location", "/");
+    });
   });
 
   it("stops local acceptance when the backend still serves the legacy overview contract", async () => {
