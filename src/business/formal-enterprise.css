@@ -3908,6 +3908,98 @@ body {
   }
 }
 /* Existing-observation workbench responsive shell:end */
+
+/* Supply-account workbench responsive shell:start */
+@media (max-width: 1180px) {
+  .formal-enterprise:has(.supply-account-workspace) {
+    --enterprise-sidebar-width: 180px;
+    min-width: 0;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-header-primary {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-brand {
+    width: var(--enterprise-sidebar-width);
+    flex-basis: var(--enterprise-sidebar-width);
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-application-nav {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-global-search {
+    display: none;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-enterprise-shell,
+  .formal-enterprise:has(.supply-account-workspace).is-sidebar-collapsed
+    .formal-enterprise-shell {
+    display: grid;
+    grid-template-columns: var(--enterprise-sidebar-width) minmax(0, 1fr);
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-main {
+    min-width: 0;
+    padding-inline: 14px;
+  }
+}
+
+@media (max-width: 700px) {
+  .formal-enterprise:has(.supply-account-workspace) {
+    --enterprise-sidebar-width: 0px;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-enterprise-shell,
+  .formal-enterprise:has(.supply-account-workspace).is-sidebar-collapsed
+    .formal-enterprise-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-sidebar {
+    display: none;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-brand {
+    width: 52px;
+    flex-basis: 52px;
+    grid-template-columns: 30px;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-brand > strong,
+  .formal-enterprise:has(.supply-account-workspace) .formal-work-unit,
+  .formal-enterprise:has(.supply-account-workspace) .formal-header-tool {
+    display: none;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace)
+    .formal-application-nav
+    > button {
+    min-width: 72px;
+    padding-inline: 8px;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-user {
+    width: 48px;
+    flex-basis: 48px;
+    grid-template-columns: 30px;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .formal-enterprise:has(.supply-account-workspace) .formal-user > strong {
+    display: none;
+  }
+}
+/* Supply-account workbench responsive shell:end */
 /* reference-workbench-shell:end */
 .realtime-business-panel {
   margin: 20px;

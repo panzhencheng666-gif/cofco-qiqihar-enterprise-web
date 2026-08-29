@@ -28,7 +28,7 @@ import { FormalMyWorkWorkspace } from "./MyWorkWorkspace";
 import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
 import { FormalSupplyDemandWorkspace } from "./SupplyDemandWorkspace";
 import { RegionalAnnualProductionWorkspace } from "./production/RegionalAnnualProductionWorkspace";
-import { SupplyBalanceWorkspace } from "./SupplyBalanceWorkspace";
+import { SupplyAccountWorkspace } from "./SupplyAccountWorkspace";
 import "./regional-data-workspaces.css";
 import { useFormalEnterpriseLocation } from "./useFormalEnterpriseLocation";
 import {
@@ -1084,10 +1084,13 @@ export function EnterpriseBusinessApplication({
       case "supply":
         if (realtimeMode) {
           return (
-            <SupplyBalanceWorkspace
+            <SupplyAccountWorkspace
               authorizedRegionCodes={currentSession?.regionCodes ?? ["*"]}
               permissions={currentSession?.permissions ?? []}
               repository={repository}
+              section={
+                location.route.section === "records" ? "records" : "balance"
+              }
             />
           );
         }

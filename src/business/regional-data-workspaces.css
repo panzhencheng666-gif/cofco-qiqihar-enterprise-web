@@ -100,3 +100,134 @@
   display: flex;
   gap: 12px;
 }
+
+.supply-account-workspace__header {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.supply-account-workspace__eyebrow {
+  color: #176d47 !important;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.supply-account-workspace__warning,
+.supply-account-workspace__ready {
+  border-radius: 6px;
+  margin: 0;
+  padding: 10px 12px;
+}
+.supply-account-workspace__warning {
+  background: #fff8e6;
+  border: 1px solid #f0d795;
+  color: #785d14;
+}
+.supply-account-workspace__ready {
+  background: #eef8f2;
+  border: 1px solid #b9ddc8;
+  color: #176d47;
+}
+.supply-account-workspace__manual {
+  display: grid;
+  gap: 6px;
+  min-width: 210px;
+}
+.supply-account-workspace__actions {
+  align-items: end;
+  flex-wrap: wrap;
+}
+.supply-account-workspace__actions label {
+  color: #496056;
+  display: grid;
+  flex: 1 1 210px;
+  font-size: 13px;
+  gap: 5px;
+}
+.supply-account-workspace__result,
+.supply-account-workspace__record {
+  background: #fff;
+  border: 1px solid #d6e0da;
+  border-radius: 8px;
+  padding: 16px;
+}
+.supply-account-workspace__result h3,
+.supply-account-workspace__record h3,
+.supply-account-workspace__record p {
+  margin: 0 0 10px;
+}
+.supply-account-workspace__history {
+  display: grid;
+  gap: 14px;
+}
+.supply-account-workspace__record header {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.supply-account-workspace__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.supply-account-workspace__metrics div {
+  background: #f5f8f6;
+  border-radius: 6px;
+  padding: 10px;
+}
+.supply-account-workspace__metrics dt {
+  color: #60756c;
+  font-size: 12px;
+}
+.supply-account-workspace__metrics dd {
+  color: #173f2f;
+  font-weight: 700;
+  margin: 4px 0 0;
+}
+.supply-account-workspace__record details {
+  border-top: 1px solid #e4ebe7;
+  margin-top: 14px;
+  padding-top: 12px;
+}
+.supply-account-workspace__record li + li {
+  margin-top: 6px;
+}
+.supply-account-workspace__history nav {
+  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .regional-data-workspace.supply-account-workspace {
+    gap: 14px;
+    padding: 16px 12px;
+  }
+  .supply-account-workspace__header,
+  .supply-account-workspace__record header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .supply-account-workspace__filters,
+  .supply-account-workspace__actions {
+    align-items: stretch;
+    display: grid;
+  }
+  .supply-account-workspace__filters label,
+  .supply-account-workspace__actions label {
+    min-width: 0;
+  }
+  .supply-account-workspace__actions button,
+  .supply-account-workspace__header button {
+    width: 100%;
+  }
+  .supply-account-workspace__metrics {
+    grid-template-columns: 1fr;
+  }
+  .supply-account-workspace__history nav {
+    justify-content: space-between;
+  }
+}

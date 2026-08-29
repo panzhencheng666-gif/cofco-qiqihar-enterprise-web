@@ -748,6 +748,8 @@ export interface SupplyAccountRow {
   inputSetId: string | null;
   calculationChecksum?: string | null;
   legacyReadOnly: boolean;
+  calculatedByName: string | null;
+  calculatedAt: string | null;
   adjustmentProposal: {
     value: string;
     reason: string;
@@ -1514,7 +1516,9 @@ export interface RealtimeBusinessRepository {
     regionCode: string;
     periodCode: string;
     resultState?: string;
-  }): Promise<readonly SupplyAccountRow[]>;
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<Page<SupplyAccountRow>>;
   createSupplyInputSet(input: {
     productCode: string;
     regionCode: string;
@@ -2126,7 +2130,7 @@ export function createRealtimeBusinessRepository(
         input,
       ),
     listSupplyAccounts: (input) =>
-      client.get<SupplyAccountRow[]>("/api/v1/supply-accounts", input),
+      client.get<Page<SupplyAccountRow>>("/api/v1/supply-accounts", input),
     createSupplyInputSet: (input) =>
       client.post<SupplyInputSetRow>("/api/v1/supply-input-sets", input),
     approveSupplyManualDecision: (input) =>
