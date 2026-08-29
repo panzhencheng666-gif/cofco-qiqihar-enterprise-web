@@ -1,33 +1,14 @@
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { expect, queryE2eDatabase, test } from "./fixtures";
 import { fillDownloadedXlsx } from "./xlsx-fixture";
 
-const validPng = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-  "base64",
-);
-
-async function uploadEvidence(
-  request: APIRequestContext,
-  marker: string,
-): Promise<string> {
-  const response = await request.post("/api/v1/evidence-photos", {
-    multipart: {
-      file: {
-        name: `${marker}.png`,
-        mimeType: "image/png",
-        buffer: validPng,
-      },
-      capturedAt: "2026-08-09T12:00:00Z",
-      latitude: "47.3543",
-      longitude: "123.9182",
-      watermarkText: `音钦村 ${marker} 现场验收`,
-    },
-  });
-  expect(response.status()).toBe(201);
-  const body = (await response.json()) as { data: { id: string } };
-  return body.data.id;
-}
+const sampleRegion = "齐齐哈尔市 / 梅里斯达斡尔族区";
+const productionLatitude = "47.38";
+const productionLongitude = "123.28";
+const marketLatitude = "47.39";
+const marketLongitude = "123.29";
+const logisticsLatitude = "47.4";
+const logisticsLongitude = "123.3";
 
 async function downloadTemplate(page: Page, targetPath: string): Promise<void> {
   const pending = page.waitForEvent("download");
@@ -39,174 +20,138 @@ async function downloadTemplate(page: Page, targetPath: string): Promise<void> {
 
 test("downloads, fills, and imports the three domain XLSX protocols into PostgreSQL", async ({
   page,
-  request,
 }, testInfo) => {
   const productionMarker = "E2E-XLSX-玉米产情-通用模板";
   const marketMarker = "E2E-XLSX-玉米市场-通用模板";
   const logisticsMarker = "E2E-XLSX-玉米物流-通用模板";
-  const productionPhotoId = await uploadEvidence(request, "production-xlsx");
-  const marketPhotoId = await uploadEvidence(request, "market-xlsx");
-
   await page.goto("/#/产情监测/玉米产情填报");
   const productionTemplatePath = testInfo.outputPath(
     "production-template.xlsx",
   );
   await downloadTemplate(page, productionTemplatePath);
   const productionWorkbook = fillDownloadedXlsx(productionTemplatePath, {
-    regionCode: "230208101001",
-    PROD_CULTIVAR_NAME: productionMarker,
-    surveyDate: "2026-08-09",
-    cultivatedAreaMu: "150",
-    yieldPerMuKilograms: "520",
-    PROD_REPORTER_PHONE: "13800000021",
-    PROD_SAMPLE_CONTACT: "13900000021",
-    PROD_SAMPLE_LATITUDE: "47.3543",
-    PROD_SAMPLE_LONGITUDE: "123.9182",
-    PROD_SAMPLE_NAME: "音钦村XLSX产情调查户",
-    PROD_HARVEST_AREA_MU: "145",
-    PROD_GROWTH_STAGE: "灌浆期",
-    PROD_OPENING_INVENTORY: "20",
-    PROD_SALES_VOLUME: "5",
-    PROD_SELF_USE: "3",
-    PROD_ENDING_INVENTORY: "12",
-    PROD_SURPLUS_SUBJECT_CODE: "e2e-farmer-yinqin-xlsx-1",
-    PROD_SURPLUS_CUTOFF_DATE: "2026-08-09",
-    MOISTURE: "14.2",
-    evidencePhotoId: productionPhotoId,
+    样本点类型: "农户",
+    数据年份: "2026",
+    数据月份: "8",
+    样本点名称: productionMarker,
+    地区: sampleRegion,
+    调研人: "验收调研员甲",
+    调研人联系方式: "13800000021",
+    样本点联系方式: "13900000021",
+    "纬度（度）": productionLatitude,
+    "经度（度）": productionLongitude,
+    "播种面积（亩）": "150",
+    "预计收获面积（亩）": "145",
+    生育阶段: "灌浆期",
+    "预计单产（公斤/亩）": "520",
+    "期初库存（吨）": "20",
+    "销售数量（吨）": "5",
+    "自用数量（吨）": "3",
+    "期末余粮（吨）": "12",
+    "水分（%）": "14.2",
   });
   expect(productionWorkbook.headers).toEqual(
     expect.arrayContaining([
-      "PROD_CULTIVAR_NAME",
-      "PROD_SAMPLE_NAME",
-      "PROD_OPENING_INVENTORY",
-      "PROD_ENDING_INVENTORY",
-      "PROD_SURPLUS_SUBJECT_CODE",
-      "PROD_SURPLUS_CUTOFF_DATE",
-      "evidencePhotoId",
+      "样本点名称",
+      "期初库存（吨）",
+      "期末余粮（吨）",
+      "现场照片文件名（可选，最多5张，分号分隔）",
     ]),
   );
-  expect(productionWorkbook.headers).not.toContain("PROD_REPORTER_NAME");
+  expect(productionWorkbook.headers).not.toContain("PROD_SAMPLE_NAME");
   await page
     .getByLabel("批量导入产情记录")
     .setInputFiles(productionWorkbook.path);
-  await expect(page.getByText("导入完成：成功 1 条，失败 0 条。")).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByText(productionMarker)).toBeVisible();
+  await expect(
+    page.getByText(/导入完成：1 行已处理，.*失败 0 行/u),
+  ).toBeVisible({ timeout: 15_000 });
   productionWorkbook.cleanup();
 
   await page.goto("/#/市场监测/玉米市场采集");
   const marketTemplatePath = testInfo.outputPath("market-template.xlsx");
   await downloadTemplate(page, marketTemplatePath);
   const marketWorkbook = fillDownloadedXlsx(marketTemplatePath, {
-    MKT_REGION: "230208101001",
-    MKT_TRADE_DATE: "2026-08-09",
-    MKT_PURCHASE_BASE_PRICE: "2300",
-    MKT_SALE_BASE_PRICE: "2380",
-    MKT_CARRIAGE_BOARD_AMOUNT: "36",
-    MKT_PACKAGING_FORM: "BULK",
-    MKT_PACKAGING_AMOUNT: "12",
-    MKT_FREIGHT_AMOUNT: "72",
-    MKT_SOURCE_NOTE: "音钦村市场现场台账",
-    MKT_REPORTER_PHONE: "13800000022",
-    MKT_SAMPLE_CONTACT: "13900000022",
-    MKT_SAMPLE_LATITUDE: "47.3543",
-    MKT_SAMPLE_LONGITUDE: "123.9182",
-    MKT_SAMPLE_NAME: marketMarker,
-    MKT_CULTIVAR_NAME: "龙单XLSX验收1号",
-    MOISTURE: "14.6",
-    IMPURITY: "1.0",
-    PURCHASE_VOLUME: "120",
-    SALES_VOLUME: "60",
-    OPENING_INVENTORY: "300",
-    STOCK_OUTFLOW: "70",
-    ENDING_INVENTORY: "350",
-    MKT_INVENTORY_HOLDER_CODE: "e2e-trader-yinqin-xlsx-1",
-    MKT_INVENTORY_OWNERSHIP_TYPE: "OWNED",
-    MKT_STORAGE_REGION_CODE: "230208101001",
-    MKT_CARGO_OWNER_CODE: "e2e-trader-yinqin-xlsx-1",
-    MKT_INVENTORY_CUTOFF_DATE: "2026-08-09",
-    MKT_INVENTORY_POLICY_ATTRIBUTE: "COMMERCIAL",
-    evidencePhotoId: marketPhotoId,
+    样本点类型: "贸易商",
+    数据年份: "2026",
+    数据月份: "8",
+    样本点名称: marketMarker,
+    地区: sampleRegion,
+    调研人: "验收调研员乙",
+    调研人联系方式: "13800000022",
+    样本点联系方式: "13900000022",
+    "纬度（度）": marketLatitude,
+    "经度（度）": marketLongitude,
+    "采集对象收购价格（元/吨）": "2300",
+    "采集对象销售价格（元/吨）": "2380",
+    "车板组成（元/吨）": "36",
+    包装形态: "散粮",
+    "运费组成（元/吨）": "72",
+    "采购量（吨）": "120",
+    "销售量（吨）": "60",
+    "水分（%）": "14.6",
+    "杂质（%）": "1.0",
+    "现有库存（吨）": "350",
   });
   expect(marketWorkbook.headers).toEqual(
     expect.arrayContaining([
-      "MKT_PURCHASE_BASE_PRICE",
-      "MKT_SALE_BASE_PRICE",
-      "PURCHASE_VOLUME",
-      "SALES_VOLUME",
-      "OPENING_INVENTORY",
-      "ENDING_INVENTORY",
-      "MKT_INVENTORY_HOLDER_CODE",
-      "MKT_INVENTORY_OWNERSHIP_TYPE",
-      "MKT_STORAGE_REGION_CODE",
-      "MKT_CARGO_OWNER_CODE",
-      "MKT_INVENTORY_CUTOFF_DATE",
-      "MKT_INVENTORY_POLICY_ATTRIBUTE",
-      "evidencePhotoId",
+      "样本点名称",
+      "采集对象收购价格（元/吨）",
+      "采购量（吨）",
+      "现有库存（吨）",
+      "现场照片文件名（可选，最多5张，分号分隔）",
     ]),
   );
-  expect(marketWorkbook.headers).not.toContain("MKT_REPORTER_NAME");
+  expect(marketWorkbook.headers).not.toContain("MKT_SAMPLE_NAME");
   await page
     .getByLabel("批量导入市场采集记录")
     .setInputFiles(marketWorkbook.path);
-  await expect(page.getByText("导入完成：成功 1 条，失败 0 条。")).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByText(marketMarker)).toBeVisible();
+  await expect(
+    page.getByText(/导入完成：1 行已处理，.*失败 0 行/u),
+  ).toBeVisible({ timeout: 15_000 });
   marketWorkbook.cleanup();
 
   await page.goto("/#/市场监测/玉米物流监测");
   const logisticsTemplatePath = testInfo.outputPath("logistics-template.xlsx");
   await downloadTemplate(page, logisticsTemplatePath);
   const logisticsWorkbook = fillDownloadedXlsx(logisticsTemplatePath, {
-    LOG_PERIOD: "2026-W32",
-    LOG_COLLECTION_DATE: "2026-08-09",
-    LOG_ORIGIN: "E2E_QQ_RAIL",
-    LOG_DESTINATION: "E2E_QQ_ROAD",
-    LOG_TRANSPORT_MODE: "RAIL",
-    LOG_DIRECTION: "INFLOW",
-    LOG_ROUTE_VOLUME: "155.5",
-    LOG_FREIGHT_RATE: "85.25",
-    LOG_TRANSIT_TIME: "6.5",
-    LOG_SOURCE_ORGANIZATION: logisticsMarker,
+    数据年份: "2026",
+    数据月份: "8",
+    物流样本点名称: logisticsMarker,
+    地区: sampleRegion,
+    调研人: "验收调研员丙",
+    调研人联系方式: "13800000023",
+    物流样本点联系方式: "13900000023",
+    "纬度（度）": logisticsLatitude,
+    "经度（度）": logisticsLongitude,
+    运输方式: "铁路",
+    运输方向: "流入",
+    "运输数量（吨）": "155.5",
+    "物流运价（不含车板价）（元/吨）": "85.25",
+    "车板价（元/吨）": "2650",
   });
   expect(logisticsWorkbook.headers).toEqual(
     expect.arrayContaining([
-      "LOG_PERIOD",
-      "LOG_COLLECTION_DATE",
-      "LOG_ORIGIN",
-      "LOG_DESTINATION",
-      "LOG_TRANSPORT_MODE",
-      "LOG_DIRECTION",
-      "LOG_ROUTE_VOLUME",
-      "LOG_FREIGHT_RATE",
-      "LOG_TRANSIT_TIME",
-      "LOG_SOURCE_ORGANIZATION",
+      "物流样本点名称",
+      "运输方式",
+      "运输数量（吨）",
+      "物流运价（不含车板价）（元/吨）",
+      "车板价（元/吨）",
     ]),
   );
-  expect(logisticsWorkbook.headers).not.toEqual(
-    expect.arrayContaining(["LOG_REPORTER", "LOG_STATUS", "LOG_REPORTED_AT"]),
-  );
+  expect(logisticsWorkbook.headers).not.toContain("LOG_SAMPLE_NAME");
   await page
     .getByLabel("批量导入物流记录")
     .setInputFiles(logisticsWorkbook.path);
-  await expect(page.getByText("导入完成：成功 1 条，失败 0 条。")).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByText(logisticsMarker)).toBeVisible();
+  await expect(
+    page.getByText(/导入完成：1 行已处理，.*失败 0 行/u),
+  ).toBeVisible({ timeout: 15_000 });
   logisticsWorkbook.cleanup();
 
   expect(
     queryE2eDatabase(
-      `SELECT value FROM production.production_record_submission_metadata WHERE field_code='PROD_CULTIVAR_NAME' AND value='${productionMarker}'`,
+      `SELECT value FROM production.production_record_submission_metadata WHERE field_code='PROD_SAMPLE_NAME' AND value='${productionMarker}'`,
     ),
   ).toBe(productionMarker);
-  expect(
-    queryE2eDatabase(
-      "SELECT value FROM production.production_record_submission_metadata WHERE field_code='PROD_SURPLUS_SUBJECT_CODE' AND value='e2e-farmer-yinqin-xlsx-1'",
-    ),
-  ).toBe("e2e-farmer-yinqin-xlsx-1");
   expect(
     queryE2eDatabase(
       `SELECT value FROM market.market_record_core_value WHERE field_code='MKT_SAMPLE_NAME' AND value='${marketMarker}'`,
@@ -214,15 +159,9 @@ test("downloads, fills, and imports the three domain XLSX protocols into Postgre
   ).toBe(marketMarker);
   expect(
     queryE2eDatabase(
-      `SELECT storage.value
-         FROM market.market_record_core_value storage
-         JOIN market.market_record_core_value sample
-           ON sample.record_id=storage.record_id
-          AND sample.field_code='MKT_SAMPLE_NAME'
-          AND sample.value='${marketMarker}'
-        WHERE storage.field_code='MKT_STORAGE_REGION_CODE'`,
+      `SELECT fact.value FROM market.market_record_fact fact JOIN market.market_record_core_value sample ON sample.record_id=fact.record_id AND sample.field_code='MKT_SAMPLE_NAME' AND sample.value='${marketMarker}' WHERE fact.fact_code='ENDING_INVENTORY'`,
     ),
-  ).toBe("230208101001");
+  ).toBe("350.0000");
   expect(
     queryE2eDatabase(
       `SELECT source_organization FROM logistics.route_event WHERE source_organization='${logisticsMarker}'`,
