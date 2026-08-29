@@ -1,4 +1,11 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +16,73 @@ import { SupplyBalanceWorkspace } from "./SupplyBalanceWorkspace";
 afterEach(cleanup);
 
 describe("SupplyBalanceWorkspace", () => {
+  it("keeps business-read-only sessions readable and blocks bypassed saves", async () => {
+    const response = {
+      regionCode: "230221",
+      regionName: "龙江县",
+      administrativeLevel: "COUNTY",
+      surveyYear: 2026,
+      productCode: "CORN",
+      regionalProductionAvailable: true,
+      version: 0,
+      updatedAt: null,
+      rows: [
+        {
+          code: "OPENING_INVENTORY",
+          label: "期初库存",
+          kind: "MANUAL" as const,
+          unit: "万吨",
+          requirement: "手动填报",
+          value: "20",
+          display: "20.00",
+          note: "已保存数据",
+        },
+      ],
+    };
+    const get = vi.fn().mockResolvedValue(response);
+    const put = vi.fn().mockResolvedValue(response);
+    const repository = {
+      loadMasterData: vi.fn().mockResolvedValue({
+        products: [{ code: "CORN", name: "玉米" }],
+        periods: [],
+        approvedSurveyYears: [2026],
+        regions: [
+          {
+            code: "230221",
+            name: "龙江县",
+            parentCode: "230200",
+            level: "COUNTY",
+          },
+        ],
+      }),
+      listNotifications: vi
+        .fn()
+        .mockResolvedValue({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <SupplyBalanceWorkspace
+        api={{ get, put } as unknown as RealtimeApiClient}
+        authorizedRegionCodes={["*"]}
+        permissions={["BUSINESS_READ"]}
+        repository={repository}
+      />,
+    );
+
+    expect(await screen.findByDisplayValue("20")).toBeInTheDocument();
+    expect(screen.getByLabelText("期初库存填报值")).toBeDisabled();
+    const saveButton = screen.getByRole("button", { name: "保存供需平衡" });
+    expect(saveButton).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "当前账号仅可查看供需平衡，无修改权限。",
+    );
+
+    saveButton.removeAttribute("disabled");
+    fireEvent.click(saveButton);
+    expect(put).not.toHaveBeenCalled();
+  });
+
   it("keeps automatic production read-only and saves only manual product rows", async () => {
     const response = {
       regionCode: "230221",
@@ -93,6 +167,7 @@ describe("SupplyBalanceWorkspace", () => {
       <SupplyBalanceWorkspace
         api={api}
         authorizedRegionCodes={["*"]}
+        permissions={["BUSINESS_UPDATE"]}
         repository={repository}
       />,
     );
@@ -180,6 +255,7 @@ describe("SupplyBalanceWorkspace", () => {
       <SupplyBalanceWorkspace
         api={{ get, put: vi.fn() } as unknown as RealtimeApiClient}
         authorizedRegionCodes={["*"]}
+        permissions={["BUSINESS_UPDATE"]}
         repository={repository}
       />,
     );
@@ -268,6 +344,7 @@ describe("SupplyBalanceWorkspace", () => {
       <SupplyBalanceWorkspace
         api={{ get, put } as unknown as RealtimeApiClient}
         authorizedRegionCodes={["*"]}
+        permissions={["BUSINESS_UPDATE"]}
         repository={repository}
       />,
     );
@@ -350,6 +427,7 @@ describe("SupplyBalanceWorkspace", () => {
       <SupplyBalanceWorkspace
         api={{ get, put } as unknown as RealtimeApiClient}
         authorizedRegionCodes={["*"]}
+        permissions={["BUSINESS_UPDATE"]}
         repository={repository}
       />,
     );

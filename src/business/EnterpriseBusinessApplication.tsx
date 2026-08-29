@@ -1086,6 +1086,7 @@ export function EnterpriseBusinessApplication({
           return (
             <SupplyBalanceWorkspace
               authorizedRegionCodes={currentSession?.regionCodes ?? ["*"]}
+              permissions={currentSession?.permissions ?? []}
               repository={repository}
             />
           );

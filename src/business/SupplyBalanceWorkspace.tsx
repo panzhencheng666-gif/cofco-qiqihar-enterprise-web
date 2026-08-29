@@ -35,10 +35,12 @@ interface SupplyBalanceView {
 export function SupplyBalanceWorkspace({
   api = realtimeApiClient,
   authorizedRegionCodes,
+  permissions,
   repository,
 }: {
   api?: RealtimeApiClient;
   authorizedRegionCodes: readonly string[];
+  permissions: readonly string[];
   repository: RealtimeBusinessRepository;
 }) {
   const [masterData, setMasterData] = useState<MasterDataSnapshot>();
@@ -99,6 +101,7 @@ export function SupplyBalanceWorkspace({
     scopeRef.current = scopeKey;
   }, [scopeKey]);
   const scopeLoaded = loadedScopeKey === scopeKey;
+  const canUpdate = permissions.includes("BUSINESS_UPDATE");
 
   function invalidateLoadedScope() {
     draftDirty.current = false;
@@ -209,7 +212,8 @@ export function SupplyBalanceWorkspace({
   }, [api, productCode, regionCode, repository, scopeKey, year]);
 
   async function save() {
-    if (!view || selectedRegion?.level.toUpperCase() !== "COUNTY") return;
+    if (!canUpdate || !view || selectedRegion?.level.toUpperCase() !== "COUNTY")
+      return;
     const requestScopeKey = scopeKey;
     if (loadedScopeKey !== requestScopeKey) {
       setIssue("当前地区、年度和品种仍在加载，请稍后再保存。");
@@ -319,6 +323,11 @@ export function SupplyBalanceWorkspace({
           {issue}
         </p>
       )}
+      {!canUpdate && (
+        <p className="regional-data-workspace__notice" role="status">
+          当前账号仅可查看供需平衡，无修改权限。
+        </p>
+      )}
       {!issue && regionCode && productCode && year && !scopeLoaded && (
         <p className="regional-data-workspace__notice" role="status">
           当前地区、年度和品种正在加载，请稍候。
@@ -350,6 +359,7 @@ export function SupplyBalanceWorkspace({
                   selectedRegion?.level.toUpperCase() === "COUNTY" ? (
                     <input
                       aria-label={`${row.label}填报值`}
+                      disabled={!canUpdate}
                       min="0"
                       step="0.0001"
                       type="number"
@@ -372,6 +382,7 @@ export function SupplyBalanceWorkspace({
                   selectedRegion?.level.toUpperCase() === "COUNTY" ? (
                     <input
                       aria-label={`${row.label}说明`}
+                      disabled={!canUpdate}
                       value={notes[row.code] ?? ""}
                       onChange={(event) => {
                         draftDirty.current = true;
@@ -393,6 +404,7 @@ export function SupplyBalanceWorkspace({
       <div className="regional-data-workspace__actions">
         <button
           disabled={
+            !canUpdate ||
             !scopeLoaded ||
             saving ||
             selectedRegion?.level.toUpperCase() !== "COUNTY"
