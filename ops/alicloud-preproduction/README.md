@@ -34,6 +34,23 @@ npm run stage5:preproduction:validate
 
 ## 顺序
 
+### 三仓发布身份门禁
+
+所有候选部署必须同时提供 D1 生成的 canonical 三仓 manifest 文件和 `0600` 配置文件：
+
+```bash
+COFCO_PREPROD_APPLY=APPLY_PREPRODUCTION \
+  ops/alicloud-preproduction/scripts/deploy.sh apply \
+  ops/alicloud-preproduction/config/preproduction.env \
+  /approved/candidate/.cofco-release-manifest.json
+```
+
+配置中的 release ID、Backend/Web/Frontend 的完整 commit SHA、origin 和三个应用镜像 digest 必须与 manifest 完全一致。Web 对应 `COFCO_PREPROD_BUSINESS_IMAGE`，Frontend 对应 `COFCO_PREPROD_OVERVIEW_IMAGE`；只接受 `@sha256:` 不可变镜像引用。manifest 缺失、非 canonical、自哈希错误、环境不在 candidate/preproduction 白名单、符号链接、路径穿越、秘密材料或三仓任一项不一致都会在副作用前失败。
+
+每个成功 release 目录保存只读 `.cofco-release-manifest.json` 和自哈希 `.cofco-release-metadata.json`；`release.env` 只是从已验证候选派生的兼容视图。deploy、verify 和 rollback 都会重新读取 manifest、metadata、release.env 及 current/previous 指针；旧的无 manifest release 不允许回滚。相同 manifest 且已经是 current 的重复 deploy 是无副作用幂等操作；相同 release ID 对应不同 manifest 必须拒绝。
+
+`npm run stage5:preproduction:test` 只使用隔离 fixture，证明离线脚本合同与补偿语义，不代表已经连接阿里云、执行预生产部署或取得预生产验收证据。
+
 1. 本地静态/单元验证：`npm run stage5:preproduction:test`。
 2. 无输入 dry-run：`ops/alicloud-preproduction/scripts/preflight.sh --dry-run` 和 `deploy.sh dry-run`，缺输入应安全退出 `2`。
 3. 输入齐全后验证 OSS 版本化/加密、TableStore `LockID` 锁表及最小权限批准，再用唯一远程 backend 执行只读云计划：`infra.sh plan <config>`。人工核对保存的 plan SHA-256 与 backend 指纹。

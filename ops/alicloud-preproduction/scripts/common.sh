@@ -7,6 +7,7 @@ WEB_ROOT="$(cd "$PACKAGE_ROOT/../.." && pwd -P)"
 CONFIG_VALIDATOR="$WEB_ROOT/scripts/preproduction-config.mjs"
 RUNTIME_VALIDATOR="$WEB_ROOT/scripts/preproduction-runtime.mjs"
 NETWORK_VALIDATOR="$WEB_ROOT/scripts/preproduction-network.mjs"
+RELEASE_MANIFEST_VALIDATOR="$WEB_ROOT/scripts/preproduction-release-manifest.mjs"
 if test -n "${XDG_RUNTIME_DIR:-}"; then
   default_operation_runtime_root="$XDG_RUNTIME_DIR/cofco-preproduction/operations"
 else
@@ -77,6 +78,7 @@ require_shell_invariants() {
   test -f "$CONFIG_VALIDATOR" || fail "controlled preproduction config validator is missing from the Web bundle"
   test -f "$RUNTIME_VALIDATOR" || fail "controlled preproduction runtime validator is missing from the Web bundle"
   test -f "$NETWORK_VALIDATOR" || fail "controlled preproduction network validator is missing from the Web bundle"
+  test -f "$RELEASE_MANIFEST_VALIDATOR" || fail "controlled release manifest validator is missing from the Web bundle"
   node "$CONFIG_VALIDATOR" --config "$config_path" >/dev/null
   test "$(read_config "$config_path" COFCO_DEPLOYMENT_ENV)" = "preproduction" || fail "deployment environment must be preproduction"
   test "$(read_config "$config_path" COFCO_PREPROD_FIRST_DEPLOYMENT)" = "true" || fail "first cloud deployment must remain preproduction"
@@ -96,6 +98,25 @@ require_shell_invariants() {
     END { exit(found ? 0 : 1) }
   ' "$config_path"; then
     fail "plaintext secret keys are forbidden"
+  fi
+}
+
+require_candidate_release_manifest() {
+  local config_path="$1"
+  local manifest_path="${2:-${COFCO_RELEASE_MANIFEST_PATH:-}}"
+  test -n "$manifest_path" || fail "canonical three-repository release manifest path is required"
+  node "$RELEASE_MANIFEST_VALIDATOR" validate-candidate \
+    --manifest "$manifest_path" --config "$config_path"
+}
+
+verify_release_identity() {
+  local release_directory="$1"
+  local current_pointer="${2:-}"
+  if test -n "$current_pointer"; then
+    node "$RELEASE_MANIFEST_VALIDATOR" verify-release \
+      --release "$release_directory" --current "$current_pointer" --requireCurrent true
+  else
+    node "$RELEASE_MANIFEST_VALIDATOR" verify-release --release "$release_directory"
   fi
 }
 

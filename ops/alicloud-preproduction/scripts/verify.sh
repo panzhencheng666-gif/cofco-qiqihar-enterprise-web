@@ -14,10 +14,35 @@ case "$verification_scope" in
 esac
 
 require_shell_invariants "$config_path"
+case "$config_path" in
+  */release.env) verify_release_identity "$(dirname "$config_path")" ;;
+esac
 for command_name in curl docker jq openssl; do
   require_command "$command_name"
 done
 install -d -m 0700 "$evidence_dir"
+
+verify_running_application_images() {
+  local service
+  local config_key
+  local container_id
+  local expected_image
+  local actual_image
+  while read -r service config_key; do
+    expected_image="$(read_config "$config_path" "$config_key")"
+    container_id="$(docker compose --env-file "$config_path" -f "$compose_file" ps -q "$service")"
+    test -n "$container_id" || fail "running application container is missing: $service"
+    actual_image="$(docker inspect -f '{{.Config.Image}}' "$container_id")"
+    test "$actual_image" = "$expected_image" \
+      || fail "running image for $service does not match the release manifest"
+  done <<'EOF'
+backend COFCO_PREPROD_BACKEND_IMAGE
+business-web COFCO_PREPROD_BUSINESS_IMAGE
+overview-web COFCO_PREPROD_OVERVIEW_IMAGE
+EOF
+}
+
+verify_running_application_images
 
 domain="$(read_config "$config_path" COFCO_PREPROD_TLS_DOMAIN)"
 https_endpoint_ip="$(read_config "$config_path" COFCO_PREPROD_HTTPS_ENDPOINT_IP)"
