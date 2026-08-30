@@ -14,7 +14,7 @@
     "build": "tsc -b && vite build",
     "budget": "node scripts/check-initial-bundle-budget.mjs",
     "test": "vitest run && npm run test:local-runtime && npm run stage3:idp-supplement:test && npm run stage5:preproduction:test && npm run stage7:performance:test && npm run stage9:observability:test",
-    "test:local-runtime": "node --test scripts/local-runtime-publish.spec.mjs scripts/local-runtime-smoke.spec.mjs",
+    "test:local-runtime": "node --test scripts/release-manifest.spec.mjs scripts/local-runtime-publish.spec.mjs scripts/local-runtime-smoke.spec.mjs",
     "test:watch": "vitest",
     "test:e2e": "npm run build && npm run budget && npm run test:e2e:preview",
     "test:e2e:preview": "node scripts/run-playwright.mjs",
