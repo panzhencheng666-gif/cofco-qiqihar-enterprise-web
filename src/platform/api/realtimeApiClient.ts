@@ -63,6 +63,10 @@ export interface RealtimeApiClient {
     path: string,
     query?: Record<string, string | number | undefined>,
   ): Promise<T>;
+  getRaw<T>(
+    path: string,
+    query?: Record<string, string | number | undefined>,
+  ): Promise<T>;
   post<T>(
     path: string,
     body?: unknown,
@@ -186,6 +190,7 @@ export function createRealtimeApiClient(
     query?: Record<string, string | number | undefined>,
     body?: unknown,
     requestOptions: RealtimeApiRequestOptions = {},
+    responseShape: "ENVELOPE" | "RAW" = "ENVELOPE",
   ): Promise<T> {
     const controller = new AbortController();
     const requestTimeoutMs = requestOptions.timeoutMs ?? timeoutMs;
@@ -211,6 +216,7 @@ export function createRealtimeApiClient(
       );
       const payload = await readJson(response);
       if (!response.ok) throw toError(response, payload);
+      if (responseShape === "RAW") return payload as T;
       if (!isObject(payload) || !("data" in payload)) {
         throw new RealtimeApiError({
           code: "INVALID_API_RESPONSE",
@@ -331,6 +337,7 @@ export function createRealtimeApiClient(
 
   return {
     get: (path, query) => request("GET", path, query),
+    getRaw: (path, query) => request("GET", path, query, undefined, {}, "RAW"),
     post: (path, body, requestOptions) =>
       request("POST", path, undefined, body, requestOptions),
     put: (path, body, requestOptions) =>
