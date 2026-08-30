@@ -3817,64 +3817,62 @@ body {
   }
 }
 
-/* Existing-observation workbench responsive shell:start */
+/* enterprise-mobile-shell-cascade:start */
 @media (max-width: 1180px) {
-  .formal-enterprise:has(.existing-observation) {
+  .formal-enterprise {
     --enterprise-sidebar-width: 180px;
     min-width: 0;
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-header-primary {
+  .formal-enterprise .formal-header-primary {
     min-width: 0;
     overflow: hidden;
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-brand {
+  .formal-enterprise .formal-brand {
     width: var(--enterprise-sidebar-width);
     flex-basis: var(--enterprise-sidebar-width);
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-application-nav {
+  .formal-enterprise .formal-application-nav {
     min-width: 0;
     flex: 1 1 auto;
     overflow-x: auto;
     overscroll-behavior-inline: contain;
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-global-search {
+  .formal-enterprise .formal-global-search {
     display: none;
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-enterprise-shell,
-  .formal-enterprise:has(.existing-observation).is-sidebar-collapsed
-    .formal-enterprise-shell {
+  .formal-enterprise .formal-enterprise-shell,
+  .formal-enterprise.is-sidebar-collapsed .formal-enterprise-shell {
     display: grid;
     grid-template-columns: var(--enterprise-sidebar-width) minmax(0, 1fr);
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-main {
+  .formal-enterprise .formal-main {
     min-width: 0;
     padding-inline: 14px;
   }
 }
 
 @media (max-width: 700px) {
-  .formal-enterprise:has(.existing-observation) {
+  .formal-enterprise {
     --enterprise-sidebar-width: 0px;
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-enterprise-shell,
-  .formal-enterprise:has(.existing-observation).is-sidebar-collapsed
-    .formal-enterprise-shell {
+  .formal-enterprise .formal-enterprise-shell,
+  .formal-enterprise.is-sidebar-collapsed .formal-enterprise-shell {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-sidebar {
+  .formal-enterprise .formal-sidebar {
     display: none;
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-brand {
+  .formal-enterprise .formal-brand {
     width: 52px;
     flex-basis: 52px;
     grid-template-columns: 30px;
@@ -3882,20 +3880,18 @@ body {
     padding-inline: 0;
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-brand > strong,
-  .formal-enterprise:has(.existing-observation) .formal-work-unit,
-  .formal-enterprise:has(.existing-observation) .formal-header-tool {
+  .formal-enterprise .formal-brand > strong,
+  .formal-enterprise .formal-work-unit,
+  .formal-enterprise .formal-header-tool {
     display: none;
   }
 
-  .formal-enterprise:has(.existing-observation)
-    .formal-application-nav
-    > button {
+  .formal-enterprise .formal-application-nav > button {
     min-width: 72px;
     padding-inline: 8px;
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-user {
+  .formal-enterprise .formal-user {
     width: 48px;
     flex-basis: 48px;
     grid-template-columns: 30px;
@@ -3903,11 +3899,11 @@ body {
     padding-inline: 0;
   }
 
-  .formal-enterprise:has(.existing-observation) .formal-user > strong {
+  .formal-enterprise .formal-user > strong {
     display: none;
   }
 }
-/* Existing-observation workbench responsive shell:end */
+/* enterprise-mobile-shell-cascade:end */
 /* reference-workbench-shell:end */
 .realtime-business-panel {
   margin: 20px;

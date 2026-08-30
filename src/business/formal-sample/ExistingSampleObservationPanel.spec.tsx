@@ -503,13 +503,13 @@ describe("ExistingSampleObservationPanel", () => {
       /@media \(max-width:\s*640px\)[\s\S]*\.existing-observation__filters\s+:is\(input, select\)[^{]*\{[^}]*height:\s*48px/u,
     );
     expect(shellCss).toMatch(
-      /@media \(max-width:\s*1180px\)[\s\S]*\.formal-enterprise:has\(\.existing-observation\)\s*\{[^}]*min-width:\s*0/u,
+      /@media \(max-width:\s*1180px\)[\s\S]*\.formal-enterprise\s*\{[^}]*min-width:\s*0/u,
     );
     expect(shellCss).toMatch(
-      /@media \(max-width:\s*1180px\)[\s\S]*\.formal-enterprise:has\(\.existing-observation\)\s+\.formal-enterprise-shell,[\s\S]*\{[^}]*display:\s*grid/u,
+      /@media \(max-width:\s*1180px\)[\s\S]*\.formal-enterprise\s+\.formal-enterprise-shell,[\s\S]*\{[^}]*display:\s*grid/u,
     );
     expect(shellCss).toMatch(
-      /@media \(max-width:\s*700px\)[\s\S]*\.formal-enterprise:has\(\.existing-observation\)\s+\.formal-enterprise-shell[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
+      /@media \(max-width:\s*700px\)[\s\S]*\.formal-enterprise\s+\.formal-enterprise-shell[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
     );
   });
 });
