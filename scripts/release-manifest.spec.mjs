@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import Ajv from "ajv";
 import { execFile } from "node:child_process";
 import {
   cp,
@@ -13,6 +14,7 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 
+import { runReleaseManifestCli } from "./release-manifest-cli.mjs";
 import {
   generateReleaseManifest,
   sealManifest,
@@ -571,4 +573,220 @@ test("immutable atomic generation accepts identical concurrency and rejects repl
   );
   const unchanged = JSON.parse(await readFile(outputPath, "utf8"));
   assert.equal(unchanged.manifest.releaseId, "cofco-fixture-20260830.1");
+});
+
+test("versioned JSON Schema and code validator agree on structural acceptance and rejection", async (t) => {
+  const fixture = await createFixture();
+  const manifestPath = await generate(fixture);
+  const envelope = JSON.parse(await readFile(manifestPath, "utf8"));
+  const schema = JSON.parse(
+    await readFile(
+      new URL("../docs/releases/release-manifest.schema.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const validateSchema = new Ajv({ allErrors: true }).compile(schema);
+  const cases = [
+    ["valid envelope", envelope, true],
+    ["unknown envelope field", { ...envelope, unexpected: true }, false],
+    [
+      "unknown nested field",
+      sealManifest({
+        ...envelope.manifest,
+        repositories: {
+          ...envelope.manifest.repositories,
+          web: {
+            ...envelope.manifest.repositories.web,
+            build: {
+              ...envelope.manifest.repositories.web.build,
+              unexpected: true,
+            },
+          },
+        },
+      }),
+      false,
+    ],
+    [
+      "unsupported schema version",
+      sealManifest({ ...envelope.manifest, schemaVersion: 2 }),
+      false,
+    ],
+    [
+      "missing file digest",
+      (() => {
+        const changed = structuredClone(envelope.manifest);
+        delete changed.repositories.web.assets.files[0].sha256;
+        return sealManifest(changed);
+      })(),
+      false,
+    ],
+    [
+      "invalid repository SHA",
+      (() => {
+        const changed = structuredClone(envelope.manifest);
+        changed.repositories.frontend.commitSha = "A".repeat(40);
+        return sealManifest(changed);
+      })(),
+      false,
+    ],
+    [
+      "unsafe relative path",
+      (() => {
+        const changed = structuredClone(envelope.manifest);
+        changed.repositories.backend.artifacts[0].path = "../backend.jar";
+        return sealManifest(changed);
+      })(),
+      false,
+    ],
+    [
+      "mutable container tag",
+      (() => {
+        const changed = structuredClone(envelope.manifest);
+        changed.repositories.web.containerImage = "registry.invalid/web:latest";
+        return sealManifest(changed);
+      })(),
+      false,
+    ],
+    [
+      "non-string evidence entry",
+      (() => {
+        const changed = structuredClone(envelope.manifest);
+        changed.evidence.tests = [42];
+        return sealManifest(changed);
+      })(),
+      false,
+    ],
+  ];
+
+  for (const [name, candidate, expected] of cases) {
+    await t.test(name, () => {
+      const schemaAccepted = validateSchema(candidate);
+      let codeAccepted = true;
+      try {
+        validateManifestEnvelope(candidate);
+      } catch {
+        codeAccepted = false;
+      }
+      assert.equal(
+        schemaAccepted,
+        expected,
+        JSON.stringify(validateSchema.errors),
+      );
+      assert.equal(codeAccepted, expected);
+    });
+  }
+});
+
+test("stable CLI generates only a marked fixture on non-integrated refs and validates manifest/runtime", async () => {
+  const fixture = await createFixture();
+  const descriptorPath = join(fixture.root, "descriptor.json");
+  const manifestPath = join(fixture.root, "cli-release.json");
+  await writeFile(descriptorPath, `${JSON.stringify(fixture.descriptor)}\n`);
+
+  const generated = [];
+  await runReleaseManifestCli(
+    ["generate", "--descriptor", descriptorPath, "--output", manifestPath],
+    { write: (value) => generated.push(value) },
+  );
+  assert.match(generated.join(""), /non-release-fixture/u);
+
+  const validated = [];
+  await runReleaseManifestCli(["validate", "--manifest", manifestPath], {
+    write: (value) => validated.push(value),
+  });
+  assert.match(validated.join(""), /manifest-valid/u);
+
+  const verified = [];
+  await runReleaseManifestCli(
+    [
+      "verify",
+      "--manifest",
+      manifestPath,
+      "--backend-root",
+      fixture.backend.repository,
+      "--frontend-root",
+      fixture.frontend.repository,
+      "--web-root",
+      fixture.web.repository,
+      "--node-version",
+      runtimeVersions.node,
+      "--npm-version",
+      runtimeVersions.npm,
+      "--jdk-version",
+      runtimeVersions.jdk,
+    ],
+    { write: (value) => verified.push(value) },
+  );
+  assert.match(verified.join(""), /runtime-valid/u);
+
+  fixture.descriptor.environment = "preproduction-candidate";
+  await writeFile(descriptorPath, `${JSON.stringify(fixture.descriptor)}\n`);
+  await assert.rejects(
+    () =>
+      runReleaseManifestCli([
+        "generate",
+        "--descriptor",
+        descriptorPath,
+        "--output",
+        join(fixture.root, "candidate.json"),
+      ]),
+    /official origin|main/u,
+  );
+});
+
+test("CLI rejects shell-like, unknown, duplicate, and incomplete argv", async () => {
+  await assert.rejects(
+    () =>
+      runReleaseManifestCli([
+        "validate",
+        "--manifest",
+        "release.json; touch unexpected",
+      ]),
+    /missing|regular file|ENOENT/u,
+  );
+  await assert.rejects(
+    () => runReleaseManifestCli(["validate", "--unknown", "value"]),
+    /unknown option/u,
+  );
+  await assert.rejects(
+    () =>
+      runReleaseManifestCli([
+        "validate",
+        "--manifest",
+        "one.json",
+        "--manifest",
+        "two.json",
+      ]),
+    /duplicate option/u,
+  );
+  await assert.rejects(
+    () => runReleaseManifestCli(["verify", "--manifest", "release.json"]),
+    /missing option/u,
+  );
+});
+
+test("candidate CLI rejects a non-official configured origin before remote access", async () => {
+  const fixture = await createFixture();
+  fixture.descriptor.environment = "preproduction-candidate";
+  fixture.descriptor.repositories.backend.origin =
+    "https://github.com/panzhencheng666-gif/cofco-qiqihar-enterprise-backend.git";
+  fixture.descriptor.repositories.frontend.origin =
+    "https://github.com/panzhencheng666-gif/cofco-qiqihar-enterprise-frontend.git";
+  fixture.descriptor.repositories.web.origin =
+    "https://github.com/panzhencheng666-gif/cofco-qiqihar-enterprise-web.git";
+  await runGit(fixture.backend.origin, "update-ref", "-d", "refs/heads/main");
+  const descriptorPath = join(fixture.root, "candidate-descriptor.json");
+  await writeFile(descriptorPath, `${JSON.stringify(fixture.descriptor)}\n`);
+
+  await assert.rejects(
+    () =>
+      runReleaseManifestCli([
+        "generate",
+        "--descriptor",
+        descriptorPath,
+        "--output",
+        join(fixture.root, "candidate.json"),
+      ]),
+    /backend.*configured origin.*official/u,
+  );
 });

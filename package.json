@@ -44,6 +44,7 @@
     "verify:runtime": "node --test scripts/verify-runtime.spec.mjs && node scripts/verify-runtime.mjs",
     "publish:local-runtime": "node scripts/local-runtime-publish.mjs publish",
     "verify:local-runtime": "node scripts/local-runtime-publish.mjs verify",
+    "release:manifest": "node scripts/release-manifest-cli.mjs",
     "verify": "npm run verify:runtime && npm run format:check && npm run lint && npm run architecture && npm run stage1:inventory:check && npm run test && npm run build && npm run budget && npm run test:e2e:preview"
   },
   "dependencies": {
@@ -72,6 +73,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.4",
+    "ajv": "6.15.0",
     "dependency-cruiser": "18.1.0",
     "eslint": "10.8.0",
     "eslint-plugin-react-hooks": "7.1.1",
