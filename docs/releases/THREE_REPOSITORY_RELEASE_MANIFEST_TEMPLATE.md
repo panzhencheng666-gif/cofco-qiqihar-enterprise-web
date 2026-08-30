@@ -2,6 +2,8 @@
 
 > 每次准备本地验收或云端发布候选版本时复制本模板。只记录不可变的提交 SHA 和验收证据，不复制数据库，不写入密钥或真实凭证。
 
+机器可校验的权威格式是同目录 `release-manifest.schema.json` 和 `scripts/release-manifest.mjs`；生成、校验、运行态复核及失败处理见 `docs/production-readiness/release-traceability-runbook.md`。本 Markdown 只用于人工复核摘要，不能代替 canonical JSON manifest。
+
 ## 版本身份
 
 - 发布候选编号：

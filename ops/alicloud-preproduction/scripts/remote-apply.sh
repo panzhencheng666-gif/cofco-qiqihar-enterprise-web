@@ -14,6 +14,8 @@ compose_file="$PACKAGE_ROOT/compose.yaml"
 
 require_apply_approval
 require_shell_invariants "$config_path"
+manifest_path="${COFCO_RELEASE_MANIFEST_PATH:-}"
+require_candidate_release_manifest "$config_path" "$manifest_path"
 for command_name in aliyun cmp curl docker jq openssl tar; do
   require_command "$command_name"
 done
@@ -30,10 +32,18 @@ for release_link in "$old_current" "$old_previous"; do
   esac
 done
 if test -n "$old_current"; then
-  test -f "$release_root/$old_current/release.env" \
-    || fail "current release checkpoint is missing its immutable config"
+  verify_release_identity "$release_root/$old_current"
 fi
-test ! -e "$release_dir" || fail "candidate release ID already exists and cannot be overwritten"
+if test -e "$release_dir"; then
+  verify_release_identity "$release_dir"
+  cmp -s "$manifest_path" "$release_dir/.cofco-release-manifest.json" \
+    || fail "different manifest already exists for the same release ID"
+  test "$old_current" = "$release_id" \
+    || fail "candidate release ID already exists but is not current"
+  verify_release_identity "$release_dir" "$release_root/current"
+  printf 'PREPRODUCTION_DEPLOY_IDEMPOTENT release=%s\n' "$release_id"
+  exit 0
+fi
 
 runtime_root="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export COFCO_PREPROD_RUNTIME_SECRETS_DIR="$runtime_root/cofco-preproduction/secrets"
@@ -59,8 +69,9 @@ prepare_transaction_snapshot() {
 }
 
 prepare_release() {
-  install -d -m 0700 "$release_dir" "$release_dir/evidence" "$release_dir/runtime/gateway"
-  install -m 0600 "$config_path" "$release_dir/release.env"
+  node "$RELEASE_MANIFEST_VALIDATOR" persist \
+    --manifest "$manifest_path" --config "$config_path" --release "$release_dir"
+  install -d -m 0700 "$release_dir/evidence" "$release_dir/runtime/gateway"
 }
 
 mutate_whitelist() {
@@ -147,5 +158,7 @@ stage5_transaction_step up mutate_services
 stage5_transaction_step verify \
   "$SCRIPT_DIR/verify.sh" "$release_dir/release.env" "$release_dir/evidence"
 stage5_transaction_step checkpoint checkpoint_candidate
+stage5_transaction_step post-activation-verify \
+  verify_release_identity "$release_dir" "$release_root/current"
 stage5_transaction_commit
 printf 'PREPRODUCTION_DEPLOYED release=%s previous=%s\n' "$release_id" "${old_current:-undeployed}"

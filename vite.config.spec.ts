@@ -360,9 +360,16 @@ describe("native Node gate isolation", () => {
   it("keeps the local runtime publisher node:test suites out of Vitest collection", () => {
     expect(enterpriseConfig.test?.exclude).toEqual(
       expect.arrayContaining([
+        "scripts/release-manifest.spec.mjs",
         "scripts/local-runtime-publish.spec.mjs",
         "scripts/local-runtime-smoke.spec.mjs",
       ]),
+    );
+  });
+
+  it("keeps the preproduction release manifest node:test suite out of Vitest collection", () => {
+    expect(enterpriseConfig.test?.exclude).toContain(
+      "scripts/preproduction-release-manifest.spec.mjs",
     );
   });
 });

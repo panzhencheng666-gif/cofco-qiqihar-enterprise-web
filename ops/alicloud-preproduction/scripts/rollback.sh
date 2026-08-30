@@ -30,6 +30,7 @@ for release_link in "$current_id" "$previous_id"; do
   esac
 done
 test -n "$current_id" || fail "no current preproduction release is available"
+verify_release_identity "$release_root/$current_id" "$release_root/current"
 
 runtime_root="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export COFCO_PREPROD_RUNTIME_SECRETS_DIR="$runtime_root/cofco-preproduction/secrets"
@@ -134,6 +135,7 @@ if test -n "$previous_id"; then
     || fail "declared rollback target does not match the verified previous release"
   previous_config="$release_root/$previous_id/release.env"
   previous_gateway="$release_root/$previous_id/runtime/gateway/nginx.conf"
+  verify_release_identity "$release_root/$previous_id"
   require_config_mode "$previous_config"
   node "$CONFIG_VALIDATOR" --config "$previous_config" >/dev/null
   require_same_rds_target "$previous_config"
@@ -170,5 +172,7 @@ stage5_transaction_step verify \
   "$SCRIPT_DIR/verify.sh" "$previous_config" "$release_root/$previous_id/evidence"
 stage5_transaction_step current-checkpoint checkpoint_previous_as_current
 stage5_transaction_step previous-checkpoint checkpoint_current_as_previous
+stage5_transaction_step post-rollback-verify \
+  verify_release_identity "$release_root/$previous_id" "$release_root/current"
 stage5_transaction_commit
 printf 'PREPRODUCTION_ROLLED_BACK target=%s previous=%s\n' "$previous_id" "$current_id"

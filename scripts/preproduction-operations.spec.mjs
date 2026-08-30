@@ -18,6 +18,11 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { canonicalJson, sealManifest, sha256 } from "./release-manifest.mjs";
+import {
+  loadPreproductionCandidate,
+  persistPreproductionRelease,
+} from "./preproduction-release-manifest.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const packageRoot = resolve(repositoryRoot, "ops/alicloud-preproduction");
@@ -28,6 +33,11 @@ const verifyTerraformBackend = resolve(
   "scripts/verify-terraform-backend.sh",
 );
 const digest = `sha256:${"a".repeat(64)}`;
+const applicationDigests = {
+  backend: `registry.example.test/cofco/backend@sha256:${"b".repeat(64)}`,
+  frontend: `registry.example.test/cofco/overview@sha256:${"d".repeat(64)}`,
+  web: `registry.example.test/cofco/business@sha256:${"f".repeat(64)}`,
+};
 const realDeployFailurePoints = [
   "snapshot-invocation",
   "prepare-release",
@@ -41,6 +51,7 @@ const realDeployFailurePoints = [
   "up",
   "verify",
   "checkpoint",
+  "post-activation-verify",
 ];
 const realPreviousRollbackFailurePoints = [
   "snapshot-invocation",
@@ -54,6 +65,7 @@ const realPreviousRollbackFailurePoints = [
   "verify",
   "current-checkpoint",
   "previous-checkpoint",
+  "post-rollback-verify",
 ];
 
 function completeConfig(releaseId, rollbackReleaseId, whitelistCidr) {
@@ -112,9 +124,15 @@ function completeConfig(releaseId, rollbackReleaseId, whitelistCidr) {
       "https://preprod.example.internal/",
     COFCO_PREPROD_OIDC_MFA_AMR_VALUES: "mfa",
     COFCO_PREPROD_RELEASE_ID: releaseId,
-    COFCO_PREPROD_BACKEND_IMAGE: `registry.example.test/cofco/backend@${digest}`,
-    COFCO_PREPROD_BUSINESS_IMAGE: `registry.example.test/cofco/business@${digest}`,
-    COFCO_PREPROD_OVERVIEW_IMAGE: `registry.example.test/cofco/overview@${digest}`,
+    COFCO_PREPROD_BACKEND_COMMIT_SHA: "a".repeat(40),
+    COFCO_PREPROD_WEB_COMMIT_SHA: "e".repeat(40),
+    COFCO_PREPROD_FRONTEND_COMMIT_SHA: "c".repeat(40),
+    COFCO_PREPROD_BACKEND_ORIGIN: "https://example.invalid/backend.git",
+    COFCO_PREPROD_WEB_ORIGIN: "https://example.invalid/web.git",
+    COFCO_PREPROD_FRONTEND_ORIGIN: "https://example.invalid/frontend.git",
+    COFCO_PREPROD_BACKEND_IMAGE: applicationDigests.backend,
+    COFCO_PREPROD_BUSINESS_IMAGE: applicationDigests.web,
+    COFCO_PREPROD_OVERVIEW_IMAGE: applicationDigests.frontend,
     COFCO_PREPROD_GATEWAY_IMAGE: `registry.example.test/cofco/gateway@${digest}`,
     COFCO_PREPROD_PROMETHEUS_IMAGE: `registry.example.test/ops/prometheus@${digest}`,
     COFCO_PREPROD_BLACKBOX_IMAGE: `registry.example.test/ops/blackbox@${digest}`,
@@ -136,6 +154,78 @@ function completeConfig(releaseId, rollbackReleaseId, whitelistCidr) {
     COFCO_PREPROD_TF_STATE_VERSIONING_APPROVED: "true",
     COFCO_PREPROD_TF_STATE_MINIMUM_PERMISSIONS_APPROVED: "true",
   };
+}
+
+function releaseEnvelope(releaseId) {
+  const descriptor = (name, commitSha) => ({
+    origin: `https://example.invalid/${name}.git`,
+    commitSha,
+    ref: "refs/heads/main",
+    build: { command: "fixture-build", node: null, npm: null, jdk: null },
+    contracts: [],
+    configs: [],
+    sboms: [],
+    dependencyLocks: [],
+    containerImage: applicationDigests[name],
+  });
+  const migrations = [
+    {
+      path: "migrations/V1__baseline.sql",
+      sha256: sha256("select 1;\n"),
+      size: Buffer.byteLength("select 1;\n"),
+      version: "1",
+    },
+  ];
+  return sealManifest({
+    schemaVersion: 1,
+    releaseId,
+    environment: "preproduction-candidate",
+    createdAt: "2026-08-30T00:00:00.000Z",
+    generatorVersion: "stage5-fixture-v1",
+    repositories: {
+      backend: {
+        ...descriptor("backend", "a".repeat(40)),
+        artifacts: [
+          { path: "target/backend.jar", sha256: sha256("backend"), size: 7 },
+        ],
+        migrations: {
+          directory: "migrations",
+          files: migrations,
+          highestVersion: "1",
+          collectionSha256: sha256(canonicalJson(migrations)),
+        },
+      },
+      frontend: {
+        ...descriptor("frontend", "c".repeat(40)),
+        assets: {
+          directory: "dist",
+          files: [
+            { path: "dist/index.html", sha256: sha256("frontend"), size: 8 },
+          ],
+          criticalBundles: [
+            { path: "dist/index.html", sha256: sha256("frontend"), size: 8 },
+          ],
+        },
+      },
+      web: {
+        ...descriptor("web", "e".repeat(40)),
+        assets: {
+          directory: "dist",
+          files: [{ path: "dist/index.html", sha256: sha256("web"), size: 3 }],
+          criticalBundles: [
+            { path: "dist/index.html", sha256: sha256("web"), size: 3 },
+          ],
+        },
+      },
+    },
+    evidence: {},
+  });
+}
+
+async function writeManifest(path, releaseId) {
+  await writeFile(path, `${canonicalJson(releaseEnvelope(releaseId))}\n`, {
+    mode: 0o600,
+  });
 }
 
 async function writeConfig(path, config) {
@@ -233,7 +323,27 @@ esac
     `#!/usr/bin/env bash
 set -euo pipefail
 printf 'docker:%s\n' "$*" >>"$FAKE_TRACE"
-if test "\${1:-}" = "inspect"; then printf '172.18.0.9\n'; exit 0; fi
+if test "\${1:-}" = "inspect"; then
+  if [[ " $* " == *" {{.Config.Image}} "* ]]; then
+    container_id="\${!#}"
+    service="\${container_id%-id}"
+    active_release="$(cat "$FAKE_ACTIVE_RELEASE")"
+    if test "\${FAKE_IMAGE_DRIFT_SERVICE:-}" = "$service" \
+      && test "\${FAKE_IMAGE_DRIFT_RELEASE:-}" = "$active_release"; then
+      printf '%s\n' 'registry.example.test/drift@sha256:${"9".repeat(64)}'
+      exit 0
+    fi
+    case "$service" in
+      backend) printf '%s\n' '${applicationDigests.backend}' ;;
+      business-web) printf '%s\n' '${applicationDigests.web}' ;;
+      overview-web) printf '%s\n' '${applicationDigests.frontend}' ;;
+      *) exit 94 ;;
+    esac
+    exit 0
+  fi
+  printf '172.18.0.9\n'
+  exit 0
+fi
 test -n "\${COFCO_PREPROD_GATEWAY_CONFIG:-}" || exit 93
 shift
 env_file=""
@@ -249,7 +359,7 @@ shift || true
 case "$command_name" in
   config|pull) exit 0 ;;
   ps)
-    if [[ " $* " == *" -q prometheus "* ]]; then printf 'prometheus-id\n'; else cat "$FAKE_SERVICE_STATE"; fi
+    if [[ " $* " == *" -q "* ]]; then printf '%s-id\n' "\${!#}"; else cat "$FAKE_SERVICE_STATE"; fi
     ;;
   stop) : >"$FAKE_SERVICE_STATE" ;;
   up)
@@ -280,6 +390,7 @@ case "$command_name" in
     else
       for service in $services; do printf '%s\n' "$service"; done >"$FAKE_SERVICE_STATE"
     fi
+    printf '%s' "$release" >"$FAKE_ACTIVE_RELEASE"
     ;;
   *) exit 0 ;;
 esac
@@ -374,6 +485,7 @@ async function createFixture({ current = true, previous = true } = {}) {
   };
   const paths = {
     candidate: join(directory, "candidate.env"),
+    candidateManifest: join(directory, "candidate-manifest.json"),
     current: join(releaseRoot, ids.current, "release.env"),
     previous: join(releaseRoot, ids.previous, "release.env"),
   };
@@ -385,6 +497,7 @@ async function createFixture({ current = true, previous = true } = {}) {
       "10.40.10.10/32",
     ),
   );
+  await writeManifest(paths.candidateManifest, ids.candidate);
   for (const [kind, cidr, rollbackTarget] of [
     ["current", "10.40.10.20/32", previous ? ids.previous : "undeployed"],
     ["previous", "10.40.10.30/32", "stage5-older-001"],
@@ -404,6 +517,16 @@ async function createFixture({ current = true, previous = true } = {}) {
       paths[kind],
       completeConfig(ids[kind], rollbackTarget, cidr),
     );
+    const sourceManifest = join(directory, `${kind}-manifest.json`);
+    await writeManifest(sourceManifest, ids[kind]);
+    const releaseIdentity = await loadPreproductionCandidate({
+      manifestPath: sourceManifest,
+      configPath: paths[kind],
+    });
+    await persistPreproductionRelease({
+      ...releaseIdentity,
+      releaseDirectory,
+    });
     await writeFile(
       join(releaseDirectory, "runtime/gateway/nginx.conf"),
       `gateway-${kind}\n`,
@@ -433,6 +556,7 @@ async function createFixture({ current = true, previous = true } = {}) {
   const initialWhitelist = "10.40.10.77/32";
   await writeFile(join(state, "rds-whitelist"), initialWhitelist);
   await writeFile(join(state, "rds-modify-count"), "0");
+  await writeFile(join(state, "active-release"), current ? ids.current : "");
   await writeFile(join(state, "trace"), "");
   const fakeBin = await createFakeCommands(directory);
 
@@ -455,11 +579,13 @@ async function createFixture({ current = true, previous = true } = {}) {
       COFCO_PREPROD_RELEASE_ROOT: releaseRoot,
       XDG_RUNTIME_DIR: runtimeRoot,
       COFCO_PREPROD_TEST_MODE: "true",
+      COFCO_RELEASE_MANIFEST_PATH: paths.candidateManifest,
       FAKE_STATE: state,
       FAKE_TRACE: join(state, "trace"),
       FAKE_RDS_STATE: join(state, "rds-whitelist"),
       FAKE_RDS_MODIFY_COUNT: join(state, "rds-modify-count"),
       FAKE_SERVICE_STATE: join(state, "services"),
+      FAKE_ACTIVE_RELEASE: join(state, "active-release"),
       REAL_RM: "/bin/rm",
     },
   };
@@ -583,6 +709,129 @@ test("real remote apply restores the exact pre-call whitelist, secrets, services
   );
 });
 
+test("remote apply rejects a missing canonical manifest before any mutation", async () => {
+  const fixture = await createFixture();
+  const result = runScript(remoteApply, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
+    COFCO_RELEASE_MANIFEST_PATH: join(fixture.directory, "missing.json"),
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /manifest.*missing/iu);
+  assert.equal(await readFile(join(fixture.state, "trace"), "utf8"), "");
+});
+
+test("successful remote apply persists and verifies the canonical three-repository identity", async () => {
+  const fixture = await createFixture();
+  const result = runScript(remoteApply, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const releaseDirectory = join(fixture.releaseRoot, fixture.ids.candidate);
+  const stored = JSON.parse(
+    await readFile(
+      join(releaseDirectory, ".cofco-release-manifest.json"),
+      "utf8",
+    ),
+  );
+  const metadata = JSON.parse(
+    await readFile(
+      join(releaseDirectory, ".cofco-release-metadata.json"),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    stored.manifestSha256,
+    releaseEnvelope(fixture.ids.candidate).manifestSha256,
+  );
+  assert.equal(metadata.manifestSha256, stored.manifestSha256);
+  assert.deepEqual(Object.keys(metadata.repositories).sort(), [
+    "backend",
+    "frontend",
+    "web",
+  ]);
+});
+
+test("post-activation verification rejects a running application image digest drift and compensates", async () => {
+  const fixture = await createFixture();
+  const result = runScript(remoteApply, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
+    FAKE_IMAGE_DRIFT_SERVICE: "business-web",
+    FAKE_IMAGE_DRIFT_RELEASE: fixture.ids.candidate,
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /running image.*business-web.*manifest/iu);
+  await assertInvocationStateRestored(fixture);
+  await assert.rejects(
+    access(join(fixture.releaseRoot, fixture.ids.candidate)),
+    /ENOENT/u,
+  );
+});
+
+test("repeating the same current manifest is idempotent and performs no mutation", async () => {
+  const fixture = await createFixture();
+  const first = runScript(remoteApply, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
+  });
+  assert.equal(first.status, 0, first.stderr);
+  await writeFile(join(fixture.state, "trace"), "");
+
+  const repeated = runScript(remoteApply, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_APPLY: "APPLY_PREPRODUCTION",
+  });
+  assert.equal(repeated.status, 0, repeated.stderr);
+  assert.match(repeated.stdout, /DEPLOY_IDEMPOTENT/iu);
+  assert.equal(await readFile(join(fixture.state, "trace"), "utf8"), "");
+});
+
+test("rollback rejects a legacy previous release without a complete manifest before mutation", async () => {
+  const fixture = await createFixture();
+  await unlink(
+    join(
+      fixture.releaseRoot,
+      fixture.ids.previous,
+      ".cofco-release-manifest.json",
+    ),
+  );
+  const result = runScript(rollback, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_ROLLBACK: "ROLLBACK_PREPRODUCTION",
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /manifest.*missing/iu);
+  assert.equal(await readFile(join(fixture.state, "trace"), "utf8"), "");
+  await assertInvocationStateRestored(fixture);
+});
+
+test("rollback rejects a one-repository image substitution and preserves the prior complete combination", async () => {
+  const fixture = await createFixture();
+  const previousConfig = await readFile(fixture.paths.previous, "utf8");
+  await writeFile(
+    fixture.paths.previous,
+    previousConfig.replace(
+      `COFCO_PREPROD_OVERVIEW_IMAGE=${applicationDigests.frontend}`,
+      `COFCO_PREPROD_OVERVIEW_IMAGE=registry.example.test/cofco/overview@sha256:${"8".repeat(64)}`,
+    ),
+  );
+  const result = runScript(rollback, fixture.paths.candidate, {
+    ...fixture.env,
+    COFCO_PREPROD_ROLLBACK: "ROLLBACK_PREPRODUCTION",
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /frontend image digest.*manifest/iu);
+  assert.equal(await readFile(join(fixture.state, "trace"), "utf8"), "");
+  await assertInvocationStateRestored(fixture);
+});
+
 test("rollback rejects a previous release targeting a different RDS before mutation", async () => {
   const fixture = await createFixture();
   const previousConfig = await readFile(fixture.paths.previous, "utf8");
@@ -618,7 +867,7 @@ test("remote apply refuses an absent named RDS whitelist before mutation", async
   assert.doesNotMatch(trace, /ModifySecurityIps/u);
 });
 
-test("real remote apply fault-injects and restores all 12 production steps", async (t) => {
+test("real remote apply fault-injects and restores every production step", async (t) => {
   let pipelineConsumersChecked = false;
   for (const failurePoint of realDeployFailurePoints) {
     await t.test(failurePoint, async () => {

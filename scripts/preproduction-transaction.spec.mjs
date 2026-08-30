@@ -51,6 +51,7 @@ const failurePoints = [
   "up",
   "verify",
   "checkpoint",
+  "post-activation-verify",
 ];
 
 const rollbackFailurePoints = [
@@ -66,6 +67,7 @@ const rollbackFailurePoints = [
   "verify",
   "current-checkpoint",
   "previous-checkpoint",
+  "post-rollback-verify",
 ];
 
 test("maps every injected failure point to the real remote deploy transaction", async () => {

@@ -74,6 +74,12 @@ export const requiredPreproductionKeys = [
   "COFCO_PREPROD_OIDC_POST_LOGOUT_REDIRECT_URI",
   "COFCO_PREPROD_OIDC_MFA_AMR_VALUES",
   "COFCO_PREPROD_RELEASE_ID",
+  "COFCO_PREPROD_BACKEND_COMMIT_SHA",
+  "COFCO_PREPROD_WEB_COMMIT_SHA",
+  "COFCO_PREPROD_FRONTEND_COMMIT_SHA",
+  "COFCO_PREPROD_BACKEND_ORIGIN",
+  "COFCO_PREPROD_WEB_ORIGIN",
+  "COFCO_PREPROD_FRONTEND_ORIGIN",
   ...imageKeys,
   "COFCO_PREPROD_MIGRATION_COMPATIBILITY",
   "COFCO_PREPROD_BACKUP_METHOD",
@@ -572,6 +578,15 @@ export function assessPreproductionConfig(config) {
   }
   if (releaseId && rollbackId && releaseId === rollbackId) {
     errors.push("The rollback release must differ from the candidate release");
+  }
+  for (const key of [
+    "COFCO_PREPROD_BACKEND_COMMIT_SHA",
+    "COFCO_PREPROD_WEB_COMMIT_SHA",
+    "COFCO_PREPROD_FRONTEND_COMMIT_SHA",
+  ]) {
+    if (value(key) && !/^[a-f0-9]{40}$/u.test(value(key))) {
+      errors.push(`${key} must be an immutable 40-character commit SHA`);
+    }
   }
 
   if (

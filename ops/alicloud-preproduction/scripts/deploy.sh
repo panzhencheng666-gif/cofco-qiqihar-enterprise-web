@@ -6,6 +6,7 @@ source "$SCRIPT_DIR/common.sh"
 
 mode="${1:-dry-run}"
 config_path="${2:-$PACKAGE_ROOT/config/preproduction.env}"
+manifest_path="${3:-${COFCO_RELEASE_MANIFEST_PATH:-}}"
 
 case "$mode" in
   dry-run)
@@ -14,10 +15,11 @@ case "$mode" in
     exit 0
     ;;
   apply) ;;
-  *) fail "usage: deploy.sh [dry-run|apply] [config-path]" ;;
+  *) fail "usage: deploy.sh [dry-run|apply] [config-path] [manifest-path]" ;;
 esac
 
 "$SCRIPT_DIR/preflight.sh" --apply "$config_path"
+require_candidate_release_manifest "$config_path" "$manifest_path"
 require_command scp
 require_command tar
 require_command ssh-keygen
@@ -99,6 +101,9 @@ remote_staging_package="$remote_staging/ops/alicloud-preproduction"
 config_validator_sha="$(sha256_file "$CONFIG_VALIDATOR")"
 runtime_validator_sha="$(sha256_file "$RUNTIME_VALIDATOR")"
 network_validator_sha="$(sha256_file "$NETWORK_VALIDATOR")"
+release_manifest_validator_sha="$(sha256_file "$RELEASE_MANIFEST_VALIDATOR")"
+manifest_core_sha="$(sha256_file "$WEB_ROOT/scripts/release-manifest.mjs")"
+candidate_manifest_file_sha="$(sha256_file "$manifest_path")"
 ssh "${ssh_options[@]}" "$ssh_alias" \
   "install -d -m 0700 '$remote_base' '$remote_bundles'; test ! -e '$remote_staging'; test ! -e '$remote_release_bundle'; install -d -m 0700 '$remote_staging'"
 tar -C "$WEB_ROOT" \
@@ -113,11 +118,17 @@ tar -C "$WEB_ROOT" \
   scripts/preproduction-config.mjs \
   scripts/preproduction-network.mjs \
   scripts/preproduction-runtime.mjs \
+  scripts/preproduction-release-manifest.mjs \
+  scripts/release-manifest.mjs \
   | ssh "${ssh_options[@]}" "$ssh_alias" "cd '$remote_staging' && tar -xf -"
 scp -q "${ssh_options[@]}" "$config_path" "$ssh_alias:$remote_staging_package/config/preproduction.env"
+scp -q "${ssh_options[@]}" "$manifest_path" "$ssh_alias:$remote_staging_package/config/.cofco-release-manifest.json"
 ssh "${ssh_options[@]}" "$ssh_alias" bash \
   "$remote_staging_package/scripts/activate-bundle.sh" \
   "$remote_base" "$remote_staging" "$release_id" \
   "$config_validator_sha" "$runtime_validator_sha" "$network_validator_sha" \
+  "$release_manifest_validator_sha" "$manifest_core_sha" \
+  "$candidate_manifest_file_sha" \
   -- env COFCO_PREPROD_APPLY=APPLY_PREPRODUCTION \
+  COFCO_RELEASE_MANIFEST_PATH=./config/.cofco-release-manifest.json \
   ./scripts/remote-apply.sh ./config/preproduction.env
