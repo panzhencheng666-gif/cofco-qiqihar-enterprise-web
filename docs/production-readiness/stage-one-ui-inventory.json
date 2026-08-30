@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 59,
-  "sourceDigest": "71d31e5dadffaa3281fcf02254494f29e82e7c05aad56127f0a10a49b2d42844",
+  "sourceDigest": "58a4c5fb5f7a88bc338a65893bc6e21da1c59888c3b2c685411996418876f2cf",
   "itemCount": 485,
   "countsByKind": {
     "BUTTON": 250,
@@ -1204,10 +1204,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={(historyPage + 1) * 20 >= historyTotal} onClick={() => void loadHistory(sample, historyPage + 1) } >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1047:25:LINK",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1076:25:LINK",
       "kind": "LINK",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1047,
+      "line": 1076,
       "column": 25,
       "tag": "a",
       "accessibleNameSource": null,
@@ -1218,10 +1218,10 @@
       "sourceExcerpt": "<a href={identityManagementUrl}>"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1055:27:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1084:27:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1055,
+      "line": 1084,
       "column": 27,
       "tag": "input",
       "accessibleNameSource": null,
@@ -1232,10 +1232,10 @@
       "sourceExcerpt": "<input name=\"_csrf\" type=\"hidden\" value={csrfTokenFromCookies() ?? \"\"} />"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1060:27:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1089:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1060,
+      "line": 1089,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1246,10 +1246,10 @@
       "sourceExcerpt": "<button type=\"submit\">"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1083:19:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1112:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1083,
+      "line": 1112,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1260,10 +1260,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" onClick={() => setView(\"employees\")} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1131:19:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1160:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1131,
+      "line": 1160,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1274,10 +1274,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" onClick={() => openAssignmentEditor(true, invitationDraft(session)) } >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1191:33:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1220:33:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1191,
+      "line": 1220,
       "column": 33,
       "tag": "button",
       "accessibleNameSource": "aria-label={`管理${employee.displayName}的授权`}",
@@ -1288,10 +1288,10 @@
       "sourceExcerpt": "<button aria-label={`管理${employee.displayName}的授权`} type=\"button\" onClick={() => openAssignmentEditor( false, employeeDraft(employee), ) } >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1204:35:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1233:35:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1204,
+      "line": 1233,
       "column": 35,
       "tag": "button",
       "accessibleNameSource": "aria-label={`管理${employee.displayName}的邀请`}",
@@ -1302,10 +1302,10 @@
       "sourceExcerpt": "<button aria-label={`管理${employee.displayName}的邀请`} type=\"button\" onClick={() => void openInvitationEditor(employee) } >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1272:21:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1301:21:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1272,
+      "line": 1301,
       "column": 21,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"重新送达邮箱\"",
@@ -1316,10 +1316,10 @@
       "sourceExcerpt": "<input aria-label=\"重新送达邮箱\" autoComplete=\"email\" inputMode=\"email\" value={invitationEditor.deliveryAddress} onChange={(event) => setInvitationEditor((current) => current ? { ...current, deliveryAddress: event.target.value, } : current, ) ..."
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1290:21:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1319:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1290,
+      "line": 1319,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1330,10 +1330,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={closeInvitationEditor}>"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1293:21:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1322:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1293,
+      "line": 1322,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1344,10 +1344,10 @@
       "sourceExcerpt": "<button disabled={ saving || invitationEditor.receipt?.invitationStatus !== \"PENDING\" } type=\"button\" onClick={() => void revokeCurrentInvitation()} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1303:21:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1332:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1303,
+      "line": 1332,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1358,10 +1358,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" disabled={ saving || !invitationEditor.deliveryAddress.trim() } type=\"button\" onClick={() => void reissueCurrentInvitation()} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1331:19:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1360:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1331,
+      "line": 1360,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"复核名称\"",
@@ -1372,10 +1372,10 @@
       "sourceExcerpt": "<input aria-label=\"复核名称\" value={newReviewName} onChange={(event) => setNewReviewName(event.target.value)} />"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1339:19:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1368:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1339,
+      "line": 1368,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"复核完成时限\"",
@@ -1386,10 +1386,10 @@
       "sourceExcerpt": "<input aria-label=\"复核完成时限\" type=\"datetime-local\" value={newReviewDueAt} onChange={(event) => setNewReviewDueAt(event.target.value)} />"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1346:17:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1375:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1346,
+      "line": 1375,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1400,10 +1400,10 @@
       "sourceExcerpt": "<button disabled={saving || !newReviewName.trim() || !newReviewDueAt} type=\"button\" onClick={() => void createReview()} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1380:27:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1409:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1380,
+      "line": 1409,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1414,10 +1414,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => { setSelectedReview(review); setReviewDecisions({}); }} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1409:21:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1438:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1409,
+      "line": 1438,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1428,10 +1428,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => setSelectedReview(null)} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1437:29:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1466:29:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1437,
+      "line": 1466,
       "column": 29,
       "tag": "select",
       "accessibleNameSource": "aria-label={`${item.grantKey} 的复核结论`}",
@@ -1442,10 +1442,10 @@
       "sourceExcerpt": "<select aria-label={`${item.grantKey} 的复核结论`} value={draft.decisionCode} onChange={(event) => setReviewDecisions((current) => ({ ...current, [key]: { ...draft, decisionCode: event.target.value as \"RETAIN\" | \"REVOKE\", }, })) } >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1454:29:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1483:29:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1454,
+      "line": 1483,
       "column": 29,
       "tag": "input",
       "accessibleNameSource": "aria-label={`${item.grantKey} 的复核说明`}",
@@ -1456,10 +1456,10 @@
       "sourceExcerpt": "<input aria-label={`${item.grantKey} 的复核说明`} placeholder=\"填写复核依据\" value={draft.reason} onChange={(event) => setReviewDecisions((current) => ({ ...current, [key]: { ...draft, reason: event.target.value, }, })) } />"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1481:21:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1510:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1481,
+      "line": 1510,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1470,10 +1470,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" disabled={saving} type=\"button\" onClick={() => void submitReview()} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1505:19:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1534:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1505,
+      "line": 1534,
       "column": 19,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"审计业务对象\"",
@@ -1484,10 +1484,10 @@
       "sourceExcerpt": "<select aria-label=\"审计业务对象\" value={auditType} onChange={(event) => setAuditType(event.target.value)} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1523:19:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1552:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1523,
+      "line": 1552,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"审计操作员工\"",
@@ -1498,10 +1498,10 @@
       "sourceExcerpt": "<input aria-label=\"审计操作员工\" placeholder=\"输入员工账号\" value={auditActor} onChange={(event) => setAuditActor(event.target.value)} />"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1532:19:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1561:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1532,
+      "line": 1561,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"审计开始日期\"",
@@ -1512,10 +1512,10 @@
       "sourceExcerpt": "<input aria-label=\"审计开始日期\" type=\"date\" value={auditFrom} onChange={(event) => setAuditFrom(event.target.value)} />"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1541:19:FILTER_OR_INPUT",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1570:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1541,
+      "line": 1570,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"审计结束日期\"",
@@ -1526,10 +1526,10 @@
       "sourceExcerpt": "<input aria-label=\"审计结束日期\" type=\"date\" value={auditTo} onChange={(event) => setAuditTo(event.target.value)} />"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1548:17:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1577:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1548,
+      "line": 1577,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1540,10 +1540,10 @@
       "sourceExcerpt": "<button disabled={loading} type=\"button\" onClick={() => void loadAuditEvents(0)} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1606:19:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1635:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1606,
+      "line": 1635,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1554,10 +1554,10 @@
       "sourceExcerpt": "<button disabled={loading || auditPage === 0} onClick={() => void loadAuditEvents(auditPage - 1)} type=\"button\" >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:1616:19:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:1645:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 1616,
+      "line": 1645,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1722,10 +1722,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" disabled={ saving || loadingOptions || !draft.subjectId.trim() || !draft.displayName.trim() || (invite && !draft.deliveryAddress.trim()) } type=\"button\" onClick={onSubmit} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:879:7:DIALOG",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:908:7:DIALOG",
       "kind": "DIALOG",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 879,
+      "line": 908,
       "column": 7,
       "tag": "section",
       "accessibleNameSource": "aria-label=\"账号与授权\"",
@@ -1736,10 +1736,10 @@
       "sourceExcerpt": "<section aria-label=\"账号与授权\" aria-modal=\"true\" className=\"identity-governance-panel\" role=\"dialog\" >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:890:11:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:919:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 890,
+      "line": 919,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": "aria-label=\"返回业务页面\"",
@@ -1750,10 +1750,10 @@
       "sourceExcerpt": "<button aria-label=\"返回业务页面\" type=\"button\" onClick={onClose}>"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:895:11:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:924:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 895,
+      "line": 924,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1764,10 +1764,10 @@
       "sourceExcerpt": "<button aria-current={view === \"profile\" ? \"page\" : undefined} type=\"button\" onClick={() => changeView(\"profile\")} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:902:11:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:931:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 902,
+      "line": 931,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1778,10 +1778,10 @@
       "sourceExcerpt": "<button aria-current={view === \"organization\" ? \"page\" : undefined} type=\"button\" onClick={() => changeView(\"organization\")} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:910:13:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:939:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 910,
+      "line": 939,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1792,10 +1792,10 @@
       "sourceExcerpt": "<button aria-current={view === \"employees\" ? \"page\" : undefined} type=\"button\" onClick={() => changeView(\"employees\")} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:919:13:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:948:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 919,
+      "line": 948,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1806,10 +1806,10 @@
       "sourceExcerpt": "<button aria-current={view === \"reviews\" ? \"page\" : undefined} type=\"button\" onClick={() => changeView(\"reviews\")} >"
     },
     {
-      "id": "src/business/identity/IdentityGovernancePanel.tsx:928:13:BUTTON",
+      "id": "src/business/identity/IdentityGovernancePanel.tsx:957:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/identity/IdentityGovernancePanel.tsx",
-      "line": 928,
+      "line": 957,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,

@@ -466,6 +466,7 @@ export function IdentityGovernancePanel({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const assignmentOptionsRequest = useRef(0);
+  const invitationEditorSubject = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -603,6 +604,13 @@ export function IdentityGovernancePanel({
       const nextOptions = await repository.loadAssignmentOptions(workUnitCode);
       if (assignmentOptionsRequest.current === requestId) {
         const assignableRegions = new Set(nextOptions.regionCodes);
+        setRegionNames((current) => {
+          const merged = new Map(current);
+          for (const region of nextOptions.regions) {
+            if (!merged.has(region.code)) merged.set(region.code, region.name);
+          }
+          return merged;
+        });
         setOptions(nextOptions);
         setEditor((current) =>
           current && current.draft.workUnitCode === workUnitCode
@@ -630,6 +638,8 @@ export function IdentityGovernancePanel({
   };
 
   const openAssignmentEditor = (invite: boolean, draft: AssignmentDraft) => {
+    invitationEditorSubject.current = null;
+    setLoadingInvitation(false);
     setInvitationEditor(null);
     setEditor({ invite, draft: { ...draft, regionCodes: [] } });
     void requestAssignmentOptions(draft.workUnitCode, draft.regionCodes);
@@ -642,12 +652,14 @@ export function IdentityGovernancePanel({
   };
 
   const closeInvitationEditor = () => {
+    invitationEditorSubject.current = null;
     setInvitationEditor(null);
     setLoadingInvitation(false);
   };
 
   const openInvitationEditor = async (employee: EmployeeProfile) => {
     closeAssignmentEditor();
+    invitationEditorSubject.current = employee.subjectId;
     setMessage(null);
     setError(null);
     setLoadingInvitation(true);
@@ -661,34 +673,43 @@ export function IdentityGovernancePanel({
       const receipt = await repository.loadEmployeeInvitation(
         employee.subjectId,
       );
+      if (invitationEditorSubject.current !== employee.subjectId) return;
       setInvitationEditor((current) =>
         current?.employee.subjectId === employee.subjectId
           ? { ...current, receipt }
           : current,
       );
     } catch (caught) {
-      setError(businessError(caught, "当前邀请读取失败，请稍后重试。"));
+      if (invitationEditorSubject.current === employee.subjectId) {
+        setError(businessError(caught, "当前邀请读取失败，请稍后重试。"));
+      }
     } finally {
-      setLoadingInvitation(false);
+      if (invitationEditorSubject.current === employee.subjectId) {
+        setLoadingInvitation(false);
+      }
     }
   };
 
   const revokeCurrentInvitation = async () => {
     if (!invitationEditor?.receipt) return;
+    const subjectId = invitationEditor.employee.subjectId;
     setSaving(true);
     setMessage(null);
     setError(null);
     try {
       await repository.revokeInvitation(invitationEditor.receipt.invitationId);
-      const receipt = await repository.loadEmployeeInvitation(
-        invitationEditor.employee.subjectId,
-      );
+      const receipt = await repository.loadEmployeeInvitation(subjectId);
+      if (invitationEditorSubject.current !== subjectId) return;
       setInvitationEditor((current) =>
-        current ? { ...current, receipt } : current,
+        current?.employee.subjectId === subjectId
+          ? { ...current, receipt }
+          : current,
       );
       setMessage("当前邀请已撤销。");
     } catch (caught) {
-      setError(businessError(caught, "邀请撤销失败，请刷新状态后重试。"));
+      if (invitationEditorSubject.current === subjectId) {
+        setError(businessError(caught, "邀请撤销失败，请刷新状态后重试。"));
+      }
     } finally {
       setSaving(false);
     }
@@ -696,20 +717,26 @@ export function IdentityGovernancePanel({
 
   const reissueCurrentInvitation = async () => {
     if (!invitationEditor?.deliveryAddress.trim()) return;
+    const subjectId = invitationEditor.employee.subjectId;
     setSaving(true);
     setMessage(null);
     setError(null);
     try {
       await repository.reissueInvitation({
         idempotencyKey: invitationEditor.idempotencyKey,
-        subjectId: invitationEditor.employee.subjectId,
+        subjectId,
         deliveryAddress: invitationEditor.deliveryAddress.trim(),
       });
-      const receipt = await repository.loadEmployeeInvitation(
-        invitationEditor.employee.subjectId,
-      );
+      const receipt = await repository.loadEmployeeInvitation(subjectId);
+      if (invitationEditorSubject.current !== subjectId) return;
       setInvitationEditor((current) =>
-        current ? { ...current, receipt } : current,
+        current?.employee.subjectId === subjectId
+          ? {
+              ...current,
+              receipt,
+              idempotencyKey: `identity-reinvite-${globalThis.crypto.randomUUID()}`,
+            }
+          : current,
       );
       setMessage(
         receipt.deliveryStatus === "DELIVERED"
@@ -719,7 +746,9 @@ export function IdentityGovernancePanel({
             : "邀请已重新进入送达队列。",
       );
     } catch (caught) {
-      setError(businessError(caught, "邀请重新发送失败，请稍后重试。"));
+      if (invitationEditorSubject.current === subjectId) {
+        setError(businessError(caught, "邀请重新发送失败，请稍后重试。"));
+      }
     } finally {
       setSaving(false);
     }
