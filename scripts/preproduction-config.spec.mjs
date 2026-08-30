@@ -72,6 +72,12 @@ function completeConfig() {
       "https://preprod.example.internal/",
     COFCO_PREPROD_OIDC_MFA_AMR_VALUES: "mfa",
     COFCO_PREPROD_RELEASE_ID: "stage5-20260812-001",
+    COFCO_PREPROD_BACKEND_COMMIT_SHA: "a".repeat(40),
+    COFCO_PREPROD_WEB_COMMIT_SHA: "e".repeat(40),
+    COFCO_PREPROD_FRONTEND_COMMIT_SHA: "c".repeat(40),
+    COFCO_PREPROD_BACKEND_ORIGIN: "https://example.invalid/backend.git",
+    COFCO_PREPROD_WEB_ORIGIN: "https://example.invalid/web.git",
+    COFCO_PREPROD_FRONTEND_ORIGIN: "https://example.invalid/frontend.git",
     COFCO_PREPROD_BACKEND_IMAGE: `registry.example.test/cofco/backend@${digest}`,
     COFCO_PREPROD_BUSINESS_IMAGE: `registry.example.test/cofco/business@${digest}`,
     COFCO_PREPROD_OVERVIEW_IMAGE: `registry.example.test/cofco/overview@${digest}`,
@@ -107,6 +113,32 @@ test("reports missing external inputs without pretending the environment is read
   assert.ok(result.missing.includes("COFCO_PREPROD_REGION"));
   assert.ok(result.missing.includes("COFCO_PREPROD_DB_SECRET_REF"));
   assert.equal(result.errors.length, 0);
+});
+
+test("requires explicit three-repository commit and origin identity inputs", () => {
+  const config = completeConfig();
+
+  for (const key of [
+    "COFCO_PREPROD_BACKEND_COMMIT_SHA",
+    "COFCO_PREPROD_WEB_COMMIT_SHA",
+    "COFCO_PREPROD_FRONTEND_COMMIT_SHA",
+    "COFCO_PREPROD_BACKEND_ORIGIN",
+    "COFCO_PREPROD_WEB_ORIGIN",
+    "COFCO_PREPROD_FRONTEND_ORIGIN",
+  ]) {
+    delete config[key];
+  }
+  const result = assessPreproductionConfig(config);
+  for (const key of [
+    "COFCO_PREPROD_BACKEND_COMMIT_SHA",
+    "COFCO_PREPROD_WEB_COMMIT_SHA",
+    "COFCO_PREPROD_FRONTEND_COMMIT_SHA",
+    "COFCO_PREPROD_BACKEND_ORIGIN",
+    "COFCO_PREPROD_WEB_ORIGIN",
+    "COFCO_PREPROD_FRONTEND_ORIGIN",
+  ]) {
+    assert.ok(result.missing.includes(key), `${key} must be required`);
+  }
 });
 
 test("accepts complete reference-only preproduction inputs for validation", () => {

@@ -426,16 +426,18 @@ test("arms transaction recovery before every deploy or rollback side effect", as
   );
 });
 
-test("refuses to overwrite an existing immutable release before copying config", async () => {
+test("allows only an idempotent current manifest and refuses release ID collisions", async () => {
   const remoteApply = await read(
     "ops/alicloud-preproduction/scripts/remote-apply.sh",
   );
 
   assert.match(remoteApply, /candidate release ID already exists/u);
-  assert.ok(
-    remoteApply.indexOf('test ! -e "$release_dir"') <
-      remoteApply.indexOf('install -m 0600 "$config_path"'),
+  assert.match(
+    remoteApply,
+    /different manifest already exists for the same release ID/u,
   );
+  assert.match(remoteApply, /PREPRODUCTION_DEPLOY_IDEMPOTENT/u);
+  assert.match(remoteApply, /cmp -s "\$manifest_path"/u);
   assert.match(remoteApply, /stage5_transaction_step snapshot-invocation/u);
   assert.match(remoteApply, /whitelist_mutated=false/u);
   assert.match(remoteApply, /stage5_invocation_state_mark_secrets_mutated/u);

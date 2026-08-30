@@ -7,7 +7,10 @@ release_id="$3"
 expected_config_sha="$4"
 expected_runtime_sha="$5"
 expected_network_sha="$6"
-shift 6
+expected_release_manifest_sha="$7"
+expected_manifest_core_sha="$8"
+expected_candidate_manifest_file_sha="$9"
+shift 9
 test "${1:-}" = "--" || {
   printf 'ERROR: bundle activation requires a bounded command\n' >&2
   exit 64
@@ -65,7 +68,13 @@ source ./scripts/common.sh
 test "$(sha256_file "$CONFIG_VALIDATOR")" = "$expected_config_sha"
 test "$(sha256_file "$RUNTIME_VALIDATOR")" = "$expected_runtime_sha"
 test "$(sha256_file "$NETWORK_VALIDATOR")" = "$expected_network_sha"
+test "$(sha256_file "$RELEASE_MANIFEST_VALIDATOR")" = "$expected_release_manifest_sha"
+test "$(sha256_file "$WEB_ROOT/scripts/release-manifest.mjs")" = "$expected_manifest_core_sha"
 chmod 0600 ./config/preproduction.env
+test "$(sha256_file ./config/.cofco-release-manifest.json)" = "$expected_candidate_manifest_file_sha" \
+  || fail "transferred release manifest does not match the approved candidate file"
+require_candidate_release_manifest \
+  ./config/preproduction.env ./config/.cofco-release-manifest.json
 forbidden_asset="$(find "$remote_staging" \
   \( -name .runtime -o -name .terraform -o -name '*.tfstate' -o -name '*.tfstate.*' -o -name '*.tfplan' \) \
   -print -quit)"
