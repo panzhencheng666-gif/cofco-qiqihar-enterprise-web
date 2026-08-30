@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 describe("formal enterprise responsive shell", () => {
   it("applies the mobile shell fallback after the desktop reference workbench rules", () => {
     const css = readFileSync("src/business/formal-enterprise.css", "utf8");
-    const desktopWorkbench = css.indexOf("/* reference-workbench-shell:start */");
+    const desktopWorkbench = css.indexOf(
+      "/* reference-workbench-shell:start */",
+    );
     const mobileFallback = css.indexOf(
       "/* enterprise-mobile-shell-cascade:start */",
     );
