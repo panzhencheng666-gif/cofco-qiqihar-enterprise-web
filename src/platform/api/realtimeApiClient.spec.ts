@@ -2,6 +2,25 @@ import { describe, expect, it, vi } from "vitest";
 import { RealtimeApiError, createRealtimeApiClient } from "./realtimeApiClient";
 
 describe("realtime API client", () => {
+  it("returns an unwrapped direct contract through getRaw", async () => {
+    const payload = {
+      contractVersion: "design-sample-fields-v1",
+      contractDigest: `sha256:${"a".repeat(64)}`,
+    };
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const client = createRealtimeApiClient({ baseUrl: "", fetcher });
+
+    await expect(
+      client.getRaw("/api/v1/design-sample-field-definitions", {
+        domainCode: "MARKET",
+      }),
+    ).resolves.toEqual(payload);
+  });
   it("unwraps the backend data envelope and serializes query parameters", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ data: { items: [1] } }), {
