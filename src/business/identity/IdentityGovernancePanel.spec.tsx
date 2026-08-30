@@ -12,6 +12,7 @@ import type {
   CurrentSession,
   EmployeeProfile,
   IdentityAssignmentOptions,
+  IdentityInvitationReceipt,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
@@ -38,6 +39,46 @@ const session: CurrentSession = {
   ],
   regionCodes: ["230200"],
 };
+
+function assignmentRegions(regionCodes: readonly string[]) {
+  const fixtures = {
+    "230202001": {
+      code: "230202001",
+      name: "测试乡镇",
+      administrativeLevel: "TOWNSHIP" as const,
+      parentCode: "230202",
+    },
+    "230208001": {
+      code: "230208001",
+      name: "测试乡镇二",
+      administrativeLevel: "TOWNSHIP" as const,
+      parentCode: "230208",
+    },
+    "230281101": {
+      code: "230281101",
+      name: "讷河责任乡镇",
+      administrativeLevel: "TOWNSHIP" as const,
+      parentCode: "230281",
+    },
+  };
+  return regionCodes.map((code) => fixtures[code as keyof typeof fixtures]);
+}
+
+function invitationReceiptFor(
+  employee: EmployeeProfile,
+): IdentityInvitationReceipt {
+  return {
+    ...employee,
+    accountStatus: "INVITED",
+    version: 0,
+    contractVersion: "2026-08-30",
+    invitationId: "invite-default",
+    invitationStatus: "PENDING",
+    deliveryStatus: "QUEUED",
+    expiresAt: "2026-08-31T00:00:00Z",
+    replayed: false,
+  };
+}
 
 function repository() {
   const employee: EmployeeProfile = {
@@ -87,6 +128,7 @@ function repository() {
       },
     ],
   };
+  const invitationReceipt = invitationReceiptFor(employee);
   const api = {
     loadMasterData: vi.fn(() =>
       Promise.resolve({
@@ -138,9 +180,36 @@ function repository() {
         ],
         positions: [{ code: "REGIONAL_REPORTER", name: "区域填报专员" }],
         regionCodes: ["230202001", "230208001"],
+        regions: assignmentRegions(["230202001", "230208001"]),
       });
     }),
-    inviteEmployee: vi.fn(() => Promise.resolve(employee)),
+    inviteEmployee: vi.fn(
+      (_input: Parameters<RealtimeBusinessRepository["inviteEmployee"]>[0]) => {
+        void _input;
+        return Promise.resolve(invitationReceipt);
+      },
+    ),
+    loadEmployeeInvitation: vi.fn((_subjectId: string) => {
+      void _subjectId;
+      return Promise.resolve(invitationReceipt);
+    }),
+    revokeInvitation: vi.fn(() =>
+      Promise.resolve({
+        ...invitationReceipt,
+        invitationStatus: "REVOKED" as const,
+      }),
+    ),
+    reissueInvitation: vi.fn(
+      (
+        _input: Parameters<RealtimeBusinessRepository["reissueInvitation"]>[0],
+      ) => {
+        void _input;
+        return Promise.resolve({
+          ...invitationReceipt,
+          invitationId: "invite-reissued",
+        });
+      },
+    ),
     updateEmployee: vi.fn(() =>
       Promise.resolve({ ...employee, accountStatus: "SUSPENDED", version: 4 }),
     ),
@@ -338,6 +407,10 @@ describe("IdentityGovernancePanel", () => {
     await user.click(screen.getByRole("button", { name: "邀请员工" }));
     await user.type(screen.getByLabelText("员工账号"), "employee-88");
     await user.type(screen.getByLabelText("员工姓名"), "赵蕾");
+    await user.type(
+      screen.getByLabelText("邀请送达邮箱"),
+      "employee-88@example.test",
+    );
     expect(screen.getAllByRole("radio")).toHaveLength(2);
     expect(
       screen.queryByRole("group", { name: "岗位" }),
@@ -369,7 +442,368 @@ describe("IdentityGovernancePanel", () => {
     );
   });
 
-  it("reloads the selected work unit responsibility townships", async () => {
+  it("uses server-owned region levels and reports the real invitation delivery result", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    api.loadMasterData.mockResolvedValue({
+      products: [],
+      periods: [],
+      approvedSurveyYears: [2026],
+      regions: [
+        {
+          code: "232700",
+          name: "大兴安岭地区",
+          parentCode: null,
+          level: "PREFECTURE",
+        },
+        {
+          code: "232761",
+          name: "加格达奇区",
+          parentCode: "232700",
+          level: "COUNTY",
+        },
+      ],
+    });
+    api.loadAssignmentOptions.mockResolvedValue({
+      workUnits: [{ code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" }],
+      roles: [{ code: "BUSINESS_OPERATOR", name: "填报员" }],
+      positions: [],
+      regionCodes: ["232761"],
+      regions: [
+        {
+          code: "232761",
+          name: "加格达奇区",
+          administrativeLevel: "COUNTY",
+          parentCode: "232700",
+        },
+      ],
+    });
+    api.inviteEmployee.mockResolvedValue({
+      subjectId: "jagdaqi-operator",
+      displayName: "加格达奇填报员",
+      workUnitCode: "QIQIHAR_BUSINESS",
+      workUnitName: "齐齐哈尔经营部",
+      accountStatus: "INVITED",
+      employmentStatus: "ACTIVE",
+      roles: [{ code: "BUSINESS_OPERATOR", name: "填报员" }],
+      positions: [],
+      regionCodes: ["232761"],
+      version: 0,
+      contractVersion: "2026-08-30",
+      invitationId: "invite-001",
+      invitationStatus: "PENDING",
+      expiresAt: "2026-08-31T00:00:00Z",
+      deliveryStatus: "QUEUED",
+      replayed: false,
+    });
+
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "邀请员工" }));
+    expect(screen.getByRole("group", { name: "责任地区" })).toBeVisible();
+    expect(screen.getByText("大兴安岭地区 / 加格达奇区")).toBeVisible();
+    await user.type(screen.getByLabelText("员工账号"), "jagdaqi-operator");
+    await user.type(screen.getByLabelText("员工姓名"), "加格达奇填报员");
+    await user.type(
+      screen.getByLabelText("邀请送达邮箱"),
+      "operator@example.test",
+    );
+    await user.click(screen.getByRole("radio", { name: "填报员" }));
+    await user.click(screen.getByRole("checkbox", { name: "责任地区 232761" }));
+    await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
+
+    expect(await screen.findByText(/邀请已进入送达队列/)).toBeVisible();
+    expect(screen.queryByText(/激活链接/)).not.toBeInTheDocument();
+    expect(api.inviteEmployee).toHaveBeenCalledOnce();
+    const invitationRequest = api.inviteEmployee.mock.calls[0][0];
+    expect(invitationRequest.idempotencyKey).toMatch(/^identity-invite-/u);
+    expect(invitationRequest).toMatchObject({
+      deliveryAddress: "operator@example.test",
+      regionCodes: ["232761"],
+    });
+  });
+
+  it("uses assignment option names when the master-data label query fails", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    api.loadMasterData.mockRejectedValue(
+      new Error("label service unavailable"),
+    );
+    api.loadAssignmentOptions.mockResolvedValue({
+      workUnits: [{ code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" }],
+      roles: [{ code: "BUSINESS_OPERATOR", name: "填报员" }],
+      positions: [],
+      regionCodes: ["230202001", "232761"],
+      regions: [
+        {
+          code: "230202001",
+          name: "龙沙测试乡镇",
+          administrativeLevel: "TOWNSHIP",
+          parentCode: "230202",
+        },
+        {
+          code: "232761",
+          name: "加格达奇区",
+          administrativeLevel: "COUNTY",
+          parentCode: "232700",
+        },
+      ],
+    });
+
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "邀请员工" }));
+    const responsibilityRegions = screen.getByRole("group", {
+      name: "责任地区",
+    });
+
+    expect(
+      within(responsibilityRegions).getByText("龙沙测试乡镇"),
+    ).toBeVisible();
+    expect(within(responsibilityRegions).getByText("加格达奇区")).toBeVisible();
+  });
+
+  it("requeries and revokes the current invitation without exposing a secret", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    const [employee] = await api.listEmployees();
+    const pending = invitationReceiptFor(employee);
+    const revoked = { ...pending, invitationStatus: "REVOKED" as const };
+    api.listEmployees.mockResolvedValue([
+      { ...employee, accountStatus: "INVITED" },
+    ]);
+    api.loadEmployeeInvitation
+      .mockResolvedValueOnce(pending)
+      .mockResolvedValueOnce(revoked);
+    api.revokeInvitation.mockResolvedValue(revoked);
+
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "管理张敏的邀请" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "管理张敏的邀请" }),
+    ).toBeVisible();
+    expect(screen.getByText("等待激活 · 已进入送达队列")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "撤销当前邀请" }));
+
+    expect(api.revokeInvitation).toHaveBeenCalledWith(pending.invitationId);
+    await waitFor(() =>
+      expect(api.loadEmployeeInvitation).toHaveBeenCalledTimes(2),
+    );
+    expect(await screen.findByText("已撤销 · 已进入送达队列")).toBeVisible();
+    expect(screen.getByText("当前邀请已撤销。")).toBeVisible();
+    expect(document.body).not.toHaveTextContent("activationUrl");
+    expect(document.body).not.toHaveTextContent("token");
+  });
+
+  it("reissues an invitation with one idempotency key and reports the requery delivery state", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    const [employee] = await api.listEmployees();
+    const pending = invitationReceiptFor(employee);
+    const revoked = { ...pending, invitationStatus: "REVOKED" as const };
+    const reissued = {
+      ...pending,
+      invitationId: "invite-reissued",
+      invitationStatus: "PENDING" as const,
+      deliveryStatus: "QUEUED" as const,
+    };
+    api.listEmployees.mockResolvedValue([
+      { ...employee, accountStatus: "INVITED" },
+    ]);
+    api.loadEmployeeInvitation
+      .mockResolvedValueOnce(revoked)
+      .mockResolvedValueOnce(reissued);
+    api.reissueInvitation.mockResolvedValue(reissued);
+
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "管理张敏的邀请" }),
+    );
+    await user.type(
+      await screen.findByLabelText("重新送达邮箱"),
+      "employee-new@example.test",
+    );
+    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+
+    expect(api.reissueInvitation).toHaveBeenCalledOnce();
+    const reissueRequest = api.reissueInvitation.mock.calls[0][0];
+    expect(reissueRequest.idempotencyKey).toMatch(/^identity-reinvite-/u);
+    expect(reissueRequest).toEqual({
+      idempotencyKey: reissueRequest.idempotencyKey,
+      subjectId: employee.subjectId,
+      deliveryAddress: "employee-new@example.test",
+    });
+    await waitFor(() =>
+      expect(api.loadEmployeeInvitation).toHaveBeenCalledTimes(2),
+    );
+    expect(await screen.findByText("等待激活 · 已进入送达队列")).toBeVisible();
+    expect(screen.getByText("邀请已重新进入送达队列。")).toBeVisible();
+    expect(document.body).not.toHaveTextContent("activationUrl");
+    expect(document.body).not.toHaveTextContent("token");
+  });
+
+  it("rotates the idempotency key after a confirmed reissue", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    const [employee] = await api.listEmployees();
+    const revoked = {
+      ...invitationReceiptFor(employee),
+      invitationStatus: "REVOKED" as const,
+    };
+    const firstReissue = {
+      ...invitationReceiptFor(employee),
+      invitationId: "invite-reissued-first",
+    };
+    const secondReissue = {
+      ...invitationReceiptFor(employee),
+      invitationId: "invite-reissued-second",
+    };
+    api.listEmployees.mockResolvedValue([
+      { ...employee, accountStatus: "INVITED" },
+    ]);
+    api.loadEmployeeInvitation
+      .mockResolvedValueOnce(revoked)
+      .mockResolvedValueOnce(firstReissue)
+      .mockResolvedValueOnce(secondReissue);
+    api.reissueInvitation
+      .mockResolvedValueOnce(firstReissue)
+      .mockResolvedValueOnce(secondReissue);
+
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "管理张敏的邀请" }),
+    );
+    const deliveryAddress = await screen.findByLabelText("重新送达邮箱");
+    await user.type(deliveryAddress, "employee-first@example.test");
+    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    await waitFor(() => expect(api.reissueInvitation).toHaveBeenCalledOnce());
+
+    await user.clear(deliveryAddress);
+    await user.type(deliveryAddress, "employee-second@example.test");
+    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    await waitFor(() => expect(api.reissueInvitation).toHaveBeenCalledTimes(2));
+
+    expect(api.reissueInvitation.mock.calls[0][0].idempotencyKey).not.toBe(
+      api.reissueInvitation.mock.calls[1][0].idempotencyKey,
+    );
+  });
+
+  it("does not apply a stale reissue result to another employee", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    const [firstEmployee] = await api.listEmployees();
+    const secondEmployee: EmployeeProfile = {
+      ...firstEmployee,
+      subjectId: "employee-2",
+      displayName: "李强",
+      accountStatus: "INVITED",
+    };
+    const firstPending = invitationReceiptFor({
+      ...firstEmployee,
+      accountStatus: "INVITED",
+    });
+    const firstReissued = {
+      ...firstPending,
+      invitationId: "invite-first-reissued",
+      invitationStatus: "REVOKED" as const,
+      deliveryStatus: "FAILED" as const,
+    };
+    const secondPending = {
+      ...invitationReceiptFor(secondEmployee),
+      invitationId: "invite-second",
+      deliveryStatus: "DELIVERED" as const,
+    };
+    let resolveReissue: (receipt: IdentityInvitationReceipt) => void = () => {};
+    const reissuePending = new Promise<IdentityInvitationReceipt>((resolve) => {
+      resolveReissue = resolve;
+    });
+    let firstEmployeeLoads = 0;
+    api.listEmployees.mockResolvedValue([
+      { ...firstEmployee, accountStatus: "INVITED" },
+      secondEmployee,
+    ]);
+    api.loadEmployeeInvitation.mockImplementation((subjectId) => {
+      if (subjectId === firstEmployee.subjectId) {
+        firstEmployeeLoads += 1;
+        return Promise.resolve(
+          firstEmployeeLoads === 1 ? firstPending : firstReissued,
+        );
+      }
+      return Promise.resolve(secondPending);
+    });
+    api.reissueInvitation.mockReturnValue(reissuePending);
+
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "管理张敏的邀请" }),
+    );
+    await user.type(
+      await screen.findByLabelText("重新送达邮箱"),
+      "employee-first@example.test",
+    );
+    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    await user.click(screen.getByRole("button", { name: "管理李强的邀请" }));
+    expect(
+      await screen.findByRole("heading", { name: "管理李强的邀请" }),
+    ).toBeVisible();
+
+    resolveReissue(firstReissued);
+    await waitFor(() => expect(firstEmployeeLoads).toBe(2));
+
+    expect(screen.getByText("等待激活 · 已送达")).toBeVisible();
+    expect(screen.queryByText("已撤销 · 送达失败")).not.toBeInTheDocument();
+  });
+
+  it("reloads the selected work unit responsibility regions", async () => {
     const user = userEvent.setup();
     const api = repository();
     let resolveNehe: (options: IdentityAssignmentOptions) => void = () => {};
@@ -389,6 +823,9 @@ describe("IdentityGovernancePanel", () => {
         positions: [],
         regionCodes:
           workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+        regions: assignmentRegions(
+          workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+        ),
       };
       return workUnitCode === "NEHE_DEPOT"
         ? neheOptions
@@ -409,7 +846,7 @@ describe("IdentityGovernancePanel", () => {
     expect(
       screen.queryByRole("checkbox", { name: "责任地区 230202001" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("正在读取该单位的责任乡镇…")).toBeVisible();
+    expect(screen.getByText("正在读取该单位的责任地区…")).toBeVisible();
     resolveNehe({
       workUnits: [
         { code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" },
@@ -421,6 +858,7 @@ describe("IdentityGovernancePanel", () => {
       ],
       positions: [],
       regionCodes: ["230281101"],
+      regions: assignmentRegions(["230281101"]),
     });
     expect(
       await screen.findByRole("checkbox", { name: "责任地区 230281101" }),
@@ -453,6 +891,9 @@ describe("IdentityGovernancePanel", () => {
         positions: [],
         regionCodes:
           workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+        regions: assignmentRegions(
+          workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+        ),
       }),
     );
     render(
@@ -497,6 +938,9 @@ describe("IdentityGovernancePanel", () => {
         positions: [],
         regionCodes:
           workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+        regions: assignmentRegions(
+          workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+        ),
       }),
     );
     render(
@@ -541,6 +985,9 @@ describe("IdentityGovernancePanel", () => {
         positions: [],
         regionCodes:
           workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+        regions: assignmentRegions(
+          workUnitCode === "NEHE_DEPOT" ? ["230281101"] : ["230202001"],
+        ),
       }),
     );
     render(
