@@ -1,0 +1,216 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cofco.example.invalid/schemas/release-manifest/v1",
+  "title": "COFCO Qiqihar three-repository release manifest envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest", "manifestSha256"],
+  "properties": {
+    "manifest": { "$ref": "#/definitions/manifest" },
+    "manifestSha256": { "$ref": "#/definitions/sha256" }
+  },
+  "definitions": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "safeRelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*\\\\)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)[^\\u0000]+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "nullableVersion": {
+      "oneOf": [{ "$ref": "#/definitions/nonEmptyString" }, { "type": "null" }]
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "node", "npm", "jdk"],
+      "properties": {
+        "command": { "$ref": "#/definitions/nonEmptyString" },
+        "node": { "$ref": "#/definitions/nullableVersion" },
+        "npm": { "$ref": "#/definitions/nullableVersion" },
+        "jdk": { "$ref": "#/definitions/nullableVersion" }
+      }
+    },
+    "fileDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size"],
+      "properties": {
+        "path": { "$ref": "#/definitions/safeRelativePath" },
+        "sha256": { "$ref": "#/definitions/sha256" },
+        "size": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "kind": { "$ref": "#/definitions/nonEmptyString" }
+      }
+    },
+    "fileDescriptors": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/fileDescriptor" }
+    },
+    "migrationFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size", "version"],
+      "properties": {
+        "path": { "$ref": "#/definitions/safeRelativePath" },
+        "sha256": { "$ref": "#/definitions/sha256" },
+        "size": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        }
+      }
+    },
+    "migrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directory", "files", "highestVersion", "collectionSha256"],
+      "properties": {
+        "directory": { "$ref": "#/definitions/safeRelativePath" },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/migrationFile" }
+        },
+        "highestVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "collectionSha256": { "$ref": "#/definitions/sha256" }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["directory", "files", "criticalBundles"],
+      "properties": {
+        "directory": { "$ref": "#/definitions/safeRelativePath" },
+        "files": { "$ref": "#/definitions/fileDescriptors" },
+        "criticalBundles": { "$ref": "#/definitions/fileDescriptors" }
+      }
+    },
+    "backendRepository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "commitSha",
+        "ref",
+        "build",
+        "artifacts",
+        "migrations",
+        "contracts",
+        "configs",
+        "sboms",
+        "dependencyLocks",
+        "containerImage"
+      ],
+      "properties": {
+        "origin": { "$ref": "#/definitions/nonEmptyString" },
+        "commitSha": { "$ref": "#/definitions/gitSha" },
+        "ref": { "$ref": "#/definitions/nonEmptyString" },
+        "build": { "$ref": "#/definitions/build" },
+        "artifacts": { "$ref": "#/definitions/fileDescriptors" },
+        "migrations": { "$ref": "#/definitions/migrations" },
+        "contracts": { "$ref": "#/definitions/fileDescriptors" },
+        "configs": { "$ref": "#/definitions/fileDescriptors" },
+        "sboms": { "$ref": "#/definitions/fileDescriptors" },
+        "dependencyLocks": { "$ref": "#/definitions/fileDescriptors" },
+        "containerImage": {
+          "type": "string",
+          "pattern": "^[^@\\s]+@sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "assetRepository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "commitSha",
+        "ref",
+        "build",
+        "assets",
+        "contracts",
+        "configs",
+        "sboms",
+        "dependencyLocks",
+        "containerImage"
+      ],
+      "properties": {
+        "origin": { "$ref": "#/definitions/nonEmptyString" },
+        "commitSha": { "$ref": "#/definitions/gitSha" },
+        "ref": { "$ref": "#/definitions/nonEmptyString" },
+        "build": { "$ref": "#/definitions/build" },
+        "assets": { "$ref": "#/definitions/assets" },
+        "contracts": { "$ref": "#/definitions/fileDescriptors" },
+        "configs": { "$ref": "#/definitions/fileDescriptors" },
+        "sboms": { "$ref": "#/definitions/fileDescriptors" },
+        "dependencyLocks": { "$ref": "#/definitions/fileDescriptors" },
+        "containerImage": {
+          "type": "string",
+          "pattern": "^[^@\\s]+@sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "repositories": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "frontend", "web"],
+      "properties": {
+        "backend": { "$ref": "#/definitions/backendRepository" },
+        "frontend": { "$ref": "#/definitions/assetRepository" },
+        "web": { "$ref": "#/definitions/assetRepository" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^.+$": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/nonEmptyString" }
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "releaseId",
+        "environment",
+        "createdAt",
+        "generatorVersion",
+        "repositories",
+        "evidence"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "releaseId": { "$ref": "#/definitions/nonEmptyString" },
+        "environment": { "$ref": "#/definitions/nonEmptyString" },
+        "createdAt": { "$ref": "#/definitions/nonEmptyString" },
+        "generatorVersion": { "$ref": "#/definitions/nonEmptyString" },
+        "repositories": { "$ref": "#/definitions/repositories" },
+        "evidence": { "$ref": "#/definitions/evidence" }
+      }
+    }
+  }
+}

@@ -67,6 +67,19 @@ function client(
         positions: [],
         regionCodes: [],
       });
+    if (path.endsWith("/identity/invitations/activation-bootstrap"))
+      return Promise.resolve({
+        contractVersion: "2026-08-30",
+        csrfReady: true,
+      });
+    if (path.endsWith("/identity/employees/employee-88/invitation"))
+      return Promise.resolve({
+        contractVersion: "2026-08-30",
+        subjectId: "employee-88",
+        invitationId: "invitation-88",
+        invitationStatus: "PENDING",
+        deliveryStatus: "QUEUED",
+      });
     if (path.endsWith("/identity/employees")) return Promise.resolve([]);
     if (path.endsWith("/identity/access-reviews")) return Promise.resolve([]);
     if (path.endsWith("/market-objects")) return Promise.resolve([]);
@@ -983,12 +996,21 @@ describe("realtime business repository", () => {
     await repository.listEmployees();
     await repository.loadAssignmentOptions("QIQIHAR_BUSINESS");
     await repository.inviteEmployee({
+      idempotencyKey: "identity-invite-employee-88",
       subjectId: "employee-88",
       displayName: "张敏",
+      deliveryAddress: "employee-88@example.test",
       workUnitCode: "QIQIHAR_BUSINESS",
       positionCodes: ["REGIONAL_REPORTER"],
       roleCodes: ["BUSINESS_OPERATOR"],
       regionCodes: ["230202"],
+    });
+    await repository.loadEmployeeInvitation("employee-88");
+    await repository.revokeInvitation("invitation-88");
+    await repository.reissueInvitation({
+      idempotencyKey: "identity-reinvite-employee-88",
+      subjectId: "employee-88",
+      deliveryAddress: "employee-88-new@example.test",
     });
     await repository.updateEmployee("employee-88", {
       version: 2,
@@ -1026,11 +1048,26 @@ describe("realtime business repository", () => {
     });
     expect(post).toHaveBeenCalledWith(
       "/api/v1/identity/employees",
-      expect.objectContaining({ subjectId: "employee-88" }),
+      expect.objectContaining({
+        subjectId: "employee-88",
+        deliveryAddress: "employee-88@example.test",
+      }),
+      { headers: { "Idempotency-Key": "identity-invite-employee-88" } },
     );
     expect(put).toHaveBeenCalledWith(
       "/api/v1/identity/employees/employee-88",
       expect.objectContaining({ version: 2 }),
+    );
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/identity/employees/employee-88/invitation",
+    );
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/identity/invitations/invitation-88/revoke",
+    );
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/identity/employees/employee-88/invitations",
+      { deliveryAddress: "employee-88-new@example.test" },
+      { headers: { "Idempotency-Key": "identity-reinvite-employee-88" } },
     );
     expect(post).toHaveBeenCalledWith(
       "/api/v1/identity/access-reviews",
@@ -1050,6 +1087,21 @@ describe("realtime business repository", () => {
         ],
       },
     );
+  });
+
+  it("uses the non-secret CSRF bootstrap before posting an invitation activation token", async () => {
+    const { api, get, post } = client();
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.bootstrapInvitationActivation();
+    await repository.activateInvitation("secret-invitation-token-0002");
+
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/identity/invitations/activation-bootstrap",
+    );
+    expect(post).toHaveBeenCalledWith("/api/v1/identity/invitations/activate", {
+      token: "secret-invitation-token-0002",
+    });
   });
 
   it("queries immutable business audit events through the governed API", async () => {

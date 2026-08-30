@@ -10,11 +10,17 @@ import {
   readdir,
   rename,
   symlink,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import {
+  canonicalJson,
+  sealManifest,
+  sha256 as canonicalSha256,
+} from "./release-manifest.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const scriptsRoot = resolve(
@@ -26,7 +32,58 @@ const validators = [
   "preproduction-config.mjs",
   "preproduction-runtime.mjs",
   "preproduction-network.mjs",
+  "preproduction-release-manifest.mjs",
+  "release-manifest.mjs",
 ];
+
+function releaseEnvelope(releaseId) {
+  const build = { command: "fixture", node: null, npm: null, jdk: null };
+  const descriptor = (name, commitSha, imageCharacter) => ({
+    origin: `https://example.invalid/${name}.git`,
+    commitSha,
+    ref: "refs/heads/main",
+    build,
+    contracts: [],
+    configs: [],
+    sboms: [],
+    dependencyLocks: [],
+    containerImage: `registry.invalid/${name}@sha256:${imageCharacter.repeat(64)}`,
+  });
+  const migration = {
+    path: "migrations/V1__x.sql",
+    sha256: canonicalSha256("x"),
+    size: 1,
+    version: "1",
+  };
+  return sealManifest({
+    schemaVersion: 1,
+    releaseId,
+    environment: "preproduction-candidate",
+    createdAt: "2026-08-30T00:00:00.000Z",
+    generatorVersion: "fixture",
+    evidence: {},
+    repositories: {
+      backend: {
+        ...descriptor("backend", "a".repeat(40), "b"),
+        artifacts: [],
+        migrations: {
+          directory: "migrations",
+          files: [migration],
+          highestVersion: "1",
+          collectionSha256: canonicalSha256(canonicalJson([migration])),
+        },
+      },
+      frontend: {
+        ...descriptor("frontend", "c".repeat(40), "d"),
+        assets: { directory: "dist", files: [], criticalBundles: [] },
+      },
+      web: {
+        ...descriptor("web", "e".repeat(40), "f"),
+        assets: { directory: "dist", files: [], criticalBundles: [] },
+      },
+    },
+  });
+}
 
 async function sha256(path) {
   return createHash("sha256")
@@ -43,10 +100,32 @@ async function createStaging(directory, releaseId) {
     mode: 0o700,
   });
   await mkdir(join(staging, "scripts"), { recursive: true, mode: 0o700 });
+  const envelope = releaseEnvelope(releaseId);
   await writeFile(
     join(staging, "ops/alicloud-preproduction/config/preproduction.env"),
-    "COFCO_DEPLOYMENT_ENV=preproduction\n",
+    [
+      "COFCO_DEPLOYMENT_ENV=preproduction",
+      `COFCO_PREPROD_RELEASE_ID=${releaseId}`,
+      `COFCO_PREPROD_BACKEND_IMAGE=${envelope.manifest.repositories.backend.containerImage}`,
+      `COFCO_PREPROD_BUSINESS_IMAGE=${envelope.manifest.repositories.web.containerImage}`,
+      `COFCO_PREPROD_OVERVIEW_IMAGE=${envelope.manifest.repositories.frontend.containerImage}`,
+      `COFCO_PREPROD_BACKEND_COMMIT_SHA=${envelope.manifest.repositories.backend.commitSha}`,
+      `COFCO_PREPROD_WEB_COMMIT_SHA=${envelope.manifest.repositories.web.commitSha}`,
+      `COFCO_PREPROD_FRONTEND_COMMIT_SHA=${envelope.manifest.repositories.frontend.commitSha}`,
+      `COFCO_PREPROD_BACKEND_ORIGIN=${envelope.manifest.repositories.backend.origin}`,
+      `COFCO_PREPROD_WEB_ORIGIN=${envelope.manifest.repositories.web.origin}`,
+      `COFCO_PREPROD_FRONTEND_ORIGIN=${envelope.manifest.repositories.frontend.origin}`,
+      "",
+    ].join("\n"),
     { mode: 0o600 },
+  );
+  await writeFile(
+    join(
+      staging,
+      "ops/alicloud-preproduction/config/.cofco-release-manifest.json",
+    ),
+    `${canonicalJson(envelope)}\n`,
+    { mode: 0o400 },
   );
   await writeFile(
     join(packageScripts, "common.sh"),
@@ -64,6 +143,10 @@ async function createStaging(directory, releaseId) {
 }
 
 async function activationArgs(directory, staging, releaseId, command) {
+  const candidateManifest = join(
+    staging,
+    "ops/alicloud-preproduction/config/.cofco-release-manifest.json",
+  );
   return [
     activateBundle,
     join(directory, "remote"),
@@ -72,6 +155,7 @@ async function activationArgs(directory, staging, releaseId, command) {
     ...(await Promise.all(
       validators.map((name) => sha256(join(repositoryRoot, "scripts", name))),
     )),
+    await sha256(candidateManifest).catch(() => "0".repeat(64)),
     "--",
     ...command,
   ];
@@ -136,6 +220,28 @@ test("runs the bounded command from the exact immutable release and retains olde
   assert.equal(await readFile(join(oldBundle, "marker"), "utf8"), "old\n");
 });
 
+test("rejects activation when the staged bundle has no canonical three-repository manifest", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "cofco-stage5-bundle-"));
+  const staging = await createStaging(directory, "missing-manifest");
+  await unlink(
+    join(
+      staging,
+      "ops/alicloud-preproduction/config/.cofco-release-manifest.json",
+    ),
+  );
+  const args = await activationArgs(directory, staging, "missing-manifest", [
+    "true",
+  ]);
+  const result = spawnSync("bash", args, { encoding: "utf8" });
+
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr,
+    /manifest.*(?:missing|required|does not match)|No such file.*manifest/iu,
+  );
+  await assert.rejects(access(join(directory, "remote/bundle")), /ENOENT/u);
+});
+
 test("resolves the same home-relative paths passed by production deploy", async () => {
   const directory = await mkdtemp(join(tmpdir(), "cofco-stage5-bundle-"));
   const releaseId = "relative-release";
@@ -155,6 +261,13 @@ test("resolves the same home-relative paths passed by production deploy", async 
   const hashes = await Promise.all(
     validators.map((name) => sha256(join(repositoryRoot, "scripts", name))),
   );
+  const candidateManifestHash = await sha256(
+    join(
+      productionHome,
+      relativeStaging,
+      "ops/alicloud-preproduction/config/.cofco-release-manifest.json",
+    ),
+  );
   const result = spawnSync(
     "bash",
     [
@@ -163,6 +276,7 @@ test("resolves the same home-relative paths passed by production deploy", async 
       relativeStaging,
       releaseId,
       ...hashes,
+      candidateManifestHash,
       "--",
       "true",
     ],

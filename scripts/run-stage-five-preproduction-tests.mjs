@@ -10,6 +10,7 @@ const testFiles = [
   "scripts/preproduction-nginx-tool.spec.mjs",
   "scripts/preproduction-nginx.spec.mjs",
   "scripts/preproduction-operations.spec.mjs",
+  "scripts/preproduction-release-manifest.spec.mjs",
 ];
 
 function printTool(tool) {

@@ -1,8 +1,10 @@
 import {
   lazy,
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -75,6 +77,10 @@ import {
 } from "./runtimeIdentity";
 import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
 import { createFormalRoute } from "./formalEnterpriseModel";
+import {
+  captureInvitationActivationToken,
+  clearInvitationActivationToken,
+} from "./identity/invitationActivationSession";
 
 const FormalMarketMonitoringWorkspace = lazy(() =>
   import("./MarketMonitoringWorkspace").then((module) => ({
@@ -154,35 +160,64 @@ type SessionStatus =
   | "unauthenticated"
   | "forbidden"
   | "error";
+type InvitationActivationStatus =
+  "none" | "pending" | "awaiting-login" | "activating" | "invalid" | "retry";
 
 function EnterpriseSessionBoundary({
+  activationStatus,
   loginUrl,
+  onActivationRetry,
   status,
 }: {
+  activationStatus: InvitationActivationStatus;
   loginUrl?: string;
+  onActivationRetry: () => void;
   status: Exclude<SessionStatus, "not-required" | "authenticated">;
 }) {
   const content =
-    status === "loading"
+    activationStatus === "awaiting-login"
       ? {
-          title: "正在确认企业身份",
-          detail: "正在校验账号、工作单位、业务角色和责任范围。",
+          title: "完成账号邀请激活",
+          detail:
+            "请使用收到邀请的企业身份登录，系统将在认证返回后完成账号激活。",
         }
-      : status === "unauthenticated"
+      : activationStatus === "activating"
         ? {
-            title: "登录企业账号",
-            detail: "本系统仅供已由管理员建档的员工使用，不提供公众自行注册。",
+            title: "正在激活企业账号",
+            detail: "正在校验邀请与企业身份绑定，请勿重复提交。",
           }
-        : status === "forbidden"
+        : activationStatus === "invalid"
           ? {
-              title: "账号暂不可用",
-              detail:
-                "账号尚未激活、已停用或未分配业务角色与责任范围，请联系本单位系统管理员处理。",
+              title: "邀请链接无效或已过期",
+              detail: "请联系本单位系统管理员撤销旧邀请并重新发送。",
             }
-          : {
-              title: "身份服务暂时不可用",
-              detail: "系统无法完成企业身份校验，请稍后重试或联系系统管理员。",
-            };
+          : activationStatus === "retry"
+            ? {
+                title: "邀请激活暂时失败",
+                detail: "身份服务暂时不可用，邀请已安全保留，可稍后重新尝试。",
+              }
+            : status === "loading"
+              ? {
+                  title: "正在确认企业身份",
+                  detail: "正在校验账号、工作单位、业务角色和责任范围。",
+                }
+              : status === "unauthenticated"
+                ? {
+                    title: "登录企业账号",
+                    detail:
+                      "本系统仅供已由管理员建档的员工使用，不提供公众自行注册。",
+                  }
+                : status === "forbidden"
+                  ? {
+                      title: "账号暂不可用",
+                      detail:
+                        "账号尚未激活、已停用或未分配业务角色与责任范围，请联系本单位系统管理员处理。",
+                    }
+                  : {
+                      title: "身份服务暂时不可用",
+                      detail:
+                        "系统无法完成企业身份校验，请稍后重试或联系系统管理员。",
+                    };
   return (
     <main className="enterprise-session-boundary">
       <section aria-live="polite" className="enterprise-session-card">
@@ -192,14 +227,35 @@ function EnterpriseSessionBoundary({
         <p>齐齐哈尔粮食商情企业平台</p>
         <h1>{content.title}</h1>
         <span>{content.detail}</span>
-        {status === "unauthenticated" && loginUrl && (
+        {activationStatus === "awaiting-login" && loginUrl && (
           <a className="enterprise-session-action" href={loginUrl}>
-            进入统一身份认证
+            登录并激活账号
           </a>
         )}
-        {status === "unauthenticated" && !loginUrl && (
+        {activationStatus === "awaiting-login" && !loginUrl && (
           <small>企业统一身份认证入口尚未配置，请联系系统管理员。</small>
         )}
+        {activationStatus === "retry" && (
+          <button
+            className="enterprise-session-action"
+            onClick={onActivationRetry}
+            type="button"
+          >
+            重新尝试激活
+          </button>
+        )}
+        {activationStatus === "none" &&
+          status === "unauthenticated" &&
+          loginUrl && (
+            <a className="enterprise-session-action" href={loginUrl}>
+              进入统一身份认证
+            </a>
+          )}
+        {activationStatus === "none" &&
+          status === "unauthenticated" &&
+          !loginUrl && (
+            <small>企业统一身份认证入口尚未配置，请联系系统管理员。</small>
+          )}
       </section>
     </main>
   );
@@ -395,11 +451,79 @@ export function EnterpriseBusinessApplication({
       ? environment["VITE_IDENTITY_MANAGEMENT_URL"]
       : undefined);
   const resolvedLogoutUrl = logoutUrl ?? enterpriseLogoutPath;
+  const [initialActivationToken] = useState<string | null>(() =>
+    realtimeMode ? captureInvitationActivationToken() : null,
+  );
+  const activationToken = useRef(initialActivationToken);
+  const [activationStatus, setActivationStatus] =
+    useState<InvitationActivationStatus>(
+      initialActivationToken ? "pending" : "none",
+    );
   const [currentSession, setCurrentSession] = useState<CurrentSession | null>(
     null,
   );
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>(
     realtimeMode ? "loading" : "not-required",
+  );
+  const completeInvitationActivation = useCallback(
+    async (cancelled: () => boolean = () => false) => {
+      const token = activationToken.current;
+      if (!token) {
+        if (!cancelled()) setActivationStatus("invalid");
+        return;
+      }
+      if (!cancelled()) setActivationStatus("activating");
+      try {
+        await repository.bootstrapInvitationActivation();
+        if (cancelled()) return;
+        await repository.activateInvitation(token);
+      } catch (error: unknown) {
+        if (cancelled()) return;
+        const status =
+          error instanceof RealtimeApiError
+            ? error.status
+            : typeof error === "object" && error !== null && "status" in error
+              ? Number(error.status)
+              : 0;
+        if (status === 0 || status === 408 || status >= 500) {
+          setActivationStatus("retry");
+          return;
+        }
+        clearInvitationActivationToken();
+        activationToken.current = null;
+        setActivationStatus("invalid");
+        return;
+      }
+
+      clearInvitationActivationToken();
+      activationToken.current = null;
+      if (cancelled()) return;
+      setActivationStatus("none");
+      setCurrentSession(null);
+      setSessionStatus("loading");
+      try {
+        const session = await repository.loadCurrentSession();
+        if (cancelled()) return;
+        setCurrentSession(normalizeCurrentSession(session));
+        setSessionStatus("authenticated");
+      } catch (error: unknown) {
+        if (cancelled()) return;
+        const status =
+          error instanceof RealtimeApiError
+            ? error.status
+            : typeof error === "object" && error !== null && "status" in error
+              ? Number(error.status)
+              : 0;
+        setSessionStatus(
+          status === 401
+            ? "unauthenticated"
+            : status === 403
+              ? "forbidden"
+              : "error",
+        );
+      }
+    },
+    [repository],
   );
   useEffect(() => {
     let cancelled = false;
@@ -421,6 +545,11 @@ export function EnterpriseBusinessApplication({
         .loadCurrentSession()
         .then((session) => {
           if (cancelled) return;
+          if (activationToken.current) {
+            clearInvitationActivationToken();
+            activationToken.current = null;
+            setActivationStatus("none");
+          }
           setCurrentSession(normalizeCurrentSession(session));
           setSessionStatus("authenticated");
         })
@@ -433,6 +562,16 @@ export function EnterpriseBusinessApplication({
               : typeof error === "object" && error !== null && "status" in error
                 ? Number(error.status)
                 : 0;
+          if (activationToken.current && status === 401) {
+            setSessionStatus("unauthenticated");
+            setActivationStatus("awaiting-login");
+            return;
+          }
+          if (activationToken.current && status === 403) {
+            setSessionStatus("forbidden");
+            void completeInvitationActivation(() => cancelled);
+            return;
+          }
           setSessionStatus(
             status === 401
               ? "unauthenticated"
@@ -445,7 +584,7 @@ export function EnterpriseBusinessApplication({
     return () => {
       cancelled = true;
     };
-  }, [realtimeMode, repository]);
+  }, [completeInvitationActivation, realtimeMode, repository]);
   const sessionReady = !realtimeMode || sessionStatus === "authenticated";
   const effectiveOperationalIdentity = useMemo(
     () =>
@@ -1281,7 +1420,9 @@ export function EnterpriseBusinessApplication({
   ) {
     return (
       <EnterpriseSessionBoundary
+        activationStatus={activationStatus}
         loginUrl={resolvedLoginUrl}
+        onActivationRetry={() => void completeInvitationActivation()}
         status={sessionStatus}
       />
     );

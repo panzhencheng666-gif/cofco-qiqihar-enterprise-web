@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  identityLifecycleContract,
+  type IdentityDeliveryResult,
+  type IdentityInvitationStatus,
+} from "@/business/identity/identityLifecycleContract";
 
 import {
   RealtimeApiError,
@@ -324,20 +329,56 @@ export interface IdentityAssignmentOptions {
   roles: readonly { code: string; name: string }[];
   positions: readonly { code: string; name: string }[];
   regionCodes: readonly string[];
+  regions: readonly {
+    code: string;
+    name: string;
+    administrativeLevel:
+      "ROOT" | "PROVINCE" | "PREFECTURE" | "COUNTY" | "TOWNSHIP";
+    parentCode: string | null;
+  }[];
 }
 
 export interface EmployeeInvitation {
+  idempotencyKey: string;
   subjectId: string;
   displayName: string;
+  deliveryAddress: string;
   workUnitCode: string;
   positionCodes: readonly string[];
   roleCodes: readonly string[];
   regionCodes: readonly string[];
 }
 
+export interface IdentityInvitationReceipt extends EmployeeProfile {
+  contractVersion: typeof identityLifecycleContract.version;
+  invitationId: string;
+  invitationStatus: IdentityInvitationStatus;
+  deliveryStatus: IdentityDeliveryResult;
+  expiresAt: string;
+  replayed: boolean;
+}
+
+export interface IdentityActivationBootstrap {
+  contractVersion: typeof identityLifecycleContract.version;
+  csrfReady: true;
+}
+
+export interface IdentityActivationResult {
+  contractVersion: typeof identityLifecycleContract.version;
+  subjectId: string;
+  accountStatus: "ACTIVE";
+  bindingStatus: "ACTIVE";
+}
+
+export interface EmployeeInvitationReissue {
+  idempotencyKey: string;
+  subjectId: string;
+  deliveryAddress: string;
+}
+
 export interface EmployeeAssignmentUpdate extends Omit<
   EmployeeInvitation,
-  "subjectId"
+  "idempotencyKey" | "subjectId" | "deliveryAddress"
 > {
   version: number;
   accountStatus: string;
@@ -1309,11 +1350,18 @@ export interface RealtimeBusinessRepository {
     input: ObservableAnalysisQuery,
   ): Promise<ObservableAnalysisSnapshot>;
   loadCurrentSession(): Promise<CurrentSession>;
+  bootstrapInvitationActivation(): Promise<IdentityActivationBootstrap>;
+  activateInvitation(token: string): Promise<IdentityActivationResult>;
+  loadEmployeeInvitation(subjectId: string): Promise<IdentityInvitationReceipt>;
+  revokeInvitation(invitationId: string): Promise<IdentityInvitationReceipt>;
+  reissueInvitation(
+    input: EmployeeInvitationReissue,
+  ): Promise<IdentityInvitationReceipt>;
   listEmployees(): Promise<readonly EmployeeProfile[]>;
   loadAssignmentOptions(
     workUnitCode: string,
   ): Promise<IdentityAssignmentOptions>;
-  inviteEmployee(input: EmployeeInvitation): Promise<EmployeeProfile>;
+  inviteEmployee(input: EmployeeInvitation): Promise<IdentityInvitationReceipt>;
   updateEmployee(
     subjectId: string,
     input: EmployeeAssignmentUpdate,
@@ -1859,6 +1907,33 @@ export function createRealtimeBusinessRepository(
         { version, decision, reason },
       ),
     loadCurrentSession: () => client.get<CurrentSession>(enterpriseSessionPath),
+    bootstrapInvitationActivation: () =>
+      client.get<IdentityActivationBootstrap>(
+        "/api/v1/identity/invitations/activation-bootstrap",
+      ),
+    activateInvitation: (token) =>
+      client.post<IdentityActivationResult>(
+        "/api/v1/identity/invitations/activate",
+        { token },
+      ),
+    loadEmployeeInvitation: (subjectId) =>
+      client.get<IdentityInvitationReceipt>(
+        `/api/v1/identity/employees/${encodeURIComponent(subjectId)}/invitation`,
+      ),
+    revokeInvitation: (invitationId) =>
+      client.post<IdentityInvitationReceipt>(
+        `/api/v1/identity/invitations/${encodeURIComponent(invitationId)}/revoke`,
+      ),
+    reissueInvitation: ({ idempotencyKey, subjectId, deliveryAddress }) =>
+      client.post<IdentityInvitationReceipt>(
+        `/api/v1/identity/employees/${encodeURIComponent(subjectId)}/invitations`,
+        { deliveryAddress },
+        {
+          headers: {
+            [identityLifecycleContract.idempotencyHeader]: idempotencyKey,
+          },
+        },
+      ),
     listEmployees: () =>
       client.get<readonly EmployeeProfile[]>("/api/v1/identity/employees"),
     loadAssignmentOptions: (workUnitCode) =>
@@ -1866,8 +1941,16 @@ export function createRealtimeBusinessRepository(
         "/api/v1/identity/employees/assignment-options",
         { workUnitCode },
       ),
-    inviteEmployee: (input) =>
-      client.post<EmployeeProfile>("/api/v1/identity/employees", input),
+    inviteEmployee: ({ idempotencyKey, ...input }) =>
+      client.post<IdentityInvitationReceipt>(
+        "/api/v1/identity/employees",
+        input,
+        {
+          headers: {
+            [identityLifecycleContract.idempotencyHeader]: idempotencyKey,
+          },
+        },
+      ),
     updateEmployee: (subjectId, input) =>
       client.put<EmployeeProfile>(
         `/api/v1/identity/employees/${encodeURIComponent(subjectId)}`,

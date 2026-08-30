@@ -68,6 +68,11 @@ function repository(): RealtimeBusinessRepository {
   return {
     loadObservableAnalysisSnapshot: vi.fn(),
     loadCurrentSession: vi.fn(),
+    bootstrapInvitationActivation: vi.fn(),
+    activateInvitation: vi.fn(),
+    loadEmployeeInvitation: vi.fn(),
+    revokeInvitation: vi.fn(),
+    reissueInvitation: vi.fn(),
     listEmployees: vi.fn(),
     loadAssignmentOptions: vi.fn(),
     inviteEmployee: vi.fn(),

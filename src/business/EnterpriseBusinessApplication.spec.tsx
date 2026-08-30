@@ -31,6 +31,7 @@ import {
   PRODUCTION_SURVEY_CONTRACT_VERSION,
 } from "@/platform/api/productionSurveyContract";
 import { createFixtureBusinessReportSeeds } from "./businessReportWorkflow";
+import { invitationActivationStorageKey } from "./identity/invitationActivationSession";
 
 const fixtureBusinessReportStorageKey =
   "齐齐哈尔粮食商情业务报告工作流-业务真值三";
@@ -182,6 +183,7 @@ afterEach(() => {
   window.history.replaceState({}, "", "/");
   window.localStorage.removeItem(fixtureOperationalStateStorageKey);
   window.localStorage.removeItem(fixtureBusinessReportStorageKey);
+  window.sessionStorage.removeItem(invitationActivationStorageKey);
 });
 
 describe("formal enterprise prototype", () => {
@@ -349,6 +351,226 @@ describe("formal enterprise prototype", () => {
     expect(
       screen.queryByRole("link", { name: /注册/u }),
     ).not.toBeInTheDocument();
+  });
+
+  it("captures an invitation token once in session storage and removes it from the address bar before login", async () => {
+    const invitationToken = "secret-invitation-token-0001";
+    window.history.replaceState(
+      {},
+      "",
+      `/?page=work#activate=${encodeURIComponent(invitationToken)}`,
+    );
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.reject(
+          new RealtimeApiError({
+            code: "UNAUTHENTICATED",
+            message: "Authentication is required",
+            status: 401,
+          }),
+        ),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <RuntimeEnterpriseBusinessApplication
+        dataMode="api"
+        repository={repository}
+      />,
+    );
+
+    expect(window.location.hash).not.toContain("activate=");
+    expect(window.location.hash).not.toContain(invitationToken);
+    expect(window.sessionStorage.getItem(invitationActivationStorageKey)).toBe(
+      invitationToken,
+    );
+    expect(document.body).not.toHaveTextContent(invitationToken);
+    expect(
+      await screen.findByRole("heading", { name: "完成账号邀请激活" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "登录并激活账号" }),
+    ).toHaveAttribute("href", "/api/v1/session/login");
+  });
+
+  it("bootstraps CSRF and activates the stored invitation after the OAuth return", async () => {
+    const invitationToken = "secret-invitation-token-0002";
+    window.sessionStorage.setItem(
+      invitationActivationStorageKey,
+      invitationToken,
+    );
+    const loadCurrentSession = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new RealtimeApiError({
+          code: "ACCOUNT_UNAVAILABLE",
+          message: "Account is unavailable",
+          status: 403,
+        }),
+      )
+      .mockResolvedValueOnce(apiSession());
+    const bootstrapInvitationActivation = vi.fn(() =>
+      Promise.resolve({ contractVersion: "2026-08-30", csrfReady: true }),
+    );
+    const activateInvitation = vi.fn(() =>
+      Promise.resolve({
+        contractVersion: "2026-08-30",
+        subjectId: "business-user",
+        accountStatus: "ACTIVE",
+        bindingStatus: "ACTIVE",
+      }),
+    );
+    const repository = {
+      loadCurrentSession,
+      bootstrapInvitationActivation,
+      activateInvitation,
+      loadMasterData: () =>
+        Promise.resolve({ products: [], periods: [], regions: [] }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: () => () => undefined,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <RuntimeEnterpriseBusinessApplication
+        dataMode="api"
+        repository={repository}
+      />,
+    );
+
+    await waitFor(() => expect(activateInvitation).toHaveBeenCalledTimes(1));
+    expect(bootstrapInvitationActivation).toHaveBeenCalledTimes(1);
+    expect(activateInvitation).toHaveBeenCalledWith(invitationToken);
+    await waitFor(() => expect(loadCurrentSession).toHaveBeenCalledTimes(2));
+    expect(
+      window.sessionStorage.getItem(invitationActivationStorageKey),
+    ).toBeNull();
+    expect(document.body).not.toHaveTextContent(invitationToken);
+  });
+
+  it("clears a terminally invalid invitation and shows a non-secret expiry message", async () => {
+    const invitationToken = "secret-invitation-token-0003";
+    window.sessionStorage.setItem(
+      invitationActivationStorageKey,
+      invitationToken,
+    );
+    const repository = {
+      loadCurrentSession: () =>
+        Promise.reject(
+          new RealtimeApiError({
+            code: "ACCOUNT_UNAVAILABLE",
+            message: "Account is unavailable",
+            status: 403,
+          }),
+        ),
+      bootstrapInvitationActivation: () =>
+        Promise.resolve({ contractVersion: "2026-08-30", csrfReady: true }),
+      activateInvitation: () =>
+        Promise.reject(
+          new RealtimeApiError({
+            code: "IDENTITY_INVITATION_INVALID",
+            message: "邀请凭证无效或已失效",
+            status: 400,
+          }),
+        ),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <RuntimeEnterpriseBusinessApplication
+        dataMode="api"
+        repository={repository}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "邀请链接无效或已过期" }),
+    ).toBeVisible();
+    expect(
+      window.sessionStorage.getItem(invitationActivationStorageKey),
+    ).toBeNull();
+    expect(document.body).not.toHaveTextContent(invitationToken);
+  });
+
+  it("retains the invitation only for a temporary server failure and retries without exposing it", async () => {
+    const user = userEvent.setup();
+    const invitationToken = "secret-invitation-token-0004";
+    window.sessionStorage.setItem(
+      invitationActivationStorageKey,
+      invitationToken,
+    );
+    const loadCurrentSession = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new RealtimeApiError({
+          code: "ACCOUNT_UNAVAILABLE",
+          message: "Account is unavailable",
+          status: 403,
+        }),
+      )
+      .mockResolvedValueOnce(apiSession());
+    const activateInvitation = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new RealtimeApiError({
+          code: "IDENTITY_SERVICE_UNAVAILABLE",
+          message: "服务暂时不可用",
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce({
+        contractVersion: "2026-08-30",
+        subjectId: "business-user",
+        accountStatus: "ACTIVE",
+        bindingStatus: "ACTIVE",
+      });
+    const repository = {
+      loadCurrentSession,
+      bootstrapInvitationActivation: () =>
+        Promise.resolve({ contractVersion: "2026-08-30", csrfReady: true }),
+      activateInvitation,
+      loadMasterData: () =>
+        Promise.resolve({ products: [], periods: [], regions: [] }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: () => () => undefined,
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <RuntimeEnterpriseBusinessApplication
+        dataMode="api"
+        repository={repository}
+      />,
+    );
+
+    const retry = await screen.findByRole("button", {
+      name: "重新尝试激活",
+    });
+    expect(window.sessionStorage.getItem(invitationActivationStorageKey)).toBe(
+      invitationToken,
+    );
+    expect(document.body).not.toHaveTextContent(invitationToken);
+
+    await user.click(retry);
+
+    await waitFor(() => expect(activateInvitation).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(loadCurrentSession).toHaveBeenCalledTimes(2));
+    expect(
+      window.sessionStorage.getItem(invitationActivationStorageKey),
+    ).toBeNull();
+    expect(document.body).not.toHaveTextContent(invitationToken);
   });
 
   it("blocks disabled or unauthorized enterprise accounts without exposing the business shell", async () => {
