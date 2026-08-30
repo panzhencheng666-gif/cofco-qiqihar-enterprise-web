@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 
 import {
   projectDomainTasks,
@@ -88,12 +90,14 @@ function stateSelect(
 function TaskFilters({
   scope,
   workItems,
+  authoritativeProducts,
   filters,
   onScopeChange,
   onFiltersChange,
 }: {
   scope: OperationalScope;
   workItems: readonly BusinessWorkItem[];
+  authoritativeProducts: readonly { id: string; label: string }[];
   filters: TaskStateFilters;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onFiltersChange: (filters: TaskStateFilters) => void;
@@ -115,8 +119,9 @@ function TaskFilters({
     ).entries(),
   ].map(([id, label]) => ({ id, label }));
   const products = [
-    ...new Map(
-      marketItems.flatMap((item) =>
+    ...new Map([
+      ...authoritativeProducts.map(({ id, label }) => [id, label] as const),
+      ...marketItems.flatMap((item) =>
         item.productId
           ? [
               [
@@ -131,7 +136,7 @@ function TaskFilters({
             ]
           : [],
       ),
-    ).entries(),
+    ]).entries(),
   ].map(([id, label]) => ({ id, label }));
   const periods = [
     ...new Map(
@@ -572,6 +577,10 @@ export function MarketTaskWorkspace({
   documentDrafts = {},
   onDocumentDraftChange = () => undefined,
   onWorkItemChange = () => undefined,
+  realtimeRepository,
+  onCreateRecord,
+  onEditRecord,
+  reviewMode = false,
 }: {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
@@ -582,7 +591,40 @@ export function MarketTaskWorkspace({
   documentDrafts?: Readonly<Record<string, MarketDocumentDraft>>;
   onDocumentDraftChange?: (workId: string, draft: MarketDocumentDraft) => void;
   onWorkItemChange?: (item: BusinessWorkItem) => void;
+  realtimeRepository?: RealtimeBusinessRepository;
+  onCreateRecord?: (productCode: "CORN" | "SOYBEAN" | "RICE") => void;
+  onEditRecord?: (
+    productCode: "CORN" | "SOYBEAN" | "RICE",
+    recordId: string,
+  ) => void;
+  reviewMode?: boolean;
 }) {
+  const [authoritativeProducts, setAuthoritativeProducts] = useState<
+    readonly { id: string; label: string }[]
+  >([]);
+  useEffect(() => {
+    if (!realtimeRepository || reviewMode) {
+      return;
+    }
+    let active = true;
+    void realtimeRepository
+      .loadMasterData()
+      .then((masterData) => {
+        if (!active) return;
+        setAuthoritativeProducts(
+          masterData.products.flatMap(({ code, name }) => {
+            const id = taskProductId(code);
+            return id ? [{ id, label: name }] : [];
+          }),
+        );
+      })
+      .catch(() => {
+        if (active) setAuthoritativeProducts([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [realtimeRepository, reviewMode]);
   const [filters, setFilters] = useState(emptyStateFilters);
   const [page, setPage] = useState(1);
   const availablePeriods = useMemo(
@@ -623,7 +665,15 @@ export function MarketTaskWorkspace({
       workItems,
     ],
   );
-  const visible = projections.filter((projection) =>
+  const actionableProjections = reviewMode
+    ? projections.filter(
+        ({ item }) =>
+          item.documentStatus === "submitted" &&
+          (item.reviewStatus === "pending" ||
+            item.reviewStatus === "reviewing"),
+      )
+    : projections;
+  const visible = actionableProjections.filter((projection) =>
     matchesFilters(projection, filters, scope.identity.userId),
   );
   const pageSize = 10;
@@ -633,7 +683,7 @@ export function MarketTaskWorkspace({
   const pageRows = visible.slice(startIndex, startIndex + pageSize);
   const selected =
     selection?.type === "work-item"
-      ? projections.find(({ item }) => item.workId === selection.id)
+      ? actionableProjections.find(({ item }) => item.workId === selection.id)
       : undefined;
   const invalidSelection =
     selection !== undefined && (selection.type !== "work-item" || !selected);
@@ -648,8 +698,25 @@ export function MarketTaskWorkspace({
         eyebrow="市场监测 / 市场任务"
         title="市场任务作业"
         summary="按对象、期间和责任处理市场采集、审核、质量与发布，同一任务始终打开同一份业务单据。"
+        actions={
+          realtimeRepository &&
+          !reviewMode &&
+          scope.authorization.permissionKeys.includes("BUSINESS_CREATE") &&
+          scope.coordinates.productId ? (
+            <button
+              type="button"
+              onClick={() => {
+                const code = marketTaskProductCode(scope.coordinates.productId);
+                if (code) onCreateRecord?.(code);
+              }}
+            >
+              新建市场任务
+            </button>
+          ) : undefined
+        }
       />
       <TaskFilters
+        authoritativeProducts={reviewMode ? [] : authoritativeProducts}
         filters={filters}
         onFiltersChange={(nextFilters) => {
           setPage(1);
@@ -784,14 +851,29 @@ export function MarketTaskWorkspace({
                     <td>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          const productCode = marketTaskProductCode(
+                            item.productId,
+                          );
+                          if (
+                            realtimeRepository &&
+                            productCode &&
+                            item.subject.kind === "monitoring-object"
+                          ) {
+                            onEditRecord?.(productCode, item.subject.objectId);
+                            return;
+                          }
                           onSelectionChange({
                             type: "work-item",
                             id: item.workId,
-                          })
-                        }
+                          });
+                        }}
                       >
-                        {projection.actionLabel}
+                        {realtimeRepository
+                          ? reviewMode
+                            ? "审核任务"
+                            : "办理任务"
+                          : projection.actionLabel}
                       </button>
                     </td>
                   </tr>
@@ -843,4 +925,22 @@ export function MarketTaskWorkspace({
       )}
     </div>
   );
+}
+
+function marketTaskProductCode(
+  productId: string | null | undefined,
+): "CORN" | "SOYBEAN" | "RICE" | undefined {
+  if (productId === "corn" || productId === "CORN") return "CORN";
+  if (productId === "soybean" || productId === "SOYBEAN") return "SOYBEAN";
+  if (productId === "paddy" || productId === "rice" || productId === "RICE") {
+    return "RICE";
+  }
+  return undefined;
+}
+
+function taskProductId(productCode: string): string | undefined {
+  if (productCode === "CORN") return "corn";
+  if (productCode === "SOYBEAN") return "soybean";
+  if (productCode === "RICE") return "paddy";
+  return undefined;
 }

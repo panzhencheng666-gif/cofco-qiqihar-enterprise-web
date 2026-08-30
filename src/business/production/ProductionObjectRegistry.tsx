@@ -1,4 +1,11 @@
-import { useId, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
+
+import type {
+  MasterDataSnapshot,
+  ProductionObjectMutation,
+  ProductionObjectRow,
+  RealtimeBusinessRepository,
+} from "@/platform/api/realtimeBusinessRepository";
 
 import {
   getActiveObjectCapabilities,
@@ -50,6 +57,53 @@ interface RegistryFilters {
   validityStatus: string;
 }
 
+interface PersistedMonitoringObject extends MonitoringObject {
+  version: number;
+}
+
+function monitoringObjectFromRow(
+  row: ProductionObjectRow,
+): PersistedMonitoringObject {
+  return {
+    objectId: row.objectId,
+    objectName: row.objectName,
+    objectTypeId: row.objectTypeId as MonitoringObjectTypeId,
+    objectTypeLabel: row.objectTypeLabel,
+    regionId: row.regionCode,
+    regionLabel: row.regionName,
+    productIds: row.productIds,
+    productLabels: row.productLabels,
+    cultivarIds: row.cultivarIds,
+    cultivarLabels: row.cultivarLabels,
+    sourceChannelId: row.sourceChannelId as MonitoringSourceChannelId,
+    sourceChannelLabel: row.sourceChannelLabel,
+    responsibleUserId: row.responsibleUserId,
+    responsiblePerson: row.responsiblePerson,
+    effectiveFrom: row.effectiveFrom,
+    effectiveTo: row.effectiveTo,
+    validityStatus: row.validityStatus,
+    roles: row.roles,
+    version: row.version,
+  };
+}
+
+function productionObjectMutation(
+  object: MonitoringObject,
+): ProductionObjectMutation {
+  return {
+    objectName: object.objectName,
+    objectTypeId: object.objectTypeId,
+    regionCode: object.regionId,
+    productIds: object.productIds,
+    cultivarIds: object.cultivarIds,
+    sourceChannelId: object.sourceChannelId,
+    effectiveFrom: object.effectiveFrom,
+    effectiveTo: object.effectiveTo,
+    validityStatus: object.validityStatus,
+    roles: object.roles,
+  };
+}
+
 const emptyFilters: RegistryFilters = {
   objectTypeId: "",
   sourceChannelId: "",
@@ -64,6 +118,19 @@ function formatChineseDate(value: string): string {
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
   return `${year}年${month}月${day}日`;
+}
+
+function platformProductIdForBackend(
+  code: string,
+): PlatformProductId | undefined {
+  const id = (
+    code.toUpperCase() === "RICE" ? "paddy" : code.toLowerCase()
+  ) as PlatformProductId;
+  return platformProducts.some(
+    (product) => product.id === id && productionProductNames[id] !== undefined,
+  )
+    ? id
+    : undefined;
 }
 
 function productionProductLabel(
@@ -399,22 +466,31 @@ function RegistryFilters({
 function ObjectEditor({
   object,
   scope,
+  masterData,
   onClose,
   onSave,
+  serverBacked = false,
 }: {
   object?: MonitoringObject;
   scope: OperationalScope;
+  masterData?: MasterDataSnapshot;
   onClose: () => void;
-  onSave: (object: MonitoringObject) => void;
+  onSave: (object: MonitoringObject) => true | string | Promise<true | string>;
+  serverBacked?: boolean;
 }) {
   const localDraftId = useId();
-  const productOptions = platformProducts
-    .filter(
-      ({ id }) =>
-        scope.authorization.authorizedProductIds.includes(id) &&
-        productionProductNames[id] !== undefined,
-    )
-    .map(({ id, label }) => [id, label] as const);
+  const productOptions = serverBacked
+    ? (masterData?.products ?? []).flatMap(({ code, name }) => {
+        const id = platformProductIdForBackend(code);
+        return id ? ([[id, name]] as const) : [];
+      })
+    : platformProducts
+        .filter(
+          ({ id }) =>
+            scope.authorization.authorizedProductIds.includes(id) &&
+            productionProductNames[id] !== undefined,
+        )
+        .map(({ id, label }) => [id, label] as const);
   const authorizedCultivarOptions = platformCultivars
     .filter(({ id }) => scope.authorization.authorizedCultivarIds.includes(id))
     .map(({ id, label, applicableProductIds }) => ({
@@ -432,10 +508,22 @@ function ObjectEditor({
         : []),
     ]).entries(),
   ];
-  const regionOptions = enterpriseRegionGroups
-    .flatMap(({ regions }) => regions)
-    .filter(({ id }) => scope.authorization.authorizedRegionIds.includes(id))
-    .map(({ id, label }) => [id, label] as const);
+  const authoritativeRegionNames = new Map(
+    (masterData?.regions ?? []).map(({ code, name }) => [code, name] as const),
+  );
+  const regionOptions = serverBacked
+    ? scope.authorization.authorizedRegionIds.flatMap((id) => {
+        const label =
+          authoritativeRegionNames.get(id) ??
+          (object?.regionId === id ? object.regionLabel : undefined);
+        return label ? ([[id, label]] as const) : [];
+      })
+    : enterpriseRegionGroups
+        .flatMap(({ regions }) => regions)
+        .filter(({ id }) =>
+          scope.authorization.authorizedRegionIds.includes(id),
+        )
+        .map(({ id, label }) => [id, label] as const);
   const sourceOptions = [
     ...new Map([
       ...productionSourceChannelMasterData.map(
@@ -547,7 +635,8 @@ function ObjectEditor({
       current.filter((cultivarId) => nextApplicableCultivars.has(cultivarId)),
     );
   };
-  const save = (event: FormEvent<HTMLFormElement>) => {
+  const [saving, setSaving] = useState(false);
+  const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const value = (field: string) => {
@@ -559,7 +648,6 @@ function ObjectEditor({
       ["objectTypeId", "请选择对象类型"],
       ["regionId", "请选择已授权行政区划"],
       ["sourceChannelId", "请选择来源渠道"],
-      ["responsibleUserId", "请选择责任人"],
       ["validityStatus", "请选择有效状态"],
     ] as const;
     const errors: string[] = requiredFields
@@ -575,7 +663,9 @@ function ObjectEditor({
       setMessage({ kind: "alert", text: `${errors.join("；")}。` });
       return;
     }
-    const responsibleUserId = value("responsibleUserId");
+    const responsibleUserId = serverBacked
+      ? (object?.responsibleUserId ?? scope.identity.userId)
+      : value("responsibleUserId");
     const hiddenProducts = (object?.productIds ?? []).flatMap((id, index) =>
       productOptionIds.some((optionId) => optionId === id)
         ? []
@@ -628,7 +718,8 @@ function ObjectEditor({
       },
     );
     const roles = [...hiddenRoles, ...selectedRoles];
-    onSave({
+    setSaving(true);
+    const result = await onSave({
       objectId: object?.objectId ?? `OBJ-LOCAL-DRAFT-${localDraftId}`,
       objectName: value("objectName"),
       objectTypeId: value("objectTypeId") as MonitoringObjectTypeId,
@@ -649,8 +740,10 @@ function ObjectEditor({
         "来源渠道名称未提供",
       responsibleUserId,
       responsiblePerson:
+        object?.responsiblePerson ??
         people.find(([id]) => id === responsibleUserId)?.[1] ??
-        "责任人名称未提供",
+        scope.identity.displayName ??
+        scope.identity.userId,
       effectiveFrom: object?.effectiveFrom ?? roles[0]?.effectiveFrom ?? "",
       effectiveTo: object?.effectiveTo ?? null,
       validityStatus: value(
@@ -658,12 +751,16 @@ function ObjectEditor({
       ) as MonitoringObject["validityStatus"],
       roles,
     });
+    setSaving(false);
+    if (result !== true) setMessage({ kind: "alert", text: result });
   };
   return (
     <form
       aria-label={object ? "编辑监测对象" : "新增监测对象"}
       className="production-task5-object-editor"
-      onSubmit={save}
+      onSubmit={(event) => {
+        void save(event);
+      }}
     >
       <header>
         <h2>{object ? "编辑监测对象" : "新增监测对象"}</h2>
@@ -759,21 +856,23 @@ function ObjectEditor({
             ))}
           </select>
         </label>
-        <label>
-          <span>责任人</span>
-          <select
-            aria-label="编辑责任人"
-            name="responsibleUserId"
-            defaultValue={object?.responsibleUserId ?? ""}
-          >
-            <option value="">请选择责任人</option>
-            {people.map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {!serverBacked && (
+          <label>
+            <span>责任人</span>
+            <select
+              aria-label="编辑责任人"
+              name="responsibleUserId"
+              defaultValue={object?.responsibleUserId ?? ""}
+            >
+              <option value="">请选择责任人</option>
+              {people.map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           <span>有效状态</span>
           <select
@@ -838,8 +937,12 @@ function ObjectEditor({
           })}
         </fieldset>
       </div>
-      <button className="production-task5-primary" type="submit">
-        保存对象草稿
+      <button
+        className="production-task5-primary"
+        disabled={saving}
+        type="submit"
+      >
+        {saving ? "正在保存" : "保存对象草稿"}
       </button>
       {message && <p role={message.kind}>{message.text}</p>}
     </form>
@@ -966,6 +1069,7 @@ export function ProductionObjectRegistry({
   queryAllowed = true,
   registryObjects: controlledRegistryObjects,
   onRegistryObjectsChange,
+  realtimeRepository,
 }: {
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
@@ -975,6 +1079,7 @@ export function ProductionObjectRegistry({
   queryAllowed?: boolean;
   registryObjects?: readonly MonitoringObject[];
   onRegistryObjectsChange?: (objects: readonly MonitoringObject[]) => void;
+  realtimeRepository?: RealtimeBusinessRepository;
 }) {
   const [filters, setFilters] = useState<RegistryFilters>(emptyFilters);
   const [page, setPage] = useState(1);
@@ -982,10 +1087,58 @@ export function ProductionObjectRegistry({
   const [localRegistryObjects, setLocalRegistryObjects] = useState<
     readonly MonitoringObject[]
   >(productionMonitoringObjects);
-  const canManage = scope.authorization.permissionKeys.includes(
-    "production:object:manage",
-  );
-  const registryObjects = controlledRegistryObjects ?? localRegistryObjects;
+  const [serverRegistryObjects, setServerRegistryObjects] = useState<
+    readonly PersistedMonitoringObject[]
+  >([]);
+  const [serverMasterData, setServerMasterData] =
+    useState<MasterDataSnapshot>();
+  const [serverStatus, setServerStatus] = useState<
+    "not-required" | "loading" | "ready" | "error"
+  >(realtimeRepository ? "loading" : "not-required");
+  useEffect(() => {
+    if (!realtimeRepository) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (
+        typeof realtimeRepository.listProductionObjects !== "function" ||
+        typeof realtimeRepository.loadMasterData !== "function"
+      ) {
+        setServerRegistryObjects([]);
+        setServerMasterData(undefined);
+        setServerStatus("error");
+        return;
+      }
+      setServerStatus("loading");
+      void Promise.all([
+        realtimeRepository.listProductionObjects(),
+        realtimeRepository.loadMasterData(),
+      ])
+        .then(([rows, masterData]) => {
+          if (cancelled) return;
+          setServerRegistryObjects(rows.map(monitoringObjectFromRow));
+          setServerMasterData(masterData);
+          setServerStatus("ready");
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setServerRegistryObjects([]);
+          setServerMasterData(undefined);
+          setServerStatus("error");
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [realtimeRepository]);
+  const hasManagePermission = realtimeRepository
+    ? scope.authorization.permissionKeys.includes("BUSINESS_UPDATE")
+    : scope.authorization.permissionKeys.includes("production:object:manage");
+  const canManage =
+    hasManagePermission && (!realtimeRepository || serverStatus === "ready");
+  const registryObjects = realtimeRepository
+    ? serverRegistryObjects
+    : (controlledRegistryObjects ?? localRegistryObjects);
   const updateRegistryObjects = (objects: readonly MonitoringObject[]) => {
     if (!canManage) return;
     if (controlledRegistryObjects === undefined)
@@ -1091,8 +1244,15 @@ export function ProductionObjectRegistry({
       </section>
       {savedDraftName && (
         <p role="status">
-          {savedDraftName}对象草稿已保存，并已写入当前对象名录草稿。
+          {realtimeRepository
+            ? `${savedDraftName}已保存到服务端权威名录。`
+            : `${savedDraftName}对象草稿已保存，并已写入当前对象名录草稿。`}
         </p>
+      )}
+      {serverStatus === "error" && (
+        <div className="production-task5-alert" role="alert">
+          产情调查对象加载失败，请稍后重试。
+        </div>
       )}
       {invalidSelection && (
         <div className="production-task5-alert" role="alert">
@@ -1139,13 +1299,17 @@ export function ProductionObjectRegistry({
                 const products = authorizedLabels(
                   object.productIds,
                   object.productLabels,
-                  scope.authorization.authorizedProductIds,
+                  realtimeRepository
+                    ? object.productIds
+                    : scope.authorization.authorizedProductIds,
                   "作物名称未提供",
                 );
                 const cultivars = authorizedLabels(
                   object.cultivarIds,
                   object.cultivarLabels,
-                  scope.authorization.authorizedCultivarIds,
+                  realtimeRepository
+                    ? object.cultivarIds
+                    : scope.authorization.authorizedCultivarIds,
                   "品种名称未提供",
                 );
                 return (
@@ -1207,13 +1371,58 @@ export function ProductionObjectRegistry({
       </section>
       {canManage && editor && (
         <ObjectEditor
+          masterData={serverMasterData}
           object={editor === "edit" ? selectedSource : undefined}
           scope={scope}
+          serverBacked={Boolean(realtimeRepository)}
           onClose={() => setEditor(null)}
-          onSave={(draft) => {
+          onSave={async (draft) => {
             if (!canManage) {
               setEditor(null);
-              return;
+              return "保存失败：当前账号无维护权限。";
+            }
+            if (realtimeRepository) {
+              try {
+                const existing = serverRegistryObjects.find(
+                  ({ objectId }) => objectId === draft.objectId,
+                );
+                const saved = existing
+                  ? await realtimeRepository.updateProductionObject?.(
+                      existing.objectId,
+                      {
+                        ...productionObjectMutation(draft),
+                        version: existing.version,
+                      },
+                    )
+                  : await realtimeRepository.createProductionObject?.(
+                      productionObjectMutation(draft),
+                    );
+                if (!saved) return "保存失败，服务端未返回权威对象。";
+                const reloaded =
+                  typeof realtimeRepository.listProductionObjects === "function"
+                    ? await realtimeRepository.listProductionObjects()
+                    : [saved];
+                setServerRegistryObjects(reloaded.map(monitoringObjectFromRow));
+                setSavedDraftName(draft.objectName);
+                setEditor(null);
+                onSelectionChange({ type: "object", id: saved.objectId });
+                return true;
+              } catch (error) {
+                const errorCode =
+                  typeof error === "object" && error !== null && "code" in error
+                    ? error.code
+                    : undefined;
+                if (
+                  errorCode === "PRODUCTION_OBJECT_VERSION_CONFLICT" ||
+                  (error instanceof Error &&
+                    error.message.includes(
+                      "PRODUCTION_OBJECT_VERSION_CONFLICT",
+                    ))
+                ) {
+                  return "保存失败：对象已被其他人员更新，请刷新后重试。";
+                }
+                return "保存失败，请核对资料或权限后重试。";
+              }
             }
             updateRegistryObjects(
               registryObjects.some(
@@ -1226,6 +1435,7 @@ export function ProductionObjectRegistry({
             );
             setSavedDraftName(draft.objectName);
             setEditor(null);
+            return true;
           }}
         />
       )}

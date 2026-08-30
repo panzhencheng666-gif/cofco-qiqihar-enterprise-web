@@ -1159,7 +1159,22 @@ export function EnterpriseBusinessApplication({
                 ? (productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
-                    setRealtimeEntryMode("view");
+                    const workItem = currentWorkItems.find(
+                      ({ subject }) =>
+                        subject.kind === "monitoring-object" &&
+                        subject.objectId === recordId,
+                    );
+                    setRealtimeEntryMode(
+                      location.route.section === "review" ||
+                        (location.route.section === "tasks" &&
+                          workItem?.documentStatus === "submitted" &&
+                          (workItem.reviewStatus === "pending" ||
+                            workItem.reviewStatus === "reviewing"))
+                        ? "review"
+                        : location.route.section === "tasks"
+                          ? "entry"
+                          : "view",
+                    );
                     setRealtimeEntryDomain("production");
                   }
                 : undefined
@@ -1211,7 +1226,22 @@ export function EnterpriseBusinessApplication({
                 ? (domain, productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
-                    setRealtimeEntryMode("view");
+                    const workItem = currentWorkItems.find(
+                      ({ subject }) =>
+                        subject.kind === "monitoring-object" &&
+                        subject.objectId === recordId,
+                    );
+                    setRealtimeEntryMode(
+                      location.route.section === "review" ||
+                        (location.route.section === "tasks" &&
+                          workItem?.documentStatus === "submitted" &&
+                          (workItem.reviewStatus === "pending" ||
+                            workItem.reviewStatus === "reviewing"))
+                        ? "review"
+                        : location.route.section === "tasks"
+                          ? "entry"
+                          : "view",
+                    );
                     setRealtimeEntryDomain(domain);
                   }
                 : undefined

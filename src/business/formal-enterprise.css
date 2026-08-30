@@ -3904,6 +3904,24 @@ body {
   }
 }
 /* enterprise-mobile-shell-cascade:end */
+/* task-c1-mobile-business-shell:start */
+@media (max-width: 700px) {
+  .formal-enterprise {
+    overflow-x: clip;
+  }
+
+  .formal-enterprise .formal-main {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 8px 28px;
+  }
+
+  .formal-enterprise .realtime-entry-overlay {
+    inset: var(--enterprise-header-height) 0 0;
+    padding: 8px;
+  }
+}
+/* task-c1-mobile-business-shell:end */
 /* reference-workbench-shell:end */
 .realtime-business-panel {
   margin: 20px;

@@ -123,6 +123,10 @@ export function ProductionMonitoringWorkspace({
         onDocumentDraftChange={onDocumentDraftChange}
         onWorkItemChange={onWorkItemChange}
         workItems={workItems}
+        realtimeRepository={realtimeRepository}
+        onCreateRecord={onCreateRecord}
+        onEditRecord={onEditRecord}
+        reviewMode={section === "review"}
       />
     );
   }
@@ -137,6 +141,7 @@ export function ProductionMonitoringWorkspace({
         queryAllowed={queryAllowed}
         registryObjects={registryObjects}
         onRegistryObjectsChange={onRegistryObjectsChange}
+        realtimeRepository={realtimeRepository}
       />
     );
   }
