@@ -29,6 +29,7 @@ describe("formal enterprise route model", () => {
       ["work", "exceptions", "#/我的工作/退回与异常"],
       ["work", "completed", "#/我的工作/已办事项"],
       ["work", "imports", "#/我的工作/导入任务"],
+      ["work", "sample-governance", "#/我的工作/样本点管理"],
       ["overview", "operations", "#/经营总览/经营运行"],
       ["overview", "risks", "#/经营总览/风险关注"],
       ["overview", "duty", "#/经营总览/履责情况"],
@@ -145,14 +146,14 @@ describe("formal enterprise route model", () => {
     );
   });
 
-  it("retires the former sample-point management route to the work queue", () => {
+  it("keeps sample-point management as a direct business route", () => {
     expect(readFormalRoute("#/我的工作/样本点管理")).toEqual({
       application: "work",
-      section: "tasks",
+      section: "sample-governance",
     });
     expect(readFormalRoute("?page=work&section=sample-governance")).toEqual({
       application: "work",
-      section: "tasks",
+      section: "sample-governance",
     });
   });
 });

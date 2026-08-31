@@ -1453,6 +1453,7 @@ export interface RealtimeBusinessRepository {
   listDesignSamplePoints?(
     input: DesignSamplePointListInput,
   ): Promise<Page<DesignSamplePointRow>>;
+  getDesignSamplePoint?(id: string): Promise<DesignSamplePointRow>;
   loadDesignSamplePointFields?(
     context: DesignSampleContext,
   ): Promise<DesignSampleFieldContract>;
@@ -1946,6 +1947,10 @@ export function createRealtimeBusinessRepository(
         page: input.page,
         pageSize: input.pageSize,
       }),
+    getDesignSamplePoint: (id) =>
+      client.get<DesignSamplePointRow>(
+        `/api/v1/design-sample-points/${encodeURIComponent(id)}`,
+      ),
     loadDesignSamplePointFields: (context) =>
       loadDesignSampleFieldDefinition(client, context),
     createDesignSamplePoint: (input, idempotencyKey) =>

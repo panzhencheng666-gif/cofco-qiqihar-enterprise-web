@@ -29,7 +29,10 @@ import {
 import type { BatchReviewWorkItemsResult } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
-type MyWorkLedgerSection = Exclude<WorkSection, "imports">;
+type MyWorkLedgerSection = Exclude<
+  WorkSection,
+  "imports" | "sample-governance"
+>;
 
 function reviewErrorMessage(error: unknown): string {
   if (error instanceof RealtimeApiError && error.clientMessage) {
@@ -636,7 +639,7 @@ export function FormalMyWorkWorkspace({
   onReviewItem,
   importTasks,
 }: {
-  section: WorkSection;
+  section: Exclude<WorkSection, "sample-governance">;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;
@@ -682,7 +685,7 @@ export function MyWorkWorkspace({
   onReviewItem,
   importTasks,
 }: {
-  section: WorkSection;
+  section: Exclude<WorkSection, "sample-governance">;
   scope: OperationalScope;
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   onOpenBusiness: (route: FormalRoute, selection?: FormalSelection) => void;

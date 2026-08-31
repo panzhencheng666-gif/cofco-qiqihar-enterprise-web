@@ -61,19 +61,24 @@ const moduleGuidance: Readonly<
 
 export function SamplePointGovernanceWorkspace({
   currentYear = new Date().getFullYear(),
+  initialModule = "registry",
+  mode = "all",
   refreshSequence = 0,
   refreshSequenceByYear = {},
   repository,
   session,
 }: {
   currentYear?: number;
+  initialModule?: GovernanceModule;
+  mode?: "all" | "design";
   refreshSequence?: number;
   refreshSequenceByYear?: Readonly<Record<number, number>>;
   repository: RealtimeBusinessRepository;
   session: CurrentSession;
 }) {
-  const [activeModule, setActiveModule] =
-    useState<GovernanceModule>("registry");
+  const [activeModule, setActiveModule] = useState<GovernanceModule>(
+    mode === "design" ? "design" : initialModule,
+  );
   const [reviewModule, setReviewModule] = useState<ReviewModule>("coordinate");
   const [year, setYear] = useState(currentYear);
   const [comparison, setComparison] = useState<SampleNetworkComparison>();
@@ -164,29 +169,35 @@ export function SamplePointGovernanceWorkspace({
     >
       <WorkspaceHeader
         eyebrow="平台运营管理部 / 数据治理"
-        title="样本点管理"
-        summary="分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
+        title={mode === "design" ? "设计样本点" : "样本点管理"}
+        summary={
+          mode === "design"
+            ? "维护不随年份变化的业务对象点位、行政区、坐标和适用信息；数量以清单实时结果为准。"
+            : "分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
+        }
       />
 
-      <nav
-        aria-label="样本点治理模块"
-        className="sample-point-governance-workspace__tabs"
-        role="tablist"
-      >
-        {modules.map(([module, label]) => (
-          <button
-            aria-controls={`sample-governance-${module}`}
-            aria-selected={activeModule === module}
-            id={`sample-governance-tab-${module}`}
-            key={module}
-            onClick={() => setActiveModule(module)}
-            role="tab"
-            type="button"
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      {mode === "all" ? (
+        <nav
+          aria-label="样本点治理模块"
+          className="sample-point-governance-workspace__tabs"
+          role="tablist"
+        >
+          {modules.map(([module, label]) => (
+            <button
+              aria-controls={`sample-governance-${module}`}
+              aria-selected={activeModule === module}
+              id={`sample-governance-tab-${module}`}
+              key={module}
+              onClick={() => setActiveModule(module)}
+              role="tab"
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+      ) : null}
 
       <div className="sample-point-governance-workspace__context">
         <strong>{moduleGuidance[activeModule].title}</strong>
@@ -231,10 +242,13 @@ export function SamplePointGovernanceWorkspace({
       ) : null}
 
       <section
-        aria-labelledby={`sample-governance-tab-${activeModule}`}
+        aria-label={mode === "design" ? "设计样本点台账" : undefined}
+        aria-labelledby={
+          mode === "all" ? `sample-governance-tab-${activeModule}` : undefined
+        }
         className="sample-point-governance-workspace__main"
         id={`sample-governance-${activeModule}`}
-        role="tabpanel"
+        role={mode === "all" ? "tabpanel" : "region"}
       >
         {activeModule === "registry" ? (
           <SamplePointIdentityGovernancePanel
