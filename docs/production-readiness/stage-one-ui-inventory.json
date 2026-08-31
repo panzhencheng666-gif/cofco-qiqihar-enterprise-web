@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 59,
-  "sourceDigest": "ff704d69cad5b52f2303f570f89fbdc3adb431ee9606894c484076ac2da8bcdc",
+  "sourceDigest": "e5bf62b58ae46169f65ba150ec86b91b4db30b5e83d1453ccd351e17819f06ea",
   "itemCount": 487,
   "countsByKind": {
     "BUTTON": 252,
@@ -6258,10 +6258,10 @@
       "sourceExcerpt": "<button aria-label={`审核驳回${item.canonicalName}`} disabled={busyAction === `review:${item.requestId}`} type=\"button\" onClick={() => review(item, \"REJECT\")} >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:129:11:BUTTON",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:159:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 129,
+      "line": 159,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -6272,10 +6272,10 @@
       "sourceExcerpt": "<button aria-controls={`sample-governance-${module}`} aria-selected={activeModule === module} id={`sample-governance-tab-${module}`} key={module} onClick={() => setActiveModule(module)} role=\"tab\" type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:239:17:BUTTON",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:269:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 239,
+      "line": 269,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -6286,10 +6286,10 @@
       "sourceExcerpt": "<button aria-pressed={reviewModule === module} key={module} onClick={() => setReviewModule(module)} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:389:13:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:419:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 389,
+      "line": 419,
       "column": 13,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"搜索行政村、乡镇或区县\"",
@@ -6300,10 +6300,10 @@
       "sourceExcerpt": "<input aria-label=\"搜索行政村、乡镇或区县\" onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder=\"搜索行政村、乡镇或区县\" type=\"search\" value={query} />"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:402:13:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:432:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 402,
+      "line": 432,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"所属区县\"",
@@ -6314,10 +6314,10 @@
       "sourceExcerpt": "<select aria-label=\"所属区县\" onChange={(event) => { setCountyCode(event.target.value); setTownshipCode(\"\"); setPage(1); }} value={countyCode} >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:422:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:452:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 422,
+      "line": 452,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"所属乡镇\"",
@@ -6328,10 +6328,10 @@
       "sourceExcerpt": "<select aria-label=\"所属乡镇\" onChange={(event) => { setTownshipCode(event.target.value); setPage(1); }} value={townshipCode} >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:441:13:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:471:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 441,
+      "line": 471,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"坐标核验状态\"",
@@ -6342,10 +6342,10 @@
       "sourceExcerpt": "<select aria-label=\"坐标核验状态\" onChange={(event) => { setVerification( event.target.value as \"\" | \"APPROVED\" | \"PENDING\", ); setPage(1); }} value={verification} >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:456:11:BUTTON",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:486:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 456,
+      "line": 486,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -6356,10 +6356,10 @@
       "sourceExcerpt": "<button disabled={!query && !countyCode && !townshipCode && !verification} onClick={() => { setQuery(\"\"); setCountyCode(\"\"); setTownshipCode(\"\"); setVerification(\"\"); setPage(1); }} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:507:11:BUTTON",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:537:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 507,
+      "line": 537,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -6370,10 +6370,10 @@
       "sourceExcerpt": "<button disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:514:11:BUTTON",
+      "id": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx:544:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
-      "line": 514,
+      "line": 544,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
