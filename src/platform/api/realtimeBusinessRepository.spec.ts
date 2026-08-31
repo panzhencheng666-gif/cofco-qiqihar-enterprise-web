@@ -111,6 +111,7 @@ function client(
   });
   const post = vi.fn(() => Promise.resolve({ id: "1", version: 0 }));
   const put = vi.fn(() => Promise.resolve({ id: "1", version: 1 }));
+  const remove = vi.fn(() => Promise.resolve());
   const download = vi.fn(() => Promise.resolve(new Blob(["report"])));
   const upload = vi.fn(
     (path: string, body: FormData, headers?: Record<string, string>) => {
@@ -128,13 +129,79 @@ function client(
     get,
     post,
     put,
+    delete: remove,
     upload,
     download,
   } as unknown as RealtimeApiClient;
-  return { api, download, get, post, put, upload };
+  return { api, delete: remove, download, get, post, put, upload };
 }
 
 describe("realtime business repository", () => {
+  it("adapts the year-independent design sample point CRUD contract", async () => {
+    const { api, delete: remove, get, post, put } = client();
+    get.mockResolvedValueOnce({
+      items: [{ id: "point-1", name: "兴农示范点", version: 2 }],
+      pageNumber: 1,
+      pageSize: 20,
+      totalElements: 21,
+      totalPages: 2,
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+    const mutation = {
+      contractVersion: "design-sample-fields-v1",
+      contractDigest: `sha256:${"a".repeat(64)}`,
+      context: {
+        domainCode: "PRODUCTION",
+        productCode: "CORN",
+        objectTypeCode: "FARMER",
+      },
+      values: {
+        DSP_NAME: "兴农示范点",
+        DSP_REGION_CODE: "230202",
+        DSP_LONGITUDE: "123.95",
+        DSP_LATITUDE: "47.35",
+        OBSERVED_ON: "2026-08-31",
+        PROD_AREA_MU: "100",
+      },
+    } as const;
+
+    await repository.listDesignSamplePoints!({
+      domainCode: "PRODUCTION",
+      productCode: "CORN",
+      objectTypeCode: "FARMER",
+      regionCode: "230202",
+      keyword: "兴农",
+      page: 1,
+      pageSize: 20,
+    });
+    await repository.createDesignSamplePoint!(mutation, "create-key-1");
+    await repository.updateDesignSamplePoint!("point/1", mutation, 2);
+    await repository.deleteDesignSamplePoint!("point/1", 3);
+
+    expect(get).toHaveBeenCalledWith("/api/v1/design-sample-points", {
+      domainCode: "PRODUCTION",
+      productCode: "CORN",
+      objectTypeCode: "FARMER",
+      regionCode: "230202",
+      keyword: "兴农",
+      page: 1,
+      pageSize: 20,
+    });
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/design-sample-points",
+      mutation,
+      { headers: { "Idempotency-Key": "create-key-1" } },
+    );
+    expect(put).toHaveBeenCalledWith("/api/v1/design-sample-points/point%2F1", {
+      ...mutation,
+      expectedVersion: 2,
+    });
+    expect(remove).toHaveBeenCalledWith(
+      "/api/v1/design-sample-points/point%2F1",
+      { expectedVersion: 3 },
+    );
+  });
+
   it("keeps formal-sample filters, locked object identity, and idempotent save aligned", async () => {
     expectTypeOf<EligibleFormalSample>()
       .toHaveProperty("objectTypeCode")
