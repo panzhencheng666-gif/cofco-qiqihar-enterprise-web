@@ -16,7 +16,11 @@ import type {
   DesignSamplePointRow,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
-import type { DesignSampleFieldContract } from "@/platform/api/designSampleFieldContract";
+import type {
+  DesignSampleContext,
+  DesignSampleFieldContract,
+  DesignSampleFieldDefinition,
+} from "@/platform/api/designSampleFieldContract";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { SamplePointGovernanceWorkspace } from "./SamplePointGovernanceWorkspace";
 
@@ -130,17 +134,18 @@ function designPoint(
   };
 }
 
-function designFieldContract(): DesignSampleFieldContract {
-  const field = (
-    code: string,
-    label: string,
-    valueType: "STRING" | "DATE" | "DECIMAL",
-    required: boolean,
-    sortOrder: number,
-    overrides: Record<string, unknown> = {},
-  ) => ({
+function contractField(
+  code: string,
+  label: string,
+  valueType: "STRING" | "DATE" | "DECIMAL" | "ENUM",
+  required: boolean,
+  sortOrder: number,
+  overrides: Record<string, unknown> = {},
+): DesignSampleFieldDefinition {
+  const sectionCode = sortOrder < 200 ? "IDENTITY" : "OBSERVATION";
+  return {
     code,
-    sectionCode: sortOrder < 200 ? "IDENTITY" : "OBSERVATION",
+    sectionCode,
     label,
     description: label,
     valueType,
@@ -155,11 +160,14 @@ function designFieldContract(): DesignSampleFieldContract {
     editable: true,
     minimumValue: null,
     maximumValue: null,
-    groupCode: sortOrder < 200 ? "IDENTITY" : "OBSERVATION",
+    groupCode: sectionCode,
     sortOrder,
     analysisRole: "NONE",
     ...overrides,
-  });
+  };
+}
+
+function designFieldContract(): DesignSampleFieldContract {
   return {
     contractVersion: "design-sample-fields-v1",
     contractDigest: `sha256:${"a".repeat(64)}`,
@@ -212,21 +220,138 @@ function designFieldContract(): DesignSampleFieldContract {
       sortOrder: index + 1,
     })),
     identityFields: [
-      field("DSP_NAME", "点位名称", "STRING", true, 50),
-      field("DSP_REGION_CODE", "行政区代码", "STRING", true, 60),
-      field("DSP_LONGITUDE", "经度", "DECIMAL", true, 70),
-      field("DSP_LATITUDE", "纬度", "DECIMAL", true, 80),
+      contractField("DSP_NAME", "点位名称", "STRING", true, 50),
+      contractField("DSP_REGION_CODE", "行政区代码", "STRING", true, 60),
+      contractField("DSP_LONGITUDE", "经度", "DECIMAL", true, 70),
+      contractField("DSP_LATITUDE", "纬度", "DECIMAL", true, 80),
     ],
     observationFields: [
-      field("OBSERVED_ON", "观测日期", "DATE", true, 200),
-      field("PROD_AREA_MU", "播种面积", "DECIMAL", false, 310, {
+      contractField("OBSERVED_ON", "观测日期", "DATE", true, 200),
+      contractField("PROD_AREA_MU", "播种面积", "DECIMAL", false, 310, {
         unit: "亩",
       }),
     ],
-  } as DesignSampleFieldContract;
+  };
+}
+
+function marketFieldContract(
+  objectTypeCode: string,
+  objectTypeLabel: string,
+  observationFields: DesignSampleFieldContract["observationFields"],
+): DesignSampleFieldContract {
+  const base = designFieldContract();
+  const context = {
+    domainCode: "MARKET",
+    productCode: "CORN",
+    objectTypeCode,
+  };
+  return {
+    ...base,
+    context,
+    objectTypes: base.objectTypes.map((option, index) =>
+      index === 1
+        ? {
+            domainCode: "MARKET",
+            code: objectTypeCode,
+            label: objectTypeLabel,
+            aliases: [],
+            sortOrder: 110,
+          }
+        : option,
+    ),
+    supportedContexts: base.supportedContexts.map((candidate, index) =>
+      index === 1 ? { ...context, sortOrder: 20 } : candidate,
+    ),
+    observationFields: [
+      contractField("OBSERVED_ON", "观测日期", "DATE", true, 200),
+      ...observationFields,
+    ],
+  };
+}
+
+function agriculturalInputContract() {
+  return marketFieldContract("AGRICULTURAL_INPUT_STORE", "农资店", [
+    contractField(
+      "AGRI_INPUT_SEED_SALES_VOLUME",
+      "种子销售量",
+      "DECIMAL",
+      false,
+      310,
+      { unit: "公斤", minimumValue: "0" },
+    ),
+    contractField(
+      "AGRI_INPUT_SEED_RETAIL_PRICE",
+      "种子零售价",
+      "DECIMAL",
+      false,
+      320,
+      { unit: "元/公斤", minimumValue: "0" },
+    ),
+    contractField("AGRI_INPUT_SUPPLY_STATUS", "供货状态", "ENUM", false, 330, {
+      enumOptions: ["SUFFICIENT", "NORMAL", "TIGHT", "OUT_OF_STOCK"],
+    }),
+    contractField(
+      "AGRI_INPUT_PLANTING_INTENTION_TREND",
+      "种植意向趋势",
+      "ENUM",
+      false,
+      340,
+      { enumOptions: ["INCREASE", "STABLE", "DECREASE"] },
+    ),
+  ]);
+}
+
+function marketPurchaseContract(
+  objectTypeCode: string,
+  objectTypeLabel: string,
+) {
+  return marketFieldContract(objectTypeCode, objectTypeLabel, [
+    contractField(
+      "MKT_PURCHASE_BASE_PRICE",
+      "收购基础价",
+      "DECIMAL",
+      false,
+      310,
+      { unit: "元/吨", minimumValue: "0" },
+    ),
+    ...(objectTypeCode === "TRADER"
+      ? [
+          contractField(
+            "MKT_SALE_BASE_PRICE",
+            "销售基础价",
+            "DECIMAL",
+            false,
+            320,
+            { unit: "元/吨", minimumValue: "0" },
+          ),
+        ]
+      : []),
+  ]);
 }
 
 describe("SamplePointGovernanceWorkspace", () => {
+  it("shows only the design ledger without workflow modules in design mode", async () => {
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        mode="design"
+        repository={repository()}
+        session={session}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "设计样本点" })).toBeVisible();
+    expect(
+      screen.queryByRole("tablist", { name: "样本点治理模块" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("样本点名册")).not.toBeInTheDocument();
+    expect(screen.queryByText("年度样本")).not.toBeInTheDocument();
+    expect(screen.queryByText("变更与审核")).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("table", { name: "设计参考点清单" }),
+    ).toBeVisible();
+  });
+
   it("uses the authoritative V159 page for read-only listing and count", async () => {
     const listDesignSamplePoints = vi.fn().mockResolvedValue({
       items: [designPoint()],
@@ -293,6 +418,19 @@ describe("SamplePointGovernanceWorkspace", () => {
         ) => Promise<DesignSamplePointRow>
       >()
       .mockResolvedValue(designPoint({ version: 3 }));
+    const getDesignSamplePoint = vi
+      .fn<(id: string) => Promise<DesignSamplePointRow>>()
+      .mockResolvedValueOnce(designPoint({ version: 3 }))
+      .mockResolvedValueOnce(
+        designPoint({
+          version: 5,
+          values: {
+            ...designPoint().values,
+            DSP_NAME: "权威重查点",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(designPoint({ version: 6 }));
     const deleteDesignSamplePoint = vi
       .fn<(id: string, expectedVersion: number) => Promise<void>>()
       .mockResolvedValue(undefined);
@@ -315,6 +453,7 @@ describe("SamplePointGovernanceWorkspace", () => {
         ],
       }),
       createDesignSamplePoint,
+      getDesignSamplePoint,
       updateDesignSamplePoint,
       deleteDesignSamplePoint,
     } as RealtimeBusinessRepository;
@@ -379,12 +518,17 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(createDesignSamplePoint.mock.calls[1]?.[1]).toEqual(
       expect.any(String),
     );
+    expect(getDesignSamplePoint).toHaveBeenNthCalledWith(1, "point-1");
     expect(listDesignSamplePoints).toHaveBeenCalledTimes(2);
 
     await userEvent.click(screen.getByRole("button", { name: "编辑众兴村" }));
     const editForm = await screen.findByRole("form", {
       name: "编辑设计参考点",
     });
+    expect(getDesignSamplePoint).toHaveBeenNthCalledWith(2, "point-1");
+    expect(
+      within(editForm).getByRole("textbox", { name: "点位名称" }),
+    ).toHaveValue("权威重查点");
     await userEvent.clear(
       within(editForm).getByRole("textbox", { name: "点位名称" }),
     );
@@ -401,7 +545,8 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(updateCall?.[1].values).toMatchObject({
       DSP_NAME: "众兴村更新点",
     });
-    expect(updateCall?.[2]).toBe(2);
+    expect(updateCall?.[2]).toBe(5);
+    expect(getDesignSamplePoint).toHaveBeenNthCalledWith(3, "point-1");
     expect(listDesignSamplePoints).toHaveBeenCalledTimes(3);
 
     await userEvent.click(screen.getByRole("button", { name: "删除众兴村" }));
@@ -412,6 +557,251 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(listDesignSamplePoints).toHaveBeenCalledTimes(4);
     confirm.mockRestore();
   });
+
+  it("does not invite a second write when the post-save authoritative requery fails", async () => {
+    const listDesignSamplePoints = vi.fn().mockResolvedValue({
+      items: [designPoint()],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    const createDesignSamplePoint = vi.fn().mockResolvedValue(designPoint());
+    const data = {
+      ...repository(),
+      listDesignSamplePoints,
+      loadDesignSamplePointFields: vi
+        .fn()
+        .mockResolvedValue(designFieldContract()),
+      loadMasterData: vi.fn().mockResolvedValue({
+        products: [],
+        periods: [],
+        regions: [
+          {
+            code: "230231100201",
+            name: "众兴村",
+            parentCode: "230231100",
+            level: "VILLAGE",
+          },
+        ],
+      }),
+      createDesignSamplePoint,
+      getDesignSamplePoint: vi.fn().mockRejectedValue(
+        new RealtimeApiError({
+          code: "SERVICE_UNAVAILABLE",
+          message: "读取最新点位失败",
+          status: 503,
+        }),
+      ),
+    } as RealtimeBusinessRepository;
+    const writableSession = {
+      ...session,
+      permissions: [...session.permissions, "BUSINESS_UPDATE"],
+    };
+
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        repository={data}
+        session={writableSession}
+      />,
+    );
+    await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "新建设计参考点" }),
+    );
+    const form = await screen.findByRole("form", { name: "新建设计参考点" });
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "点位名称" }),
+      "新建示范点",
+    );
+    await userEvent.selectOptions(
+      within(form).getByRole("combobox", { name: "行政区" }),
+      "众兴村",
+    );
+    await userEvent.type(
+      within(form).getByRole("spinbutton", { name: "经度" }),
+      "126.2",
+    );
+    await userEvent.type(
+      within(form).getByRole("spinbutton", { name: "纬度" }),
+      "47.7",
+    );
+    fireEvent.change(within(form).getByLabelText("观测日期"), {
+      target: { value: "2026-09-01" },
+    });
+    await userEvent.click(within(form).getByRole("button", { name: "保存" }));
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("form", { name: "新建设计参考点" })).toBeNull(),
+    );
+    expect(createDesignSamplePoint).toHaveBeenCalledTimes(1);
+    expect(listDesignSamplePoints).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "保存已完成，但最新点位信息读取失败，请刷新清单确认。",
+    );
+  });
+
+  it("renders the four agricultural-input fields from V157 metadata without workflow or internal-code copy", async () => {
+    const point = designPoint({
+      name: "龙沙农资店",
+      context: {
+        domainCode: "MARKET",
+        productCode: "CORN",
+        objectTypeCode: "AGRICULTURAL_INPUT_STORE",
+      },
+      values: {
+        ...designPoint().values,
+        DSP_NAME: "龙沙农资店",
+        AGRI_INPUT_SEED_SALES_VOLUME: "25",
+        AGRI_INPUT_SEED_RETAIL_PRICE: "6.5",
+        AGRI_INPUT_SUPPLY_STATUS: "SUFFICIENT",
+        AGRI_INPUT_PLANTING_INTENTION_TREND: "STABLE",
+      },
+    });
+    const contract = agriculturalInputContract();
+    const data = {
+      ...repository(),
+      listDesignSamplePoints: vi.fn().mockResolvedValue({
+        items: [point],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+      }),
+      getDesignSamplePoint: vi.fn().mockResolvedValue(point),
+      loadDesignSamplePointFields: vi.fn((context: DesignSampleContext) =>
+        Promise.resolve(
+          context.objectTypeCode === "AGRICULTURAL_INPUT_STORE"
+            ? contract
+            : designFieldContract(),
+        ),
+      ),
+    } as RealtimeBusinessRepository;
+    const writableSession = {
+      ...session,
+      permissions: [...session.permissions, "BUSINESS_UPDATE"],
+    };
+
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        repository={data}
+        session={writableSession}
+      />,
+    );
+    await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "编辑龙沙农资店" }),
+    );
+    const form = await screen.findByRole("form", { name: "编辑设计参考点" });
+
+    expect(
+      within(form).getByRole("spinbutton", { name: "种子销售量（公斤）" }),
+    ).toHaveAttribute("step", "0.0001");
+    expect(
+      within(form).getByRole("spinbutton", { name: "种子销售量（公斤）" }),
+    ).toHaveAttribute("min", "0");
+    expect(
+      within(form).getByRole("spinbutton", { name: "种子零售价（元/公斤）" }),
+    ).toHaveValue(6.5);
+    expect(
+      within(
+        within(form).getByRole("combobox", { name: "供货状态" }),
+      ).getByRole("option", { name: "充足" }),
+    ).toBeVisible();
+    expect(
+      within(
+        within(form).getByRole("combobox", { name: "种植意向趋势" }),
+      ).getByRole("option", { name: "稳定" }),
+    ).toBeVisible();
+    expect(within(form).queryByText("收购基础价")).not.toBeInTheDocument();
+    expect(within(form).queryByText("surveyYear")).not.toBeInTheDocument();
+    expect(
+      within(form).queryByText("AGRI_INPUT_SEED_SALES_VOLUME"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/DRAFT|PENDING|APPROVE|PUBLISH/u)).toBeNull();
+  });
+
+  it.each([
+    ["TRADER", "贸易商", true],
+    ["DEEP_PROCESSOR", "加工企业", false],
+    ["BREEDING_FACTORY", "养殖场", false],
+    ["FEED_MILL", "饲料厂", false],
+  ])(
+    "shows contract-applicable purchase fields for %s",
+    async (objectTypeCode, objectTypeLabel, hasSalePrice) => {
+      const contract = marketPurchaseContract(objectTypeCode, objectTypeLabel);
+      const point = designPoint({
+        name: `${objectTypeLabel}点位`,
+        context: {
+          domainCode: "MARKET",
+          productCode: "CORN",
+          objectTypeCode,
+        },
+        values: {
+          ...designPoint().values,
+          DSP_NAME: `${objectTypeLabel}点位`,
+          MKT_PURCHASE_BASE_PRICE: "2200",
+          ...(hasSalePrice ? { MKT_SALE_BASE_PRICE: "2300" } : {}),
+        },
+      });
+      const data = {
+        ...repository(),
+        listDesignSamplePoints: vi.fn().mockResolvedValue({
+          items: [point],
+          pageNumber: 0,
+          pageSize: 20,
+          totalElements: 1,
+          totalPages: 1,
+        }),
+        getDesignSamplePoint: vi.fn().mockResolvedValue(point),
+        loadDesignSamplePointFields: vi.fn((context: DesignSampleContext) =>
+          Promise.resolve(
+            context.objectTypeCode === objectTypeCode
+              ? contract
+              : designFieldContract(),
+          ),
+        ),
+      } as RealtimeBusinessRepository;
+      const writableSession = {
+        ...session,
+        permissions: [...session.permissions, "BUSINESS_UPDATE"],
+      };
+
+      render(
+        <SamplePointGovernanceWorkspace
+          currentYear={2026}
+          repository={data}
+          session={writableSession}
+        />,
+      );
+      await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
+      await userEvent.click(
+        await screen.findByRole("button", {
+          name: `编辑${objectTypeLabel}点位`,
+        }),
+      );
+      const form = await screen.findByRole("form", {
+        name: "编辑设计参考点",
+      });
+
+      expect(
+        within(form).getByRole("spinbutton", { name: "收购基础价（元/吨）" }),
+      ).toHaveValue(2200);
+      if (hasSalePrice) {
+        expect(
+          within(form).getByRole("spinbutton", { name: "销售基础价（元/吨）" }),
+        ).toHaveValue(2300);
+      } else {
+        expect(
+          within(form).queryByRole("spinbutton", {
+            name: "销售基础价（元/吨）",
+          }),
+        ).not.toBeInTheDocument();
+      }
+    },
+  );
 
   it("uses one table-led module at a time instead of stacking governance cards", async () => {
     render(

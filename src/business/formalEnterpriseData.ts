@@ -234,6 +234,10 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
         { route: createFormalRoute("work", "completed"), label: "已办事项" },
         { route: createFormalRoute("work", "imports"), label: "导入任务" },
         {
+          route: createFormalRoute("work", "sample-governance"),
+          label: "样本点管理",
+        },
+        {
           route: createFormalRoute("work", "obligations"),
           label: "填报履职周报",
         },

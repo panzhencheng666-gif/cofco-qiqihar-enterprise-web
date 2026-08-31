@@ -82,7 +82,7 @@ function MyWorkHarness({
   onBatchApprove,
   onReviewItem,
 }: {
-  initialSection?: WorkSection;
+  initialSection?: Exclude<WorkSection, "sample-governance">;
   initialCoordinates?: Partial<OperationalScope["coordinates"]>;
   authorization?: Partial<OperationalScope["authorization"]>;
   identity?: OperationalScope["identity"];

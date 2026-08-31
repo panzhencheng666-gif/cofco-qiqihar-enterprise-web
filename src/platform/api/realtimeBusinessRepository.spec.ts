@@ -146,6 +146,11 @@ describe("realtime business repository", () => {
       totalElements: 21,
       totalPages: 2,
     } as never);
+    get.mockResolvedValueOnce({
+      id: "point-1",
+      name: "兴农示范点",
+      version: 2,
+    } as never);
     const repository = createRealtimeBusinessRepository(api);
     const mutation = {
       contractVersion: "design-sample-fields-v1",
@@ -174,6 +179,7 @@ describe("realtime business repository", () => {
       page: 1,
       pageSize: 20,
     });
+    await repository.getDesignSamplePoint!("point/1");
     await repository.createDesignSamplePoint!(mutation, "create-key-1");
     await repository.updateDesignSamplePoint!("point/1", mutation, 2);
     await repository.deleteDesignSamplePoint!("point/1", 3);
@@ -187,6 +193,7 @@ describe("realtime business repository", () => {
       page: 1,
       pageSize: 20,
     });
+    expect(get).toHaveBeenCalledWith("/api/v1/design-sample-points/point%2F1");
     expect(post).toHaveBeenCalledWith(
       "/api/v1/design-sample-points",
       mutation,

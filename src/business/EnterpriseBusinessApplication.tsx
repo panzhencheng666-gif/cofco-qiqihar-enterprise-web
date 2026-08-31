@@ -94,6 +94,12 @@ const FormalReportCenterWorkspace = lazy(() =>
   })),
 );
 
+const SamplePointGovernanceWorkspace = lazy(() =>
+  import("./samplepoint/SamplePointGovernanceWorkspace").then((module) => ({
+    default: module.SamplePointGovernanceWorkspace,
+  })),
+);
+
 export async function loadAllWorkItems(
   repository: RealtimeBusinessRepository,
   scope: "PENDING" | "COMPLETED",
@@ -679,9 +685,10 @@ export function EnterpriseBusinessApplication({
     "connecting" | "connected" | "empty" | "error" | "fixtures"
   >(realtimeMode ? "connecting" : "fixtures");
   const [realtimeRefreshToken, setRealtimeRefreshToken] = useState(0);
-  const [, setSampleNetworkRefreshSequenceByYear] = useState<
-    Readonly<Record<number, number>>
-  >({});
+  const [
+    sampleNetworkRefreshSequenceByYear,
+    setSampleNetworkRefreshSequenceByYear,
+  ] = useState<Readonly<Record<number, number>>>({});
   const [businessNotifications, setBusinessNotifications] = useState<
     readonly BusinessNotificationRow[]
   >([]);
@@ -1302,6 +1309,19 @@ export function EnterpriseBusinessApplication({
           />
         );
       case "work":
+        if (location.route.section === "sample-governance") {
+          if (realtimeMode && currentSession) {
+            return (
+              <SamplePointGovernanceWorkspace
+                mode="design"
+                refreshSequenceByYear={sampleNetworkRefreshSequenceByYear}
+                repository={repository}
+                session={currentSession}
+              />
+            );
+          }
+          return <div role="status">正在读取样本点信息</div>;
+        }
         if (
           realtimeMode &&
           location.route.section === "obligations" &&

@@ -305,15 +305,66 @@ describe("formal enterprise prototype", () => {
     expect(screen.queryByText("稻谷产情审核任务")).not.toBeInTheDocument();
   });
 
-  it("does not expose sample-point management in the business navigation", async () => {
+  it("opens sample-point management from the business navigation", async () => {
+    const user = userEvent.setup();
+    const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession()),
+      loadMasterData: () =>
+        Promise.resolve({
+          products: [],
+          periods: [
+            {
+              code: "2026-W35",
+              name: "2026年第35周",
+              startsOn: "2026-08-24",
+              endsOn: "2026-08-30",
+            },
+          ],
+          regions: [],
+        }),
+      listWorkItems: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: () => vi.fn(),
+      listDesignSamplePoints: () =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 20,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+    } as unknown as RealtimeBusinessRepository;
+
     render(
-      <EnterpriseBusinessApplication initialSearch="?page=work&section=tasks" />,
+      <EnterpriseBusinessApplication
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
     );
 
+    await user.click(await screen.findByRole("button", { name: "样本点管理" }));
+
     expect(
-      await screen.findByRole("heading", { name: "待我处理" }),
+      await screen.findByRole("heading", { name: "设计样本点" }),
     ).toBeVisible();
-    expect(screen.queryByText("样本点管理")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("main", { name: "样本点管理工作台" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("tablist", { name: "样本点治理模块" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("变更与审核")).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("table", { name: "设计参考点清单" }),
+    ).toBeVisible();
   });
 
   it("fails closed at the enterprise login boundary when no session exists", async () => {
@@ -1767,8 +1818,9 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(18);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(19);
     expect(within(navigation).getByText("导入任务")).toBeVisible();
+    expect(within(navigation).getByText("样本点管理")).toBeVisible();
     expect(within(navigation).getByText("玉米产情填报")).toBeVisible();
     expect(within(navigation).getByText("大豆产情填报")).toBeVisible();
     expect(within(navigation).getByText("稻谷产情填报")).toBeVisible();
@@ -1790,9 +1842,6 @@ describe("formal enterprise prototype", () => {
     ).not.toBeInTheDocument();
     expect(within(navigation).getByText("业务报告")).toBeVisible();
     expect(within(navigation).getByText("待我处理")).toBeVisible();
-    expect(
-      within(navigation).queryByText("样本点管理"),
-    ).not.toBeInTheDocument();
     expect(within(navigation).queryByText("产情任务")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("调查对象")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("数据审核")).not.toBeInTheDocument();

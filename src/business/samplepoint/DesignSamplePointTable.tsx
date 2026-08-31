@@ -67,7 +67,7 @@ export function DesignSamplePointTable({
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
+  const [actionError, setActionError] = useState("");
   const canWrite = session.permissions.includes("BUSINESS_UPDATE");
 
   useEffect(() => {
@@ -136,17 +136,35 @@ export function DesignSamplePointTable({
 
   const loadEditor = useCallback(
     async (nextEditor: Editor) => {
-      const context = nextEditor.point?.context ?? BOOTSTRAP_CONTEXT;
-      setEditor(nextEditor);
+      setActionError("");
+      let currentEditor = nextEditor;
+      if (nextEditor.mode === "edit") {
+        if (!repository.getDesignSamplePoint) {
+          setActionError("最新点位信息暂不可用，请稍后重试。");
+          return;
+        }
+        try {
+          currentEditor = {
+            mode: "edit",
+            point: await repository.getDesignSamplePoint(nextEditor.point.id),
+          };
+        } catch (error) {
+          setActionError(
+            errorMessage(error, "最新点位信息暂不可用，请稍后重试。"),
+          );
+          return;
+        }
+      }
+      const context = currentEditor.point?.context ?? BOOTSTRAP_CONTEXT;
+      setEditor(currentEditor);
       setEditorContract(undefined);
       setEditorError("");
       setEditorValues(
-        nextEditor.point
+        currentEditor.point
           ? Object.fromEntries(
-              Object.entries(nextEditor.point.values).map(([code, value]) => [
-                code,
-                formValue(value),
-              ]),
+              Object.entries(currentEditor.point.values).map(
+                ([code, value]) => [code, formValue(value)],
+              ),
             )
           : {},
       );
@@ -169,6 +187,10 @@ export function DesignSamplePointTable({
 
   const save = async () => {
     if (!editor || !editorContract || saving) return;
+    if (!repository.getDesignSamplePoint) {
+      setEditorError("最新点位信息暂不可用，请稍后重试。");
+      return;
+    }
     const mutation: DesignSamplePointMutation = {
       contractVersion: editorContract.contractVersion,
       contractDigest: editorContract.contractDigest,
@@ -177,28 +199,39 @@ export function DesignSamplePointTable({
     };
     setSaving(true);
     setEditorError("");
+    setActionError("");
+    let saved: DesignSamplePointRow;
     try {
       if (editor.mode === "create") {
         if (!repository.createDesignSamplePoint) throw new Error("unavailable");
-        await repository.createDesignSamplePoint(mutation, requestKey());
+        saved = await repository.createDesignSamplePoint(
+          mutation,
+          requestKey(),
+        );
       } else {
         if (!repository.updateDesignSamplePoint) throw new Error("unavailable");
-        await repository.updateDesignSamplePoint(
+        saved = await repository.updateDesignSamplePoint(
           editor.point.id,
           mutation,
           editor.point.version,
         );
       }
-      setEditor(undefined);
-      setEditorContract(undefined);
-      reload();
     } catch (error) {
       setEditorError(
         errorMessage(error, "保存失败，请核对填写内容后重试。", editorContract),
       );
-    } finally {
       setSaving(false);
+      return;
     }
+    try {
+      await repository.getDesignSamplePoint(saved.id);
+    } catch {
+      setActionError("保存已完成，但最新点位信息读取失败，请刷新清单确认。");
+    }
+    setEditor(undefined);
+    setEditorContract(undefined);
+    reload();
+    setSaving(false);
   };
 
   const remove = async (point: DesignSamplePointRow) => {
@@ -208,12 +241,12 @@ export function DesignSamplePointTable({
     ) {
       return;
     }
-    setDeleteError("");
+    setActionError("");
     try {
       await repository.deleteDesignSamplePoint(point.id, point.version);
       reload();
     } catch (error) {
-      setDeleteError(errorMessage(error, "删除失败，请刷新清单后重试。"));
+      setActionError(errorMessage(error, "删除失败，请刷新清单后重试。"));
     }
   };
 
@@ -343,7 +376,7 @@ export function DesignSamplePointTable({
         </form>
       </div>
 
-      {deleteError ? <p role="alert">{deleteError}</p> : null}
+      {actionError ? <p role="alert">{actionError}</p> : null}
       {listState === "loading" ? (
         <p role="status">正在读取设计参考点清单…</p>
       ) : null}
@@ -455,12 +488,12 @@ export function DesignSamplePointTable({
             if (!repository.loadDesignSamplePointFields) return;
             setEditorError("");
             setEditorContract(undefined);
+            setEditorValues({});
             try {
               const next =
                 await repository.loadDesignSamplePointFields(context);
               setCatalog(next);
               setEditorContract(next);
-              setEditorValues({});
             } catch (error) {
               setEditorError(
                 errorMessage(error, "字段信息暂不可用，请稍后重试。"),
@@ -696,7 +729,7 @@ function MetadataField({
         min={field.minimumValue ?? undefined}
         onChange={(event) => onChange(event.target.value)}
         required={field.required}
-        step={field.valueType === "DECIMAL" ? "any" : undefined}
+        step={decimalStep(field)}
         type={
           field.valueType === "DECIMAL"
             ? "number"
@@ -832,6 +865,11 @@ function readableFieldErrors(
 
 function fieldLabel(field: DesignSampleFieldDefinition) {
   return field.code === "DSP_REGION_CODE" ? "行政区" : field.label;
+}
+
+function decimalStep(field: DesignSampleFieldDefinition) {
+  if (field.valueType !== "DECIMAL" || field.scale === null) return undefined;
+  return field.scale === 0 ? "1" : `0.${"0".repeat(field.scale - 1)}1`;
 }
 
 function formValue(value: unknown) {
