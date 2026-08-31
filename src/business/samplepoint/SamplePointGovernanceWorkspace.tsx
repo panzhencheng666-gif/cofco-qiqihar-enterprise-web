@@ -24,6 +24,10 @@ const modules = [
 ] as const satisfies readonly (readonly [GovernanceModule, string])[];
 
 const DESIGN_REFERENCE_PAGE_SIZE = 50;
+const DESIGN_DATASET_AGGREGATE_TYPE = "DESIGN_COORDINATE_DATASET";
+const DESIGN_DATASET_CLEANUP_ACTION =
+  "LEGACY_VILLAGE_DESIGN_COORDINATES_DELETED";
+const DESIGN_DATASET_REFRESH_DEBOUNCE_MS = 500;
 const EMPTY_DESIGN_POINTS: readonly SampleNetworkDesignPoint[] = [];
 
 const moduleGuidance: Readonly<
@@ -37,7 +41,7 @@ const moduleGuidance: Readonly<
   design: {
     title: "设计参考点",
     description:
-      "2,332 个行政村设计参考点不随年份变化，仅用于与年度现有样本进行覆盖对照。",
+      "行政村设计参考点不随年份变化，仅用于与年度现有样本进行覆盖对照；当前数量以清单实时结果为准。",
   },
   annual: {
     title: "年度样本",
@@ -72,8 +76,34 @@ export function SamplePointGovernanceWorkspace({
   const [comparisonState, setComparisonState] = useState<
     "loading" | "ready" | "unavailable"
   >("loading");
+  const [designDatasetRefreshSequence, setDesignDatasetRefreshSequence] =
+    useState(0);
   const selectedYearRefreshSequence =
     refreshSequence + (refreshSequenceByYear[year] ?? 0);
+  const comparisonRefreshSequence =
+    selectedYearRefreshSequence + designDatasetRefreshSequence;
+
+  useEffect(() => {
+    if (!repository.subscribeBusinessEvents) return undefined;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = repository.subscribeBusinessEvents(0, (event) => {
+      if (
+        event.aggregateType !== DESIGN_DATASET_AGGREGATE_TYPE ||
+        event.actionCode !== DESIGN_DATASET_CLEANUP_ACTION
+      ) {
+        return;
+      }
+      if (refreshTimer !== undefined) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = undefined;
+        setDesignDatasetRefreshSequence((current) => current + 1);
+      }, DESIGN_DATASET_REFRESH_DEBOUNCE_MS);
+    });
+    return () => {
+      if (refreshTimer !== undefined) clearTimeout(refreshTimer);
+      unsubscribe();
+    };
+  }, [repository]);
 
   useEffect(() => {
     let active = true;
@@ -106,7 +136,7 @@ export function SamplePointGovernanceWorkspace({
     return () => {
       active = false;
     };
-  }, [repository, selectedYearRefreshSequence, year]);
+  }, [comparisonRefreshSequence, repository, year]);
 
   return (
     <main

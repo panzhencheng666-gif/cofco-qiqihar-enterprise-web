@@ -1,14 +1,25 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  BusinessNotificationRow,
   CurrentSession,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { SamplePointGovernanceWorkspace } from "./SamplePointGovernanceWorkspace";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 const session: CurrentSession = {
   subjectId: "governance-user",
@@ -122,6 +133,14 @@ describe("SamplePointGovernanceWorkspace", () => {
     ).toBeVisible();
     expect(screen.getByText("众兴村")).toBeVisible();
     expect(
+      screen.getByRole("main", { name: "样本点管理工作台" }),
+    ).not.toHaveTextContent(/2[,]?332/u);
+    expect(
+      within(screen.getByRole("status", { name: "设计参考点概况" }))
+        .getByText("设计参考点")
+        .closest("div"),
+    ).toHaveTextContent("1 个");
+    expect(
       screen.queryByRole("columnheader", { name: "行政区代码" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("230231100201")).not.toBeInTheDocument();
@@ -185,6 +204,101 @@ describe("SamplePointGovernanceWorkspace", () => {
       "aria-selected",
       "true",
     );
+  });
+
+  it("debounces the V158 design dataset event into one authoritative comparison requery", async () => {
+    vi.useFakeTimers();
+    const initialRepository = repository();
+    const initialComparison =
+      await initialRepository.getSampleNetworkComparison!(2026);
+    const getSampleNetworkComparison = vi
+      .fn()
+      .mockResolvedValueOnce(initialComparison)
+      .mockResolvedValueOnce({
+        ...initialComparison,
+        designPointCount: 0,
+        pendingVerificationDesignPointCount: 0,
+        unrelatedDesignPointCount: 0,
+        designPoints: [],
+      });
+    let onChange: ((event: BusinessNotificationRow) => void) | undefined;
+    const unsubscribe = vi.fn();
+    const subscribeBusinessEvents = vi.fn(
+      (
+        _afterSequence: number,
+        listener: (event: BusinessNotificationRow) => void,
+      ) => {
+        onChange = listener;
+        return unsubscribe;
+      },
+    );
+    const data = {
+      ...initialRepository,
+      getSampleNetworkComparison,
+      subscribeBusinessEvents,
+    } as RealtimeBusinessRepository;
+    const event: BusinessNotificationRow = {
+      id: "event-v158",
+      sequence: 42,
+      aggregateType: "DESIGN_COORDINATE_DATASET",
+      aggregateId: "legacy-village-design-coordinate-cleanup-v1",
+      actionCode: "LEGACY_VILLAGE_DESIGN_COORDINATES_DELETED",
+      productCode: null,
+      surveyYear: null,
+      regionCodes: ["230200"],
+      occurredAt: "2026-08-31T04:00:00Z",
+      read: false,
+    };
+
+    const view = render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        repository={data}
+        session={session}
+      />,
+    );
+    await act(() => Promise.resolve());
+    fireEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
+    expect(getSampleNetworkComparison).toHaveBeenCalledTimes(1);
+    expect(subscribeBusinessEvents).toHaveBeenCalledWith(
+      0,
+      expect.any(Function),
+    );
+
+    act(() => {
+      onChange?.({
+        ...event,
+        id: "unrelated-event",
+        aggregateType: "SAMPLE_NETWORK_YEAR",
+        actionCode: "SAMPLE_NETWORK_PUBLISHED",
+        surveyYear: 2026,
+      });
+      vi.advanceTimersByTime(500);
+    });
+    expect(getSampleNetworkComparison).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      onChange?.(event);
+      vi.advanceTimersByTime(250);
+      onChange?.({ ...event, id: "event-v158-replayed", sequence: 43 });
+      vi.advanceTimersByTime(499);
+    });
+    expect(getSampleNetworkComparison).toHaveBeenCalledTimes(1);
+
+    await act(() => {
+      vi.advanceTimersByTime(1);
+      return Promise.resolve();
+    });
+    expect(getSampleNetworkComparison).toHaveBeenCalledTimes(2);
+    expect(
+      within(screen.getByRole("status", { name: "设计参考点概况" }))
+        .getByText("设计参考点")
+        .closest("div"),
+    ).toHaveTextContent("0 个");
+
+    view.unmount();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 
   it("filters design references progressively and keeps the long list paged", async () => {
