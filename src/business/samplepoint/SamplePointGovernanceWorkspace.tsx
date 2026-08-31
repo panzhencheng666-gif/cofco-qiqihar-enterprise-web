@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type {
   CurrentSession,
   RealtimeBusinessRepository,
   SampleNetworkComparison,
-  SampleNetworkDesignPoint,
 } from "@/platform/api/realtimeBusinessRepository";
 import { WorkspaceHeader } from "../UnifiedWorkspacePrimitives";
 import { AnnualSampleNetworkPanel } from "./AnnualSampleNetworkPanel";
+import { DesignSamplePointTable } from "./DesignSamplePointTable";
 import { SamplePointCoordinateGovernancePanel } from "./SamplePointCoordinateGovernancePanel";
 import { SamplePointIdentityGovernancePanel } from "./SamplePointIdentityGovernancePanel";
 
@@ -23,12 +23,16 @@ const modules = [
   ["review", "变更与审核"],
 ] as const satisfies readonly (readonly [GovernanceModule, string])[];
 
-const DESIGN_REFERENCE_PAGE_SIZE = 50;
 const DESIGN_DATASET_AGGREGATE_TYPE = "DESIGN_COORDINATE_DATASET";
 const DESIGN_DATASET_CLEANUP_ACTION =
   "LEGACY_VILLAGE_DESIGN_COORDINATES_DELETED";
 const DESIGN_DATASET_REFRESH_DEBOUNCE_MS = 500;
-const EMPTY_DESIGN_POINTS: readonly SampleNetworkDesignPoint[] = [];
+const DESIGN_POINT_AGGREGATE_TYPE = "DESIGN_SAMPLE_POINT";
+const DESIGN_POINT_ACTIONS = new Set([
+  "DESIGN_SAMPLE_POINT_CREATED",
+  "DESIGN_SAMPLE_POINT_UPDATED",
+  "DESIGN_SAMPLE_POINT_DELETED",
+]);
 
 const moduleGuidance: Readonly<
   Record<GovernanceModule, { title: string; description: string }>
@@ -41,7 +45,7 @@ const moduleGuidance: Readonly<
   design: {
     title: "设计参考点",
     description:
-      "行政村设计参考点不随年份变化，仅用于与年度现有样本进行覆盖对照；当前数量以清单实时结果为准。",
+      "设计参考点不随年份变化；按业务对象维护点位、行政区、坐标和适用信息，当前数量以清单实时结果为准。",
   },
   annual: {
     title: "年度样本",
@@ -78,19 +82,33 @@ export function SamplePointGovernanceWorkspace({
   >("loading");
   const [designDatasetRefreshSequence, setDesignDatasetRefreshSequence] =
     useState(0);
+  const [designPointTotal, setDesignPointTotal] = useState<number>();
+  const [designPointState, setDesignPointState] = useState<
+    "loading" | "ready" | "unavailable"
+  >("loading");
   const selectedYearRefreshSequence =
     refreshSequence + (refreshSequenceByYear[year] ?? 0);
   const comparisonRefreshSequence =
     selectedYearRefreshSequence + designDatasetRefreshSequence;
+  const handleDesignListStateChange = useCallback(
+    (state: "loading" | "ready" | "unavailable", total: number | undefined) => {
+      setDesignPointState(state);
+      setDesignPointTotal(total);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!repository.subscribeBusinessEvents) return undefined;
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const unsubscribe = repository.subscribeBusinessEvents(0, (event) => {
-      if (
-        event.aggregateType !== DESIGN_DATASET_AGGREGATE_TYPE ||
-        event.actionCode !== DESIGN_DATASET_CLEANUP_ACTION
-      ) {
+      const designDatasetChanged =
+        event.aggregateType === DESIGN_DATASET_AGGREGATE_TYPE &&
+        event.actionCode === DESIGN_DATASET_CLEANUP_ACTION;
+      const designPointChanged =
+        event.aggregateType === DESIGN_POINT_AGGREGATE_TYPE &&
+        DESIGN_POINT_ACTIONS.has(event.actionCode);
+      if (!designDatasetChanged && !designPointChanged) {
         return;
       }
       if (refreshTimer !== undefined) clearTimeout(refreshTimer);
@@ -173,7 +191,7 @@ export function SamplePointGovernanceWorkspace({
       <div className="sample-point-governance-workspace__context">
         <strong>{moduleGuidance[activeModule].title}</strong>
         <span>{moduleGuidance[activeModule].description}</span>
-        {(activeModule === "annual" || activeModule === "design") && (
+        {activeModule === "annual" && (
           <span className="sample-point-governance-workspace__context-year">
             管理年度：{year}年
           </span>
@@ -207,18 +225,7 @@ export function SamplePointGovernanceWorkspace({
         >
           <Status
             label="设计参考点"
-            value={summaryValue(comparisonState, comparison?.designPointCount)}
-          />
-          <Status
-            label="待权威坐标核验"
-            value={summaryValue(
-              comparisonState,
-              comparison?.pendingVerificationDesignPointCount,
-            )}
-          />
-          <Status
-            label="对照异常"
-            value={summaryValue(comparisonState, comparison?.anomalyCount)}
+            value={summaryValue(designPointState, designPointTotal)}
           />
         </dl>
       ) : null}
@@ -236,10 +243,11 @@ export function SamplePointGovernanceWorkspace({
           />
         ) : null}
         {activeModule === "design" ? (
-          <DesignReferenceTable
-            comparison={comparison}
-            state={comparisonState}
-            year={year}
+          <DesignSamplePointTable
+            onListStateChange={handleDesignListStateChange}
+            refreshSequence={designDatasetRefreshSequence}
+            repository={repository}
+            session={session}
           />
         ) : null}
         {activeModule === "annual" ? (
@@ -317,263 +325,4 @@ function summaryValue(
   if (state === "loading") return "同步中";
   if (state === "unavailable" || value === undefined) return "不可用";
   return `${value} 个`;
-}
-
-function DesignReferenceTable({
-  comparison,
-  state,
-  year,
-}: {
-  comparison: SampleNetworkComparison | undefined;
-  state: "loading" | "ready" | "unavailable";
-  year: number;
-}) {
-  const [query, setQuery] = useState("");
-  const [countyCode, setCountyCode] = useState("");
-  const [townshipCode, setTownshipCode] = useState("");
-  const [verification, setVerification] = useState<"" | "APPROVED" | "PENDING">(
-    "",
-  );
-  const [page, setPage] = useState(1);
-  const designPoints = comparison?.designPoints ?? EMPTY_DESIGN_POINTS;
-  const countyOptions = useMemo(
-    () =>
-      uniqueRegionOptions(
-        designPoints.map(
-          (point) => [point.countyRegionCode, point.countyName] as const,
-        ),
-      ),
-    [designPoints],
-  );
-  const townshipOptions = useMemo(
-    () =>
-      uniqueRegionOptions(
-        designPoints
-          .filter((point) => point.countyRegionCode === countyCode)
-          .map(
-            (point) => [point.townshipRegionCode, point.townshipName] as const,
-          ),
-      ),
-    [countyCode, designPoints],
-  );
-  const filteredPoints = useMemo(() => {
-    const term = query.trim().toLocaleLowerCase("zh-CN");
-    return designPoints.filter((point) => {
-      const matchesQuery =
-        !term ||
-        [point.villageName, point.townshipName, point.countyName].some(
-          (value) => value.toLocaleLowerCase("zh-CN").includes(term),
-        );
-      const authorityApproved =
-        point.coordinateReviewStatus === "AUTHORITY_APPROVED";
-      return (
-        matchesQuery &&
-        (!countyCode || point.countyRegionCode === countyCode) &&
-        (!townshipCode || point.townshipRegionCode === townshipCode) &&
-        (!verification ||
-          (verification === "APPROVED"
-            ? authorityApproved
-            : !authorityApproved))
-      );
-    });
-  }, [countyCode, designPoints, query, townshipCode, verification]);
-  const pageCount = Math.max(
-    1,
-    Math.ceil(filteredPoints.length / DESIGN_REFERENCE_PAGE_SIZE),
-  );
-  const currentPage = Math.min(page, pageCount);
-  const visiblePoints = filteredPoints.slice(
-    (currentPage - 1) * DESIGN_REFERENCE_PAGE_SIZE,
-    currentPage * DESIGN_REFERENCE_PAGE_SIZE,
-  );
-
-  if (state === "loading") return <p role="status">正在读取设计参考点清单…</p>;
-  if (state === "unavailable" || !comparison) {
-    return <p role="alert">设计参考点清单暂不可用，请稍后重试。</p>;
-  }
-  return (
-    <div className="sample-point-governance-workspace__table-region">
-      <header>
-        <div>
-          <h2>设计参考点清单</h2>
-          <p>
-            设计点不属于{year}
-            年度业务数据；年度仅用于读取当前对照结果。未经权威核验的候选坐标不会作为地图精确点。
-          </p>
-        </div>
-        <strong>{comparison.designPointCount} 个行政村</strong>
-      </header>
-      <div
-        aria-label="设计参考点台账工具栏"
-        className="sample-point-governance-workspace__toolbar"
-        role="toolbar"
-      >
-        <form
-          aria-label="设计参考点筛选"
-          className="sample-point-governance-workspace__filters"
-          onSubmit={(event) => event.preventDefault()}
-          role="search"
-        >
-          <label className="sample-point-governance-workspace__filter-query">
-            <span>关键词</span>
-            <input
-              aria-label="搜索行政村、乡镇或区县"
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setPage(1);
-              }}
-              placeholder="搜索行政村、乡镇或区县"
-              type="search"
-              value={query}
-            />
-          </label>
-          <label>
-            <span>区县</span>
-            <select
-              aria-label="所属区县"
-              onChange={(event) => {
-                setCountyCode(event.target.value);
-                setTownshipCode("");
-                setPage(1);
-              }}
-              value={countyCode}
-            >
-              <option value="">全部区县</option>
-              {countyOptions.map(([code, name]) => (
-                <option key={code} value={code}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {countyCode ? (
-            <label>
-              <span>乡镇</span>
-              <select
-                aria-label="所属乡镇"
-                onChange={(event) => {
-                  setTownshipCode(event.target.value);
-                  setPage(1);
-                }}
-                value={townshipCode}
-              >
-                <option value="">全部乡镇</option>
-                {townshipOptions.map(([code, name]) => (
-                  <option key={code} value={code}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <label>
-            <span>核验状态</span>
-            <select
-              aria-label="坐标核验状态"
-              onChange={(event) => {
-                setVerification(
-                  event.target.value as "" | "APPROVED" | "PENDING",
-                );
-                setPage(1);
-              }}
-              value={verification}
-            >
-              <option value="">全部状态</option>
-              <option value="APPROVED">权威核验通过</option>
-              <option value="PENDING">待权威核验</option>
-            </select>
-          </label>
-          <button
-            disabled={!query && !countyCode && !townshipCode && !verification}
-            onClick={() => {
-              setQuery("");
-              setCountyCode("");
-              setTownshipCode("");
-              setVerification("");
-              setPage(1);
-            }}
-            type="button"
-          >
-            清除筛选
-          </button>
-        </form>
-      </div>
-      <div
-        aria-label="设计参考点滚动清单"
-        className="sample-point-governance-workspace__table-scroll sample-point-governance-workspace__table-scroll--bounded"
-        role="region"
-        tabIndex={0}
-      >
-        <table aria-label="设计参考点清单">
-          <thead>
-            <tr>
-              <th>行政村</th>
-              <th>所属乡镇 / 区县</th>
-              <th>坐标来源</th>
-              <th>核验状态</th>
-              <th>地图展示</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visiblePoints.map((point) => (
-              <DesignReferenceRow key={point.villageRegionCode} point={point} />
-            ))}
-            {visiblePoints.length === 0 ? (
-              <tr>
-                <td colSpan={5}>没有符合当前筛选条件的设计参考点。</td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-      <nav
-        aria-label="设计参考点分页"
-        className="sample-point-governance-workspace__pagination"
-      >
-        <span>
-          共 {filteredPoints.length} 条 · 第 {currentPage} / {pageCount} 页
-        </span>
-        <div>
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            type="button"
-          >
-            上一页
-          </button>
-          <button
-            disabled={currentPage === pageCount}
-            onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
-            type="button"
-          >
-            下一页
-          </button>
-        </div>
-      </nav>
-    </div>
-  );
-}
-
-function uniqueRegionOptions(
-  options: ReadonlyArray<readonly [string, string]>,
-) {
-  return [...new Map(options).entries()].sort((left, right) =>
-    left[1].localeCompare(right[1], "zh-CN"),
-  );
-}
-
-function DesignReferenceRow({ point }: { point: SampleNetworkDesignPoint }) {
-  const authorityApproved =
-    point.coordinateReviewStatus === "AUTHORITY_APPROVED";
-  return (
-    <tr>
-      <td>{point.villageName}</td>
-      <td>
-        {point.townshipName} / {point.countyName}
-      </td>
-      <td>{point.coordinateSourceName?.trim() || "未登记权威来源"}</td>
-      <td>{authorityApproved ? "权威核验通过" : "待权威核验"}</td>
-      <td>{authorityApproved ? "可显示精确位置" : "仅显示行政村覆盖标识"}</td>
-    </tr>
-  );
 }

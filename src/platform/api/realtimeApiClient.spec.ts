@@ -102,6 +102,28 @@ describe("realtime API client", () => {
     expect(headers.get("X-XSRF-TOKEN")).toBe("csrf-token-2");
   });
 
+  it("sends version-guarded deletes and accepts an empty success response", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const client = createRealtimeApiClient({
+      baseUrl: "",
+      fetcher,
+      cookieSource: () => "XSRF-TOKEN=delete-token",
+    });
+
+    await expect(
+      client.delete("/api/v1/design-sample-points/point-1", {
+        expectedVersion: 3,
+      }),
+    ).resolves.toBeUndefined();
+
+    const [url, init] = fetcher.mock.calls[0] ?? [];
+    expect(url).toBe("/api/v1/design-sample-points/point-1?expectedVersion=3");
+    expect(init?.method).toBe("DELETE");
+    expect(new Headers(init?.headers).get("X-XSRF-TOKEN")).toBe("delete-token");
+  });
+
   it("lets a governed long-running command override the ordinary request timeout", async () => {
     const fetcher = vi.fn<typeof fetch>(
       (_input, init) =>

@@ -77,6 +77,11 @@ export interface RealtimeApiClient {
     body?: unknown,
     options?: RealtimeApiRequestOptions,
   ): Promise<T>;
+  delete(
+    path: string,
+    query?: Record<string, string | number | undefined>,
+    options?: RealtimeApiRequestOptions,
+  ): Promise<void>;
   upload<T>(
     path: string,
     body: FormData,
@@ -178,14 +183,16 @@ export function createRealtimeApiClient(
     options.cookieSource ??
     (() => (typeof document === "undefined" ? "" : document.cookie));
 
-  function csrfHeaders(method: "GET" | "POST" | "PUT"): Record<string, string> {
+  function csrfHeaders(
+    method: "GET" | "POST" | "PUT" | "DELETE",
+  ): Record<string, string> {
     if (method === "GET") return {};
     const token = csrfTokenFromCookies(cookieSource());
     return token ? { "X-XSRF-TOKEN": token } : {};
   }
 
   async function request<T>(
-    method: "GET" | "POST" | "PUT",
+    method: "GET" | "POST" | "PUT" | "DELETE",
     path: string,
     query?: Record<string, string | number | undefined>,
     body?: unknown,
@@ -216,6 +223,7 @@ export function createRealtimeApiClient(
       );
       const payload = await readJson(response);
       if (!response.ok) throw toError(response, payload);
+      if (response.status === 204) return undefined as T;
       if (responseShape === "RAW") return payload as T;
       if (!isObject(payload) || !("data" in payload)) {
         throw new RealtimeApiError({
@@ -342,6 +350,8 @@ export function createRealtimeApiClient(
       request("POST", path, undefined, body, requestOptions),
     put: (path, body, requestOptions) =>
       request("PUT", path, undefined, body, requestOptions),
+    delete: (path, query, requestOptions) =>
+      request<void>("DELETE", path, query, undefined, requestOptions),
     upload,
     download,
   };

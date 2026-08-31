@@ -10,6 +10,11 @@ import {
   realtimeApiClient,
   type RealtimeApiClient,
 } from "./realtimeApiClient";
+import {
+  loadDesignSampleFieldDefinition,
+  type DesignSampleContext,
+  type DesignSampleFieldContract,
+} from "./designSampleFieldContract";
 import { enterpriseSessionPath } from "./browserSession";
 import {
   PRODUCTION_PUBLIC_FIELD_CODES,
@@ -164,6 +169,34 @@ export interface SampleNetworkDesignPoint {
   coordinateSourceName?: string | null;
   coordinateSourceRevision?: string | null;
   coordinateMatchConfidence?: string | null;
+}
+
+export interface DesignSamplePointMutation {
+  contractVersion: string;
+  contractDigest: string;
+  context: DesignSampleContext;
+  values: Readonly<Record<string, unknown>>;
+}
+
+export interface DesignSamplePointRow extends DesignSamplePointMutation {
+  id: string;
+  name: string;
+  regionCode: string;
+  regionPath: string;
+  longitude: number;
+  latitude: number;
+  version: number;
+  updatedAt: string;
+}
+
+export interface DesignSamplePointListInput {
+  domainCode?: string;
+  productCode?: string;
+  objectTypeCode?: string;
+  regionCode?: string;
+  keyword?: string;
+  page: number;
+  pageSize: number;
 }
 
 export interface SampleNetworkActualPoint {
@@ -1417,6 +1450,22 @@ export interface RealtimeBusinessRepository {
     regionCode?: string,
     productCode?: string,
   ): Promise<SampleNetworkComparison>;
+  listDesignSamplePoints?(
+    input: DesignSamplePointListInput,
+  ): Promise<Page<DesignSamplePointRow>>;
+  loadDesignSamplePointFields?(
+    context: DesignSampleContext,
+  ): Promise<DesignSampleFieldContract>;
+  createDesignSamplePoint?(
+    input: DesignSamplePointMutation,
+    idempotencyKey: string,
+  ): Promise<DesignSamplePointRow>;
+  updateDesignSamplePoint?(
+    id: string,
+    input: DesignSamplePointMutation,
+    expectedVersion: number,
+  ): Promise<DesignSamplePointRow>;
+  deleteDesignSamplePoint?(id: string, expectedVersion: number): Promise<void>;
   generateSampleNetworkCandidates?(
     year: number,
     carriedFromYear?: number,
@@ -1887,6 +1936,31 @@ export function createRealtimeBusinessRepository(
             }
           : undefined,
       ),
+    listDesignSamplePoints: (input) =>
+      client.get<Page<DesignSamplePointRow>>("/api/v1/design-sample-points", {
+        domainCode: input.domainCode,
+        productCode: input.productCode,
+        objectTypeCode: input.objectTypeCode,
+        regionCode: input.regionCode,
+        keyword: input.keyword,
+        page: input.page,
+        pageSize: input.pageSize,
+      }),
+    loadDesignSamplePointFields: (context) =>
+      loadDesignSampleFieldDefinition(client, context),
+    createDesignSamplePoint: (input, idempotencyKey) =>
+      client.post<DesignSamplePointRow>("/api/v1/design-sample-points", input, {
+        headers: { "Idempotency-Key": idempotencyKey },
+      }),
+    updateDesignSamplePoint: (id, input, expectedVersion) =>
+      client.put<DesignSamplePointRow>(
+        `/api/v1/design-sample-points/${encodeURIComponent(id)}`,
+        { ...input, expectedVersion },
+      ),
+    deleteDesignSamplePoint: (id, expectedVersion) =>
+      client.delete(`/api/v1/design-sample-points/${encodeURIComponent(id)}`, {
+        expectedVersion,
+      }),
     generateSampleNetworkCandidates: (year, carriedFromYear) =>
       client.post<AnnualSampleNetwork>(`/api/v1/sample-networks/${year}`, {
         carriedFromYear: carriedFromYear ?? null,
