@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -10,9 +11,11 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  BusinessNotificationRow,
   EligibleFormalSample,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { ExistingSampleObservationPanel } from "./ExistingSampleObservationPanel";
 
 const sample: EligibleFormalSample = {
@@ -219,8 +222,731 @@ function renderPanel(api = repository(), onSaved = vi.fn()) {
   return { api, onSaved };
 }
 
+function formalPoint(
+  overrides: Partial<{
+    id: string;
+    canonicalName: string;
+    address: string;
+    longitude: string;
+    latitude: string;
+    objectTypeCode: string;
+    objectTypeName: string;
+    businessDomain: string;
+    version: number;
+  }> = {},
+) {
+  return {
+    id: "formal-point-1",
+    kindCode: "SURVEY_SITE",
+    canonicalName: "龙沙区贸易商样本",
+    regionCode: "230202",
+    objectTypeCode: "TRADER",
+    objectTypeName: "贸易商",
+    businessDomain: "MARKET",
+    address: "龙沙区新立街 1 号",
+    approvalState: "APPROVED",
+    locationState: "VALID",
+    longitude: "123.94",
+    latitude: "47.31",
+    effectiveFrom: "2026-01-01",
+    effectiveTo: null,
+    version: 0,
+    annualObservationCount: 0,
+    networkMembershipCount: 0,
+    ...overrides,
+  } as const;
+}
+
 describe("ExistingSampleObservationPanel", () => {
   afterEach(cleanup);
+
+  it("creates and edits the same stable fields with an authoritative GET after each write", async () => {
+    const created = formalPoint();
+    const updated = formalPoint({
+      canonicalName: "龙沙区重点贸易商样本",
+      address: "龙沙区新立街 2 号",
+      longitude: "123.941",
+      latitude: "47.311",
+      version: 1,
+    });
+    const listFormalSamplePoints = vi
+      .fn()
+      .mockResolvedValueOnce({
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
+      })
+      .mockResolvedValueOnce({
+        items: [created],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+      })
+      .mockResolvedValueOnce({
+        items: [updated],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+      });
+    const getFormalSamplePoint = vi
+      .fn()
+      .mockResolvedValueOnce(created)
+      .mockResolvedValueOnce(updated);
+    const createFormalSamplePoint = vi.fn().mockResolvedValue(created);
+    const updateFormalSamplePoint = vi.fn().mockResolvedValue(updated);
+    const api = {
+      ...repository(),
+      loadMasterData: vi.fn().mockResolvedValue({
+        regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
+      }),
+      listFormalSamplePoints,
+      getFormalSamplePoint,
+      createFormalSamplePoint,
+      updateFormalSamplePoint,
+      deleteFormalSamplePoint: vi.fn(),
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    };
+    renderPanel(api);
+
+    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "新增正式样本" }),
+    );
+    await userEvent.type(
+      screen.getByLabelText("正式样本名称"),
+      created.canonicalName,
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("正式样本地区"),
+      "230202",
+    );
+    await userEvent.type(
+      screen.getByLabelText("正式样本地址"),
+      created.address,
+    );
+    await userEvent.type(
+      screen.getByLabelText("正式样本经度"),
+      created.longitude,
+    );
+    await userEvent.type(
+      screen.getByLabelText("正式样本纬度"),
+      created.latitude,
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("正式样本对象分类"),
+      created.objectTypeCode,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "保存正式样本" }));
+
+    await waitFor(() =>
+      expect(createFormalSamplePoint).toHaveBeenCalledWith({
+        canonicalName: created.canonicalName,
+        regionCode: created.regionCode,
+        address: created.address,
+        longitude: 123.94,
+        latitude: 47.31,
+        objectTypeCode: created.objectTypeCode,
+      }),
+    );
+    expect(getFormalSamplePoint).toHaveBeenLastCalledWith(created.id);
+    expect(listFormalSamplePoints).toHaveBeenCalledTimes(2);
+    expect(
+      screen.getByRole("region", { name: "正式样本详情" }),
+    ).toHaveTextContent("龙沙区新立街 1 号");
+    expect(
+      screen.getByRole("region", { name: "正式样本详情" }),
+    ).toHaveTextContent("版本 0");
+
+    await userEvent.click(screen.getByRole("button", { name: "编辑稳定信息" }));
+    const name = screen.getByLabelText("正式样本名称");
+    const address = screen.getByLabelText("正式样本地址");
+    const longitude = screen.getByLabelText("正式样本经度");
+    const latitude = screen.getByLabelText("正式样本纬度");
+    await userEvent.clear(name);
+    await userEvent.type(name, updated.canonicalName);
+    await userEvent.clear(address);
+    await userEvent.type(address, updated.address);
+    await userEvent.clear(longitude);
+    await userEvent.type(longitude, updated.longitude);
+    await userEvent.clear(latitude);
+    await userEvent.type(latitude, updated.latitude);
+    await userEvent.click(screen.getByRole("button", { name: "保存修改" }));
+
+    await waitFor(() =>
+      expect(updateFormalSamplePoint).toHaveBeenCalledWith(
+        created.id,
+        {
+          canonicalName: updated.canonicalName,
+          regionCode: updated.regionCode,
+          address: updated.address,
+          longitude: 123.941,
+          latitude: 47.311,
+          objectTypeCode: updated.objectTypeCode,
+        },
+        0,
+      ),
+    );
+    expect(getFormalSamplePoint).toHaveBeenLastCalledWith(updated.id);
+    expect(listFormalSamplePoints).toHaveBeenCalledTimes(3);
+    expect(
+      screen.queryByDisplayValue(created.canonicalName),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "正式样本详情" }),
+    ).toHaveTextContent("龙沙区新立街 2 号");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "正式样本稳定信息已更新并重新查询",
+    );
+  });
+
+  it("requeries after a stale edit and removes the obsolete draft", async () => {
+    const point = formalPoint({ version: 4 });
+    const refreshed = formalPoint({
+      canonicalName: "其他人更新后的样本",
+      address: "最新权威地址",
+      version: 5,
+    });
+    const listFormalSamplePoints = vi.fn().mockResolvedValue({
+      items: [refreshed],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    const getFormalSamplePoint = vi
+      .fn()
+      .mockResolvedValueOnce(point)
+      .mockResolvedValueOnce(refreshed);
+    const updateFormalSamplePoint = vi.fn().mockRejectedValue(
+      new RealtimeApiError({
+        code: "FORMAL_SAMPLE_POINT_VERSION_CONFLICT",
+        message: "正式样本已发生变化，请刷新后重试",
+        status: 409,
+      }),
+    );
+    const api = {
+      ...repository(),
+      loadMasterData: vi.fn().mockResolvedValue({
+        regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
+      }),
+      listFormalSamplePoints,
+      getFormalSamplePoint,
+      createFormalSamplePoint: vi.fn(),
+      updateFormalSamplePoint,
+      deleteFormalSamplePoint: vi.fn(),
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    };
+    renderPanel(api);
+
+    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "查看详情" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "编辑稳定信息" }));
+    const name = screen.getByLabelText("正式样本名称");
+    await userEvent.clear(name);
+    await userEvent.type(name, "将被丢弃的旧草稿");
+    await userEvent.click(screen.getByRole("button", { name: "保存修改" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "正式样本已被其他人更新，请根据最新内容重新修改",
+    );
+    expect(updateFormalSamplePoint).toHaveBeenCalledWith(
+      point.id,
+      expect.any(Object),
+      4,
+    );
+    expect(listFormalSamplePoints).toHaveBeenCalledTimes(2);
+    expect(getFormalSamplePoint).toHaveBeenCalledTimes(2);
+    expect(
+      screen.queryByDisplayValue("将被丢弃的旧草稿"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "正式样本详情" }),
+    ).toHaveTextContent("最新权威地址");
+  });
+
+  it.each([
+    ["ACCESS_PERMISSION_DENIED", 403, "当前账号没有新增或修改正式样本的权限"],
+    ["ACCESS_REGION_DENIED", 403, "所选地区不在当前账号的授权范围内"],
+    ["COORDINATE_OUTSIDE_REGION", 400, "正式样本坐标不在所选行政区范围内"],
+    ["SAMPLE_POINT_COORDINATE_OCCUPIED", 409, "该坐标已被其他样本占用"],
+    ["ADMIN_BOUNDARY_UNAVAILABLE", 503, "所选行政区边界数据暂不可用"],
+  ])(
+    "shows a clear master-data write error for %s",
+    async (code, status, message) => {
+      const createFormalSamplePoint = vi
+        .fn()
+        .mockRejectedValue(
+          new RealtimeApiError({ code, message: "server message", status }),
+        );
+      const api = {
+        ...repository(),
+        loadMasterData: vi.fn().mockResolvedValue({
+          regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
+        }),
+        listFormalSamplePoints: vi.fn().mockResolvedValue({
+          items: [],
+          pageNumber: 0,
+          pageSize: 20,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+        getFormalSamplePoint: vi.fn(),
+        createFormalSamplePoint,
+        updateFormalSamplePoint: vi.fn(),
+        deleteFormalSamplePoint: vi.fn(),
+        subscribeBusinessEvents: vi.fn(() => vi.fn()),
+      };
+      renderPanel(api);
+
+      await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
+      await userEvent.click(
+        await screen.findByRole("button", { name: "新增正式样本" }),
+      );
+      await userEvent.type(
+        screen.getByLabelText("正式样本名称"),
+        "错误处理样本",
+      );
+      await userEvent.selectOptions(
+        screen.getByLabelText("正式样本地区"),
+        "230202",
+      );
+      await userEvent.type(
+        screen.getByLabelText("正式样本地址"),
+        "龙沙区测试地址",
+      );
+      await userEvent.type(screen.getByLabelText("正式样本经度"), "123.94");
+      await userEvent.type(screen.getByLabelText("正式样本纬度"), "47.31");
+      await userEvent.selectOptions(
+        screen.getByLabelText("正式样本对象分类"),
+        "TRADER",
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "保存正式样本" }),
+      );
+
+      expect(await screen.findByRole("status")).toHaveTextContent(message);
+    },
+  );
+
+  it("rejects missing coordinates before calling the formal sample create API", async () => {
+    const createFormalSamplePoint = vi.fn();
+    const api = {
+      ...repository(),
+      loadMasterData: vi.fn().mockResolvedValue({
+        regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
+      }),
+      listFormalSamplePoints: vi.fn().mockResolvedValue({
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
+      }),
+      getFormalSamplePoint: vi.fn(),
+      createFormalSamplePoint,
+      updateFormalSamplePoint: vi.fn(),
+      deleteFormalSamplePoint: vi.fn(),
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    };
+    renderPanel(api);
+
+    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "新增正式样本" }),
+    );
+    await userEvent.type(screen.getByLabelText("正式样本名称"), "待校验样本");
+    await userEvent.selectOptions(
+      screen.getByLabelText("正式样本地区"),
+      "230202",
+    );
+    await userEvent.type(
+      screen.getByLabelText("正式样本地址"),
+      "龙沙区测试地址",
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("正式样本对象分类"),
+      "TRADER",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "保存正式样本" }));
+
+    expect(createFormalSamplePoint).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "请完整填写正确的正式样本稳定信息",
+    );
+  });
+
+  it("queries formal sample points, loads authoritative detail, and requeries after versioned deletion", async () => {
+    const point = {
+      id: "formal-point-1",
+      kindCode: "SURVEY_SITE",
+      canonicalName: "龙沙区正式样本",
+      regionCode: "230202",
+      approvalState: "APPROVED",
+      locationState: "VALID",
+      longitude: "123.95",
+      latitude: "47.35",
+      effectiveFrom: "2026-01-01",
+      effectiveTo: null,
+      version: 4,
+      annualObservationCount: 0,
+      networkMembershipCount: 0,
+    } as const;
+    const listFormalSamplePoints = vi
+      .fn()
+      .mockResolvedValueOnce({
+        items: [point],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+      })
+      .mockResolvedValueOnce({
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
+      });
+    const getFormalSamplePoint = vi.fn().mockResolvedValue(point);
+    const deleteFormalSamplePoint = vi.fn().mockResolvedValue(undefined);
+    const api = {
+      ...repository(),
+      loadMasterData: vi.fn().mockResolvedValue({
+        regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
+      }),
+      listFormalSamplePoints,
+      getFormalSamplePoint,
+      deleteFormalSamplePoint,
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    };
+    renderPanel(api);
+
+    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
+    expect(await screen.findByText("龙沙区正式样本")).toBeVisible();
+    expect(screen.getAllByText("龙沙区").length).toBeGreaterThan(0);
+    expect(screen.queryByText("230202")).not.toBeInTheDocument();
+    expect(listFormalSamplePoints).toHaveBeenLastCalledWith({
+      regionCode: undefined,
+      keyword: undefined,
+      page: 0,
+      pageSize: 20,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "查看详情" }));
+    await waitFor(() =>
+      expect(getFormalSamplePoint).toHaveBeenCalledWith("formal-point-1"),
+    );
+    expect(
+      screen.getByRole("region", { name: "正式样本详情" }),
+    ).toHaveTextContent("123.95，47.35");
+
+    await userEvent.click(screen.getByRole("button", { name: "删除正式样本" }));
+    await userEvent.click(screen.getByRole("button", { name: "确认删除" }));
+    await waitFor(() =>
+      expect(deleteFormalSamplePoint).toHaveBeenCalledWith("formal-point-1", 4),
+    );
+    await waitFor(() =>
+      expect(listFormalSamplePoints).toHaveBeenCalledTimes(2),
+    );
+    expect(screen.queryByText("龙沙区正式样本")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "正式样本详情" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "正式样本已删除，列表已重新查询",
+    );
+  });
+
+  it("refreshes the formal sample list and selected detail after an outbox event", async () => {
+    const point = {
+      id: "formal-point-1",
+      kindCode: "SURVEY_SITE",
+      canonicalName: "龙沙区正式样本",
+      regionCode: "230202",
+      approvalState: "APPROVED",
+      locationState: "VALID",
+      longitude: "123.95",
+      latitude: "47.35",
+      effectiveFrom: "2026-01-01",
+      effectiveTo: null,
+      version: 4,
+      annualObservationCount: 0,
+      networkMembershipCount: 0,
+    } as const;
+    let onChange: (event: BusinessNotificationRow) => void = () => undefined;
+    const listFormalSamplePoints = vi.fn().mockResolvedValue({
+      items: [point],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    const getFormalSamplePoint = vi.fn().mockResolvedValue(point);
+    const api = {
+      ...repository(),
+      listFormalSamplePoints,
+      getFormalSamplePoint,
+      deleteFormalSamplePoint: vi.fn(),
+      subscribeBusinessEvents: vi.fn(
+        (
+          _after: number,
+          listener: (event: BusinessNotificationRow) => void,
+        ) => {
+          onChange = listener;
+          return vi.fn();
+        },
+      ),
+    };
+    renderPanel(api);
+    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "查看详情" }),
+    );
+    await waitFor(() => expect(getFormalSamplePoint).toHaveBeenCalledTimes(1));
+
+    onChange({
+      id: "event-1",
+      sequence: 9,
+      aggregateType: "FORMAL_SAMPLE_POINT",
+      aggregateId: "formal-point-1",
+      actionCode: "FORMAL_SAMPLE_POINT_UPDATED",
+      productCode: null,
+      regionCodes: ["230202"],
+      occurredAt: "2026-09-01T08:00:00Z",
+      read: false,
+    });
+
+    await waitFor(() =>
+      expect(listFormalSamplePoints).toHaveBeenCalledTimes(2),
+    );
+    await waitFor(() => expect(getFormalSamplePoint).toHaveBeenCalledTimes(2));
+    expect(api.subscribeBusinessEvents).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a version-conflict reason visible after the authoritative requery", async () => {
+    const point = {
+      id: "formal-point-1",
+      kindCode: "SURVEY_SITE",
+      canonicalName: "龙沙区正式样本",
+      regionCode: "230202",
+      approvalState: "APPROVED",
+      locationState: "VALID",
+      longitude: "123.95",
+      latitude: "47.35",
+      effectiveFrom: "2026-01-01",
+      effectiveTo: null,
+      version: 4,
+      annualObservationCount: 0,
+      networkMembershipCount: 0,
+    } as const;
+    const listFormalSamplePoints = vi.fn().mockResolvedValue({
+      items: [point],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    const refreshedPoint = { ...point, version: 5 };
+    const deleteFormalSamplePoint = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new RealtimeApiError({
+          code: "FORMAL_SAMPLE_POINT_VERSION_CONFLICT",
+          message: "正式样本已发生变化，请刷新后重试",
+          status: 409,
+        }),
+      )
+      .mockResolvedValueOnce(undefined);
+    const api = {
+      ...repository(),
+      listFormalSamplePoints,
+      getFormalSamplePoint: vi
+        .fn()
+        .mockResolvedValueOnce(point)
+        .mockResolvedValueOnce(refreshedPoint),
+      deleteFormalSamplePoint,
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    };
+    renderPanel(api);
+    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "查看详情" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "删除正式样本" }));
+    await userEvent.click(screen.getByRole("button", { name: "确认删除" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "正式样本已被其他人更新，请刷新后再删除",
+    );
+    expect(listFormalSamplePoints).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText("龙沙区正式样本").length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "删除正式样本" }));
+    await userEvent.click(screen.getByRole("button", { name: "确认删除" }));
+    await waitFor(() =>
+      expect(deleteFormalSamplePoint).toHaveBeenLastCalledWith(
+        "formal-point-1",
+        5,
+      ),
+    );
+  });
+
+  it("uses the agricultural-input server fields without generic grain-price residue", async () => {
+    const agriculturalSample: EligibleFormalSample = {
+      ...sample,
+      samplePointId: "agri-sample-1",
+      sampleName: "龙沙区兴农农资店",
+      objectTypeCode: "AGRICULTURAL_INPUT_STORE",
+      objectTypeName: "农资店",
+      latestValues: {
+        AGRI_INPUT_SEED_SALES_VOLUME: "1250.5000",
+        AGRI_INPUT_SEED_RETAIL_PRICE: "6.7500",
+        AGRI_INPUT_SUPPLY_STATUS: "TIGHT",
+        AGRI_INPUT_PLANTING_INTENTION_TREND: "INCREASE",
+      },
+    };
+    const api = repository();
+    api.listEligibleFormalSamples.mockResolvedValue([agriculturalSample]);
+    api.loadMarketDefinition.mockResolvedValue({
+      productCode: "CORN",
+      objectTypeCode: "AGRICULTURAL_INPUT_STORE",
+      coreFields: [
+        agriField(
+          "AGRI_INPUT_SEED_SALES_VOLUME",
+          "种子销售量",
+          "DECIMAL",
+          "公斤",
+        ),
+        agriField(
+          "AGRI_INPUT_SEED_RETAIL_PRICE",
+          "种子零售价",
+          "DECIMAL",
+          "元/公斤",
+        ),
+        agriField("AGRI_INPUT_SUPPLY_STATUS", "供货状态", "SELECT", null, [
+          { value: "SUFFICIENT", label: "充足" },
+          { value: "TIGHT", label: "偏紧" },
+        ]),
+        agriField(
+          "AGRI_INPUT_PLANTING_INTENTION_TREND",
+          "种植意向趋势",
+          "SELECT",
+          null,
+          [
+            { value: "INCREASE", label: "增加" },
+            { value: "STABLE", label: "持平" },
+          ],
+        ),
+      ],
+      groups: [],
+    });
+    renderPanel(api);
+
+    await userEvent.click(
+      screen.getByRole("tab", { name: "已有样本数据更新" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: /龙沙区兴农农资店/u }),
+    );
+    const salesVolume = await screen.findByLabelText("种子销售量（公斤）");
+    expect(salesVolume).toHaveValue(1250.5);
+    expect(salesVolume).toHaveAttribute("step", "0.0001");
+    expect(salesVolume).toHaveAttribute("max", "99999999999999.9999");
+    expect(salesVolume).toHaveAttribute("min", "-99999999999999.9999");
+    expect(screen.getByLabelText("种子零售价（元/公斤）")).toHaveValue(6.75);
+    expect(screen.getByLabelText("供货状态")).toHaveValue("TIGHT");
+    expect(screen.getByLabelText("种植意向趋势")).toHaveValue("INCREASE");
+    expect(screen.queryByLabelText(/采购基础价/u)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/销售基础价/u)).not.toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+    await waitFor(() =>
+      expect(api.saveFormalSampleObservation).toHaveBeenCalledTimes(1),
+    );
+    expect(api.saveFormalSampleObservation.mock.calls[0]?.[0]).toMatchObject({
+      payload: {
+        coreValues: agriculturalSample.latestValues,
+        facts: {},
+      },
+    });
+  });
+
+  it("keeps the formal sample workspace free of review and import workflow language", () => {
+    const source = [
+      "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
+      "src/business/formal-sample/FormalSamplePointLedger.tsx",
+    ]
+      .map((path) => readFileSync(path, "utf8"))
+      .join("\n");
+    expect(source).not.toMatch(
+      /待我处理|已办事项|导入|审核|DRAFT|PENDING|APPROVE|REJECT|PUBLISH/u,
+    );
+  });
+
+  it("replaces a clean selected editor with authoritative values after an observation event", async () => {
+    let onChange: (event: BusinessNotificationRow) => void = () => undefined;
+    const refreshed = {
+      ...sample,
+      latestObservationId: "record-2",
+      latestValues: {
+        ...sample.latestValues,
+        MKT_PURCHASE_BASE_PRICE: "2200.0000",
+      },
+    };
+    const api = repository();
+    api.listEligibleFormalSamples
+      .mockResolvedValueOnce([sample])
+      .mockResolvedValueOnce([refreshed]);
+    const withEvents = {
+      ...api,
+      subscribeBusinessEvents: vi.fn(
+        (
+          _after: number,
+          listener: (event: BusinessNotificationRow) => void,
+        ) => {
+          onChange = listener;
+          return vi.fn();
+        },
+      ),
+    };
+    renderPanel(withEvents);
+    await userEvent.click(
+      screen.getByRole("tab", { name: "已有样本数据更新" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: /中粮生化能源/u }),
+    );
+    expect(await screen.findByLabelText("采购基础价（元/吨）")).toHaveValue(
+      2097,
+    );
+
+    act(() => {
+      onChange({
+        id: "event-observation-2",
+        sequence: 10,
+        aggregateType: "FORMAL_SAMPLE_OBSERVATION",
+        aggregateId: "record-2",
+        actionCode: "FORMAL_SAMPLE_OBSERVATION_SAVED",
+        productCode: "CORN",
+        regionCodes: ["230221"],
+        occurredAt: "2026-09-01T08:00:00Z",
+        read: false,
+      });
+    });
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("采购基础价（元/吨）")).toHaveValue(2200),
+    );
+    expect(withEvents.subscribeBusinessEvents).toHaveBeenCalledTimes(1);
+  });
+
   it("switches the whole page between ledger and update modes", async () => {
     renderPanel();
     expect(screen.getByText("原有采集台账内容")).toBeVisible();
@@ -317,7 +1043,10 @@ describe("ExistingSampleObservationPanel", () => {
     expect(screen.getByLabelText("采购量（吨）")).toHaveValue(743.9);
     expect(screen.getByLabelText("加工投入量（吨）")).toHaveValue(680);
     expect(screen.getByLabelText("期末库存（吨）")).toHaveValue(430);
-    expect(screen.getByLabelText("期末库存（吨）")).not.toHaveAttribute("min");
+    expect(screen.getByLabelText("期末库存（吨）")).toHaveAttribute(
+      "min",
+      "-99999999999999.9999",
+    );
     expect(screen.queryByLabelText(/销售基础价/u)).not.toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "历史观测记录" }),
@@ -502,6 +1231,12 @@ describe("ExistingSampleObservationPanel", () => {
     expect(css).toMatch(
       /@media \(max-width:\s*640px\)[\s\S]*\.existing-observation__filters\s+:is\(input, select\)[^{]*\{[^}]*height:\s*48px/u,
     );
+    expect(css).toMatch(
+      /\.formal-sample-ledger__layout\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\([^;]+\)\s+minmax\([^;]+\)/u,
+    );
+    expect(css).toMatch(
+      /@media \(max-width:\s*900px\)[\s\S]*\.formal-sample-ledger__layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
+    );
     expect(shellCss).toMatch(
       /@media \(max-width:\s*1180px\)[\s\S]*\.formal-enterprise\s*\{[^}]*min-width:\s*0/u,
     );
@@ -513,3 +1248,25 @@ describe("ExistingSampleObservationPanel", () => {
     );
   });
 });
+
+function agriField(
+  code: string,
+  label: string,
+  controlType: string,
+  unit: string | null,
+  options: readonly { value: string; label: string }[] = [],
+) {
+  return {
+    code,
+    label,
+    controlType,
+    unit,
+    description: null,
+    capability: null,
+    required: false,
+    precision: 18,
+    scale: 4,
+    sortOrder: 130,
+    options,
+  };
+}

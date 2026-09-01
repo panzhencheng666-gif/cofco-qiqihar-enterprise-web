@@ -199,6 +199,42 @@ export interface DesignSamplePointListInput {
   pageSize: number;
 }
 
+export interface FormalSamplePointRow {
+  id: string;
+  kindCode: string;
+  canonicalName: string;
+  regionCode: string;
+  objectTypeCode: string;
+  objectTypeName: string;
+  businessDomain: string;
+  address: string;
+  approvalState: string;
+  locationState: string;
+  longitude: string | null;
+  latitude: string | null;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  version: number;
+  annualObservationCount: number;
+  networkMembershipCount: number;
+}
+
+export interface FormalSamplePointMutation {
+  canonicalName: string;
+  regionCode: string;
+  address: string;
+  longitude: number;
+  latitude: number;
+  objectTypeCode: string;
+}
+
+export interface FormalSamplePointListInput {
+  regionCode?: string;
+  keyword?: string;
+  page: number;
+  pageSize: number;
+}
+
 export interface SampleNetworkActualPoint {
   samplePointId: string;
   samplePointName: string;
@@ -1467,6 +1503,19 @@ export interface RealtimeBusinessRepository {
     expectedVersion: number,
   ): Promise<DesignSamplePointRow>;
   deleteDesignSamplePoint?(id: string, expectedVersion: number): Promise<void>;
+  listFormalSamplePoints?(
+    input: FormalSamplePointListInput,
+  ): Promise<Page<FormalSamplePointRow>>;
+  getFormalSamplePoint?(id: string): Promise<FormalSamplePointRow>;
+  createFormalSamplePoint?(
+    input: FormalSamplePointMutation,
+  ): Promise<FormalSamplePointRow>;
+  updateFormalSamplePoint?(
+    id: string,
+    input: FormalSamplePointMutation,
+    expectedVersion: number,
+  ): Promise<FormalSamplePointRow>;
+  deleteFormalSamplePoint?(id: string, expectedVersion: number): Promise<void>;
   generateSampleNetworkCandidates?(
     year: number,
     carriedFromYear?: number,
@@ -1964,6 +2013,28 @@ export function createRealtimeBusinessRepository(
       ),
     deleteDesignSamplePoint: (id, expectedVersion) =>
       client.delete(`/api/v1/design-sample-points/${encodeURIComponent(id)}`, {
+        expectedVersion,
+      }),
+    listFormalSamplePoints: (input) =>
+      client.get<Page<FormalSamplePointRow>>("/api/v1/formal-sample-points", {
+        regionCode: input.regionCode,
+        keyword: input.keyword,
+        page: input.page,
+        pageSize: input.pageSize,
+      }),
+    getFormalSamplePoint: (id) =>
+      client.get<FormalSamplePointRow>(
+        `/api/v1/formal-sample-points/${encodeURIComponent(id)}`,
+      ),
+    createFormalSamplePoint: (input) =>
+      client.post<FormalSamplePointRow>("/api/v1/formal-sample-points", input),
+    updateFormalSamplePoint: (id, input, expectedVersion) =>
+      client.put<FormalSamplePointRow>(
+        `/api/v1/formal-sample-points/${encodeURIComponent(id)}`,
+        { ...input, expectedVersion },
+      ),
+    deleteFormalSamplePoint: (id, expectedVersion) =>
+      client.delete(`/api/v1/formal-sample-points/${encodeURIComponent(id)}`, {
         expectedVersion,
       }),
     generateSampleNetworkCandidates: (year, carriedFromYear) =>

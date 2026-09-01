@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -19,15 +21,24 @@ import type {
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
-import { productionPayloadFromValues } from "../realtime/realtimeRecordFormModel";
+import {
+  decimalInputConstraints,
+  productionPayloadFromValues,
+} from "../realtime/realtimeRecordFormModel";
 import {
   observationFieldLabel,
   observationFields,
   type ObservationField,
 } from "./formalSampleObservationFields";
 
+const FormalSamplePointLedger = lazy(() =>
+  import("./FormalSamplePointLedger").then((module) => ({
+    default: module.FormalSamplePointLedger,
+  })),
+);
+
 type ValueMap = Record<string, string>;
-type PageMode = "LEDGER" | "UPDATE";
+type PageMode = "LEDGER" | "POINTS" | "UPDATE";
 
 const moduleLabels: Readonly<Record<string, string>> = {
   OVERVIEW: "总揽监测",
@@ -178,7 +189,7 @@ function FieldControl({
       data-field-code={field.code}
       required={field.required}
       type={number ? "number" : "text"}
-      step={number ? "any" : undefined}
+      {...(number ? decimalInputConstraints(field.precision, field.scale) : {})}
       value={value}
       onChange={(event) => onChange(event.target.value)}
     />
@@ -231,6 +242,7 @@ export function ExistingSampleObservationPanel({
   const sampleRequestVersion = useRef(0);
   const definitionRequestVersion = useRef(0);
   const historyRequestVersion = useRef(0);
+  const valuesDirty = useRef(false);
 
   const sample = useMemo(
     () => samples.find(({ samplePointId }) => samplePointId === sampleId),
@@ -269,6 +281,7 @@ export function ExistingSampleObservationPanel({
     setSampleId("");
     setDefinition(null);
     setValues({});
+    valuesDirty.current = false;
     setHistory([]);
     setHistoryTotal(0);
     setHistoryDetail(null);
@@ -281,8 +294,26 @@ export function ExistingSampleObservationPanel({
     resetSelection();
   }, [resetSelection]);
 
+  const loadDefinitionForSample = useCallback(
+    async (selected: EligibleFormalSample) => {
+      if (!repository) return null;
+      return domain === "PRODUCTION"
+        ? repository.loadProductionDefinition(
+            productCode,
+            selected.objectTypeCode ?? undefined,
+          )
+        : domain === "MARKET"
+          ? repository.loadMarketDefinition(
+              productCode,
+              selected.objectTypeCode ?? undefined,
+            )
+          : repository.loadLogisticsDefinition(productCode);
+    },
+    [domain, productCode, repository],
+  );
+
   const querySamples = useCallback(
-    async (preserveSampleId?: string) => {
+    async (preserveSampleId?: string, refreshEditor = false) => {
       if (
         !repository?.listEligibleFormalSamples ||
         !Number.isFinite(Date.parse(observedAt))
@@ -303,11 +334,31 @@ export function ExistingSampleObservationPanel({
         });
         if (requestVersion !== sampleRequestVersion.current) return;
         setSamples(next);
-        if (
-          preserveSampleId &&
-          next.some(({ samplePointId }) => samplePointId === preserveSampleId)
-        ) {
-          setSampleId(preserveSampleId);
+        const preserved = next.find(
+          ({ samplePointId }) => samplePointId === preserveSampleId,
+        );
+        if (preserved) {
+          setSampleId(preserved.samplePointId);
+          if (refreshEditor) {
+            if (valuesDirty.current) {
+              setNotice(
+                "正式数据已更新，当前未保存内容未被覆盖；请重新选择样本后继续。",
+              );
+            } else {
+              const definitionVersion = ++definitionRequestVersion.current;
+              const refreshedDefinition =
+                await loadDefinitionForSample(preserved);
+              if (
+                requestVersion !== sampleRequestVersion.current ||
+                definitionVersion !== definitionRequestVersion.current
+              )
+                return;
+              setValues({ ...preserved.latestValues });
+              setDefinition(refreshedDefinition);
+              setIdempotencyKey(crypto.randomUUID());
+            }
+          }
+          return preserved;
         } else {
           resetSelection();
         }
@@ -321,6 +372,7 @@ export function ExistingSampleObservationPanel({
     [
       domain,
       keyword,
+      loadDefinitionForSample,
       objectTypeCode,
       observedAt,
       productCode,
@@ -365,6 +417,39 @@ export function ExistingSampleObservationPanel({
   useEffect(() => {
     querySamplesRef.current = querySamples;
   }, [querySamples]);
+  const eventSequence = useRef(0);
+  const eventState = useRef({ sample, productCode, historyYear, loadHistory });
+  useEffect(() => {
+    eventState.current = { sample, productCode, historyYear, loadHistory };
+  }, [historyYear, loadHistory, productCode, sample]);
+
+  useEffect(() => {
+    if (mode !== "UPDATE" || !repository?.subscribeBusinessEvents) {
+      return undefined;
+    }
+    return repository.subscribeBusinessEvents(
+      eventSequence.current,
+      (event) => {
+        if (event.sequence <= eventSequence.current) return;
+        eventSequence.current = event.sequence;
+        const current = eventState.current;
+        const observationChanged =
+          event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED" &&
+          (!event.productCode || event.productCode === current.productCode);
+        const formalSampleChanged = event.actionCode.startsWith(
+          "FORMAL_SAMPLE_POINT_",
+        );
+        if (!observationChanged && !formalSampleChanged) return;
+        void querySamplesRef
+          .current(current.sample?.samplePointId, true)
+          .then((refreshed) => {
+            if (refreshed && observationChanged) {
+              void current.loadHistory(refreshed, 0, current.historyYear);
+            }
+          });
+      },
+    );
+  }, [mode, repository]);
 
   useEffect(() => {
     if (mode !== "UPDATE" || !repository) return;
@@ -398,6 +483,7 @@ export function ExistingSampleObservationPanel({
     const selectedHistoryYear = Number(observedAt.slice(0, 4));
     setSampleId(selected.samplePointId);
     setValues({ ...selected.latestValues });
+    valuesDirty.current = false;
     setDefinition(null);
     setHistory([]);
     setHistoryTotal(0);
@@ -407,18 +493,7 @@ export function ExistingSampleObservationPanel({
     setNotice("");
     setBusy(true);
     try {
-      const next =
-        domain === "PRODUCTION"
-          ? await repository.loadProductionDefinition(
-              productCode,
-              selected.objectTypeCode ?? undefined,
-            )
-          : domain === "MARKET"
-            ? await repository.loadMarketDefinition(
-                productCode,
-                selected.objectTypeCode ?? undefined,
-              )
-            : await repository.loadLogisticsDefinition(productCode);
+      const next = await loadDefinitionForSample(selected);
       if (requestVersion !== definitionRequestVersion.current) return;
       setDefinition(next);
       await loadHistory(selected, 0, selectedHistoryYear);
@@ -463,8 +538,9 @@ export function ExistingSampleObservationPanel({
         .map((code) => moduleLabels[code] ?? code)
         .join("、");
       setIdempotencyKey(crypto.randomUUID());
+      valuesDirty.current = false;
       await Promise.all([
-        querySamples(sample.samplePointId),
+        querySamples(sample.samplePointId, true),
         loadHistory(sample, 0, historyYear),
       ]);
       setNotice(`已正式入库，已实时联动${linked}`);
@@ -501,6 +577,15 @@ export function ExistingSampleObservationPanel({
         <button
           type="button"
           role="tab"
+          aria-selected={mode === "POINTS"}
+          className={mode === "POINTS" ? "is-active" : ""}
+          onClick={() => setMode("POINTS")}
+        >
+          正式样本台账
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={mode === "UPDATE"}
           className={mode === "UPDATE" ? "is-active" : ""}
           onClick={() => setMode("UPDATE")}
@@ -511,6 +596,16 @@ export function ExistingSampleObservationPanel({
 
       {mode === "LEDGER" ? (
         children
+      ) : mode === "POINTS" ? (
+        repository ? (
+          <Suspense fallback={<p role="status">正在读取正式样本台账…</p>}>
+            <FormalSamplePointLedger
+              domain={domain}
+              productCode={productCode}
+              repository={repository}
+            />
+          </Suspense>
+        ) : null
       ) : (
         <section
           className="existing-observation__page"
@@ -519,9 +614,7 @@ export function ExistingSampleObservationPanel({
           <header className="existing-observation__header">
             <div className="existing-observation__header-copy">
               <h2>已有样本数据更新</h2>
-              <p>
-                选择已正式生效的样本，保存一次即正式入库并保留历史，不进入审核流程。
-              </p>
+              <p>选择已正式生效的样本，保存一次即正式入库并保留历史。</p>
             </div>
             <span className="existing-observation__header-badge">
               正式数据直报
@@ -757,6 +850,7 @@ export function ExistingSampleObservationPanel({
                                     field={field}
                                     value={values[field.code] ?? ""}
                                     onChange={(value) => {
+                                      valuesDirty.current = true;
                                       setValues((current) => ({
                                         ...current,
                                         [field.code]: value,

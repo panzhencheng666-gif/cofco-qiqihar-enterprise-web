@@ -230,7 +230,7 @@ describe("realtime record form model", () => {
     });
   });
 
-  it("uses the audited market whitelist without cultivar, duplicate inventory or removed fields", () => {
+  it("uses the backend-filtered market definition without internal storage or removed fields", () => {
     const definition = {
       productCode: "CORN",
       objectTypeCode: "TRADER",
@@ -299,7 +299,10 @@ describe("realtime record form model", () => {
       "MKT_SAMPLE_LONGITUDE",
     ]);
     expect(fields.map(({ label }) => label).join(" ")).not.toMatch(
-      /具体品种|库存量|期末库存|库存存放地|出库量|加工投入量|调查期间|调查对象|对象类型|行政区划/,
+      /具体品种|库存量|期末库存|库存存放地|调查期间|调查对象|对象类型|行政区划/,
+    );
+    expect(fields.map(({ label }) => label)).toEqual(
+      expect.arrayContaining(["出库量", "加工投入量"]),
     );
 
     const payload = marketPayloadFromValues(
@@ -323,7 +326,11 @@ describe("realtime record form model", () => {
       definition,
     );
     expect(payload.coreValues).not.toHaveProperty("MKT_CULTIVAR_NAME");
-    expect(payload.facts).toEqual({ ENDING_INVENTORY: "12" });
+    expect(payload.facts).toEqual({
+      ENDING_INVENTORY: "12",
+      STOCK_OUTFLOW: "3",
+      PROCESSING_INPUT: "8",
+    });
     expect(payload.coreValues).toMatchObject({
       MKT_SAMPLE_NAME: "第一样本点",
       MKT_REPORTER_NAME: "当前登录人员",
@@ -370,18 +377,146 @@ describe("realtime record form model", () => {
   });
 });
 
-function marketCoreField(code: string, label: string) {
+describe("formal market object field parity", () => {
+  it("uses every agricultural-input field from the backend definition for create and update payloads", () => {
+    const definition = {
+      productCode: "CORN",
+      objectTypeCode: "AGRICULTURAL_INPUT_STORE",
+      coreFields: [
+        marketCoreField("MKT_OBJECT_TYPE", "样本点类型"),
+        marketCoreField("MKT_REGION", "地区"),
+        marketCoreField(
+          "AGRI_INPUT_SEED_SALES_VOLUME",
+          "种子销售量",
+          "公斤",
+          130,
+        ),
+        marketCoreField(
+          "AGRI_INPUT_SEED_RETAIL_PRICE",
+          "种子零售价",
+          "元/公斤",
+          131,
+        ),
+        {
+          ...marketCoreField("AGRI_INPUT_SUPPLY_STATUS", "供货状态", null, 132),
+          controlType: "SELECT",
+          options: [
+            { value: "SUFFICIENT", label: "充足", sortOrder: 10 },
+            { value: "TIGHT", label: "偏紧", sortOrder: 20 },
+          ],
+        },
+        {
+          ...marketCoreField(
+            "AGRI_INPUT_PLANTING_INTENTION_TREND",
+            "种植意向趋势",
+            null,
+            133,
+          ),
+          controlType: "SELECT",
+          options: [
+            { value: "INCREASE", label: "增加", sortOrder: 10 },
+            { value: "STABLE", label: "持平", sortOrder: 20 },
+          ],
+        },
+      ],
+      groups: [],
+    };
+
+    const businessFields = marketFields(definition).filter(
+      ({ code }) => !["surveyYear", "surveyMonth"].includes(code),
+    );
+    expect(
+      businessFields.map(
+        ({ code, label, unit, required, precision, scale, options }) => ({
+          code,
+          label,
+          unit,
+          required,
+          precision,
+          scale,
+          options,
+        }),
+      ),
+    ).toEqual([
+      expect.objectContaining({ code: "MKT_OBJECT_TYPE" }),
+      expect.objectContaining({ code: "MKT_REGION" }),
+      expect.objectContaining({
+        code: "AGRI_INPUT_SEED_SALES_VOLUME",
+        label: "种子销售量",
+        unit: "公斤",
+        precision: 18,
+        scale: 4,
+      }),
+      expect.objectContaining({
+        code: "AGRI_INPUT_SEED_RETAIL_PRICE",
+        label: "种子零售价",
+        unit: "元/公斤",
+        precision: 18,
+        scale: 4,
+      }),
+      expect.objectContaining({
+        code: "AGRI_INPUT_SUPPLY_STATUS",
+        options: [
+          { value: "SUFFICIENT", label: "充足" },
+          { value: "TIGHT", label: "偏紧" },
+        ],
+      }),
+      expect.objectContaining({
+        code: "AGRI_INPUT_PLANTING_INTENTION_TREND",
+        options: [
+          { value: "INCREASE", label: "增加" },
+          { value: "STABLE", label: "持平" },
+        ],
+      }),
+    ]);
+
+    expect(
+      marketPayloadFromValues(
+        {
+          surveyYear: "2026",
+          MKT_OBJECT_TYPE: "AGRICULTURAL_INPUT_STORE",
+          MKT_REGION: "230202",
+          AGRI_INPUT_SEED_SALES_VOLUME: "1250.5",
+          AGRI_INPUT_SEED_RETAIL_PRICE: "6.75",
+          AGRI_INPUT_SUPPLY_STATUS: "TIGHT",
+          AGRI_INPUT_PLANTING_INTENTION_TREND: "INCREASE",
+          MKT_PURCHASE_BASE_PRICE: "2380",
+          SALES_VOLUME: "17.5",
+        },
+        "CORN",
+        definition,
+      ),
+    ).toMatchObject({
+      coreValues: {
+        MKT_OBJECT_TYPE: "AGRICULTURAL_INPUT_STORE",
+        MKT_REGION: "230202",
+        AGRI_INPUT_SEED_SALES_VOLUME: "1250.5",
+        AGRI_INPUT_SEED_RETAIL_PRICE: "6.75",
+        AGRI_INPUT_SUPPLY_STATUS: "TIGHT",
+        AGRI_INPUT_PLANTING_INTENTION_TREND: "INCREASE",
+      },
+      facts: {},
+    });
+  });
+});
+
+function marketCoreField(
+  code: string,
+  label: string,
+  unit: string | null = "元/吨",
+  sortOrder = 10,
+) {
   return {
     code,
     label,
     controlType: "DECIMAL" as const,
-    unit: "元/吨",
+    unit,
     description: null,
     capability: null,
     required: true,
     precision: 18,
     scale: 4,
-    sortOrder: 10,
+    sortOrder,
     options: [],
   };
 }

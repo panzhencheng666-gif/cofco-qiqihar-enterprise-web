@@ -9,6 +9,8 @@ export interface ObservationField {
   code: string;
   label: string;
   unit: string | null;
+  precision: number | null;
+  scale: number | null;
   controlType: string;
   required: boolean;
   readOnly: boolean;
@@ -94,6 +96,8 @@ export function observationFields(
         code: field.code,
         label: field.label,
         unit: field.unit,
+        precision: field.precision,
+        scale: field.scale,
         controlType: field.controlType,
         required: field.required,
         readOnly: false,
@@ -115,6 +119,8 @@ export function observationFields(
         code: field.code,
         label: field.label,
         unit: field.unit,
+        precision: field.precision,
+        scale: field.scale,
         controlType: field.controlType,
         required: field.required,
         readOnly: false,
@@ -128,6 +134,8 @@ export function observationFields(
         code: field.code,
         label: field.label,
         unit: field.unit,
+        precision: field.precision,
+        scale: field.scale,
         controlType: field.valueType === "DECIMAL" ? "NUMBER" : field.valueType,
         required: false,
         readOnly: false,
@@ -148,6 +156,8 @@ export function observationFields(
       code: field.code,
       label: field.label,
       unit: field.unit,
+      precision: field.precision,
+      scale: field.scale,
       controlType: field.controlType,
       required: field.required,
       readOnly: false,
