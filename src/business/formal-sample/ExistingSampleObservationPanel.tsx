@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -28,7 +30,12 @@ import {
   observationFields,
   type ObservationField,
 } from "./formalSampleObservationFields";
-import { FormalSamplePointLedger } from "./FormalSamplePointLedger";
+
+const FormalSamplePointLedger = lazy(() =>
+  import("./FormalSamplePointLedger").then((module) => ({
+    default: module.FormalSamplePointLedger,
+  })),
+);
 
 type ValueMap = Record<string, string>;
 type PageMode = "LEDGER" | "POINTS" | "UPDATE";
@@ -591,7 +598,13 @@ export function ExistingSampleObservationPanel({
         children
       ) : mode === "POINTS" ? (
         repository ? (
-          <FormalSamplePointLedger repository={repository} />
+          <Suspense fallback={<p role="status">正在读取正式样本台账…</p>}>
+            <FormalSamplePointLedger
+              domain={domain}
+              productCode={productCode}
+              repository={repository}
+            />
+          </Suspense>
         ) : null
       ) : (
         <section

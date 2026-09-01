@@ -185,6 +185,28 @@ describe("realtime business repository", () => {
     );
   });
 
+  it("uses the same stable fields for formal sample creation and versioned update", async () => {
+    const { api, post, put } = client();
+    const repository = createRealtimeBusinessRepository(api);
+    const fields = {
+      canonicalName: "龙沙区农户样本",
+      regionCode: "230202",
+      address: "龙沙区新立街 1 号",
+      longitude: 123.94,
+      latitude: 47.31,
+      objectTypeCode: "FARMER",
+    };
+
+    await repository.createFormalSamplePoint!(fields);
+    await repository.updateFormalSamplePoint!("formal/point-1", fields, 4);
+
+    expect(post).toHaveBeenCalledWith("/api/v1/formal-sample-points", fields);
+    expect(put).toHaveBeenCalledWith(
+      "/api/v1/formal-sample-points/formal%2Fpoint-1",
+      { ...fields, expectedVersion: 4 },
+    );
+  });
+
   it("adapts the year-independent design sample point CRUD contract", async () => {
     const { api, delete: remove, get, post, put } = client();
     get.mockResolvedValueOnce({
