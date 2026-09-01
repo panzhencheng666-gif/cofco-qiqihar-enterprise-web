@@ -26,6 +26,7 @@ import {
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
 import {
+  decimalInputConstraints,
   marketFields,
   marketPayloadFromValues,
   productionFields,
@@ -40,6 +41,7 @@ type PanelMode = "entry" | "view" | "review";
 
 function inputType(field: RealtimeFormField): string {
   if (field.type === "date") return "date";
+  if (field.type === "decimal") return "number";
   return "text";
 }
 
@@ -73,6 +75,36 @@ function productName(code: string, master: MasterDataSnapshot | null): string {
 function isAccountLockedReporter(code: string): boolean {
   return code === "PROD_REPORTER_NAME" || code === "MKT_REPORTER_NAME";
 }
+
+const retainedObjectIdentityCodes: Readonly<
+  Record<Domain, ReadonlySet<string>>
+> = {
+  production: new Set([
+    "surveyYear",
+    "surveyMonth",
+    "surveyDate",
+    "regionCode",
+    "PROD_SAMPLE_NAME",
+    "PROD_REPORTER_NAME",
+    "PROD_SURVEYOR_NAME",
+    "PROD_SURVEYOR_PHONE",
+    "PROD_SAMPLE_CONTACT",
+    "PROD_SAMPLE_LATITUDE",
+    "PROD_SAMPLE_LONGITUDE",
+  ]),
+  market: new Set([
+    "surveyYear",
+    "surveyMonth",
+    "MKT_REGION",
+    "MKT_SAMPLE_NAME",
+    "MKT_REPORTER_NAME",
+    "MKT_SURVEYOR_NAME",
+    "MKT_SURVEYOR_PHONE",
+    "MKT_SAMPLE_CONTACT",
+    "MKT_SAMPLE_LATITUDE",
+    "MKT_SAMPLE_LONGITUDE",
+  ]),
+};
 
 function productionValues(record: ProductionRecordRow): Record<string, string> {
   const [legacyYear = "", legacyMonth = ""] = (record.surveyDate ?? "").split(
@@ -374,7 +406,23 @@ export function RealtimeBusinessOperationsPanel({
   function edit(code: string, value: string) {
     if (isAccountLockedReporter(code)) return;
     formDirty.current = true;
-    setValues((current) => ({ ...current, [code]: value }));
+    setValues((current) => {
+      if (code !== "objectTypeCode" && code !== "MKT_OBJECT_TYPE") {
+        return { ...current, [code]: value };
+      }
+      const retained = Object.fromEntries(
+        Object.entries(current).filter(([fieldCode]) =>
+          retainedObjectIdentityCodes[domain].has(fieldCode),
+        ),
+      );
+      return domain === "production"
+        ? { ...retained, objectTypeCode: value }
+        : {
+            ...retained,
+            objectTypeCode: value,
+            MKT_OBJECT_TYPE: value,
+          };
+    });
   }
 
   function displayedValue(field: RealtimeFormField): string {
@@ -959,6 +1007,12 @@ export function RealtimeBusinessOperationsPanel({
                         ) : (
                           <input
                             aria-label={field.label}
+                            {...(field.type === "decimal"
+                              ? decimalInputConstraints(
+                                  field.precision,
+                                  field.scale,
+                                )
+                              : {})}
                             inputMode={
                               field.type === "decimal" ? "decimal" : undefined
                             }

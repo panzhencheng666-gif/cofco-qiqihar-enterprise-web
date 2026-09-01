@@ -137,6 +137,54 @@ function client(
 }
 
 describe("realtime business repository", () => {
+  it("adapts the formal sample point list, detail, and versioned deletion contract", async () => {
+    const { api, delete: remove, get } = client();
+    get.mockResolvedValueOnce({
+      items: [
+        {
+          id: "formal-point-1",
+          canonicalName: "龙沙区正式样本",
+          regionCode: "230202",
+          version: 4,
+        },
+      ],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 1,
+      totalPages: 1,
+    } as never);
+    get.mockResolvedValueOnce({
+      id: "formal-point-1",
+      canonicalName: "龙沙区正式样本",
+      regionCode: "230202",
+      version: 4,
+    } as never);
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.listFormalSamplePoints!({
+      regionCode: "230202",
+      keyword: "龙沙",
+      page: 0,
+      pageSize: 20,
+    });
+    await repository.getFormalSamplePoint!("formal/point-1");
+    await repository.deleteFormalSamplePoint!("formal/point-1", 4);
+
+    expect(get).toHaveBeenCalledWith("/api/v1/formal-sample-points", {
+      regionCode: "230202",
+      keyword: "龙沙",
+      page: 0,
+      pageSize: 20,
+    });
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/formal-sample-points/formal%2Fpoint-1",
+    );
+    expect(remove).toHaveBeenCalledWith(
+      "/api/v1/formal-sample-points/formal%2Fpoint-1",
+      { expectedVersion: 4 },
+    );
+  });
+
   it("adapts the year-independent design sample point CRUD contract", async () => {
     const { api, delete: remove, get, post, put } = client();
     get.mockResolvedValueOnce({

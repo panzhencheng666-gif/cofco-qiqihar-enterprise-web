@@ -4,11 +4,6 @@ import type {
   ProductionDefinition,
   ProductionDraftPayload,
 } from "@/platform/api/realtimeBusinessRepository";
-import {
-  getMarketCapabilityGroups,
-  type GrainProductId,
-  type MarketBusinessObjectTypeId,
-} from "../core/businessApplicability";
 import { PRODUCTION_PUBLIC_FIELD_ORDER } from "@/platform/api/productionSurveyContract";
 
 export interface RealtimeFormField {
@@ -17,9 +12,36 @@ export interface RealtimeFormField {
   type: "text" | "date" | "decimal" | "select" | "region";
   required?: boolean;
   unit?: string | null;
+  precision?: number | null;
+  scale?: number | null;
   options?: readonly { value: string; label: string }[];
   section?: string;
   readOnly?: boolean;
+}
+
+export function decimalInputConstraints(
+  precision: number | null | undefined,
+  scale: number | null | undefined,
+): { step?: string; min?: string; max?: string } {
+  if (
+    precision === null ||
+    precision === undefined ||
+    scale === null ||
+    scale === undefined ||
+    !Number.isInteger(precision) ||
+    !Number.isInteger(scale) ||
+    precision <= 0 ||
+    scale < 0 ||
+    scale > precision
+  ) {
+    return {};
+  }
+  const step = scale === 0 ? "1" : `0.${"0".repeat(scale - 1)}1`;
+  const integerDigits = precision - scale;
+  const maximum = `${integerDigits === 0 ? "0" : "9".repeat(integerDigits)}${
+    scale === 0 ? "" : `.${"9".repeat(scale)}`
+  }`;
+  return { step, min: `-${maximum}`, max: maximum };
 }
 
 const productionBusinessFieldOrder = PRODUCTION_PUBLIC_FIELD_ORDER;
@@ -121,42 +143,6 @@ const surveyMonthOptions = Array.from({ length: 12 }, (_, index) => ({
   label: `${index + 1} 月`,
 }));
 
-const marketObjectTypeByCode: Readonly<
-  Record<string, MarketBusinessObjectTypeId>
-> = {
-  TRADER: "trader",
-  DEEP_PROCESSOR: "deep-processing",
-  RICE_MILL: "rice-mill",
-  BREEDING_FACTORY: "breeding-farm",
-  FEED_MILL: "feed-mill",
-  WHOLESALE_MARKET: "wholesale-market",
-  RESERVE_ENTERPRISE: "reserve-storage",
-};
-const marketProductByCode: Readonly<Record<string, GrainProductId>> = {
-  CORN: "corn",
-  SOYBEAN: "soybean",
-  RICE: "paddy",
-};
-const marketCodeByCapability: Readonly<Record<string, string>> = {
-  purchasePrice: "MKT_PURCHASE_BASE_PRICE",
-  salesPrice: "MKT_SALE_BASE_PRICE",
-  purchaseVolume: "PURCHASE_VOLUME",
-  salesVolume: "SALES_VOLUME",
-  wagonPrice: "MKT_CARRIAGE_BOARD_AMOUNT",
-  freight: "MKT_FREIGHT_AMOUNT",
-  packaging: "MKT_PACKAGING_FORM",
-  moisture: "MOISTURE",
-  testWeight: "TEST_WEIGHT",
-  toxin: "TOXIN",
-  impurity: "IMPURITY",
-  imperfectGrain: "IMPERFECT_GRAIN",
-  mildew: "MILDEW",
-  protein: "PROTEIN",
-  oilYield: "OIL_YIELD",
-  milledRiceRate: "MILLING_YIELD",
-  brownRiceRate: "BROWN_RICE_YIELD",
-  inventory: "ENDING_INVENTORY",
-};
 const marketBaseOrder = [
   "MKT_SAMPLE_NAME",
   "MKT_OBJECT_TYPE",
@@ -168,6 +154,20 @@ const marketBaseOrder = [
   "MKT_SAMPLE_LATITUDE",
   "MKT_SAMPLE_LONGITUDE",
 ] as const;
+const marketInternalCodes = new Set([
+  "MKT_TRADE_DATE",
+  "MKT_REPORTED_AT",
+  "MKT_FILLING_AT",
+  "MKT_STATUS",
+  "MKT_CULTIVAR_NAME",
+  "MKT_SAMPLE_SUBJECT_CODE",
+  "MKT_ACTUAL_TRADE_PRICE",
+  "MKT_TRADE_DIRECTION",
+  "MKT_STORAGE_REGION_CODE",
+  "MKT_INVENTORY_HOLDER_CODE",
+  "MKT_INVENTORY_OWNERSHIP_TYPE",
+  "MKT_INVENTORY_POLICY_ATTRIBUTE",
+]);
 const marketLabels: Readonly<Record<string, string>> = {
   MKT_OBJECT_TYPE: "样本点类型",
   MKT_REGION: "地区",
@@ -216,14 +216,6 @@ function marketSection(code: string): string {
 export function marketFields(
   definition: MarketDefinition,
 ): readonly RealtimeFormField[] {
-  const productId = marketProductByCode[definition.productCode] ?? "corn";
-  const objectTypeId = definition.objectTypeCode
-    ? (marketObjectTypeByCode[definition.objectTypeCode] ?? "trader")
-    : "trader";
-  const applicableCodes = getMarketCapabilityGroups(productId, objectTypeId)
-    .flatMap(({ fields }) => fields)
-    .map(({ id }) => marketCodeByCapability[id])
-    .filter((code): code is string => Boolean(code));
   const coreByCode = new Map(
     definition.coreFields.map((field) => [field.code, field]),
   );
@@ -232,10 +224,42 @@ export function marketFields(
       .flatMap(({ fields }) => fields)
       .map((field) => [field.code, field]),
   );
+  const serverBusinessCodes = [
+    ...definition.coreFields
+      .filter(
+        ({ code, controlType }) =>
+          !marketBaseOrder.includes(code as (typeof marketBaseOrder)[number]) &&
+          !marketInternalCodes.has(code) &&
+          !controlType.toUpperCase().startsWith("READONLY"),
+      )
+      .sort(
+        (left, right) =>
+          left.sortOrder - right.sortOrder ||
+          left.code.localeCompare(right.code),
+      )
+      .map(({ code }) => code),
+    ...definition.groups
+      .slice()
+      .sort(
+        (left, right) =>
+          left.sortOrder - right.sortOrder ||
+          left.category.localeCompare(right.category),
+      )
+      .flatMap((group) =>
+        group.fields
+          .slice()
+          .sort(
+            (left, right) =>
+              left.sortOrder - right.sortOrder ||
+              left.code.localeCompare(right.code),
+          )
+          .map(({ code }) => code),
+      ),
+  ];
   const orderedCodes = [
     ...marketBaseOrder,
-    ...applicableCodes.filter(
-      (code, index) => applicableCodes.indexOf(code) === index,
+    ...serverBusinessCodes.filter(
+      (code, index) => serverBusinessCodes.indexOf(code) === index,
     ),
   ];
   const mapped = orderedCodes.flatMap((code) => {
@@ -243,7 +267,10 @@ export function marketFields(
     const fact = factByCode.get(code);
     if (!core && !fact) return [];
     const controlType = core?.controlType;
-    const options = core?.options ?? [];
+    const options = (core?.options ?? []).map(({ value, label }) => ({
+      value,
+      label,
+    }));
     return [
       {
         code,
@@ -261,8 +288,13 @@ export function marketFields(
                   : ("text" as const),
         required: core?.required ?? false,
         unit: core?.unit ?? fact?.unit ?? null,
+        precision: core?.precision ?? fact?.precision ?? null,
+        scale: core?.scale ?? fact?.scale ?? null,
         options,
-        section: marketSection(code),
+        section:
+          definition.groups.find((group) =>
+            group.fields.some((field) => field.code === code),
+          )?.label ?? marketSection(code),
         readOnly: core?.controlType.startsWith("READONLY") ?? false,
       },
     ];
@@ -311,6 +343,8 @@ export function productionFields(
               : ("text" as const),
     required: field.required,
     unit: field.unit,
+    precision: field.precision,
+    scale: field.scale,
     options: field.options.map((value) => ({ value, label: value })),
     section: productionSection(field.code),
     readOnly: field.readOnly || field.calculated,
@@ -462,6 +496,8 @@ export function definitionFields(
           ? ("decimal" as const)
           : ("text" as const),
       unit: field.unit,
+      precision: field.precision,
+      scale: field.scale,
       section: group.label,
       required: field.code === "PROD_SAMPLE_NAME",
     })),

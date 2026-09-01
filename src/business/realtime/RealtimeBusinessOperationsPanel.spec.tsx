@@ -560,6 +560,124 @@ function fillRequiredProductionFields() {
 }
 
 describe("RealtimeBusinessOperationsPanel", () => {
+  it("loads agricultural-input fields from the backend definition and clears old object values when switching types", async () => {
+    const { api } = repository();
+    vi.spyOn(api, "listObjectTypes").mockResolvedValue([
+      { code: "TRADER", name: "贸易商", domain: "MARKET" },
+      {
+        code: "AGRICULTURAL_INPUT_STORE",
+        name: "农资店",
+        domain: "MARKET",
+      },
+    ]);
+    vi.spyOn(api, "listMarket").mockResolvedValue({
+      items: [],
+      pageNumber: 0,
+      pageSize: 100,
+      totalElements: 0,
+      totalPages: 0,
+    });
+    vi.spyOn(api, "loadMarketDefinition").mockImplementation(
+      (_productCode, objectTypeCode) =>
+        Promise.resolve({
+          productCode: "CORN",
+          objectTypeCode: objectTypeCode ?? null,
+          coreFields:
+            objectTypeCode === "AGRICULTURAL_INPUT_STORE"
+              ? [
+                  marketPanelField("MKT_OBJECT_TYPE", "样本点类型", "SELECT"),
+                  marketPanelField("MKT_REGION", "地区", "REGION_HIERARCHY"),
+                  marketPanelField(
+                    "AGRI_INPUT_SEED_SALES_VOLUME",
+                    "种子销售量",
+                    "DECIMAL",
+                    "公斤",
+                  ),
+                  marketPanelField(
+                    "AGRI_INPUT_SEED_RETAIL_PRICE",
+                    "种子零售价",
+                    "DECIMAL",
+                    "元/公斤",
+                  ),
+                  {
+                    ...marketPanelField(
+                      "AGRI_INPUT_SUPPLY_STATUS",
+                      "供货状态",
+                      "SELECT",
+                    ),
+                    options: [
+                      { value: "SUFFICIENT", label: "充足", sortOrder: 10 },
+                      { value: "TIGHT", label: "偏紧", sortOrder: 20 },
+                    ],
+                  },
+                  {
+                    ...marketPanelField(
+                      "AGRI_INPUT_PLANTING_INTENTION_TREND",
+                      "种植意向趋势",
+                      "SELECT",
+                    ),
+                    options: [
+                      { value: "INCREASE", label: "增加", sortOrder: 10 },
+                      { value: "STABLE", label: "持平", sortOrder: 20 },
+                    ],
+                  },
+                ]
+              : [
+                  marketPanelField("MKT_OBJECT_TYPE", "样本点类型", "SELECT"),
+                  marketPanelField("MKT_REGION", "地区", "REGION_HIERARCHY"),
+                  marketPanelField(
+                    "MKT_PURCHASE_BASE_PRICE",
+                    "采集对象收购价格",
+                    "DECIMAL",
+                    "元/吨",
+                  ),
+                ],
+          groups: [],
+        }),
+    );
+
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="市场填报员"
+        domain="market"
+        lockedProductCode="CORN"
+        repository={api}
+      />,
+    );
+
+    const objectType = await screen.findByLabelText("样本点类型");
+    const purchasePrice = await screen.findByLabelText("采集对象收购价格");
+    fireEvent.change(purchasePrice, { target: { value: "2380" } });
+    fireEvent.change(objectType, {
+      target: { value: "AGRICULTURAL_INPUT_STORE" },
+    });
+
+    expect(await screen.findByLabelText("种子销售量")).toHaveAttribute(
+      "step",
+      "0.0001",
+    );
+    expect(screen.getByLabelText("种子销售量")).toHaveAttribute(
+      "max",
+      "99999999999999.9999",
+    );
+    expect(screen.getByLabelText("种子销售量")).toHaveAttribute(
+      "min",
+      "-99999999999999.9999",
+    );
+    expect(screen.getByLabelText("种子零售价")).toHaveAttribute(
+      "step",
+      "0.0001",
+    );
+    expect(screen.getByLabelText("供货状态")).toHaveTextContent("偏紧");
+    expect(screen.getByLabelText("种植意向趋势")).toHaveTextContent("增加");
+    expect(screen.queryByLabelText("采集对象收购价格")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("样本点类型"), {
+      target: { value: "TRADER" },
+    });
+    expect(await screen.findByLabelText("采集对象收购价格")).toHaveValue(null);
+  });
+
   it("reloads records and notifies downstream consumers after a successful import", async () => {
     const { api, importProductionCsv } = repository();
     const listProduction = vi.spyOn(api, "listProduction");
@@ -1049,7 +1167,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
 
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
     expect(getProduction).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText(/销售数量/)).toHaveValue("25");
+    expect(screen.getByLabelText(/销售数量/)).toHaveValue(25);
   });
 
   it("saves a returned production record whose API survey period values are numeric", async () => {
@@ -1124,7 +1242,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     );
 
     const yieldInput = await screen.findByLabelText("预计单产");
-    await waitFor(() => expect(yieldInput).toHaveValue("650"));
+    await waitFor(() => expect(yieldInput).toHaveValue(650));
     fireEvent.change(yieldInput, { target: { value: "651" } });
     fireEvent.submit(yieldInput.closest("form") as HTMLFormElement);
 
@@ -1314,8 +1432,8 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.queryByText("MKT_STORAGE_REGION_CODE"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("加工投入量")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("出库量")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("加工投入量")).toBeVisible();
+    expect(screen.getByLabelText("出库量")).toBeVisible();
   });
 
   it("renders the required production provenance fields without the removed duplicate inputs", async () => {
@@ -1564,3 +1682,24 @@ describe("RealtimeBusinessOperationsPanel", () => {
     );
   });
 });
+
+function marketPanelField(
+  code: string,
+  label: string,
+  controlType: string,
+  unit: string | null = null,
+) {
+  return {
+    code,
+    label,
+    controlType,
+    unit,
+    description: null,
+    capability: null,
+    required: true,
+    precision: 18,
+    scale: 4,
+    sortOrder: 10,
+    options: [],
+  };
+}

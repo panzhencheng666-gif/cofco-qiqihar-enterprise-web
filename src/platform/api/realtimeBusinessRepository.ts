@@ -199,6 +199,29 @@ export interface DesignSamplePointListInput {
   pageSize: number;
 }
 
+export interface FormalSamplePointRow {
+  id: string;
+  kindCode: string;
+  canonicalName: string;
+  regionCode: string;
+  approvalState: string;
+  locationState: string;
+  longitude: string | null;
+  latitude: string | null;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  version: number;
+  annualObservationCount: number;
+  networkMembershipCount: number;
+}
+
+export interface FormalSamplePointListInput {
+  regionCode?: string;
+  keyword?: string;
+  page: number;
+  pageSize: number;
+}
+
 export interface SampleNetworkActualPoint {
   samplePointId: string;
   samplePointName: string;
@@ -1467,6 +1490,11 @@ export interface RealtimeBusinessRepository {
     expectedVersion: number,
   ): Promise<DesignSamplePointRow>;
   deleteDesignSamplePoint?(id: string, expectedVersion: number): Promise<void>;
+  listFormalSamplePoints?(
+    input: FormalSamplePointListInput,
+  ): Promise<Page<FormalSamplePointRow>>;
+  getFormalSamplePoint?(id: string): Promise<FormalSamplePointRow>;
+  deleteFormalSamplePoint?(id: string, expectedVersion: number): Promise<void>;
   generateSampleNetworkCandidates?(
     year: number,
     carriedFromYear?: number,
@@ -1964,6 +1992,21 @@ export function createRealtimeBusinessRepository(
       ),
     deleteDesignSamplePoint: (id, expectedVersion) =>
       client.delete(`/api/v1/design-sample-points/${encodeURIComponent(id)}`, {
+        expectedVersion,
+      }),
+    listFormalSamplePoints: (input) =>
+      client.get<Page<FormalSamplePointRow>>("/api/v1/formal-sample-points", {
+        regionCode: input.regionCode,
+        keyword: input.keyword,
+        page: input.page,
+        pageSize: input.pageSize,
+      }),
+    getFormalSamplePoint: (id) =>
+      client.get<FormalSamplePointRow>(
+        `/api/v1/formal-sample-points/${encodeURIComponent(id)}`,
+      ),
+    deleteFormalSamplePoint: (id, expectedVersion) =>
+      client.delete(`/api/v1/formal-sample-points/${encodeURIComponent(id)}`, {
         expectedVersion,
       }),
     generateSampleNetworkCandidates: (year, carriedFromYear) =>
