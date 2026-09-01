@@ -210,8 +210,8 @@ export interface FormalSamplePointRow {
   address: string;
   approvalState: string;
   locationState: string;
-  longitude: string | null;
-  latitude: string | null;
+  longitude: number | null;
+  latitude: number | null;
   effectiveFrom: string;
   effectiveTo: string | null;
   version: number;
