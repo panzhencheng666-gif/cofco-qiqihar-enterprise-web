@@ -94,8 +94,8 @@ function editEditor(point: FormalSamplePointRow): EditorState {
     canonicalName: point.canonicalName,
     regionCode: point.regionCode,
     address: point.address,
-    longitude: point.longitude ?? "",
-    latitude: point.latitude ?? "",
+    longitude: point.longitude === null ? "" : String(point.longitude),
+    latitude: point.latitude === null ? "" : String(point.latitude),
     objectTypeCode: point.objectTypeCode,
   };
 }

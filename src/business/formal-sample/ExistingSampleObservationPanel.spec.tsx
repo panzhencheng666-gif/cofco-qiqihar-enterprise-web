@@ -227,8 +227,8 @@ function formalPoint(
     id: string;
     canonicalName: string;
     address: string;
-    longitude: string;
-    latitude: string;
+    longitude: number;
+    latitude: number;
     objectTypeCode: string;
     objectTypeName: string;
     businessDomain: string;
@@ -246,8 +246,8 @@ function formalPoint(
     address: "龙沙区新立街 1 号",
     approvalState: "APPROVED",
     locationState: "VALID",
-    longitude: "123.94",
-    latitude: "47.31",
+    longitude: 123.94,
+    latitude: 47.31,
     effectiveFrom: "2026-01-01",
     effectiveTo: null,
     version: 0,
@@ -265,8 +265,6 @@ describe("ExistingSampleObservationPanel", () => {
     const updated = formalPoint({
       canonicalName: "龙沙区重点贸易商样本",
       address: "龙沙区新立街 2 号",
-      longitude: "123.941",
-      latitude: "47.311",
       version: 1,
     });
     const listFormalSamplePoints = vi
@@ -330,11 +328,11 @@ describe("ExistingSampleObservationPanel", () => {
     );
     await userEvent.type(
       screen.getByLabelText("正式样本经度"),
-      created.longitude,
+      String(created.longitude),
     );
     await userEvent.type(
       screen.getByLabelText("正式样本纬度"),
-      created.latitude,
+      String(created.latitude),
     );
     await userEvent.selectOptions(
       screen.getByLabelText("正式样本对象分类"),
@@ -364,16 +362,10 @@ describe("ExistingSampleObservationPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "编辑稳定信息" }));
     const name = screen.getByLabelText("正式样本名称");
     const address = screen.getByLabelText("正式样本地址");
-    const longitude = screen.getByLabelText("正式样本经度");
-    const latitude = screen.getByLabelText("正式样本纬度");
     await userEvent.clear(name);
     await userEvent.type(name, updated.canonicalName);
     await userEvent.clear(address);
     await userEvent.type(address, updated.address);
-    await userEvent.clear(longitude);
-    await userEvent.type(longitude, updated.longitude);
-    await userEvent.clear(latitude);
-    await userEvent.type(latitude, updated.latitude);
     await userEvent.click(screen.getByRole("button", { name: "保存修改" }));
 
     await waitFor(() =>
@@ -383,8 +375,8 @@ describe("ExistingSampleObservationPanel", () => {
           canonicalName: updated.canonicalName,
           regionCode: updated.regionCode,
           address: updated.address,
-          longitude: 123.941,
-          latitude: 47.311,
+          longitude: 123.94,
+          latitude: 47.31,
           objectTypeCode: updated.objectTypeCode,
         },
         0,
