@@ -1,12 +1,10 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { formalApplicationDefinitions } from "../formalEnterpriseData";
 import { createFormalRoute } from "../formalEnterpriseModel";
 import { BusinessNavigationTree } from "./BusinessNavigationTree";
-
-afterEach(cleanup);
 
 describe("BusinessNavigationTree", () => {
   it("renders the current application as one stable keyboard-operable business tree", async () => {
@@ -49,28 +47,56 @@ describe("BusinessNavigationTree", () => {
     );
   });
 
-  it("removes retired workflow navigation instead of hiding it inside My Work", () => {
+  it("keeps only design-sample maintenance under My Work", () => {
     const onNavigate = vi.fn();
     const application = formalApplicationDefinitions.find(
-      ({ key }) => key === "production",
+      ({ key }) => key === "work",
     );
     if (!application) throw new Error("missing work application");
 
     render(
       <BusinessNavigationTree
         application={application}
-        currentRoute={createFormalRoute("production", "corn-collection")}
+        currentRoute={createFormalRoute("work", "sample-governance")}
         onNavigate={onNavigate}
       />,
     );
 
     const navigation = screen.getByRole("navigation", {
-      name: "产情监测模块",
+      name: "我的工作模块",
     });
-    expect(navigation).not.toHaveTextContent("我的工作");
+    expect(
+      within(navigation).getByRole("button", { name: "样本点管理" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(navigation).not.toHaveTextContent("人工审核");
     expect(navigation).not.toHaveTextContent("待我处理");
     expect(navigation).not.toHaveTextContent("已办事项");
     expect(navigation).not.toHaveTextContent("导入任务");
-    expect(navigation).not.toHaveTextContent("数据审核");
+  });
+
+  it.each([
+    ["production", "review", "数据审核"],
+    ["market", "review", "数据审核"],
+    ["reporting", "review-distribution", "报告审核与发布"],
+    ["reporting", "ledger", "报告台账"],
+  ] as const)("keeps %s %s navigation reachable", (key, section, label) => {
+    const application = formalApplicationDefinitions.find(
+      ({ key: applicationKey }) => applicationKey === key,
+    );
+    if (!application) throw new Error(`missing ${key} application`);
+
+    render(
+      <BusinessNavigationTree
+        application={application}
+        currentRoute={createFormalRoute(key, section)}
+        onNavigate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen
+        .getAllByRole("button", { name: label })
+        .some((button) => button.getAttribute("aria-current") === "page"),
+    ).toBe(true);
   });
 });

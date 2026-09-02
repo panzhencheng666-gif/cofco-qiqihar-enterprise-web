@@ -5,6 +5,7 @@ import {
   marketSectionProductCode,
   readFormalLocation,
   readFormalRoute,
+  formalSectionsByApplication,
   summarizeDutyMonth,
   writeFormalLocation,
   writeFormalRoute,
@@ -21,20 +22,35 @@ import {
 import type { FormalApplicationDefinition } from "./formalEnterpriseData";
 
 describe("formal enterprise route model", () => {
-  it.each([
-    "#/我的工作/待我处理",
-    "#/我的工作/待我审核",
-    "#/我的工作/已办事项",
-    "#/我的工作/导入任务",
-    "?page=work&section=tasks",
-    "?page=work&section=review",
-    "?page=work&section=completed",
-    "?page=work&section=imports",
-    "#/产情监测/数据审核",
-    "#/市场监测/数据审核",
-  ])("retires legacy workflow route %s to the collection ledger", (route) => {
-    expect(readFormalRoute(route)).toEqual(
-      createFormalRoute("market", "corn-collection"),
+  it("removes the retired My Work workflows while preserving design-sample maintenance", () => {
+    expect(formalSectionsByApplication.work).toEqual(["sample-governance"]);
+
+    for (const route of [
+      "#/我的工作/人工审核",
+      "#/我的工作/待我处理",
+      "#/我的工作/已办事项",
+      "#/我的工作/导入任务",
+      "?page=work&section=review",
+      "?page=work&section=tasks",
+      "?page=work&section=completed",
+      "?page=work&section=imports",
+    ]) {
+      expect(readFormalRoute(route)).toEqual(
+        createFormalRoute("market", "corn-collection"),
+      );
+    }
+
+    expect(readFormalRoute("#/产情监测/数据审核")).toEqual(
+      createFormalRoute("production", "review"),
+    );
+    expect(readFormalRoute("#/市场监测/数据审核")).toEqual(
+      createFormalRoute("market", "review"),
+    );
+    expect(readFormalRoute("#/报表中心/报告审核与发布")).toEqual(
+      createFormalRoute("reporting", "review-distribution"),
+    );
+    expect(readFormalRoute("#/报表中心/报告台账")).toEqual(
+      createFormalRoute("reporting", "ledger"),
     );
   });
 
@@ -48,7 +64,9 @@ describe("formal enterprise route model", () => {
       ["production", "corn-collection", "#/产情监测/玉米产情填报"],
       ["production", "soybean-collection", "#/产情监测/大豆产情填报"],
       ["production", "rice-collection", "#/产情监测/稻谷产情填报"],
+      ["production", "tasks", "#/产情监测/产情任务"],
       ["production", "objects", "#/产情监测/调查对象"],
+      ["production", "review", "#/产情监测/数据审核"],
       ["production", "analysis", "#/产情监测/产情分析"],
       ["market", "corn-collection", "#/市场监测/玉米市场采集"],
       ["market", "soybean-collection", "#/市场监测/大豆市场采集"],
@@ -56,7 +74,9 @@ describe("formal enterprise route model", () => {
       ["market", "corn-logistics", "#/市场监测/玉米物流监测"],
       ["market", "soybean-logistics", "#/市场监测/大豆物流监测"],
       ["market", "paddy-logistics", "#/市场监测/稻谷物流监测"],
+      ["market", "tasks", "#/市场监测/采集任务"],
       ["market", "objects", "#/市场监测/监测对象"],
+      ["market", "review", "#/市场监测/数据审核"],
       ["market", "analysis", "#/市场监测/市场分析"],
       ["supply", "balance", "#/供需分析/供需平衡"],
       ["supply", "corn-balance", "#/供需分析/玉米供需平衡"],
@@ -67,6 +87,8 @@ describe("formal enterprise route model", () => {
       ["supply", "comparison", "#/供需分析/四年对比"],
       ["supply", "versions", "#/供需分析/核定记录"],
       ["reporting", "compose", "#/报表中心/业务报告"],
+      ["reporting", "review-distribution", "#/报表中心/报告审核与发布"],
+      ["reporting", "ledger", "#/报表中心/报告台账"],
     ] as const;
 
     for (const [application, section, businessHash] of routes) {
@@ -130,7 +152,7 @@ describe("formal enterprise route model", () => {
     });
     expect(
       writeFormalRoute(readFormalRoute("?page=reporting&section=ledger")),
-    ).toBe("#/市场监测/玉米市场采集");
+    ).toBe("#/报表中心/报告台账");
   });
 
   it("normalizes invalid modules and views without reflecting unknown codes", () => {
@@ -298,7 +320,7 @@ describe("formal enterprise sample data", () => {
     );
   });
 
-  it("keeps retired workflow entries out of business navigation", () => {
+  it("contains the six ordinary-user applications and only design maintenance in My Work", () => {
     expect(
       formalApplicationDefinitions.map((application) => application.key),
     ).toEqual([
@@ -312,18 +334,13 @@ describe("formal enterprise sample data", () => {
     expect(reportingNavigation.flatMap((group) => group.items)).toEqual([
       expect.objectContaining({ key: "compose" }),
     ]);
-    const labels = formalApplicationDefinitions.flatMap((application) =>
-      application.navigation.map(({ label }) => label),
-    );
-    expect(labels).not.toEqual(
-      expect.arrayContaining([
-        "待我处理",
-        "待我审核",
-        "已办事项",
-        "导入任务",
-        "数据审核",
-      ]),
-    );
+    const work = formalApplicationDefinitions.find(({ key }) => key === "work");
+    expect(work?.navigation).toEqual([
+      {
+        route: createFormalRoute("work", "sample-governance"),
+        label: "样本点管理",
+      },
+    ]);
   });
 
   it("lists three product-owned logistics menus without a generic product switcher", () => {

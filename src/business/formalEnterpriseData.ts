@@ -222,15 +222,11 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       code: "01",
       label: "我的工作",
       shortLabel: "工作",
-      note: "统一处理本人待填报、待审核、退回、异常和发布事项",
+      note: "维护设计样本点稳定信息",
       navigation: [
         {
           route: createFormalRoute("work", "sample-governance"),
           label: "样本点管理",
-        },
-        {
-          route: createFormalRoute("work", "obligations"),
-          label: "填报履职周报",
         },
       ],
     },
@@ -273,10 +269,12 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           route: createFormalRoute("production", "regional-annual"),
           label: "地区产情填报",
         },
+        { route: createFormalRoute("production", "tasks"), label: "产情任务" },
         {
           route: createFormalRoute("production", "objects"),
           label: "调查对象",
         },
+        { route: createFormalRoute("production", "review"), label: "数据审核" },
         {
           route: createFormalRoute("production", "analysis"),
           label: "产情分析",
@@ -314,7 +312,9 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           route: createFormalRoute("market", "paddy-logistics"),
           label: "稻谷物流监测",
         },
+        { route: createFormalRoute("market", "tasks"), label: "采集任务" },
         { route: createFormalRoute("market", "objects"), label: "监测对象" },
+        { route: createFormalRoute("market", "review"), label: "数据审核" },
         { route: createFormalRoute("market", "analysis"), label: "市场分析" },
       ],
     },
@@ -340,6 +340,11 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       note: "按地区、品种和时间形成产情、市场、物流与供需业务报告",
       navigation: [
         { route: createFormalRoute("reporting", "compose"), label: "业务报告" },
+        {
+          route: createFormalRoute("reporting", "review-distribution"),
+          label: "报告审核与发布",
+        },
+        { route: createFormalRoute("reporting", "ledger"), label: "报告台账" },
       ],
     },
   ];

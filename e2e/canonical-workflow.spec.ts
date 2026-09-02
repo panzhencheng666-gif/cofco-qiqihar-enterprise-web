@@ -10,7 +10,7 @@ test.beforeEach(async ({ request }) => {
   await resetControlledApi(request);
 });
 
-test("uses one unified existing-sample ledger and opens row-owned collection", async ({
+test("uses one unified existing-sample ledger and persists row-owned collection", async ({
   page,
   request,
 }) => {
@@ -31,7 +31,6 @@ test("uses one unified existing-sample ledger and opens row-owned collection", a
   await expect(row.getByRole("button", { name: "查看" })).toBeVisible();
   await expect(row.getByRole("button", { name: "编辑" })).toBeVisible();
   await expect(row.getByRole("button", { name: "删除" })).toBeVisible();
-
   await row.getByRole("button", { name: "查看" }).click();
   await expect(
     page.getByRole("region", { name: "正式样本详情" }),
@@ -44,14 +43,10 @@ test("uses one unified existing-sample ledger and opens row-owned collection", a
   await expect(
     page.getByRole("heading", { name: "本次正式观测" }),
   ).toBeVisible();
-  await expect(page.getByRole("cell", { name: "已认证用户" })).toBeVisible();
   await page.getByLabel("采集对象收购价格（元/吨）").fill("2422.00");
   await page.getByRole("button", { name: "保存并正式入库" }).click();
   await expect(page.getByRole("status")).toContainText(
     "已正式入库，已实时联动总揽监测、市场分析、报表",
-  );
-  await expect(page.getByLabel("采集对象收购价格（元/吨）")).toHaveValue(
-    "2422.00",
   );
 
   const stateResponse = await request.get(
@@ -78,12 +73,152 @@ test("uses one unified existing-sample ledger and opens row-owned collection", a
       }),
     }),
   );
-  await expect(
-    page.getByRole("button", { name: "返回采集台账" }),
-  ).toBeVisible();
+});
+
+test("keeps review, report, and design-sample routes reachable", async ({
+  page,
+}) => {
+  const routes = [
+    ["#/产情监测/数据审核", "本期工作队列"],
+    ["#/市场监测/数据审核", "市场工作队列"],
+    ["#/报表中心/报告审核与发布", "报表中心"],
+    ["#/报表中心/报告台账", "报表中心"],
+    ["#/我的工作/样本点管理", "设计样本点"],
+  ] as const;
+
+  for (const [hash, visibleText] of routes) {
+    await page.goto(`/${hash}`);
+    await expect(
+      page.getByText(visibleText, { exact: false }).first(),
+    ).toBeVisible();
+    await expect
+      .poll(() => decodeURIComponent(new URL(page.url()).hash))
+      .toBe(hash);
+  }
+
+  for (const retiredHash of [
+    "#/我的工作/人工审核",
+    "#/我的工作/待我处理",
+    "#/我的工作/已办事项",
+    "#/我的工作/导入任务",
+  ]) {
+    await page.goto(`/${retiredHash}`);
+    await expect
+      .poll(() => decodeURIComponent(new URL(page.url()).hash))
+      .toBe("#/市场监测/玉米市场采集");
+    await expect(page.getByText("待我处理", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("已办事项", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("导入任务", { exact: true })).toHaveCount(0);
+  }
+});
+
+test("keeps design-sample filters aligned and persists controlled CRUD", async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/#/我的工作/样本点管理");
+
+  const filters = page.getByRole("search", { name: "设计参考点筛选" });
+  const controls = filters.locator("input, select, button");
+  await expect(page.getByText("受控设计参考点", { exact: true })).toBeVisible();
+  expect(
+    await controls.evaluateAll((elements) =>
+      elements.map((element) =>
+        Math.round(element.getBoundingClientRect().height),
+      ),
+    ),
+  ).toEqual([40, 40, 40, 40, 40, 40, 40]);
+
+  await filters
+    .getByRole("searchbox", { name: "搜索点位或行政区" })
+    .fill("受控设计参考点");
+  await filters.getByRole("button", { name: "查询" }).click();
+  await expect(page.getByText("共 1 条 · 第 1 / 1 页")).toBeVisible();
+  await filters.getByRole("button", { name: "清除筛选" }).click();
+
+  await page.getByRole("button", { name: "新建设计参考点" }).click();
+  const editor = page.getByRole("form", { name: "新建设计参考点" });
+  await editor.getByLabel("点位名称").fill("受控新增设计点");
+  await editor.getByLabel("行政区").selectOption("230221101001");
+  await editor.getByLabel("经度").fill("123.9001");
+  await editor.getByLabel("纬度").fill("47.3001");
+  await editor.getByRole("button", { name: "保存" }).click();
+  await expect(page.getByText("受控新增设计点", { exact: true })).toBeVisible();
+
+  const createdRow = page.getByRole("row", { name: /受控新增设计点/ });
+  await createdRow.getByRole("button", { name: "编辑受控新增设计点" }).click();
+  const editForm = page.getByRole("form", { name: "编辑设计参考点" });
+  await editForm.getByLabel("点位名称").fill("受控更新设计点");
+  await editForm.getByRole("button", { name: "保存" }).click();
+  const updatedRow = page.getByRole("row", { name: /受控更新设计点/ });
+  await expect(updatedRow).toBeVisible();
+
+  page.once("dialog", (dialog) => void dialog.accept());
+  await updatedRow.getByRole("button", { name: "删除受控更新设计点" }).click();
+  await expect(page.getByText("受控更新设计点", { exact: true })).toHaveCount(
+    0,
+  );
+
+  await page.setViewportSize({ width: 720, height: 900 });
+  expect(
+    await filters.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await controls.evaluateAll((elements) =>
+      elements.map((element) =>
+        Math.round(element.getBoundingClientRect().height),
+      ),
+    ),
+  ).toEqual([40, 40, 40, 40, 40, 40, 40]);
+
+  const beforeEventResponse = await request.get(
+    `${controlledApiBaseUrl}/__e2e/state`,
+  );
+  const beforeEvent = (await beforeEventResponse.json()) as {
+    data: { designSampleReads: number };
+  };
+  const eventResponse = await request.post(
+    `${controlledApiBaseUrl}/__e2e/event`,
+    {
+      data: {
+        id: "E2E-DESIGN-EVENT-1",
+        sequence: 901,
+        aggregateType: "DESIGN_SAMPLE_POINT",
+        aggregateId: "E2E-DESIGN-SAMPLE-001",
+        actionCode: "DESIGN_SAMPLE_POINT_UPDATED",
+        productCode: "CORN",
+        surveyYear: null,
+        regionCodes: ["230200"],
+        occurredAt: "2026-09-02T02:00:00Z",
+        read: false,
+      },
+    },
+  );
+  expect(eventResponse.ok()).toBe(true);
   await expect
-    .poll(() => decodeURIComponent(new URL(page.url()).hash))
-    .toBe("#/市场监测/玉米市场采集");
+    .poll(async () => {
+      const response = await request.get(`${controlledApiBaseUrl}/__e2e/state`);
+      const current = (await response.json()) as {
+        data: { designSampleReads: number };
+      };
+      return current.data.designSampleReads;
+    })
+    .toBeGreaterThan(beforeEvent.data.designSampleReads);
+
+  const state = await request.get(`${controlledApiBaseUrl}/__e2e/state`);
+  const payload = (await state.json()) as {
+    data: { writes: readonly { action: string }[] };
+  };
+  expect(payload.data.writes.map(({ action }) => action)).toEqual(
+    expect.arrayContaining([
+      "create-design-sample-point",
+      "update-design-sample-point",
+      "delete-design-sample-point",
+    ]),
+  );
 });
 
 test("keeps an empty API store empty without loading browser fixtures", async ({

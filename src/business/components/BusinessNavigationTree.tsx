@@ -34,6 +34,8 @@ const visibleSectionsByApplication: Readonly<
     "soybean-collection",
     "rice-collection",
     "regional-annual",
+    "tasks",
+    "review",
     "analysis",
   ],
   market: [
@@ -43,10 +45,13 @@ const visibleSectionsByApplication: Readonly<
     "corn-logistics",
     "soybean-logistics",
     "paddy-logistics",
+    "tasks",
+    "review",
     "analysis",
   ],
   supply: ["balance"],
-  reporting: ["compose", "comprehensive"],
+  reporting: ["compose", "review-distribution", "ledger", "comprehensive"],
+  work: ["sample-governance"],
   overview: ["map"],
 };
 
@@ -67,7 +72,8 @@ export function BusinessNavigationTree({
       key === "market" ||
       key === "supply" ||
       key === "reporting" ||
-      key === "overview",
+      key === "overview" ||
+      key === "work",
   );
 
   return (

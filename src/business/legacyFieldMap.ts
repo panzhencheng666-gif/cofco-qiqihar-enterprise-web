@@ -54,27 +54,6 @@ export const legacyFieldMap: readonly LegacyFieldMapping[] = [
     ],
   ),
   ...mapFields(
-    "MyWorkWorkspace.tsx:personalTasks",
-    "BusinessWork.PersonalTask",
-    "我的工作",
-    [
-      "title",
-      "business",
-      "region",
-      "deadline",
-      "duty",
-      "document",
-      "quality",
-      "publication",
-      "destination.route.application",
-      "destination.route.section",
-      "destination.selection.type",
-      "destination.selection.id",
-      "action",
-      "group",
-    ],
-  ),
-  ...mapFields(
     "data/businessWorkFixtures.ts:businessWorkItems",
     "BusinessWorkItem",
     "我的工作与领域任务",
@@ -584,30 +563,6 @@ export const legacyFieldMap: readonly LegacyFieldMapping[] = [
   ),
 ].map((row) => {
   const semanticOverrides: Record<string, string> = {
-    "MyWorkWorkspace.tsx:personalTasks:title": "BusinessWorkItem.title",
-    "MyWorkWorkspace.tsx:personalTasks:business": "BusinessWorkItem.domain",
-    "MyWorkWorkspace.tsx:personalTasks:region": "BusinessWorkItem.regionLabel",
-    "MyWorkWorkspace.tsx:personalTasks:deadline": "BusinessWorkItem.deadline",
-    "MyWorkWorkspace.tsx:personalTasks:duty":
-      "BusinessWorkItem.obligationStatus",
-    "MyWorkWorkspace.tsx:personalTasks:document":
-      "BusinessWorkItem.documentStatus",
-    "MyWorkWorkspace.tsx:personalTasks:quality":
-      "BusinessWorkItem.qualityStatus",
-    "MyWorkWorkspace.tsx:personalTasks:publication":
-      "BusinessWorkItem.releaseStatus",
-    "MyWorkWorkspace.tsx:personalTasks:destination.route.application":
-      "BusinessWorkProjection.destination.route.application",
-    "MyWorkWorkspace.tsx:personalTasks:destination.route.section":
-      "BusinessWorkProjection.destination.route.section",
-    "MyWorkWorkspace.tsx:personalTasks:destination.selection.type":
-      "BusinessWorkProjection.destination.selection.type",
-    "MyWorkWorkspace.tsx:personalTasks:destination.selection.id":
-      "BusinessWorkProjection.destination.selection.id",
-    "MyWorkWorkspace.tsx:personalTasks:action":
-      "BusinessWorkProjection.actionLabel",
-    "MyWorkWorkspace.tsx:personalTasks:group":
-      "BusinessWorkProjection.savedViewGroup",
     "productionMonitoringData.ts:productionCropProfiles:expectedYield":
       "MetricCatalog.production.expected-yield",
     "productionMonitoringData.ts:productionCropProfiles:sampleResult":

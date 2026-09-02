@@ -34,29 +34,14 @@ export interface DomainTaskProjectionQuery {
 function destinationFor(
   item: BusinessWorkItem,
 ): BusinessWorkProjection["destination"] {
-  const product =
-    item.productId === "soybean"
-      ? "soybean"
-      : item.productId === "paddy" || item.productId === "rice"
-        ? "rice"
-        : "corn";
   const route: FormalRoute =
     item.domain === "production"
-      ? createFormalRoute("production", `${product}-collection`)
+      ? createFormalRoute("production", "tasks")
       : item.domain === "market"
-        ? createFormalRoute(
-            "market",
-            item.businessSubtypeId === "market.logistics"
-              ? product === "rice"
-                ? "paddy-logistics"
-                : `${product}-logistics`
-              : product === "rice"
-                ? "paddy-collection"
-                : `${product}-collection`,
-          )
+        ? createFormalRoute("market", "tasks")
         : item.domain === "supply"
           ? createFormalRoute("supply", "calculation")
-          : createFormalRoute("reporting", "compose");
+          : createFormalRoute("reporting", "review-distribution");
   return { route, selection: { type: "work-item", id: item.workId } };
 }
 

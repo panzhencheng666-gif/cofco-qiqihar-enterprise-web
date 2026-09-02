@@ -266,7 +266,7 @@ describe("business work projections", () => {
       production[0]?.item.releaseHistory,
     );
     expect(personalProduction?.destination).toEqual({
-      route: { application: "production", section: "corn-collection" },
+      route: { application: "production", section: "tasks" },
       selection: {
         type: "work-item",
         id: personalProduction?.item.workId,

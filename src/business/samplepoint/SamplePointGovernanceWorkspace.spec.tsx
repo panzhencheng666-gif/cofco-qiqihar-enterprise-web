@@ -6,6 +6,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -330,6 +331,22 @@ function marketPurchaseContract(
 }
 
 describe("SamplePointGovernanceWorkspace", () => {
+  it("uses the shared ledger filter alignment contract at desktop and narrow widths", () => {
+    const css = readFileSync(
+      "src/business/samplepoint/sample-point-governance-workspace.css",
+      "utf8",
+    );
+
+    expect(css).toMatch(
+      /grid-template-columns:\s*minmax\(220px, 1\.4fr\) repeat\(\s*4,\s*minmax\(140px, 1fr\)\s*\)\s*auto auto;/u,
+    );
+    expect(css).toContain("grid-template-rows: minmax(18px, auto) 40px;");
+    expect(css).toContain("height: 40px;");
+    expect(css).toMatch(
+      /@media \(max-width: 760px\)[\s\S]*\.sample-point-governance-workspace__filters \{[\s\S]*grid-template-columns: minmax\(0, 1fr\);/u,
+    );
+  });
+
   it("shows only the design ledger without workflow modules in design mode", async () => {
     render(
       <SamplePointGovernanceWorkspace

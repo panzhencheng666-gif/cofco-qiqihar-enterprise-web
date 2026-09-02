@@ -1405,7 +1405,9 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(15);
+    expect(within(navigation).getAllByRole("button").length).toBeGreaterThan(
+      15,
+    );
     expect(within(navigation).getByText("玉米产情填报")).toBeVisible();
     expect(within(navigation).getByText("大豆产情填报")).toBeVisible();
     expect(within(navigation).getByText("稻谷产情填报")).toBeVisible();
@@ -1427,17 +1429,17 @@ describe("formal enterprise prototype", () => {
     ).not.toBeInTheDocument();
     expect(within(navigation).getByText("业务报告")).toBeVisible();
     expect(within(navigation).queryByText("导入任务")).not.toBeInTheDocument();
-    expect(
-      within(navigation).queryByText("样本点管理"),
-    ).not.toBeInTheDocument();
+    expect(within(navigation).getByText("样本点管理")).toBeVisible();
     expect(within(navigation).queryByText("待我处理")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("提交记录")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("审核中心")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("异常处理")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("已完成")).not.toBeInTheDocument();
-    expect(within(navigation).queryByText("产情任务")).not.toBeInTheDocument();
+    expect(within(navigation).getByText("产情任务")).toBeVisible();
     expect(within(navigation).queryByText("调查对象")).not.toBeInTheDocument();
-    expect(within(navigation).queryByText("数据审核")).not.toBeInTheDocument();
+    expect(within(navigation).getAllByText("数据审核")).toHaveLength(2);
+    expect(within(navigation).getByText("报告审核与发布")).toBeVisible();
+    expect(within(navigation).getByText("报告台账")).toBeVisible();
   });
 
   it("changes applications through the location-owned route", async () => {

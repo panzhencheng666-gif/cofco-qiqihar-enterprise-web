@@ -126,7 +126,7 @@ test("persists production data, refreshes a colleague, and enforces region acces
   const reviewerPage = await reviewerContext.newPage();
   const reviewerErrors = trackBrowserErrors(reviewerPage);
   await reviewerPage.goto(
-    `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
+    `${liveBrowserAccounts.reviewer.url}/#/产情监测/数据审核`,
   );
   let reviewerDialog = await openProductionWorkItem(
     reviewerPage,
@@ -140,7 +140,7 @@ test("persists production data, refreshes a colleague, and enforces region acces
   await reviewerDialog.getByRole("button", { name: "退回补充" }).click();
   await expect(reviewerDialog).toHaveCount(0);
 
-  await page.goto("/#/我的工作/待我处理");
+  await page.goto("/#/产情监测/数据审核");
   const operatorDialog = await openProductionWorkItem(
     page,
     "补充产情填报",

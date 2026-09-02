@@ -164,7 +164,7 @@ test("voids production, market, and logistics drafts through Chromium and persis
   request,
 }) => {
   const ids = await createDrafts(request);
-  await page.goto("/#/我的工作/待我处理");
+  await page.goto("/#/市场监测/玉米市场采集");
 
   const production = await openDraft(
     page,

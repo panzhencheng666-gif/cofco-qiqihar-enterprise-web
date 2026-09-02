@@ -142,7 +142,7 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
   ).toBe("PENDING_REVIEW");
 
   await reviewerPage.goto(
-    `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
+    `${liveBrowserAccounts.reviewer.url}/#/市场监测/数据审核`,
   );
   let reviewerDialog = await openWorkItem(
     reviewerPage,
@@ -166,7 +166,7 @@ test("runs a market return, resubmission, and approval against PostgreSQL", asyn
       ),
     )
     .toBeGreaterThan(0);
-  await page.goto("/#/我的工作/待我处理");
+  await page.goto("/#/市场监测/数据审核");
   const operatorDialog = await openWorkItem(
     page,
     "补充市场填报",

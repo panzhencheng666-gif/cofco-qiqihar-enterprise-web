@@ -82,6 +82,119 @@ const formalSamplePoints = [
     networkMembershipCount: 0,
   },
 ];
+const initialDesignSamplePoint = {
+  id: "E2E-DESIGN-SAMPLE-001",
+  contractVersion: "design-sample-fields-v1",
+  contractDigest: `sha256:${"a".repeat(64)}`,
+  context: {
+    domainCode: "PRODUCTION",
+    productCode: "CORN",
+    objectTypeCode: "FARMER",
+  },
+  values: {
+    DSP_NAME: "受控设计参考点",
+    DSP_REGION_CODE: "230221101001",
+    DSP_LONGITUDE: "123.9182",
+    DSP_LATITUDE: "47.3543",
+  },
+  name: "受控设计参考点",
+  regionCode: "230221101001",
+  regionPath: "齐齐哈尔市 / 龙江县 / 龙江镇 / 通齐村",
+  longitude: 123.9182,
+  latitude: 47.3543,
+  version: 1,
+  updatedAt: "2026-09-02T01:00:00Z",
+};
+let designSamplePoints = [{ ...initialDesignSamplePoint }];
+
+const designDomains = [
+  {
+    code: "PRODUCTION",
+    label: "产情",
+    description: "产情",
+    aliases: [],
+    sortOrder: 10,
+  },
+  {
+    code: "MARKET",
+    label: "市场",
+    description: "市场",
+    aliases: [],
+    sortOrder: 20,
+  },
+];
+const designProducts = [
+  { code: "CORN", label: "玉米", aliases: [], sortOrder: 10 },
+  { code: "SOYBEAN", label: "大豆", aliases: [], sortOrder: 20 },
+  { code: "RICE", label: "稻谷", aliases: [], sortOrder: 30 },
+];
+const designObjectTypes = [
+  {
+    domainCode: "PRODUCTION",
+    code: "FARMER",
+    label: "农户",
+    aliases: [],
+    sortOrder: 10,
+  },
+  ...Array.from({ length: 10 }, (_, index) => ({
+    domainCode: "MARKET",
+    code: `MARKET_OBJECT_${index + 1}`,
+    label: `市场对象${index + 1}`,
+    aliases: [],
+    sortOrder: 20 + index,
+  })),
+];
+const supportedDesignContexts = designObjectTypes
+  .slice(0, 9)
+  .flatMap((objectType, objectIndex) =>
+    designProducts.map((product, productIndex) => ({
+      domainCode: objectType.domainCode,
+      productCode: product.code,
+      objectTypeCode: objectType.code,
+      sortOrder: objectIndex * designProducts.length + productIndex + 1,
+    })),
+  );
+function designField(code, label, valueType, sortOrder) {
+  return {
+    code,
+    sectionCode: "IDENTITY",
+    label,
+    description: label,
+    valueType,
+    precision: valueType === "DECIMAL" ? 18 : null,
+    scale: valueType === "DECIMAL" ? 4 : null,
+    maxLength: valueType === "STRING" ? 200 : null,
+    unit: null,
+    enumOptions: [],
+    required: true,
+    nullable: false,
+    defaultValue: null,
+    editable: true,
+    minimumValue: null,
+    maximumValue: null,
+    groupCode: "IDENTITY",
+    sortOrder,
+    analysisRole: "NONE",
+  };
+}
+function designFieldContract(context) {
+  return {
+    contractVersion: "design-sample-fields-v1",
+    contractDigest: `sha256:${"a".repeat(64)}`,
+    context,
+    domains: designDomains,
+    products: designProducts,
+    objectTypes: designObjectTypes,
+    supportedContexts: supportedDesignContexts,
+    identityFields: [
+      designField("DSP_NAME", "点位名称", "STRING", 10),
+      designField("DSP_REGION_CODE", "行政区", "STRING", 20),
+      designField("DSP_LONGITUDE", "经度", "DECIMAL", 30),
+      designField("DSP_LATITUDE", "纬度", "DECIMAL", 40),
+    ],
+    observationFields: [],
+  };
+}
 const initialFormalObservationValues = {
   MKT_OBJECT_TYPE: "TRADER",
   MKT_REGION: "230221101001",
@@ -947,6 +1060,8 @@ let writes = [];
 let actorHeaders = [];
 let templateDownloads = [];
 let workbookImports = [];
+let designSampleReads = 0;
+const eventStreams = new Set();
 
 function json(response, status, payload) {
   const body = JSON.stringify(payload);
@@ -1045,6 +1160,8 @@ function reset() {
   formalObservationValues = { ...initialFormalObservationValues };
   formalObservationReads = 0;
   formalObservationId = "E2E-OBSERVATION-002";
+  designSamplePoints = [{ ...initialDesignSamplePoint }];
+  designSampleReads = 0;
 }
 
 const server = createServer(async (request, response) => {
@@ -1081,7 +1198,18 @@ const server = createServer(async (request, response) => {
       workbookImports,
       writes,
       formalObservationReads,
+      designSampleReads,
     });
+    return;
+  }
+  if (method === "POST" && url.pathname === "/__e2e/event") {
+    const body = await readBody(request);
+    for (const stream of eventStreams) {
+      stream.write("event: business-change\n");
+      stream.write(`id: ${body.sequence ?? 1}\n`);
+      stream.write(`data: ${JSON.stringify(body)}\n\n`);
+    }
+    data(response, { delivered: eventStreams.size });
     return;
   }
 
@@ -1096,6 +1224,8 @@ const server = createServer(async (request, response) => {
       "Content-Type": "text/event-stream",
     });
     response.write(": controlled stream ready\n\n");
+    eventStreams.add(response);
+    request.on("close", () => eventStreams.delete(response));
     return;
   }
   // Identity remains authoritative while downstream business responses are
@@ -1121,6 +1251,133 @@ const server = createServer(async (request, response) => {
   }
 
   const empty = mode === "empty";
+  if (
+    method === "GET" &&
+    url.pathname === "/api/v1/design-sample-field-definitions"
+  ) {
+    json(
+      response,
+      200,
+      designFieldContract({
+        domainCode: url.searchParams.get("domainCode") ?? "PRODUCTION",
+        productCode: url.searchParams.get("productCode") ?? "CORN",
+        objectTypeCode: url.searchParams.get("objectTypeCode") ?? "FARMER",
+      }),
+    );
+    return;
+  }
+  if (method === "GET" && url.pathname === "/api/v1/design-sample-points") {
+    designSampleReads += 1;
+    const keyword = (url.searchParams.get("keyword") ?? "").trim();
+    const regionCode = url.searchParams.get("regionCode") ?? "";
+    const items = (empty ? [] : designSamplePoints).filter(
+      (point) =>
+        (!keyword ||
+          point.name.includes(keyword) ||
+          point.regionPath.includes(keyword)) &&
+        (!regionCode || point.regionCode.startsWith(regionCode)),
+    );
+    data(response, page(items, 20));
+    return;
+  }
+  if (
+    method === "GET" &&
+    /^\/api\/v1\/design-sample-points\/[^/]+$/u.test(url.pathname)
+  ) {
+    const id = decodeURIComponent(url.pathname.split("/").at(-1) ?? "");
+    const point = designSamplePoints.find((item) => item.id === id);
+    if (!point) {
+      json(response, 404, {
+        code: "DESIGN_SAMPLE_POINT_NOT_FOUND",
+        message: "Design sample point not found",
+      });
+      return;
+    }
+    data(response, point);
+    return;
+  }
+  if (method === "POST" && url.pathname === "/api/v1/design-sample-points") {
+    const body = await readBody(request);
+    const point = {
+      ...initialDesignSamplePoint,
+      id: `E2E-DESIGN-SAMPLE-${designSamplePoints.length + 1}`,
+      contractVersion: body.contractVersion,
+      contractDigest: body.contractDigest,
+      context: body.context,
+      values: body.values,
+      name: body.values.DSP_NAME,
+      regionCode: body.values.DSP_REGION_CODE,
+      regionPath: "齐齐哈尔市 / 龙江县 / 龙江镇 / 通齐村",
+      longitude: Number(body.values.DSP_LONGITUDE),
+      latitude: Number(body.values.DSP_LATITUDE),
+    };
+    designSamplePoints.push(point);
+    writes.push({ action: "create-design-sample-point", body });
+    json(response, 201, { data: point });
+    return;
+  }
+  if (
+    method === "PUT" &&
+    /^\/api\/v1\/design-sample-points\/[^/]+$/u.test(url.pathname)
+  ) {
+    const id = decodeURIComponent(url.pathname.split("/").at(-1) ?? "");
+    const body = await readBody(request);
+    const index = designSamplePoints.findIndex((item) => item.id === id);
+    const current = designSamplePoints[index];
+    if (!current) {
+      json(response, 404, { code: "DESIGN_SAMPLE_POINT_NOT_FOUND" });
+      return;
+    }
+    const point = {
+      ...current,
+      context: body.context,
+      values: body.values,
+      name: body.values.DSP_NAME,
+      regionCode: body.values.DSP_REGION_CODE,
+      longitude: Number(body.values.DSP_LONGITUDE),
+      latitude: Number(body.values.DSP_LATITUDE),
+      version: current.version + 1,
+    };
+    designSamplePoints[index] = point;
+    writes.push({ action: "update-design-sample-point", body });
+    data(response, point);
+    return;
+  }
+  if (
+    method === "DELETE" &&
+    /^\/api\/v1\/design-sample-points\/[^/]+$/u.test(url.pathname)
+  ) {
+    const id = decodeURIComponent(url.pathname.split("/").at(-1) ?? "");
+    designSamplePoints = designSamplePoints.filter((item) => item.id !== id);
+    writes.push({ action: "delete-design-sample-point", id });
+    response.writeHead(204);
+    response.end();
+    return;
+  }
+  if (
+    method === "GET" &&
+    /^\/api\/v1\/sample-networks\/\d{4}\/comparison$/u.test(url.pathname)
+  ) {
+    data(response, {
+      metadataPresent: false,
+      metadataVerified: false,
+      metadataCapturedAt: null,
+      sourceWorkbookSha256: null,
+      approvedSubmissionSamplePointCount: 0,
+      pendingVerificationDesignPointCount: designSamplePoints.length,
+      multipleActualPerDesignPointCount: 0,
+      anomalyCount: 0,
+      exactCoveredDesignPointCount: 0,
+      representedDesignPointCount: 0,
+      regionalAssociationDesignPointCount: 0,
+      unrelatedDesignPointCount: designSamplePoints.length,
+      actualLevelCounts: { prefecture: 0, county: 0, township: 0, village: 0 },
+      designPoints: [],
+      actualPoints: [],
+      relations: [],
+    });
+    return;
+  }
   if (method === "GET" && url.pathname === "/api/v1/formal-sample-points") {
     data(response, page(empty ? [] : formalSamplePoints, 20));
     return;

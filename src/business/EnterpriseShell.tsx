@@ -50,6 +50,11 @@ const primaryBusinessApplications = [
     label: "报表中心",
     route: createFormalRoute("reporting", "compose"),
   },
+  {
+    key: "work",
+    label: "我的工作",
+    route: createFormalRoute("work", "sample-governance"),
+  },
 ] as const;
 
 type SearchResult = {
@@ -63,7 +68,7 @@ type SearchResult = {
 
 function productWorkRoute(item: BusinessWorkItem): FormalRoute {
   if (item.domain === "reporting") {
-    return createFormalRoute("reporting", "compose");
+    return createFormalRoute("reporting", "review-distribution");
   }
   if (item.domain === "supply") {
     return createFormalRoute(
@@ -95,14 +100,7 @@ function productWorkRoute(item: BusinessWorkItem): FormalRoute {
           : "corn-collection",
     );
   }
-  return createFormalRoute(
-    "production",
-    item.productId === "soybean"
-      ? "soybean-collection"
-      : item.productId === "paddy"
-        ? "rice-collection"
-        : "corn-collection",
-  );
+  return createFormalRoute("production", "tasks");
 }
 
 function notificationProductName(productCode: string | null): string {

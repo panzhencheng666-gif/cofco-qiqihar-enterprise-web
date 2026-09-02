@@ -117,7 +117,7 @@ export const executiveRiskFixtures: readonly RiskFixture[] = [
     sourceVersionId: metricReleaseVersion,
     cutoff: executiveCutoff,
     coverage: "讷河市正式发布范围",
-    drillDownTarget: { application: "production", section: "rice-collection" },
+    drillDownTarget: { application: "production", section: "tasks" },
   },
   {
     id: "risk-market-authorized-price-spread",
@@ -138,7 +138,7 @@ export const executiveRiskFixtures: readonly RiskFixture[] = [
     sourceVersionId: metricReleaseVersion,
     cutoff: executiveCutoff,
     coverage: "当前身份全部已授权地区",
-    drillDownTarget: { application: "market", section: "corn-collection" },
+    drillDownTarget: { application: "market", section: "tasks" },
   },
   {
     id: "risk-supply-nehe-flow",
@@ -180,7 +180,7 @@ export const executiveRiskFixtures: readonly RiskFixture[] = [
     sourceVersionId: "METRIC-2026-W31-PRELIMINARY-V1",
     cutoff: executiveCutoff,
     coverage: "未授权保全样例，不进入当前投影",
-    drillDownTarget: { application: "market", section: "corn-collection" },
+    drillDownTarget: { application: "market", section: "tasks" },
   },
 ];
 
@@ -199,31 +199,31 @@ const dutyCoordinateByAssignmentId: Readonly<
     regionId: "qiqihar-all",
     domain: "market",
     businessSubtype: "market.quote-trade",
-    drillDownTarget: { application: "market", section: "corn-collection" },
+    drillDownTarget: { application: "market", section: "tasks" },
   },
   "resp-nehe-market": {
     regionId: "qiqihar-nehe",
     domain: "market",
     businessSubtype: "market.quote-trade",
-    drillDownTarget: { application: "market", section: "corn-collection" },
+    drillDownTarget: { application: "market", section: "tasks" },
   },
   "resp-gannan-market": {
     regionId: "qiqihar-gannan",
     domain: "market",
     businessSubtype: "market.quote-trade",
-    drillDownTarget: { application: "market", section: "corn-collection" },
+    drillDownTarget: { application: "market", section: "tasks" },
   },
   "resp-baiquan-production": {
     regionId: "qiqihar-baiquan",
     domain: "production",
     businessSubtype: "production.planting-production",
-    drillDownTarget: { application: "production", section: "corn-collection" },
+    drillDownTarget: { application: "production", section: "tasks" },
   },
   "resp-longjiang-production": {
     regionId: "qiqihar-longjiang",
     domain: "production",
     businessSubtype: "production.planting-production",
-    drillDownTarget: { application: "production", section: "corn-collection" },
+    drillDownTarget: { application: "production", section: "tasks" },
   },
 };
 
@@ -384,7 +384,7 @@ export const executiveReleaseFixtures: readonly ReleaseFixture[] =
       sourceVersionId: metricReleaseVersion,
       cutoff: executiveCutoff,
       coverage: report.scope,
-      drillDownTarget: { application: "reporting", section: "compose" },
+      drillDownTarget: { application: "reporting", section: "ledger" },
     };
   });
 

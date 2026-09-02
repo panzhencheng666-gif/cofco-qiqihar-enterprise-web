@@ -17,7 +17,7 @@ describe("EnterpriseShell", () => {
     render(
       <EnterpriseShell
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onIdentityOpen={onIdentityOpen}
@@ -59,7 +59,7 @@ describe("EnterpriseShell", () => {
     };
     const props = {
       location: {
-        route: createFormalRoute("work", "tasks"),
+        route: createFormalRoute("work", "sample-governance"),
         coordinates: { regionId: "authorized-all" },
       },
       onNavigate: vi.fn(),
@@ -94,12 +94,6 @@ describe("EnterpriseShell", () => {
     expect(screen.getByRole("searchbox", { name: "全局搜索" })).toBeVisible();
     expect(
       screen.queryByRole("button", { name: /待办/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(screen.getByRole("navigation", { name: "业务应用" })).queryByRole(
-        "button",
-        { name: "我的工作" },
-      ),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /通知/ })).toHaveTextContent(
       /\d+/,
@@ -147,7 +141,7 @@ describe("EnterpriseShell", () => {
     render(
       <EnterpriseShell
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onNavigate={vi.fn()}
@@ -209,7 +203,7 @@ describe("EnterpriseShell", () => {
     expect(screen.getByRole("heading", { name: "workspace" })).toBeVisible();
     expect(screen.getByText("平台名称")).toBeVisible();
     const applications = screen.getByRole("navigation", { name: "业务应用" });
-    expect(within(applications).getAllByRole("button")).toHaveLength(5);
+    expect(within(applications).getAllByRole("button")).toHaveLength(6);
     await user.click(
       within(applications).getByRole("button", { name: "产情监测" }),
     );
@@ -222,7 +216,7 @@ describe("EnterpriseShell", () => {
     render(
       <EnterpriseShell
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onNavigate={vi.fn()}
@@ -308,7 +302,7 @@ describe("EnterpriseShell", () => {
     expect(taskResult).not.toHaveTextContent("2026-W31");
     await user.click(taskResult);
     expect(onNavigate).toHaveBeenCalledWith(
-      createFormalRoute("production", "corn-collection"),
+      createFormalRoute("production", "tasks"),
       { type: "work-item", id: "WORK-PRODUCTION-FILL-W31" },
     );
 
@@ -329,6 +323,10 @@ describe("EnterpriseShell", () => {
         id: "SUPPLY-2026-MY-APPROVED::supply::玉米",
       },
     );
+
+    expect(
+      screen.queryByRole("button", { name: /待办/ }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^通知/ }));
     expect(screen.getByRole("dialog", { name: "业务通知" })).toHaveTextContent(
@@ -370,7 +368,7 @@ describe("EnterpriseShell", () => {
           },
         ]}
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onBusinessNotificationRead={onBusinessNotificationRead}
@@ -430,7 +428,7 @@ describe("EnterpriseShell", () => {
     };
     const props = {
       location: {
-        route: createFormalRoute("work", "tasks"),
+        route: createFormalRoute("work", "sample-governance"),
         coordinates: { regionId: "authorized-all" },
       },
       onNavigate: vi.fn(),
@@ -491,7 +489,7 @@ describe("EnterpriseShell", () => {
     });
     await user.click(reportingTaskResult);
     expect(props.onNavigate).toHaveBeenLastCalledWith(
-      createFormalRoute("reporting", "compose"),
+      createFormalRoute("reporting", "review-distribution"),
       { type: "work-item", id: reportingItem.workId },
     );
 
@@ -523,7 +521,7 @@ describe("EnterpriseShell", () => {
     render(
       <EnterpriseShell
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onNavigate={vi.fn()}
