@@ -167,6 +167,55 @@ test("generation is deterministic and emits a valid self-hashed three-repository
   assert.equal(validateManifestEnvelope(envelope), true);
 });
 
+test("versioned migrations support Flyway numeric subversions", async () => {
+  const fixture = await createFixture();
+  await write(
+    join(
+      fixture.backend.repository,
+      "src/main/resources/db/migration/V1_1__underscore_patch.sql",
+    ),
+    "select 11;\n",
+  );
+  await write(
+    join(
+      fixture.backend.repository,
+      "src/main/resources/db/migration/V1.2__dot_patch.sql",
+    ),
+    "select 12;\n",
+  );
+  fixture.backend.commitSha = await commit(
+    fixture.backend.repository,
+    "Flyway subversion fixtures",
+  );
+  fixture.descriptor.repositories.backend.commitSha = fixture.backend.commitSha;
+
+  const manifestPath = await generate(fixture);
+  const envelope = JSON.parse(await readFile(manifestPath, "utf8"));
+  assert.deepEqual(
+    envelope.manifest.repositories.backend.migrations.files.map(
+      ({ version }) => version,
+    ),
+    ["1", "1.1", "1.2", "2"],
+  );
+  assert.equal(
+    envelope.manifest.repositories.backend.migrations.highestVersion,
+    "2",
+  );
+  assert.equal(validateManifestEnvelope(envelope), true);
+  assert.equal(
+    await verifyReleaseManifest({
+      manifestPath,
+      runtimeRoots: {
+        backend: fixture.backend.repository,
+        web: fixture.web.repository,
+        frontend: fixture.frontend.repository,
+      },
+      runtimeVersions,
+    }),
+    true,
+  );
+});
+
 test("generation rejects dirty, wrong-origin, and origin-unreachable commits", async (t) => {
   await t.test("dirty repository", async () => {
     const fixture = await createFixture();
