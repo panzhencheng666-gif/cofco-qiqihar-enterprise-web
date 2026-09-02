@@ -372,6 +372,98 @@ describe("SamplePointGovernanceWorkspace", () => {
     ).toBeVisible();
   });
 
+  it("uses the mature collection-ledger shell for the standalone design page", async () => {
+    const data = {
+      ...repository(),
+      loadDesignSamplePointFields: vi
+        .fn()
+        .mockResolvedValue(designFieldContract()),
+    } as RealtimeBusinessRepository;
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        mode="design"
+        repository={data}
+        session={{
+          ...session,
+          permissions: [
+            ...session.permissions,
+            "BUSINESS_UPDATE",
+            "BUSINESS_DELETE",
+          ],
+        }}
+      />,
+    );
+
+    const main = screen.getByRole("main", { name: "样本点管理工作台" });
+    const table = await screen.findByRole("table", {
+      name: "设计参考点清单",
+    });
+    expect(within(main).getAllByRole("heading")).toHaveLength(1);
+    expect(
+      within(main).getByRole("heading", { name: "设计样本点" }),
+    ).toBeVisible();
+    expect(
+      within(main).queryByRole("status", { name: "设计参考点概况" }),
+    ).not.toBeInTheDocument();
+    expect(table.closest(".enterprise-ledger-table")).not.toBeNull();
+
+    const operations = within(main).getByRole("toolbar", {
+      name: "设计参考点批量操作",
+    });
+    expect(
+      within(operations).getByRole("button", { name: "下载 XLSX 模板" }),
+    ).toBeVisible();
+    expect(
+      within(operations).getByLabelText("选择 XLSX 文件").closest("label"),
+    ).toHaveClass("realtime-business-file-action");
+    expect(
+      within(operations).getByRole("button", { name: "新建设计参考点" }),
+    ).toBeVisible();
+    await userEvent.click(
+      within(operations).getByRole("button", { name: "新建设计参考点" }),
+    );
+    const editor = await screen.findByRole("form", {
+      name: "新建设计参考点",
+    });
+    expect(editor).toHaveClass(
+      "formal-sample-page",
+      "formal-sample-page--form",
+    );
+    expect(
+      editor.querySelector(".formal-sample-page__field-grid"),
+    ).not.toBeNull();
+
+    const designSource = readFileSync(
+      "src/business/samplepoint/DesignSamplePointTable.tsx",
+      "utf8",
+    );
+    const formalSource = readFileSync(
+      "src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "utf8",
+    );
+    const css = readFileSync(
+      "src/business/samplepoint/sample-point-governance-workspace.css",
+      "utf8",
+    );
+    for (const primitive of [
+      "SamplePointLedgerPage",
+      "SamplePointLedgerTitle",
+      "SamplePointLedgerFilters",
+      "SamplePointLedgerToolbar",
+      "SamplePointLedgerTable",
+      "SamplePointLedgerRowActions",
+      "SamplePointLedgerPagination",
+      "SamplePointEditorForm",
+    ]) {
+      expect(designSource).toContain(primitive);
+      expect(formalSource).toContain(primitive);
+    }
+    expect(css).not.toMatch(
+      /sample-point-governance-workspace--design-ledger[\s\S]*(?:thead|tbody|input|select)/u,
+    );
+  });
+
   it("renders a routed design create page without nesting the ledger", async () => {
     const onSelectionChange = vi.fn();
     render(
@@ -428,7 +520,7 @@ describe("SamplePointGovernanceWorkspace", () => {
       page: 0,
       pageSize: 20,
     });
-    expect(screen.getByText("共 1 条 · 第 1 / 1 页")).toBeVisible();
+    expect(screen.getByText("第 1 页")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "新建设计参考点" }),
     ).not.toBeInTheDocument();
@@ -902,7 +994,7 @@ describe("SamplePointGovernanceWorkspace", () => {
       await screen.findByRole("table", { name: "设计参考点清单" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("toolbar", { name: "设计参考点台账工具栏" }),
+      screen.getByRole("toolbar", { name: "设计参考点批量操作" }),
     ).toBeVisible();
     expect(
       screen.getByRole("region", { name: "设计参考点滚动清单" }),
@@ -1206,7 +1298,7 @@ describe("SamplePointGovernanceWorkspace", () => {
       name: "设计参考点清单",
     });
     expect(within(table).getAllByRole("row")).toHaveLength(21);
-    expect(screen.getByText("共 55 条 · 第 1 / 3 页")).toBeVisible();
+    expect(screen.getByText("第 1 页")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "下一页" }));
     await vi.waitFor(() =>
       expect(listDesignSamplePoints).toHaveBeenCalledWith({
@@ -1237,7 +1329,7 @@ describe("SamplePointGovernanceWorkspace", () => {
         pageSize: 20,
       }),
     );
-    expect(await screen.findByText("共 1 条 · 第 1 / 1 页")).toBeVisible();
+    expect(await screen.findByText("第 1 页")).toBeVisible();
     expect(screen.getByText("参考点55")).toBeVisible();
   });
 });

@@ -11,6 +11,32 @@ afterEach(() => {
 });
 
 describe("SamplePointImportPanel", () => {
+  it("preserves the formal standalone import DOM and fixed file label", async () => {
+    render(
+      <SamplePointImportPanel
+        kind="formal"
+        repository={{} as RealtimeBusinessRepository}
+        onImported={vi.fn()}
+      />,
+    );
+
+    const panel = screen.getByLabelText("正式样本批量导入");
+    expect(panel).toHaveClass("sample-point-import");
+    expect(panel).not.toHaveClass("sample-point-import--ledger-toolbar");
+    expect(
+      panel.querySelector(":scope > .sample-point-import__actions"),
+    ).not.toBeNull();
+    const input = screen.getByLabelText("选择 XLSX 文件");
+    expect(input.closest("label")).not.toHaveAttribute("class");
+    await userEvent.upload(
+      input,
+      new File(["formal"], "正式样本.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    expect(screen.getByText("选择 XLSX 文件")).toBeVisible();
+  });
+
   it("imports each workbook once, refreshes authority, and exposes atomic errors", async () => {
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
       () => undefined,

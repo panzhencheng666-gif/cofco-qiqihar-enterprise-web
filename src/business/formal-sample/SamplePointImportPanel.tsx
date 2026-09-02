@@ -11,6 +11,7 @@ export interface SamplePointImportPanelProps {
   kind: SamplePointKind;
   repository: RealtimeBusinessRepository;
   onImported: () => Promise<void> | void;
+  variant?: "standalone" | "ledger-toolbar";
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -27,6 +28,7 @@ export function SamplePointImportPanel({
   kind,
   repository,
   onImported,
+  variant = "standalone",
 }: SamplePointImportPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File>();
@@ -90,32 +92,76 @@ export function SamplePointImportPanel({
     }
   };
 
-  return (
-    <section className="sample-point-import" aria-label={`${label}批量导入`}>
-      <div className="sample-point-import__actions">
-        <button type="button" onClick={() => void handleTemplate()}>
-          下载 XLSX 模板
-        </button>
-        <label>
-          <span>选择 XLSX 文件</span>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            aria-label="选择 XLSX 文件"
-            onChange={(event) => setFile(event.target.files?.[0])}
-          />
-        </label>
-        <button
-          type="button"
-          disabled={!file || busy}
-          onClick={() => void handleImport()}
-        >
-          {busy ? "正在校验并导入" : "校验并导入"}
-        </button>
-      </div>
+  if (variant === "standalone") {
+    return (
+      <section className="sample-point-import" aria-label={`${label}批量导入`}>
+        <div className="sample-point-import__actions">
+          <button type="button" onClick={() => void handleTemplate()}>
+            下载 XLSX 模板
+          </button>
+          <label>
+            <span>选择 XLSX 文件</span>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              aria-label="选择 XLSX 文件"
+              onChange={(event) => setFile(event.target.files?.[0])}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={!file || busy}
+            onClick={() => void handleImport()}
+          >
+            {busy ? "正在校验并导入" : "校验并导入"}
+          </button>
+        </div>
+        {result ? (
+          <div role="status">
+            {result.failedRows > 0
+              ? `本次零条入库，${result.failedRows} 行需要修正。`
+              : `导入完成，已新增 ${result.importedRows} 条。`}
+            {result.failedRows > 0 ? (
+              <button type="button" onClick={() => void handleErrors()}>
+                下载错误明细
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {error ? <div role="alert">{error}</div> : null}
+      </section>
+    );
+  }
+
+  const actions = (
+    <>
+      <button type="button" onClick={() => void handleTemplate()}>
+        下载 XLSX 模板
+      </button>
+      <label className="realtime-business-file-action">
+        <span>{file?.name ?? "选择 XLSX 文件"}</span>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          aria-label="选择 XLSX 文件"
+          onChange={(event) => setFile(event.target.files?.[0])}
+        />
+      </label>
+      <button
+        type="button"
+        disabled={!file || busy}
+        onClick={() => void handleImport()}
+      >
+        {busy ? "正在校验并导入" : "校验并导入"}
+      </button>
+    </>
+  );
+  const feedback = (
+    <>
       {result ? (
-        <div role="status">
+        <div className="sample-point-import__status" role="status">
           {result.failedRows > 0
             ? `本次零条入库，${result.failedRows} 行需要修正。`
             : `导入完成，已新增 ${result.importedRows} 条。`}
@@ -127,6 +173,18 @@ export function SamplePointImportPanel({
         </div>
       ) : null}
       {error ? <div role="alert">{error}</div> : null}
+    </>
+  );
+
+  return (
+    <section
+      aria-label={`${label}批量导入`}
+      className="sample-point-import sample-point-import--ledger-toolbar enterprise-ledger-action-group"
+      role="group"
+    >
+      <span className="enterprise-ledger-action-group__label">批量导入</span>
+      {actions}
+      {feedback}
     </section>
   );
 }
