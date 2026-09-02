@@ -477,7 +477,7 @@
   "uiInteractionInventory": {
     "path": "docs/production-readiness/stage-one-ui-inventory.json",
     "sourceBoundary": "src/business 下全部非测试 TSX",
-    "itemCount": 497,
+    "itemCount": 499,
     "ownerRepository": "cofco-qiqihar-enterprise-web",
     "status": "IMPLEMENTED",
     "verificationStage": "阶段二/三",
