@@ -57,9 +57,17 @@ function errorMessage(
   error: unknown,
   fallback = "加载失败，请稍后重试",
 ): string {
-  return error instanceof RealtimeApiError
-    ? (error.clientMessage ?? fallback)
-    : fallback;
+  if (!(error instanceof RealtimeApiError)) return fallback;
+  const messages: Readonly<Record<string, string>> = {
+    FORMAL_SAMPLE_MAINTAINER_REQUIRED:
+      "该正式样本尚未指定维护人，请先由管理员指定后再填写期间数据。",
+    FORMAL_SAMPLE_MAINTAINER_DENIED:
+      "当前账号不是该正式样本的维护人，不能填写期间数据。",
+    ACCESS_PERMISSION_DENIED: "当前账号没有填写正式采集数据的权限。",
+    ACCESS_REGION_DENIED: "该正式样本不在当前账号的授权地区内。",
+    FORMAL_SAMPLE_POINT_NOT_FOUND: "正式样本不存在或已被删除。",
+  };
+  return messages[error.code] ?? error.clientMessage ?? fallback;
 }
 
 function dateTimeLabel(value: string): string {

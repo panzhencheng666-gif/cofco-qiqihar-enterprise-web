@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   EligibleFormalSample,
+  EmployeeProfile,
   FormalSampleObservationDomain,
   FormalSamplePointMutation,
   FormalSamplePointRow,
@@ -42,8 +43,24 @@ function formalSampleWriteError(error: unknown, fallback: string): string {
     SAMPLE_POINT_COORDINATE_OCCUPIED: "该坐标已被其他样本占用。",
     ADMIN_BOUNDARY_UNAVAILABLE: "所选行政区边界数据暂不可用。",
     INVALID_FORMAL_SAMPLE_POINT: "请完整填写正确的正式样本稳定信息。",
+    INVALID_FORMAL_SAMPLE_MAINTAINER:
+      "请选择在岗、账号正常且有当前地区填报权限的维护人。",
     FORMAL_SAMPLE_POINT_CONFLICT: "正式样本与现有记录冲突。",
     FORMAL_SAMPLE_POINT_NOT_FOUND: "正式样本不存在或已被删除。",
+  };
+  return messages[error.code] ?? error.clientMessage ?? fallback;
+}
+
+function formalSampleMaintainerError(error: unknown, fallback: string): string {
+  if (!(error instanceof RealtimeApiError)) return fallback;
+  const messages: Readonly<Record<string, string>> = {
+    ACCESS_PERMISSION_DENIED: "当前账号没有指派正式样本维护人的权限。",
+    ACCESS_REGION_DENIED: "该正式样本不在当前账号的授权地区内。",
+    INVALID_FORMAL_SAMPLE_MAINTAINER:
+      "所选人员无效、未在岗或没有该地区的填报权限。",
+    FORMAL_SAMPLE_POINT_NOT_FOUND: "正式样本不存在或已被删除。",
+    FORMAL_SAMPLE_POINT_VERSION_CONFLICT:
+      "正式样本已被其他人更新，请按最新版本重新指派。",
   };
   return messages[error.code] ?? error.clientMessage ?? fallback;
 }
@@ -78,6 +95,7 @@ interface EditorState {
   longitude: string;
   latitude: string;
   objectTypeCode: string;
+  maintainerSubjectId: string;
 }
 
 function createEditor(): EditorState {
@@ -91,6 +109,7 @@ function createEditor(): EditorState {
     longitude: "",
     latitude: "",
     objectTypeCode: "",
+    maintainerSubjectId: "",
   };
 }
 
@@ -105,7 +124,15 @@ function editEditor(point: FormalSamplePointRow): EditorState {
     longitude: point.longitude === null ? "" : String(point.longitude),
     latitude: point.latitude === null ? "" : String(point.latitude),
     objectTypeCode: point.objectTypeCode,
+    maintainerSubjectId: point.maintainerSubjectId ?? "",
   };
+}
+
+interface MaintainerEditorState {
+  pointId: string;
+  expectedVersion: number;
+  targetSubjectId: string;
+  reason: string;
 }
 
 function decimalPlaces(value: string): number {
@@ -118,6 +145,7 @@ function mutation(editor: EditorState): FormalSamplePointMutation | null {
   const regionCode = editor.regionCode.trim();
   const address = editor.address.trim();
   const objectTypeCode = editor.objectTypeCode.trim();
+  const maintainerSubjectId = editor.maintainerSubjectId.trim();
   const longitude = Number(editor.longitude);
   const latitude = Number(editor.latitude);
   if (
@@ -127,6 +155,7 @@ function mutation(editor: EditorState): FormalSamplePointMutation | null {
     !address ||
     address.length > 500 ||
     !objectTypeCode ||
+    !maintainerSubjectId ||
     !editor.longitude.trim() ||
     !editor.latitude.trim() ||
     !Number.isFinite(longitude) ||
@@ -147,7 +176,21 @@ function mutation(editor: EditorState): FormalSamplePointMutation | null {
     longitude,
     latitude,
     objectTypeCode,
+    maintainerSubjectId,
   };
+}
+
+function employeeCanMaintain(
+  employee: EmployeeProfile,
+  regionCode: string,
+): boolean {
+  return (
+    employee.accountStatus === "ACTIVE" &&
+    employee.employmentStatus === "ACTIVE" &&
+    (!regionCode ||
+      employee.regionCodes.includes("*") ||
+      employee.regionCodes.includes(regionCode))
+  );
 }
 
 export function FormalSamplePointLedger({
@@ -167,6 +210,7 @@ export function FormalSamplePointLedger({
   const [objectTypes, setObjectTypes] = useState<readonly MasterObjectType[]>(
     [],
   );
+  const [employees, setEmployees] = useState<readonly EmployeeProfile[]>([]);
   const [observedAt, setObservedAt] = useState(localDateTimeValue);
   const [objectTypeCode, setObjectTypeCode] = useState("");
   const [regionCode, setRegionCode] = useState("");
@@ -178,6 +222,8 @@ export function FormalSamplePointLedger({
   const [detail, setDetail] = useState<FormalSamplePointRow | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
+  const [maintainerEditor, setMaintainerEditor] =
+    useState<MaintainerEditorState | null>(null);
   const [listBusy, setListBusy] = useState(false);
   const [detailBusy, setDetailBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -195,14 +241,13 @@ export function FormalSamplePointLedger({
   const regionName = (code: string) =>
     regionNames.get(code) ?? "地区名称待同步";
   const busy = listBusy || detailBusy || deleteBusy || writeBusy;
+  const canManage = permissions.includes("FORMAL_SAMPLE_MANAGE");
   const canCreate =
-    permissions.includes("BUSINESS_CREATE") &&
-    typeof repository.createFormalSamplePoint === "function";
+    canManage && typeof repository.createFormalSamplePoint === "function";
   const canUpdate =
-    permissions.includes("BUSINESS_UPDATE") &&
-    typeof repository.updateFormalSamplePoint === "function";
+    canManage && typeof repository.updateFormalSamplePoint === "function";
   const canDelete =
-    permissions.includes("BUSINESS_UPDATE") &&
+    permissions.includes("FORMAL_SAMPLE_DELETE") &&
     typeof repository.deleteFormalSamplePoint === "function";
   const canCollect = permissions.includes("BUSINESS_CREATE");
   const totalPages = Math.ceil(eligibleSamples.length / pageSize);
@@ -223,6 +268,12 @@ export function FormalSamplePointLedger({
             domain: detail?.businessDomain ?? domain,
           },
         ];
+  const availableMaintainers = employees.filter((employee) =>
+    employeeCanMaintain(
+      employee,
+      editor?.regionCode ?? detail?.regionCode ?? "",
+    ),
+  );
 
   const query = useCallback(
     async (requestedPage = pageNumber) => {
@@ -304,6 +355,7 @@ export function FormalSamplePointLedger({
           setDetail(next);
           setConfirmingId(intent === "DELETE" ? next.id : null);
           setEditor(intent === "EDIT" ? editEditor(next) : null);
+          setMaintainerEditor(null);
         }
       } catch (error) {
         if (version === detailRequestVersion.current) {
@@ -335,6 +387,22 @@ export function FormalSamplePointLedger({
         if (active) setObjectTypes(items);
       })
       .catch(() => undefined);
+    if (canManage) {
+      void repository
+        .listEmployees()
+        .then((items) => {
+          if (active) setEmployees(items);
+        })
+        .catch((error: unknown) => {
+          if (active)
+            setNotice(
+              formalSampleMaintainerError(
+                error,
+                "员工目录读取失败，暂时不能指派维护人。",
+              ),
+            );
+        });
+    }
     queueMicrotask(() => {
       if (active) void query(0);
     });
@@ -345,7 +413,7 @@ export function FormalSamplePointLedger({
     };
     // Initial authoritative query belongs to this mounted ledger instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [domain, productCode, repository]);
+  }, [canManage, domain, productCode, repository]);
 
   useEffect(() => {
     const target = pendingFocusTarget.current;
@@ -398,6 +466,11 @@ export function FormalSamplePointLedger({
         } = eventState.current;
         if (samplePointChanged && event.aggregateId === editedId)
           setEditor(null);
+        if (
+          samplePointChanged &&
+          event.aggregateId === maintainerEditor?.pointId
+        )
+          setMaintainerEditor(null);
         void refresh().then(() => {
           if (
             !samplePointChanged ||
@@ -417,7 +490,54 @@ export function FormalSamplePointLedger({
         });
       },
     );
-  }, [productCode, repository]);
+  }, [maintainerEditor?.pointId, productCode, repository]);
+
+  const assignMaintainer = async () => {
+    if (
+      !maintainerEditor ||
+      !repository.assignFormalSampleMaintainer ||
+      !maintainerEditor.targetSubjectId ||
+      !maintainerEditor.reason.trim()
+    ) {
+      setNotice("请选择维护人并填写指派或改派原因。");
+      return;
+    }
+    setWriteBusy(true);
+    setNotice("");
+    try {
+      const assigned = await repository.assignFormalSampleMaintainer(
+        maintainerEditor.pointId,
+        {
+          maintainerSubjectId: maintainerEditor.targetSubjectId,
+          maintainerChangeReason: maintainerEditor.reason.trim(),
+          expectedVersion: maintainerEditor.expectedVersion,
+        },
+      );
+      const authoritative = await repository.getFormalSamplePoint!(assigned.id);
+      setMaintainerEditor(null);
+      await query(pageNumber);
+      setDetail(authoritative);
+      setNotice("维护人已更新并重新查询。");
+    } catch (error) {
+      const conflict =
+        error instanceof RealtimeApiError &&
+        error.code === "FORMAL_SAMPLE_POINT_VERSION_CONFLICT";
+      const selectedId = maintainerEditor.pointId;
+      if (conflict) {
+        setMaintainerEditor(null);
+        await query(pageNumber);
+        await loadDetail(selectedId);
+      }
+      setNotice(
+        formalSampleMaintainerError(
+          error,
+          "维护人更新失败，请核对人员和权限后重试。",
+        ),
+      );
+    } finally {
+      setWriteBusy(false);
+    }
+  };
 
   const save = async () => {
     if (!editor || !repository.getFormalSamplePoint) return;
@@ -531,6 +651,7 @@ export function FormalSamplePointLedger({
                 setDetail(null);
                 setConfirmingId(null);
                 setEditor(createEditor());
+                setMaintainerEditor(null);
                 setNotice("");
               }}
             >
@@ -714,6 +835,28 @@ export function FormalSamplePointLedger({
                 ))}
               </select>
             </label>
+            <label>
+              <span>维护人</span>
+              <select
+                aria-label="正式样本维护人"
+                disabled={editor.mode === "EDIT"}
+                required
+                value={editor.maintainerSubjectId}
+                onChange={(event) =>
+                  setEditor({
+                    ...editor,
+                    maintainerSubjectId: event.target.value,
+                  })
+                }
+              >
+                <option value="">请选择维护人</option>
+                {availableMaintainers.map((employee) => (
+                  <option key={employee.subjectId} value={employee.subjectId}>
+                    {employee.displayName} · {employee.workUnitName}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="formal-sample-ledger__editor-actions">
             <button disabled={busy} type="button" onClick={() => void save()}>
@@ -742,6 +885,7 @@ export function FormalSamplePointLedger({
                   <th>样本名称</th>
                   <th>地区</th>
                   <th>对象类型</th>
+                  <th>维护人</th>
                   <th>定位</th>
                   <th>最近观测</th>
                   <th>操作</th>
@@ -749,12 +893,16 @@ export function FormalSamplePointLedger({
               </thead>
               <tbody>
                 {visibleSamples.map((samplePoint) => {
-                  const collectionAllowed = canCollect;
+                  const collectionAllowed =
+                    canCollect && Boolean(samplePoint.maintainerSubjectId);
                   return (
                     <tr key={samplePoint.samplePointId}>
                       <td>{samplePoint.sampleName}</td>
                       <td>{samplePoint.regionName}</td>
                       <td>{samplePoint.objectTypeName ?? "待同步"}</td>
+                      <td>
+                        {samplePoint.maintainerDisplayName ?? "未指定维护人"}
+                      </td>
                       <td>{coordinate(samplePoint)}</td>
                       <td>{latestObservation(samplePoint.latestObservedAt)}</td>
                       <td>
@@ -802,7 +950,9 @@ export function FormalSamplePointLedger({
                             title={
                               !canCollect
                                 ? "当前账号没有填写正式采集数据的权限"
-                                : undefined
+                                : !samplePoint.maintainerSubjectId
+                                  ? "请先由管理员指定维护人"
+                                  : undefined
                             }
                             type="button"
                             onClick={() => {
@@ -812,10 +962,14 @@ export function FormalSamplePointLedger({
                           >
                             {samplePoint.latestObservationId
                               ? canCollect
-                                ? "更新采集数据"
+                                ? samplePoint.maintainerSubjectId
+                                  ? "更新采集数据"
+                                  : "先指定维护人"
                                 : "无采集权限"
                               : canCollect
-                                ? "填写采集数据"
+                                ? samplePoint.maintainerSubjectId
+                                  ? "填写采集数据"
+                                  : "先指定维护人"
                                 : "无采集权限"}
                           </button>
                         </div>
@@ -875,6 +1029,10 @@ export function FormalSamplePointLedger({
                 <dd>{detail.objectTypeName}</dd>
               </div>
               <div>
+                <dt>维护人</dt>
+                <dd>{detail.maintainerDisplayName ?? "未指定维护人"}</dd>
+              </div>
+              <div>
                 <dt>版本</dt>
                 <dd>版本 {detail.version}</dd>
               </div>
@@ -904,6 +1062,89 @@ export function FormalSamplePointLedger({
               >
                 编辑稳定信息
               </button>
+            )}
+            {canManage && repository.assignFormalSampleMaintainer && (
+              <button
+                disabled={busy}
+                type="button"
+                onClick={() => {
+                  setConfirmingId(null);
+                  setEditor(null);
+                  setMaintainerEditor({
+                    pointId: detail.id,
+                    expectedVersion: detail.version,
+                    targetSubjectId: detail.maintainerSubjectId ?? "",
+                    reason: "",
+                  });
+                  setNotice("");
+                }}
+              >
+                {detail.maintainerSubjectId ? "改派维护人" : "指定维护人"}
+              </button>
+            )}
+            {maintainerEditor?.pointId === detail.id && (
+              <section
+                className="formal-sample-ledger__maintainer-editor"
+                aria-label="维护人指派"
+              >
+                <label>
+                  <span>维护人</span>
+                  <select
+                    aria-label="指派维护人"
+                    value={maintainerEditor.targetSubjectId}
+                    onChange={(event) =>
+                      setMaintainerEditor({
+                        ...maintainerEditor,
+                        targetSubjectId: event.target.value,
+                      })
+                    }
+                  >
+                    <option value="">请选择维护人</option>
+                    {employees
+                      .filter((employee) =>
+                        employeeCanMaintain(employee, detail.regionCode),
+                      )
+                      .map((employee) => (
+                        <option
+                          key={employee.subjectId}
+                          value={employee.subjectId}
+                        >
+                          {employee.displayName} · {employee.workUnitName}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  <span>指派或改派原因</span>
+                  <input
+                    aria-label="维护人变更原因"
+                    maxLength={500}
+                    value={maintainerEditor.reason}
+                    onChange={(event) =>
+                      setMaintainerEditor({
+                        ...maintainerEditor,
+                        reason: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+                <div>
+                  <button
+                    disabled={busy}
+                    type="button"
+                    onClick={() => void assignMaintainer()}
+                  >
+                    保存维护人
+                  </button>
+                  <button
+                    disabled={writeBusy}
+                    type="button"
+                    onClick={() => setMaintainerEditor(null)}
+                  >
+                    取消
+                  </button>
+                </div>
+              </section>
             )}
             {!canDelete ? null : detail.networkMembershipCount > 0 ? (
               <p>

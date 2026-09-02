@@ -28,6 +28,8 @@ const sample: EligibleFormalSample = {
   productCode: "CORN",
   regionCode: "230221",
   regionName: "龙江县",
+  maintainerSubjectId: "employee-maintainer",
+  maintainerDisplayName: "王维护",
   latitude: "47.5100000",
   longitude: "123.3800000",
   effectiveFrom: "2026-01-01",
@@ -41,6 +43,19 @@ const sample: EligibleFormalSample = {
     ENDING_INVENTORY: "430.0000",
   },
 };
+
+const maintainer = {
+  subjectId: "employee-maintainer",
+  displayName: "王维护",
+  workUnitCode: "QIQIHAR_BUSINESS",
+  workUnitName: "齐齐哈尔业务组",
+  accountStatus: "ACTIVE",
+  employmentStatus: "ACTIVE",
+  roles: [{ code: "BUSINESS_OPERATOR", name: "业务填报员" }],
+  positions: [{ code: "REPORTER", name: "填报岗", primaryPosition: true }],
+  regionCodes: ["230202", "230221"],
+  version: 1,
+} as const;
 
 function repository() {
   const point = formalPoint({
@@ -57,6 +72,7 @@ function repository() {
       { code: "BREEDING_FACTORY", name: "养殖企业", domain: "MARKET" },
     ]),
     listEligibleFormalSamples: vi.fn().mockResolvedValue([sample]),
+    listEmployees: vi.fn().mockResolvedValue([maintainer]),
     loadMarketDefinition: vi.fn().mockResolvedValue({
       productCode: "CORN",
       objectTypeCode: "DEEP_PROCESSOR",
@@ -222,6 +238,7 @@ function repository() {
     getFormalSamplePoint: vi.fn().mockResolvedValue(point),
     createFormalSamplePoint: vi.fn(),
     updateFormalSamplePoint: vi.fn(),
+    assignFormalSampleMaintainer: vi.fn(),
     deleteFormalSamplePoint: vi.fn(),
     subscribeBusinessEvents: vi.fn(
       (after: number, listener: (event: BusinessNotificationRow) => void) => {
@@ -236,7 +253,11 @@ function repository() {
 function renderPanel(
   api = repository(),
   onSaved = vi.fn(),
-  permissions: readonly string[] = ["BUSINESS_CREATE", "BUSINESS_UPDATE"],
+  permissions: readonly string[] = [
+    "BUSINESS_CREATE",
+    "FORMAL_SAMPLE_MANAGE",
+    "FORMAL_SAMPLE_DELETE",
+  ],
   initialMode: "LEDGER" | "POINTS" = "POINTS",
 ) {
   render(
@@ -273,6 +294,8 @@ function formalPoint(
     objectTypeCode: string;
     objectTypeName: string;
     businessDomain: string;
+    maintainerSubjectId: string | null;
+    maintainerDisplayName: string | null;
     version: number;
   }> = {},
 ) {
@@ -285,6 +308,8 @@ function formalPoint(
     objectTypeName: "贸易商",
     businessDomain: "MARKET",
     address: "龙沙区新立街 1 号",
+    maintainerSubjectId: maintainer.subjectId,
+    maintainerDisplayName: maintainer.displayName,
     approvalState: "APPROVED",
     locationState: "VALID",
     longitude: 123.94,
@@ -306,6 +331,8 @@ function eligibleSampleFor(point: {
   latitude: number | string | null;
   objectTypeCode?: string;
   objectTypeName?: string;
+  maintainerSubjectId?: string | null;
+  maintainerDisplayName?: string | null;
 }): EligibleFormalSample {
   return {
     ...sample,
@@ -317,6 +344,14 @@ function eligibleSampleFor(point: {
     latitude: String(point.latitude ?? ""),
     objectTypeCode: point.objectTypeCode ?? "TRADER",
     objectTypeName: point.objectTypeName ?? "贸易商",
+    maintainerSubjectId:
+      point.maintainerSubjectId === undefined
+        ? sample.maintainerSubjectId
+        : point.maintainerSubjectId,
+    maintainerDisplayName:
+      point.maintainerDisplayName === undefined
+        ? sample.maintainerDisplayName
+        : point.maintainerDisplayName,
   };
 }
 
@@ -360,7 +395,12 @@ describe("ExistingSampleObservationPanel", () => {
       subscribeBusinessEvents: vi.fn(() => vi.fn()),
     };
 
-    renderPanel(api, vi.fn(), ["BUSINESS_CREATE", "BUSINESS_UPDATE"], "LEDGER");
+    renderPanel(
+      api,
+      vi.fn(),
+      ["BUSINESS_CREATE", "FORMAL_SAMPLE_MANAGE", "FORMAL_SAMPLE_DELETE"],
+      "LEDGER",
+    );
 
     expect(screen.getByText("原有采集台账内容")).toBeVisible();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
@@ -432,6 +472,125 @@ describe("ExistingSampleObservationPanel", () => {
       within(row).getByRole("button", { name: "无采集权限" }),
     ).toBeDisabled();
   });
+
+  it("requires an employee-directory maintainer for creation and assigns a historical unowned sample with a reason", async () => {
+    const unassigned = formalPoint({
+      maintainerSubjectId: null,
+      maintainerDisplayName: null,
+      version: 4,
+    });
+    const assigned = formalPoint({ version: 5 });
+    const assignFormalSampleMaintainer = vi.fn().mockResolvedValue({
+      id: assigned.id,
+      kindCode: assigned.kindCode,
+      canonicalName: assigned.canonicalName,
+      regionCode: assigned.regionCode,
+      maintainerSubjectId: maintainer.subjectId,
+      maintainerDisplayName: maintainer.displayName,
+      version: assigned.version,
+    });
+    const api = {
+      ...repository(),
+      listEligibleFormalSamples: vi
+        .fn()
+        .mockResolvedValue([eligibleSampleFor(unassigned)]),
+      getFormalSamplePoint: vi
+        .fn()
+        .mockResolvedValueOnce(unassigned)
+        .mockResolvedValueOnce(assigned),
+      assignFormalSampleMaintainer,
+    };
+    renderPanel(api);
+
+    const row = await screen.findByRole("row", {
+      name: new RegExp(unassigned.canonicalName, "u"),
+    });
+    expect(row).toHaveTextContent("未指定维护人");
+    expect(
+      within(row).getByRole("button", { name: "先指定维护人" }),
+    ).toBeDisabled();
+    await userEvent.click(within(row).getByRole("button", { name: "查看" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "指定维护人" }),
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("指派维护人"),
+      maintainer.subjectId,
+    );
+    await userEvent.type(
+      screen.getByLabelText("维护人变更原因"),
+      "明确后续期间数据维护责任",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "保存维护人" }));
+
+    await waitFor(() =>
+      expect(assignFormalSampleMaintainer).toHaveBeenCalledWith(unassigned.id, {
+        maintainerSubjectId: maintainer.subjectId,
+        maintainerChangeReason: "明确后续期间数据维护责任",
+        expectedVersion: 4,
+      }),
+    );
+    expect(api.getFormalSamplePoint).toHaveBeenLastCalledWith(unassigned.id);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "维护人已更新并重新查询",
+    );
+    expect(
+      screen.getByRole("region", { name: "正式样本详情" }),
+    ).toHaveTextContent(maintainer.displayName);
+  });
+
+  it.each([
+    ["ACCESS_PERMISSION_DENIED", 403, "当前账号没有指派正式样本维护人的权限"],
+    [
+      "INVALID_FORMAL_SAMPLE_MAINTAINER",
+      400,
+      "所选人员无效、未在岗或没有该地区的填报权限",
+    ],
+    ["FORMAL_SAMPLE_POINT_NOT_FOUND", 404, "正式样本不存在或已被删除"],
+    [
+      "FORMAL_SAMPLE_POINT_VERSION_CONFLICT",
+      409,
+      "正式样本已被其他人更新，请按最新版本重新指派",
+    ],
+  ])(
+    "shows a clear maintainer assignment error for %s",
+    async (code, status, message) => {
+      const point = formalPoint({
+        maintainerSubjectId: null,
+        maintainerDisplayName: null,
+        version: 4,
+      });
+      const api = {
+        ...repository(),
+        listEligibleFormalSamples: vi
+          .fn()
+          .mockResolvedValue([eligibleSampleFor(point)]),
+        getFormalSamplePoint: vi.fn().mockResolvedValue(point),
+        assignFormalSampleMaintainer: vi.fn().mockRejectedValue(
+          new RealtimeApiError({
+            code,
+            message: "server message",
+            status,
+          }),
+        ),
+      };
+      renderPanel(api);
+      await userEvent.click(
+        await screen.findByRole("button", { name: "查看" }),
+      );
+      await userEvent.click(
+        await screen.findByRole("button", { name: "指定维护人" }),
+      );
+      await userEvent.selectOptions(
+        screen.getByLabelText("指派维护人"),
+        maintainer.subjectId,
+      );
+      await userEvent.type(screen.getByLabelText("维护人变更原因"), "工作调整");
+      await userEvent.click(screen.getByRole("button", { name: "保存维护人" }));
+
+      expect(await screen.findByRole("status")).toHaveTextContent(message);
+    },
+  );
 
   it("focuses the authoritative detail region after a row view action", async () => {
     renderPanel();
@@ -557,6 +716,10 @@ describe("ExistingSampleObservationPanel", () => {
       screen.getByLabelText("正式样本对象分类"),
       created.objectTypeCode,
     );
+    await userEvent.selectOptions(
+      screen.getByLabelText("正式样本维护人"),
+      maintainer.subjectId,
+    );
     await userEvent.click(screen.getByRole("button", { name: "保存正式样本" }));
 
     await waitFor(() =>
@@ -567,6 +730,7 @@ describe("ExistingSampleObservationPanel", () => {
         longitude: 123.94,
         latitude: 47.31,
         objectTypeCode: created.objectTypeCode,
+        maintainerSubjectId: maintainer.subjectId,
       }),
     );
     expect(getFormalSamplePoint).toHaveBeenLastCalledWith(created.id);
@@ -597,6 +761,7 @@ describe("ExistingSampleObservationPanel", () => {
           longitude: 123.94,
           latitude: 47.31,
           objectTypeCode: updated.objectTypeCode,
+          maintainerSubjectId: maintainer.subjectId,
         },
         0,
       ),
@@ -729,6 +894,10 @@ describe("ExistingSampleObservationPanel", () => {
         screen.getByLabelText("正式样本对象分类"),
         "TRADER",
       );
+      await userEvent.selectOptions(
+        screen.getByLabelText("正式样本维护人"),
+        maintainer.subjectId,
+      );
       await userEvent.click(
         screen.getByRole("button", { name: "保存正式样本" }),
       );
@@ -774,6 +943,10 @@ describe("ExistingSampleObservationPanel", () => {
     await userEvent.selectOptions(
       screen.getByLabelText("正式样本对象分类"),
       "TRADER",
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("正式样本维护人"),
+      maintainer.subjectId,
     );
     await userEvent.click(screen.getByRole("button", { name: "保存正式样本" }));
 
@@ -1117,6 +1290,34 @@ describe("ExistingSampleObservationPanel", () => {
         facts: {},
       },
     });
+  });
+
+  it.each([
+    [
+      "FORMAL_SAMPLE_MAINTAINER_REQUIRED",
+      "该正式样本尚未指定维护人，请先由管理员指定后再填写期间数据",
+    ],
+    [
+      "FORMAL_SAMPLE_MAINTAINER_DENIED",
+      "当前账号不是该正式样本的维护人，不能填写期间数据",
+    ],
+  ])("shows the maintainer write boundary for %s", async (code, message) => {
+    const api = repository();
+    api.saveFormalSampleObservation.mockRejectedValue(
+      new RealtimeApiError({ code, message: "server message", status: 403 }),
+    );
+    renderPanel(api);
+    await openCollectionData();
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: new RegExp(sample.sampleName, "u"),
+      }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent(message);
   });
 
   it("keeps the formal sample workspace free of review and import workflow language", () => {

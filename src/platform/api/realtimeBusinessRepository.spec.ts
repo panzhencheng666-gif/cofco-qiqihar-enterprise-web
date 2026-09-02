@@ -195,6 +195,7 @@ describe("realtime business repository", () => {
       longitude: 123.94,
       latitude: 47.31,
       objectTypeCode: "FARMER",
+      maintainerSubjectId: "employee-88",
     };
 
     await repository.createFormalSamplePoint!(fields);
@@ -204,6 +205,20 @@ describe("realtime business repository", () => {
     expect(put).toHaveBeenCalledWith(
       "/api/v1/formal-sample-points/formal%2Fpoint-1",
       { ...fields, expectedVersion: 4 },
+    );
+
+    await repository.assignFormalSampleMaintainer!("formal/point-1", {
+      maintainerSubjectId: "employee-99",
+      maintainerChangeReason: "责任岗位调整",
+      expectedVersion: 5,
+    });
+    expect(put).toHaveBeenLastCalledWith(
+      "/api/v1/formal-sample-points/formal%2Fpoint-1/maintainer",
+      {
+        maintainerSubjectId: "employee-99",
+        maintainerChangeReason: "责任岗位调整",
+        expectedVersion: 5,
+      },
     );
   });
 
