@@ -735,7 +735,7 @@ describe("ExistingSampleObservationPanel", () => {
       "230202",
     );
     await userEvent.type(
-      screen.getByLabelText("正式样本地址"),
+      screen.getByLabelText("正式样本详细地址"),
       created.address,
     );
     await userEvent.type(
@@ -778,7 +778,7 @@ describe("ExistingSampleObservationPanel", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "编辑稳定信息" }));
     const name = screen.getByLabelText("正式样本名称");
-    const address = screen.getByLabelText("正式样本地址");
+    const address = screen.getByLabelText("正式样本详细地址");
     await userEvent.clear(name);
     await userEvent.type(name, updated.canonicalName);
     await userEvent.clear(address);
@@ -919,7 +919,7 @@ describe("ExistingSampleObservationPanel", () => {
         "230202",
       );
       await userEvent.type(
-        screen.getByLabelText("正式样本地址"),
+        screen.getByLabelText("正式样本详细地址"),
         "龙沙区测试地址",
       );
       await userEvent.type(screen.getByLabelText("正式样本经度"), "123.94");
@@ -971,7 +971,7 @@ describe("ExistingSampleObservationPanel", () => {
       "230202",
     );
     await userEvent.type(
-      screen.getByLabelText("正式样本地址"),
+      screen.getByLabelText("正式样本详细地址"),
       "龙沙区测试地址",
     );
     await userEvent.selectOptions(

@@ -18,8 +18,8 @@ describe.runIf(acceptanceBaseUrl !== undefined)(
         },
       );
 
-      expect(definition.contractVersion).toBe("design-sample-fields-v1");
-      expect(definition.supportedContexts).toHaveLength(27);
+      expect(definition.contractVersion).toBe("design-sample-fields-v2");
+      expect(definition.supportedContexts).toHaveLength(28);
       expect(definition.observationFields.map(({ code }) => code)).toEqual(
         expect.arrayContaining([
           "MKT_PURCHASE_BASE_PRICE",

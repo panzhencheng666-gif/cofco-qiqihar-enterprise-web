@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   CurrentSession,
@@ -20,10 +20,17 @@ import { SamplePointImportPanel } from "../formal-sample/SamplePointImportPanel"
 
 const PAGE_SIZE = 20;
 const BOOTSTRAP_CONTEXT: DesignSampleContext = {
-  domainCode: "PRODUCTION",
-  productCode: "CORN",
-  objectTypeCode: "FARMER",
+  domainCode: "REFERENCE",
+  productCode: "GENERAL",
+  objectTypeCode: "REFERENCE_POINT",
 };
+const LOCATION_FIELD_CODES = new Set([
+  "DSP_NAME",
+  "DSP_REGION_CODE",
+  "DSP_ADDRESS",
+  "DSP_LONGITUDE",
+  "DSP_LATITUDE",
+]);
 const EMPTY_PAGE: Page<DesignSamplePointRow> = {
   items: [],
   pageNumber: 0,
@@ -61,13 +68,9 @@ export function DesignSamplePointTable({
   const [refresh, setRefresh] = useState(0);
   const [filterDraft, setFilterDraft] = useState({
     keyword: "",
-    domainCode: "",
-    productCode: "",
-    objectTypeCode: "",
     regionCode: "",
   });
   const [filters, setFilters] = useState(filterDraft);
-  const [catalog, setCatalog] = useState<DesignSampleFieldContract>();
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
   const [editor, setEditor] = useState<Editor>();
   const [viewPoint, setViewPoint] = useState<DesignSamplePointRow>();
@@ -85,14 +88,6 @@ export function DesignSamplePointTable({
 
   useEffect(() => {
     let active = true;
-    if (repository.loadDesignSamplePointFields) {
-      void repository
-        .loadDesignSamplePointFields(BOOTSTRAP_CONTEXT)
-        .then((next) => {
-          if (active) setCatalog(next);
-        })
-        .catch(() => undefined);
-    }
     void repository
       .loadMasterData()
       .then((master) => {
@@ -144,7 +139,6 @@ export function DesignSamplePointTable({
     };
   }, [filters, onListStateChange, page, refresh, refreshSequence, repository]);
 
-  const labels = useMemo(() => catalogLabels(catalog), [catalog]);
   const pageCount = Math.max(1, pageData.totalPages);
 
   const loadEditor = useCallback(
@@ -187,7 +181,6 @@ export function DesignSamplePointTable({
       }
       try {
         const contract = await repository.loadDesignSamplePointFields(context);
-        setCatalog(contract);
         setEditorContract(contract);
       } catch (error) {
         setEditorError(errorMessage(error, "字段信息暂不可用，请稍后重试。"));
@@ -383,38 +376,6 @@ export function DesignSamplePointTable({
                   value={filterDraft.keyword}
                 />
               </label>
-              <CatalogFilter
-                label="业务类型"
-                onChange={(domainCode) =>
-                  setFilterDraft((current) => ({
-                    ...current,
-                    domainCode,
-                    objectTypeCode: "",
-                  }))
-                }
-                options={catalog?.domains ?? []}
-                value={filterDraft.domainCode}
-              />
-              <CatalogFilter
-                label="产品"
-                onChange={(productCode) =>
-                  setFilterDraft((current) => ({ ...current, productCode }))
-                }
-                options={catalog?.products ?? []}
-                value={filterDraft.productCode}
-              />
-              <CatalogFilter
-                label="对象类别"
-                onChange={(objectTypeCode) =>
-                  setFilterDraft((current) => ({ ...current, objectTypeCode }))
-                }
-                options={(catalog?.objectTypes ?? []).filter(
-                  (option) =>
-                    !filterDraft.domainCode ||
-                    option.domainCode === filterDraft.domainCode,
-                )}
-                value={filterDraft.objectTypeCode}
-              />
               <label>
                 <span>行政区</span>
                 <select
@@ -444,9 +405,6 @@ export function DesignSamplePointTable({
                   onClick={() => {
                     const empty = {
                       keyword: "",
-                      domainCode: "",
-                      productCode: "",
-                      objectTypeCode: "",
                       regionCode: "",
                     };
                     setFilterDraft(empty);
@@ -481,8 +439,8 @@ export function DesignSamplePointTable({
                     <thead>
                       <tr>
                         <th>点位名称</th>
-                        <th>业务对象</th>
                         <th>行政区</th>
+                        <th>详细地址</th>
                         <th>坐标</th>
                         <th>操作</th>
                       </tr>
@@ -491,18 +449,8 @@ export function DesignSamplePointTable({
                       {pageData.items.map((point) => (
                         <tr key={point.id}>
                           <td>{point.name}</td>
-                          <td>
-                            {labels.domain.get(point.context.domainCode) ??
-                              "未识别"}{" "}
-                            ·{" "}
-                            {labels.product.get(point.context.productCode) ??
-                              "未识别"}{" "}
-                            ·{" "}
-                            {labels.objectType.get(
-                              point.context.objectTypeCode,
-                            ) ?? "未识别"}
-                          </td>
                           <td>{point.regionPath}</td>
+                          <td>{displayValue(point.values.DSP_ADDRESS)}</td>
                           <td>
                             {point.longitude}, {point.latitude}
                           </td>
@@ -605,18 +553,16 @@ export function DesignSamplePointTable({
           </header>
           <dl>
             <div>
-              <dt>业务对象</dt>
-              <dd>
-                {labels.domain.get(viewPoint.context.domainCode) ?? "未识别"} ·{" "}
-                {labels.product.get(viewPoint.context.productCode) ?? "未识别"}{" "}
-                ·{" "}
-                {labels.objectType.get(viewPoint.context.objectTypeCode) ??
-                  "未识别"}
-              </dd>
+              <dt>点位名称</dt>
+              <dd>{viewPoint.name}</dd>
             </div>
             <div>
               <dt>行政区</dt>
               <dd>{viewPoint.regionPath}</dd>
+            </div>
+            <div>
+              <dt>详细地址</dt>
+              <dd>{displayValue(viewPoint.values.DSP_ADDRESS)}</dd>
             </div>
             <div>
               <dt>坐标</dt>
@@ -658,22 +604,6 @@ export function DesignSamplePointTable({
             setEditor(undefined);
             navigate({ type: "design-sample-list", id: "list" });
           }}
-          onContextChange={async (context) => {
-            if (!repository.loadDesignSamplePointFields) return;
-            setEditorError("");
-            setEditorContract(undefined);
-            setEditorValues({});
-            try {
-              const next =
-                await repository.loadDesignSamplePointFields(context);
-              setCatalog(next);
-              setEditorContract(next);
-            } catch (error) {
-              setEditorError(
-                errorMessage(error, "字段信息暂不可用，请稍后重试。"),
-              );
-            }
-          }}
           onSave={() => void save()}
           onValueChange={(code, value) =>
             setEditorValues((current) => ({ ...current, [code]: value }))
@@ -692,7 +622,6 @@ function DesignSamplePointEditor({
   error,
   mode,
   onCancel,
-  onContextChange,
   onSave,
   onValueChange,
   regions,
@@ -703,7 +632,6 @@ function DesignSamplePointEditor({
   error: string;
   mode: "create" | "edit";
   onCancel: () => void;
-  onContextChange: (context: DesignSampleContext) => Promise<void>;
   onSave: () => void;
   onValueChange: (code: string, value: string) => void;
   regions: readonly MasterRegion[];
@@ -711,8 +639,8 @@ function DesignSamplePointEditor({
   values: Readonly<Record<string, string>>;
 }) {
   const fields = contract
-    ? [...contract.identityFields, ...contract.observationFields].filter(
-        (field) => field.editable,
+    ? contract.identityFields.filter(
+        (field) => field.editable && LOCATION_FIELD_CODES.has(field.code),
       )
     : [];
   return (
@@ -727,23 +655,20 @@ function DesignSamplePointEditor({
     >
       <header>
         <h3>{mode === "create" ? "新建设计参考点" : "编辑设计参考点"}</h3>
-        <p>选择业务对象后，系统只展示该对象适用的填写项。</p>
+        <p>填写点位名称、行政区、详细地址和经纬度。</p>
       </header>
       {contract ? (
-        <>
-          <ContextFields contract={contract} onChange={onContextChange} />
-          <div className="design-sample-point-editor__fields">
-            {fields.map((field) => (
-              <MetadataField
-                field={field}
-                key={field.code}
-                onChange={(value) => onValueChange(field.code, value)}
-                regions={regions}
-                value={values[field.code] ?? ""}
-              />
-            ))}
-          </div>
-        </>
+        <div className="design-sample-point-editor__fields">
+          {fields.map((field) => (
+            <MetadataField
+              field={field}
+              key={field.code}
+              onChange={(value) => onValueChange(field.code, value)}
+              regions={regions}
+              value={values[field.code] ?? ""}
+            />
+          ))}
+        </div>
       ) : error ? null : (
         <p role="status">正在读取适用填写项…</p>
       )}
@@ -757,84 +682,6 @@ function DesignSamplePointEditor({
         </button>
       </footer>
     </form>
-  );
-}
-
-function ContextFields({
-  contract,
-  onChange,
-}: {
-  contract: DesignSampleFieldContract;
-  onChange: (context: DesignSampleContext) => Promise<void>;
-}) {
-  const labels = catalogLabels(contract);
-  const context = contract.context;
-  const change = (part: keyof DesignSampleContext, value: string) => {
-    const preferred = { ...context, [part]: value };
-    const next =
-      contract.supportedContexts.find(
-        (candidate) =>
-          candidate.domainCode === preferred.domainCode &&
-          candidate.productCode === preferred.productCode &&
-          candidate.objectTypeCode === preferred.objectTypeCode,
-      ) ??
-      contract.supportedContexts.find((candidate) => candidate[part] === value);
-    if (next) void onChange(next);
-  };
-  return (
-    <div className="design-sample-point-editor__context">
-      <label>
-        <span>业务类型</span>
-        <select
-          aria-label="业务类型"
-          onChange={(event) => change("domainCode", event.target.value)}
-          value={context.domainCode}
-        >
-          {contract.domains.map((option) => (
-            <option key={option.code} value={option.code}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>产品</span>
-        <select
-          aria-label="产品"
-          onChange={(event) => change("productCode", event.target.value)}
-          value={context.productCode}
-        >
-          {contract.products.map((option) => (
-            <option key={option.code} value={option.code}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>对象类别</span>
-        <select
-          aria-label="对象类别"
-          onChange={(event) => change("objectTypeCode", event.target.value)}
-          value={context.objectTypeCode}
-        >
-          {contract.supportedContexts
-            .filter(
-              (candidate) =>
-                candidate.domainCode === context.domainCode &&
-                candidate.productCode === context.productCode,
-            )
-            .map((candidate) => (
-              <option
-                key={candidate.objectTypeCode}
-                value={candidate.objectTypeCode}
-              >
-                {labels.objectType.get(candidate.objectTypeCode) ?? "业务对象"}
-              </option>
-            ))}
-        </select>
-      </label>
-    </div>
   );
 }
 
@@ -917,37 +764,6 @@ function MetadataField({
   );
 }
 
-function CatalogFilter({
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  options: readonly { code: string; label: string }[];
-  value: string;
-}) {
-  if (options.length === 0) return null;
-  return (
-    <label>
-      <span>{label}</span>
-      <select
-        aria-label={`筛选${label}`}
-        onChange={(event) => onChange(event.target.value)}
-        value={value}
-      >
-        <option value="">全部{label}</option>
-        {options.map((option) => (
-          <option key={option.code} value={option.code}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 function nonEmptyFilters(filters: Record<string, string>) {
   return Object.fromEntries(
     Object.entries(filters).filter(([, value]) => value.trim() !== ""),
@@ -959,25 +775,13 @@ function submittedValues(
   values: Readonly<Record<string, string>>,
 ) {
   return Object.fromEntries(
-    [...contract.identityFields, ...contract.observationFields]
-      .filter((field) => field.editable)
+    contract.identityFields
+      .filter((field) => field.editable && LOCATION_FIELD_CODES.has(field.code))
       .flatMap((field) => {
         const value = values[field.code]?.trim() ?? "";
         return value === "" ? [] : [[field.code, value] as const];
       }),
   );
-}
-
-function catalogLabels(contract: DesignSampleFieldContract | undefined) {
-  return {
-    domain: new Map(contract?.domains.map(({ code, label }) => [code, label])),
-    product: new Map(
-      contract?.products.map(({ code, label }) => [code, label]),
-    ),
-    objectType: new Map(
-      contract?.objectTypes.map(({ code, label }) => [code, label]),
-    ),
-  };
 }
 
 function enumLabel(value: string, index: number) {
@@ -1052,6 +856,10 @@ function formValue(value: unknown) {
     typeof value === "boolean"
     ? String(value)
     : "";
+}
+
+function displayValue(value: unknown) {
+  return formValue(value).trim() || "未填写";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

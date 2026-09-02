@@ -24,8 +24,8 @@ describe("design sample field contract", () => {
       "/api/v1/design-sample-field-definitions",
       context,
     );
-    expect(result.supportedContexts).toHaveLength(27);
-    expect(result.objectTypes).toHaveLength(11);
+    expect(result.supportedContexts).toHaveLength(28);
+    expect(result.objectTypes).toHaveLength(12);
   });
 
   it.each([
@@ -107,11 +107,19 @@ function validContract() {
       aliases: [],
       sortOrder: 20,
     },
+    {
+      code: "REFERENCE",
+      label: "设计参考",
+      description: "设计参考",
+      aliases: [],
+      sortOrder: 30,
+    },
   ];
   const products = [
     { code: "CORN", label: "玉米", aliases: [], sortOrder: 10 },
     { code: "SOYBEAN", label: "大豆", aliases: [], sortOrder: 20 },
     { code: "RICE", label: "水稻", aliases: ["稻谷"], sortOrder: 30 },
+    { code: "GENERAL", label: "通用", aliases: [], sortOrder: 40 },
   ];
   const objectTypes = [
     objectType("PRODUCTION", "FARMER", 10),
@@ -125,9 +133,10 @@ function validContract() {
     objectType("MARKET", "BREEDING_FACTORY", 160),
     objectType("MARKET", "FEED_MILL", 170),
     objectType("MARKET", "AGRICULTURAL_INPUT_STORE", 180),
+    objectType("REFERENCE", "REFERENCE_POINT", 10),
   ];
   return {
-    contractVersion: "design-sample-fields-v1",
+    contractVersion: "design-sample-fields-v2",
     contractDigest: `sha256:${"a".repeat(64)}`,
     context,
     domains,
@@ -234,5 +243,10 @@ function legalContexts() {
       productCode,
       objectTypeCode: "AGRICULTURAL_INPUT_STORE",
     })),
+    {
+      domainCode: "REFERENCE",
+      productCode: "GENERAL",
+      objectTypeCode: "REFERENCE_POINT",
+    },
   ];
 }
