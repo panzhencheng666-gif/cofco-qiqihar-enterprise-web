@@ -238,20 +238,19 @@ describe("realtime business repository", () => {
     } as never);
     const repository = createRealtimeBusinessRepository(api);
     const mutation = {
-      contractVersion: "design-sample-fields-v1",
+      contractVersion: "design-sample-fields-v2",
       contractDigest: `sha256:${"a".repeat(64)}`,
       context: {
-        domainCode: "PRODUCTION",
-        productCode: "CORN",
-        objectTypeCode: "FARMER",
+        domainCode: "REFERENCE",
+        productCode: "GENERAL",
+        objectTypeCode: "REFERENCE_POINT",
       },
       values: {
         DSP_NAME: "兴农示范点",
         DSP_REGION_CODE: "230202",
+        DSP_ADDRESS: "龙沙区兴农路1号",
         DSP_LONGITUDE: "123.95",
         DSP_LATITUDE: "47.35",
-        OBSERVED_ON: "2026-08-31",
-        PROD_AREA_MU: "100",
       },
     } as const;
 

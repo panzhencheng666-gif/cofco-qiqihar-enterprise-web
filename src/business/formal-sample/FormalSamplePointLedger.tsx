@@ -820,7 +820,7 @@ export function FormalSamplePointLedger({
                 {editor.mode === "CREATE" ? "新增正式样本" : "编辑稳定信息"}
               </h3>
               <p>
-                名称、地区、地址、经纬度和对象分类属于稳定主数据；版本由系统自动校验。
+                名称、地区、详细地址、经纬度和对象分类属于稳定主数据；版本由系统自动校验。
               </p>
             </div>
             {editor.expectedVersion !== null && (
@@ -857,9 +857,9 @@ export function FormalSamplePointLedger({
               </select>
             </label>
             <label className="formal-sample-page__address">
-              <span>地址</span>
+              <span>详细地址</span>
               <input
-                aria-label="正式样本地址"
+                aria-label="正式样本详细地址"
                 maxLength={500}
                 value={editor.address}
                 onChange={(event) =>
@@ -1113,7 +1113,7 @@ export function FormalSamplePointLedger({
                 <dd>{coordinate(detail)}</dd>
               </div>
               <div>
-                <dt>地址</dt>
+                <dt>详细地址</dt>
                 <dd>{detail.address}</dd>
               </div>
               <div>

@@ -132,13 +132,13 @@ export function designSampleValueState(
 function contractSchema(expectedContext: DesignSampleContext) {
   return z
     .object({
-      contractVersion: z.literal("design-sample-fields-v1"),
+      contractVersion: z.literal("design-sample-fields-v2"),
       contractDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
       context: contextSchema,
-      domains: z.array(domainSchema).length(2),
-      products: z.array(productSchema).length(3),
-      objectTypes: z.array(objectTypeSchema).length(11),
-      supportedContexts: z.array(supportedContextSchema).length(27),
+      domains: z.array(domainSchema).length(3),
+      products: z.array(productSchema).length(4),
+      objectTypes: z.array(objectTypeSchema).length(12),
+      supportedContexts: z.array(supportedContextSchema).length(28),
       identityFields: z.array(fieldSchema),
       observationFields: z.array(fieldSchema),
     })

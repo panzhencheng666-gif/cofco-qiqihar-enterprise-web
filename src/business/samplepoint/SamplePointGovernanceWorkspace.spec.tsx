@@ -109,16 +109,17 @@ function designPoint(
 ): DesignSamplePointRow {
   return {
     id: "point-1",
-    contractVersion: "design-sample-fields-v1",
+    contractVersion: "design-sample-fields-v2",
     contractDigest: `sha256:${"a".repeat(64)}`,
     context: {
-      domainCode: "PRODUCTION",
-      productCode: "CORN",
-      objectTypeCode: "FARMER",
+      domainCode: "REFERENCE",
+      productCode: "GENERAL",
+      objectTypeCode: "REFERENCE_POINT",
     },
     values: {
       DSP_NAME: "众兴村",
       DSP_REGION_CODE: "230231100201",
+      DSP_ADDRESS: "兴农镇众兴村一组",
       DSP_LONGITUDE: "126.1",
       DSP_LATITUDE: "47.62",
       OBSERVED_ON: "2026-08-31",
@@ -170,12 +171,12 @@ function contractField(
 
 function designFieldContract(): DesignSampleFieldContract {
   return {
-    contractVersion: "design-sample-fields-v1",
+    contractVersion: "design-sample-fields-v2",
     contractDigest: `sha256:${"a".repeat(64)}`,
     context: {
-      domainCode: "PRODUCTION",
-      productCode: "CORN",
-      objectTypeCode: "FARMER",
+      domainCode: "REFERENCE",
+      productCode: "GENERAL",
+      objectTypeCode: "REFERENCE_POINT",
     },
     domains: [
       {
@@ -223,8 +224,10 @@ function designFieldContract(): DesignSampleFieldContract {
     identityFields: [
       contractField("DSP_NAME", "点位名称", "STRING", true, 50),
       contractField("DSP_REGION_CODE", "行政区代码", "STRING", true, 60),
+      contractField("DSP_ADDRESS", "详细地址", "STRING", true, 65),
       contractField("DSP_LONGITUDE", "经度", "DECIMAL", true, 70),
       contractField("DSP_LATITUDE", "纬度", "DECIMAL", true, 80),
+      contractField("DSP_COORDINATE_SOURCE", "坐标来源", "STRING", false, 90),
     ],
     observationFields: [
       contractField("OBSERVED_ON", "观测日期", "DATE", true, 200),
@@ -400,8 +403,10 @@ describe("SamplePointGovernanceWorkspace", () => {
   });
 
   it("uses the authoritative V159 page for read-only listing and count", async () => {
+    const historicalValues = { ...designPoint().values };
+    delete historicalValues.DSP_ADDRESS;
     const listDesignSamplePoints = vi.fn().mockResolvedValue({
-      items: [designPoint()],
+      items: [designPoint({ values: historicalValues })],
       pageNumber: 0,
       pageSize: 20,
       totalElements: 1,
@@ -418,6 +423,7 @@ describe("SamplePointGovernanceWorkspace", () => {
 
     await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
     expect(await screen.findByText("众兴村")).toBeVisible();
+    expect(screen.getByText("未填写")).toBeVisible();
     expect(listDesignSamplePoints).toHaveBeenCalledWith({
       page: 0,
       pageSize: 20,
@@ -537,6 +543,10 @@ describe("SamplePointGovernanceWorkspace", () => {
       "众兴村",
     );
     await userEvent.type(
+      within(createForm).getByRole("textbox", { name: "详细地址" }),
+      "兴农镇新建示范点一组",
+    );
+    await userEvent.type(
       within(createForm).getByRole("spinbutton", { name: "经度" }),
       "126.2",
     );
@@ -544,13 +554,15 @@ describe("SamplePointGovernanceWorkspace", () => {
       within(createForm).getByRole("spinbutton", { name: "纬度" }),
       "47.7",
     );
-    fireEvent.change(within(createForm).getByLabelText("观测日期"), {
-      target: { value: "2026-08-31" },
-    });
-    await userEvent.type(
-      within(createForm).getByRole("spinbutton", { name: "播种面积（亩）" }),
-      "100",
-    );
+    expect(
+      within(createForm).queryByLabelText("观测日期"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(createForm).queryByLabelText("坐标来源"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(createForm).queryByRole("combobox", { name: "业务类型" }),
+    ).not.toBeInTheDocument();
     await userEvent.click(
       within(createForm).getByRole("button", { name: "保存" }),
     );
@@ -565,6 +577,20 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(createDesignSamplePoint.mock.calls[1]?.[1]).toEqual(
       expect.any(String),
     );
+    expect(createDesignSamplePoint.mock.calls[1]?.[0]).toMatchObject({
+      context: {
+        domainCode: "REFERENCE",
+        productCode: "GENERAL",
+        objectTypeCode: "REFERENCE_POINT",
+      },
+      values: {
+        DSP_NAME: "新建示范点",
+        DSP_REGION_CODE: "230231100201",
+        DSP_ADDRESS: "兴农镇新建示范点一组",
+        DSP_LONGITUDE: "126.2",
+        DSP_LATITUDE: "47.7",
+      },
+    });
     expect(getDesignSamplePoint).toHaveBeenNthCalledWith(1, "point-1");
     expect(listDesignSamplePoints).toHaveBeenCalledTimes(2);
 
@@ -667,6 +693,10 @@ describe("SamplePointGovernanceWorkspace", () => {
       "众兴村",
     );
     await userEvent.type(
+      within(form).getByRole("textbox", { name: "详细地址" }),
+      "兴农镇新建示范点二组",
+    );
+    await userEvent.type(
       within(form).getByRole("spinbutton", { name: "经度" }),
       "126.2",
     );
@@ -674,9 +704,6 @@ describe("SamplePointGovernanceWorkspace", () => {
       within(form).getByRole("spinbutton", { name: "纬度" }),
       "47.7",
     );
-    fireEvent.change(within(form).getByLabelText("观测日期"), {
-      target: { value: "2026-09-01" },
-    });
     await userEvent.click(within(form).getByRole("button", { name: "保存" }));
 
     await vi.waitFor(() =>
@@ -689,7 +716,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
   });
 
-  it("renders the four agricultural-input fields from V157 metadata without workflow or internal-code copy", async () => {
+  it("hides historical agricultural observations and internal context from the location editor", async () => {
     const point = designPoint({
       name: "龙沙农资店",
       context: {
@@ -743,27 +770,20 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
     const form = await screen.findByRole("form", { name: "编辑设计参考点" });
 
+    expect(within(form).getByRole("textbox", { name: "详细地址" })).toHaveValue(
+      "兴农镇众兴村一组",
+    );
     expect(
-      within(form).getByRole("spinbutton", { name: "种子销售量（公斤）" }),
-    ).toHaveAttribute("step", "0.0001");
+      within(form).queryByLabelText("种子销售量（公斤）"),
+    ).not.toBeInTheDocument();
     expect(
-      within(form).getByRole("spinbutton", { name: "种子销售量（公斤）" }),
-    ).toHaveAttribute("min", "0");
+      within(form).queryByLabelText("种子零售价（元/公斤）"),
+    ).not.toBeInTheDocument();
+    expect(within(form).queryByLabelText("供货状态")).not.toBeInTheDocument();
     expect(
-      within(form).getByRole("spinbutton", { name: "种子零售价（元/公斤）" }),
-    ).toHaveValue(6.5);
-    expect(
-      within(
-        within(form).getByRole("combobox", { name: "供货状态" }),
-      ).getByRole("option", { name: "充足" }),
-    ).toBeVisible();
-    expect(
-      within(
-        within(form).getByRole("combobox", { name: "种植意向趋势" }),
-      ).getByRole("option", { name: "稳定" }),
-    ).toBeVisible();
-    expect(within(form).queryByText("收购基础价")).not.toBeInTheDocument();
-    expect(within(form).queryByText("surveyYear")).not.toBeInTheDocument();
+      within(form).queryByLabelText("种植意向趋势"),
+    ).not.toBeInTheDocument();
+    expect(within(form).queryByLabelText("业务类型")).not.toBeInTheDocument();
     expect(
       within(form).queryByText("AGRI_INPUT_SEED_SALES_VOLUME"),
     ).not.toBeInTheDocument();
@@ -776,7 +796,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     ["BREEDING_FACTORY", "养殖场", false],
     ["FEED_MILL", "饲料厂", false],
   ])(
-    "shows contract-applicable purchase fields for %s",
+    "keeps historical %s observations out of the location editor",
     async (objectTypeCode, objectTypeLabel, hasSalePrice) => {
       const contract = marketPurchaseContract(objectTypeCode, objectTypeLabel);
       const point = designPoint({
@@ -834,19 +854,12 @@ describe("SamplePointGovernanceWorkspace", () => {
       });
 
       expect(
-        within(form).getByRole("spinbutton", { name: "收购基础价（元/吨）" }),
-      ).toHaveValue(2200);
-      if (hasSalePrice) {
-        expect(
-          within(form).getByRole("spinbutton", { name: "销售基础价（元/吨）" }),
-        ).toHaveValue(2300);
-      } else {
-        expect(
-          within(form).queryByRole("spinbutton", {
-            name: "销售基础价（元/吨）",
-          }),
-        ).not.toBeInTheDocument();
-      }
+        within(form).queryByLabelText("收购基础价（元/吨）"),
+      ).not.toBeInTheDocument();
+      expect(
+        within(form).queryByLabelText("销售基础价（元/吨）"),
+      ).not.toBeInTheDocument();
+      expect(within(form).getAllByRole("spinbutton")).toHaveLength(2);
     },
   );
 

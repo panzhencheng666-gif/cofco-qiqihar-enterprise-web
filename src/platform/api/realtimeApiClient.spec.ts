@@ -4,7 +4,7 @@ import { RealtimeApiError, createRealtimeApiClient } from "./realtimeApiClient";
 describe("realtime API client", () => {
   it("returns an unwrapped direct contract through getRaw", async () => {
     const payload = {
-      contractVersion: "design-sample-fields-v1",
+      contractVersion: "design-sample-fields-v2",
       contractDigest: `sha256:${"a".repeat(64)}`,
     };
     const fetcher = vi.fn().mockResolvedValue(
