@@ -14,6 +14,7 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
   page,
   request,
 }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto("/#/市场监测/玉米市场采集");
 
   await expect(
@@ -26,11 +27,57 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
     0,
   );
 
+  const ledger = page.getByRole("region", { name: "采集台账工作台" });
+  const filters = ledger.getByRole("search");
+  const filterControls = filters.locator("input, select, button");
+  expect(
+    await filterControls.evaluateAll((elements) =>
+      elements.map((element) =>
+        Math.round(element.getBoundingClientRect().height),
+      ),
+    ),
+  ).toEqual([40, 40, 40, 40, 40]);
+  const [ledgerWidth, tableWidth] = await Promise.all([
+    ledger.evaluate((element) => element.getBoundingClientRect().width),
+    ledger
+      .locator(".formal-sample-ledger__table")
+      .evaluate((element) => element.getBoundingClientRect().width),
+  ]);
+  expect(tableWidth / ledgerWidth).toBeGreaterThan(0.95);
+
   const row = page.getByRole("row", { name: /龙江县粮食贸易样本一号/ });
   await expect(row).toContainText("贸易商");
   await expect(row.getByRole("button", { name: "查看" })).toBeVisible();
   await expect(row.getByRole("button", { name: "编辑" })).toBeVisible();
   await expect(row.getByRole("button", { name: "删除" })).toBeVisible();
+  expect(
+    await row
+      .locator("button")
+      .evaluateAll(
+        (buttons) =>
+          new Set(
+            buttons.map((button) =>
+              Math.round(button.getBoundingClientRect().top),
+            ),
+          ).size,
+      ),
+  ).toBe(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await ledger.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  expect(
+    await filterControls.evaluateAll((elements) =>
+      elements.map((element) =>
+        Math.round(element.getBoundingClientRect().height),
+      ),
+    ),
+  ).toEqual([48, 48, 48, 48, 48]);
+  await page.setViewportSize({ width: 1600, height: 900 });
+
   await row.getByRole("button", { name: "查看" }).click();
   await expect(
     page.getByRole("region", { name: "正式样本详情" }),
@@ -228,7 +275,9 @@ test("keeps an empty API store empty without loading browser fixtures", async ({
   await setControlledApiMode(request, "empty");
   await page.goto("/#/市场监测/玉米市场采集");
 
-  await expect(page.getByText("当前条件下没有正式样本。")).toBeVisible();
+  await expect(
+    page.getByText("当前条件下没有可采集的正式样本。"),
+  ).toBeVisible();
   await expect(page.getByText("服务端玉米市场采集任务")).toHaveCount(0);
   await expect(page.getByText("齐齐哈尔市玉米市场运行周填报")).toHaveCount(0);
 });

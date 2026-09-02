@@ -252,11 +252,10 @@ function renderPanel(
 }
 
 async function openCollectionData() {
-  await userEvent.click(
-    await screen.findByRole("button", {
-      name: /填写采集数据|更新采集数据/u,
-    }),
-  );
+  const [firstAction] = await screen.findAllByRole("button", {
+    name: /填写采集数据|更新采集数据/u,
+  });
+  await userEvent.click(firstAction);
 }
 
 function formalPoint(
@@ -292,6 +291,28 @@ function formalPoint(
     networkMembershipCount: 0,
     ...overrides,
   } as const;
+}
+
+function eligibleSampleFor(point: {
+  id: string;
+  canonicalName: string;
+  regionCode: string;
+  longitude: number | string | null;
+  latitude: number | string | null;
+  objectTypeCode?: string;
+  objectTypeName?: string;
+}): EligibleFormalSample {
+  return {
+    ...sample,
+    samplePointId: point.id,
+    sampleName: point.canonicalName,
+    regionCode: point.regionCode,
+    regionName: point.regionCode === "230202" ? "龙沙区" : sample.regionName,
+    longitude: String(point.longitude ?? ""),
+    latitude: String(point.latitude ?? ""),
+    objectTypeCode: point.objectTypeCode ?? "TRADER",
+    objectTypeName: point.objectTypeName ?? "贸易商",
+  };
 }
 
 describe("ExistingSampleObservationPanel", () => {
@@ -354,6 +375,43 @@ describe("ExistingSampleObservationPanel", () => {
     ).toBeVisible();
   });
 
+  it("queries the collection ledger with the mature authoritative filter set", async () => {
+    const api = {
+      ...repository(),
+      loadMasterData: vi.fn().mockResolvedValue({
+        regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
+      }),
+    };
+    renderPanel(api);
+
+    await screen.findByRole("option", { name: "深加工企业" });
+    const observedAt = screen.getByLabelText("采集台账观测时间");
+    await userEvent.clear(observedAt);
+    await userEvent.type(observedAt, "2026-09-02T08:30");
+    await userEvent.selectOptions(
+      screen.getByLabelText("采集台账对象类型"),
+      "DEEP_PROCESSOR",
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("采集台账业务地区"),
+      "230202",
+    );
+    await userEvent.type(screen.getByLabelText("采集台账样本名称"), "中粮生化");
+    await userEvent.click(screen.getByRole("button", { name: "查询" }));
+
+    await waitFor(() =>
+      expect(api.listEligibleFormalSamples).toHaveBeenLastCalledWith({
+        domain: "MARKET",
+        productCode: "CORN",
+        objectTypeCode: "DEEP_PROCESSOR",
+        regionCode: "230202",
+        keyword: "中粮生化",
+        year: 2026,
+        observedAt: new Date("2026-09-02T08:30").toISOString(),
+      }),
+    );
+  });
+
   it("fails closed for mutation controls when the account has read-only permissions", async () => {
     renderPanel(repository(), vi.fn(), []);
 
@@ -405,6 +463,9 @@ describe("ExistingSampleObservationPanel", () => {
       const deleteFormalSamplePoint = vi.fn();
       const api = {
         ...repository(),
+        listEligibleFormalSamples: vi
+          .fn()
+          .mockResolvedValue([eligibleSampleFor(point)]),
         listFormalSamplePoints: vi.fn().mockResolvedValue({
           items: [point],
           pageNumber: 0,
@@ -439,29 +500,9 @@ describe("ExistingSampleObservationPanel", () => {
       address: "龙沙区新立街 2 号",
       version: 1,
     });
-    const listFormalSamplePoints = vi
+    const listEligibleFormalSamples = vi
       .fn()
-      .mockResolvedValueOnce({
-        items: [],
-        pageNumber: 0,
-        pageSize: 20,
-        totalElements: 0,
-        totalPages: 0,
-      })
-      .mockResolvedValueOnce({
-        items: [created],
-        pageNumber: 0,
-        pageSize: 20,
-        totalElements: 1,
-        totalPages: 1,
-      })
-      .mockResolvedValueOnce({
-        items: [updated],
-        pageNumber: 0,
-        pageSize: 20,
-        totalElements: 1,
-        totalPages: 1,
-      });
+      .mockResolvedValue([eligibleSampleFor(created)]);
     const getFormalSamplePoint = vi
       .fn()
       .mockResolvedValueOnce(created)
@@ -473,7 +514,7 @@ describe("ExistingSampleObservationPanel", () => {
       loadMasterData: vi.fn().mockResolvedValue({
         regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
       }),
-      listFormalSamplePoints,
+      listEligibleFormalSamples,
       getFormalSamplePoint,
       createFormalSamplePoint,
       updateFormalSamplePoint,
@@ -522,7 +563,7 @@ describe("ExistingSampleObservationPanel", () => {
       }),
     );
     expect(getFormalSamplePoint).toHaveBeenLastCalledWith(created.id);
-    expect(listFormalSamplePoints).toHaveBeenCalledTimes(2);
+    expect(listEligibleFormalSamples).toHaveBeenCalledTimes(2);
     expect(
       screen.getByRole("region", { name: "正式样本详情" }),
     ).toHaveTextContent("龙沙区新立街 1 号");
@@ -554,7 +595,7 @@ describe("ExistingSampleObservationPanel", () => {
       ),
     );
     expect(getFormalSamplePoint).toHaveBeenLastCalledWith(updated.id);
-    expect(listFormalSamplePoints).toHaveBeenCalledTimes(3);
+    expect(listEligibleFormalSamples).toHaveBeenCalledTimes(3);
     expect(
       screen.queryByDisplayValue(created.canonicalName),
     ).not.toBeInTheDocument();
@@ -573,13 +614,9 @@ describe("ExistingSampleObservationPanel", () => {
       address: "最新权威地址",
       version: 5,
     });
-    const listFormalSamplePoints = vi.fn().mockResolvedValue({
-      items: [refreshed],
-      pageNumber: 0,
-      pageSize: 20,
-      totalElements: 1,
-      totalPages: 1,
-    });
+    const listEligibleFormalSamples = vi
+      .fn()
+      .mockResolvedValue([eligibleSampleFor(refreshed)]);
     const getFormalSamplePoint = vi
       .fn()
       .mockResolvedValueOnce(point)
@@ -596,7 +633,7 @@ describe("ExistingSampleObservationPanel", () => {
       loadMasterData: vi.fn().mockResolvedValue({
         regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
       }),
-      listFormalSamplePoints,
+      listEligibleFormalSamples,
       getFormalSamplePoint,
       createFormalSamplePoint: vi.fn(),
       updateFormalSamplePoint,
@@ -620,7 +657,7 @@ describe("ExistingSampleObservationPanel", () => {
       expect.any(Object),
       4,
     );
-    expect(listFormalSamplePoints).toHaveBeenCalledTimes(2);
+    expect(listEligibleFormalSamples).toHaveBeenCalledTimes(2);
     expect(getFormalSamplePoint).toHaveBeenCalledTimes(2);
     expect(
       screen.queryByDisplayValue("将被丢弃的旧草稿"),
@@ -739,7 +776,7 @@ describe("ExistingSampleObservationPanel", () => {
     );
   });
 
-  it("queries formal sample points, loads authoritative detail, and requeries after versioned deletion", async () => {
+  it("queries eligible formal samples, loads authoritative detail, and requeries after versioned deletion", async () => {
     const point = {
       id: "formal-point-1",
       kindCode: "SURVEY_SITE",
@@ -755,22 +792,10 @@ describe("ExistingSampleObservationPanel", () => {
       annualObservationCount: 0,
       networkMembershipCount: 0,
     } as const;
-    const listFormalSamplePoints = vi
+    const listEligibleFormalSamples = vi
       .fn()
-      .mockResolvedValueOnce({
-        items: [point],
-        pageNumber: 0,
-        pageSize: 20,
-        totalElements: 1,
-        totalPages: 1,
-      })
-      .mockResolvedValueOnce({
-        items: [],
-        pageNumber: 0,
-        pageSize: 20,
-        totalElements: 0,
-        totalPages: 0,
-      });
+      .mockResolvedValueOnce([eligibleSampleFor(point)])
+      .mockResolvedValueOnce([]);
     const getFormalSamplePoint = vi.fn().mockResolvedValue(point);
     const deleteFormalSamplePoint = vi.fn().mockResolvedValue(undefined);
     const api = {
@@ -778,7 +803,7 @@ describe("ExistingSampleObservationPanel", () => {
       loadMasterData: vi.fn().mockResolvedValue({
         regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
       }),
-      listFormalSamplePoints,
+      listEligibleFormalSamples,
       getFormalSamplePoint,
       deleteFormalSamplePoint,
       subscribeBusinessEvents: vi.fn(() => vi.fn()),
@@ -788,12 +813,14 @@ describe("ExistingSampleObservationPanel", () => {
     expect(await screen.findByText("龙沙区正式样本")).toBeVisible();
     expect(screen.getAllByText("龙沙区").length).toBeGreaterThan(0);
     expect(screen.queryByText("230202")).not.toBeInTheDocument();
-    expect(listFormalSamplePoints).toHaveBeenLastCalledWith({
-      regionCode: undefined,
-      keyword: undefined,
-      page: 0,
-      pageSize: 20,
-    });
+    expect(listEligibleFormalSamples).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        domain: "MARKET",
+        productCode: "CORN",
+        regionCode: undefined,
+        keyword: undefined,
+      }),
+    );
     await userEvent.click(screen.getByRole("button", { name: "查看" }));
     await waitFor(() =>
       expect(getFormalSamplePoint).toHaveBeenCalledWith("formal-point-1"),
@@ -808,7 +835,7 @@ describe("ExistingSampleObservationPanel", () => {
       expect(deleteFormalSamplePoint).toHaveBeenCalledWith("formal-point-1", 4),
     );
     await waitFor(() =>
-      expect(listFormalSamplePoints).toHaveBeenCalledTimes(2),
+      expect(listEligibleFormalSamples).toHaveBeenCalledTimes(2),
     );
     expect(screen.queryByText("龙沙区正式样本")).not.toBeInTheDocument();
     expect(
@@ -819,7 +846,7 @@ describe("ExistingSampleObservationPanel", () => {
     );
   });
 
-  it("refreshes the formal sample list and selected detail after an outbox event", async () => {
+  it("refreshes the eligible sample list and selected detail after an outbox event", async () => {
     const point = {
       id: "formal-point-1",
       kindCode: "SURVEY_SITE",
@@ -836,17 +863,13 @@ describe("ExistingSampleObservationPanel", () => {
       networkMembershipCount: 0,
     } as const;
     let onChange: (event: BusinessNotificationRow) => void = () => undefined;
-    const listFormalSamplePoints = vi.fn().mockResolvedValue({
-      items: [point],
-      pageNumber: 0,
-      pageSize: 20,
-      totalElements: 1,
-      totalPages: 1,
-    });
+    const listEligibleFormalSamples = vi
+      .fn()
+      .mockResolvedValue([eligibleSampleFor(point)]);
     const getFormalSamplePoint = vi.fn().mockResolvedValue(point);
     const api = {
       ...repository(),
-      listFormalSamplePoints,
+      listEligibleFormalSamples,
       getFormalSamplePoint,
       deleteFormalSamplePoint: vi.fn(),
       subscribeBusinessEvents: vi.fn(
@@ -881,7 +904,7 @@ describe("ExistingSampleObservationPanel", () => {
     });
 
     await waitFor(() =>
-      expect(listFormalSamplePoints).toHaveBeenCalledTimes(2),
+      expect(listEligibleFormalSamples).toHaveBeenCalledTimes(2),
     );
     await waitFor(() => expect(getFormalSamplePoint).toHaveBeenCalledTimes(2));
     expect(queryButton).toHaveFocus();
@@ -891,16 +914,12 @@ describe("ExistingSampleObservationPanel", () => {
   it("preserves an active edit when an outbox event belongs to another sample", async () => {
     const point = formalPoint({ canonicalName: "龙沙区当前编辑样本" });
     let onChange: (event: BusinessNotificationRow) => void = () => undefined;
-    const listFormalSamplePoints = vi.fn().mockResolvedValue({
-      items: [point],
-      pageNumber: 0,
-      pageSize: 20,
-      totalElements: 1,
-      totalPages: 1,
-    });
+    const listEligibleFormalSamples = vi
+      .fn()
+      .mockResolvedValue([eligibleSampleFor(point)]);
     const api = {
       ...repository(),
-      listFormalSamplePoints,
+      listEligibleFormalSamples,
       getFormalSamplePoint: vi.fn().mockResolvedValue(point),
       subscribeBusinessEvents: vi.fn(
         (
@@ -933,7 +952,7 @@ describe("ExistingSampleObservationPanel", () => {
     });
 
     await waitFor(() =>
-      expect(listFormalSamplePoints).toHaveBeenCalledTimes(2),
+      expect(listEligibleFormalSamples).toHaveBeenCalledTimes(2),
     );
     expect(name).toHaveValue("尚未保存的名称");
   });
@@ -954,13 +973,9 @@ describe("ExistingSampleObservationPanel", () => {
       annualObservationCount: 0,
       networkMembershipCount: 0,
     } as const;
-    const listFormalSamplePoints = vi.fn().mockResolvedValue({
-      items: [point],
-      pageNumber: 0,
-      pageSize: 20,
-      totalElements: 1,
-      totalPages: 1,
-    });
+    const listEligibleFormalSamples = vi
+      .fn()
+      .mockResolvedValue([eligibleSampleFor(point)]);
     const refreshedPoint = { ...point, version: 5 };
     const deleteFormalSamplePoint = vi
       .fn()
@@ -974,7 +989,7 @@ describe("ExistingSampleObservationPanel", () => {
       .mockResolvedValueOnce(undefined);
     const api = {
       ...repository(),
-      listFormalSamplePoints,
+      listEligibleFormalSamples,
       getFormalSamplePoint: vi
         .fn()
         .mockResolvedValueOnce(point)
@@ -990,7 +1005,7 @@ describe("ExistingSampleObservationPanel", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "正式样本已被其他人更新，请刷新后再删除",
     );
-    expect(listFormalSamplePoints).toHaveBeenCalledTimes(2);
+    expect(listEligibleFormalSamples).toHaveBeenCalledTimes(2);
     expect(screen.getAllByText("龙沙区正式样本").length).toBeGreaterThan(0);
 
     await userEvent.click(screen.getByRole("button", { name: "删除正式样本" }));
@@ -1452,10 +1467,19 @@ describe("ExistingSampleObservationPanel", () => {
       /@media \(max-width:\s*640px\)[\s\S]*\.existing-observation__filters\s+:is\(input, select\)[^{]*\{[^}]*height:\s*48px/u,
     );
     expect(css).toMatch(
-      /\.formal-sample-ledger__layout\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\([^;]+\)\s+minmax\([^;]+\)/u,
+      /\.formal-sample-ledger__layout\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
     );
     expect(css).toMatch(
-      /@media \(max-width:\s*900px\)[\s\S]*\.formal-sample-ledger__layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
+      /\.formal-sample-ledger__layout--detail\s*\{[^}]*grid-template-columns:\s*minmax\([^;]+\)\s+minmax\([^;]+\)/u,
+    );
+    expect(css).toMatch(
+      /\.formal-sample-ledger__row-actions\s*\{[^}]*flex-wrap:\s*nowrap[^}]*white-space:\s*nowrap/u,
+    );
+    expect(css).toMatch(
+      /\.formal-sample-ledger__filters\s*\{[^}]*grid-template-columns:[^;]*minmax\([^;]+\)[^;]*minmax\([^;]+\)[^;]*minmax\([^;]+\)[^;]*minmax\([^;]+\)\s+auto/u,
+    );
+    expect(css).toMatch(
+      /@media \(max-width:\s*900px\)[\s\S]*\.formal-sample-ledger__layout--detail\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
     );
     expect(shellCss).toMatch(
       /@media \(max-width:\s*1180px\)[\s\S]*\.formal-enterprise\s*\{[^}]*min-width:\s*0/u,

@@ -7,18 +7,11 @@ import type {
   FormalSamplePointRow,
   MasterObjectType,
   MasterRegion,
-  Page,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
-const emptyPage: Page<FormalSamplePointRow> = {
-  items: [],
-  pageNumber: 0,
-  pageSize: 20,
-  totalElements: 0,
-  totalPages: 0,
-};
+const pageSize = 20;
 
 function formalSampleError(error: unknown, fallback: string): string {
   if (!(error instanceof RealtimeApiError)) return fallback;
@@ -55,10 +48,24 @@ function formalSampleWriteError(error: unknown, fallback: string): string {
   return messages[error.code] ?? error.clientMessage ?? fallback;
 }
 
-function coordinate(point: FormalSamplePointRow): string {
+function coordinate(
+  point:
+    Pick<FormalSamplePointRow, "longitude" | "latitude"> | EligibleFormalSample,
+): string {
   return point.longitude === null || point.latitude === null
     ? "待补充"
     : `${point.longitude}，${point.latitude}`;
+}
+
+function localDateTimeValue(): string {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
+}
+
+function latestObservation(value: string | null | undefined): string {
+  if (!value) return "暂无";
+  return value.replace("T", " ").slice(0, 16);
 }
 
 interface EditorState {
@@ -160,10 +167,11 @@ export function FormalSamplePointLedger({
   const [objectTypes, setObjectTypes] = useState<readonly MasterObjectType[]>(
     [],
   );
+  const [observedAt, setObservedAt] = useState(localDateTimeValue);
+  const [objectTypeCode, setObjectTypeCode] = useState("");
   const [regionCode, setRegionCode] = useState("");
   const [keyword, setKeyword] = useState("");
   const [pageNumber, setPageNumber] = useState(0);
-  const [page, setPage] = useState<Page<FormalSamplePointRow>>(emptyPage);
   const [eligibleSamples, setEligibleSamples] = useState<
     readonly EligibleFormalSample[]
   >([]);
@@ -180,7 +188,6 @@ export function FormalSamplePointLedger({
   const detailRegion = useRef<HTMLElement>(null);
   const editorRegion = useRef<HTMLElement>(null);
   const pendingFocusTarget = useRef<"DETAIL" | "EDITOR" | null>(null);
-  const eligibilityObservedAt = useRef(new Date().toISOString());
   const regionNames = useMemo(
     () => new Map(regions.map(({ code, name }) => [code, name])),
     [regions],
@@ -198,10 +205,11 @@ export function FormalSamplePointLedger({
     permissions.includes("BUSINESS_UPDATE") &&
     typeof repository.deleteFormalSamplePoint === "function";
   const canCollect = permissions.includes("BUSINESS_CREATE");
-  const eligibleById = useMemo(
+  const totalPages = Math.ceil(eligibleSamples.length / pageSize);
+  const visibleSamples = useMemo(
     () =>
-      new Map(eligibleSamples.map((sample) => [sample.samplePointId, sample])),
-    [eligibleSamples],
+      eligibleSamples.slice(pageNumber * pageSize, (pageNumber + 1) * pageSize),
+    [eligibleSamples, pageNumber],
   );
   const availableObjectTypes =
     !editor?.objectTypeCode ||
@@ -218,50 +226,61 @@ export function FormalSamplePointLedger({
 
   const query = useCallback(
     async (requestedPage = pageNumber) => {
-      if (!repository.listFormalSamplePoints) return;
+      if (!repository.listEligibleFormalSamples) return;
       const version = ++requestVersion.current;
       setListBusy(true);
       setNotice("");
       try {
-        const [next, eligible] = await Promise.all([
-          repository.listFormalSamplePoints({
-            regionCode: regionCode || undefined,
-            keyword: keyword.trim() || undefined,
-            page: requestedPage,
-            pageSize: 20,
-          }),
-          repository.listEligibleFormalSamples?.({
-            domain,
-            productCode,
-            regionCode: regionCode || undefined,
-            keyword: keyword.trim() || undefined,
-            year: Number(eligibilityObservedAt.current.slice(0, 4)),
-            observedAt: eligibilityObservedAt.current,
-          }) ?? Promise.resolve([]),
-        ]);
+        const instant = new Date(observedAt);
+        if (Number.isNaN(instant.getTime())) {
+          setNotice("请选择正确的观测时间。");
+          return;
+        }
+        const eligible = await repository.listEligibleFormalSamples({
+          domain,
+          productCode,
+          objectTypeCode: objectTypeCode || undefined,
+          regionCode: regionCode || undefined,
+          keyword: keyword.trim() || undefined,
+          year: instant.getFullYear(),
+          observedAt: instant.toISOString(),
+        });
         if (version !== requestVersion.current) return;
-        setPage(next);
         setEligibleSamples(eligible);
-        setPageNumber(next.pageNumber);
-        if (detail && !next.items.some(({ id }) => id === detail.id)) {
+        const nextPage = Math.min(
+          requestedPage,
+          Math.max(0, Math.ceil(eligible.length / pageSize) - 1),
+        );
+        setPageNumber(nextPage);
+        if (
+          detail &&
+          !eligible.some(({ samplePointId }) => samplePointId === detail.id)
+        ) {
           setDetail(null);
           setConfirmingId(null);
           setEditor(null);
         }
       } catch (error) {
         if (version === requestVersion.current) {
-          setPage(emptyPage);
           setEligibleSamples([]);
           setDetail(null);
-          setNotice(
-            formalSampleError(error, "正式样本列表读取失败，请稍后重试。"),
-          );
+          setNotice(formalSampleError(error, "采集台账读取失败，请稍后重试。"));
         }
       } finally {
         if (version === requestVersion.current) setListBusy(false);
       }
     },
-    [detail, domain, keyword, pageNumber, productCode, regionCode, repository],
+    [
+      detail,
+      domain,
+      keyword,
+      objectTypeCode,
+      observedAt,
+      pageNumber,
+      productCode,
+      regionCode,
+      repository,
+    ],
   );
 
   const loadDetail = useCallback(
@@ -484,7 +503,10 @@ export function FormalSamplePointLedger({
     }
   };
 
-  if (!repository.listFormalSamplePoints || !repository.getFormalSamplePoint) {
+  if (
+    !repository.listEligibleFormalSamples ||
+    !repository.getFormalSamplePoint
+  ) {
     return <p role="status">正式样本档案服务暂不可用。</p>;
   }
 
@@ -496,7 +518,7 @@ export function FormalSamplePointLedger({
           <p>统一维护样本稳定信息，并从每行填写或更新期间采集数据。</p>
         </div>
         <div className="formal-sample-ledger__header-actions">
-          <strong>共 {page.totalElements} 个</strong>
+          <strong>共 {eligibleSamples.length} 个</strong>
           {canCreate && (
             <button
               disabled={busy}
@@ -516,9 +538,39 @@ export function FormalSamplePointLedger({
       </header>
       <div className="formal-sample-ledger__filters" role="search">
         <label>
+          <span>实际观测时间</span>
+          <input
+            aria-label="采集台账观测时间"
+            type="datetime-local"
+            value={observedAt}
+            onChange={(event) => {
+              setObservedAt(event.target.value);
+              setPageNumber(0);
+            }}
+          />
+        </label>
+        <label>
+          <span>对象类型</span>
+          <select
+            aria-label="采集台账对象类型"
+            value={objectTypeCode}
+            onChange={(event) => {
+              setObjectTypeCode(event.target.value);
+              setPageNumber(0);
+            }}
+          >
+            <option value="">全部对象类型</option>
+            {objectTypes.map((objectType) => (
+              <option key={objectType.code} value={objectType.code}>
+                {objectType.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           <span>业务地区</span>
           <select
-            aria-label="正式样本业务地区"
+            aria-label="采集台账业务地区"
             value={regionCode}
             onChange={(event) => {
               setRegionCode(event.target.value);
@@ -536,7 +588,7 @@ export function FormalSamplePointLedger({
         <label>
           <span>样本名称</span>
           <input
-            aria-label="正式样本名称关键字"
+            aria-label="采集台账样本名称"
             maxLength={200}
             type="search"
             value={keyword}
@@ -664,7 +716,11 @@ export function FormalSamplePointLedger({
           </div>
         </section>
       )}
-      <div className="formal-sample-ledger__layout">
+      <div
+        className={`formal-sample-ledger__layout${
+          detail ? " formal-sample-ledger__layout--detail" : ""
+        }`}
+      >
         <div className="formal-sample-ledger__table">
           <table>
             <thead>
@@ -673,35 +729,36 @@ export function FormalSamplePointLedger({
                 <th>地区</th>
                 <th>对象类型</th>
                 <th>定位</th>
-                <th>年度观测</th>
-                <th>年度样本网</th>
+                <th>最近观测</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {page.items.map((point) => {
-                const eligible = eligibleById.get(point.id);
-                const collectionAllowed = canCollect && Boolean(eligible);
+              {visibleSamples.map((samplePoint) => {
+                const collectionAllowed = canCollect;
                 return (
-                  <tr key={point.id}>
-                    <td>{point.canonicalName}</td>
-                    <td>{regionName(point.regionCode)}</td>
-                    <td>{point.objectTypeName}</td>
-                    <td>{coordinate(point)}</td>
-                    <td>{point.annualObservationCount}</td>
-                    <td>{point.networkMembershipCount}</td>
+                  <tr key={samplePoint.samplePointId}>
+                    <td>{samplePoint.sampleName}</td>
+                    <td>{samplePoint.regionName}</td>
+                    <td>{samplePoint.objectTypeName ?? "待同步"}</td>
+                    <td>{coordinate(samplePoint)}</td>
+                    <td>{latestObservation(samplePoint.latestObservedAt)}</td>
                     <td>
                       <div className="formal-sample-ledger__row-actions">
                         <button
                           type="button"
-                          onClick={() => void loadDetail(point.id)}
+                          onClick={() =>
+                            void loadDetail(samplePoint.samplePointId)
+                          }
                         >
                           查看
                         </button>
                         {canUpdate && (
                           <button
                             type="button"
-                            onClick={() => void loadDetail(point.id, "EDIT")}
+                            onClick={() =>
+                              void loadDetail(samplePoint.samplePointId, "EDIT")
+                            }
                           >
                             编辑
                           </button>
@@ -709,7 +766,12 @@ export function FormalSamplePointLedger({
                         {canDelete && (
                           <button
                             type="button"
-                            onClick={() => void loadDetail(point.id, "DELETE")}
+                            onClick={() =>
+                              void loadDetail(
+                                samplePoint.samplePointId,
+                                "DELETE",
+                              )
+                            }
                           >
                             删除
                           </button>
@@ -719,24 +781,21 @@ export function FormalSamplePointLedger({
                           title={
                             !canCollect
                               ? "当前账号没有填写正式采集数据的权限"
-                              : !eligible
-                                ? "该样本不符合当前业务、品种或观测时点的采集条件"
-                                : undefined
+                              : undefined
                           }
                           type="button"
                           onClick={() => {
-                            if (collectionAllowed) onCollectData(point.id);
+                            if (collectionAllowed)
+                              onCollectData(samplePoint.samplePointId);
                           }}
                         >
-                          {eligible?.latestObservationId
+                          {samplePoint.latestObservationId
                             ? canCollect
                               ? "更新采集数据"
                               : "无采集权限"
-                            : eligible
-                              ? canCollect
-                                ? "填写采集数据"
-                                : "无采集权限"
-                              : "当前业务不可采集"}
+                            : canCollect
+                              ? "填写采集数据"
+                              : "无采集权限"}
                         </button>
                       </div>
                     </td>
@@ -745,21 +804,23 @@ export function FormalSamplePointLedger({
               })}
             </tbody>
           </table>
-          {page.items.length === 0 && <p>当前条件下没有正式样本。</p>}
-          {page.totalPages > 1 && (
+          {visibleSamples.length === 0 && (
+            <p>当前条件下没有可采集的正式样本。</p>
+          )}
+          {totalPages > 1 && (
             <div className="formal-sample-ledger__pagination">
               <button
-                disabled={busy || page.pageNumber === 0}
+                disabled={busy || pageNumber === 0}
                 type="button"
-                onClick={() => void query(page.pageNumber - 1)}
+                onClick={() => setPageNumber((value) => value - 1)}
               >
                 上一页
               </button>
-              <span>第 {page.pageNumber + 1} 页</span>
+              <span>第 {pageNumber + 1} 页</span>
               <button
-                disabled={busy || page.pageNumber + 1 >= page.totalPages}
+                disabled={busy || pageNumber + 1 >= totalPages}
                 type="button"
-                onClick={() => void query(page.pageNumber + 1)}
+                onClick={() => setPageNumber((value) => value + 1)}
               >
                 下一页
               </button>
