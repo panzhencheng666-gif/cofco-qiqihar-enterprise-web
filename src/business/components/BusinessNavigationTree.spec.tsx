@@ -74,29 +74,21 @@ describe("BusinessNavigationTree", () => {
     expect(navigation).not.toHaveTextContent("导入任务");
   });
 
-  it.each([
-    ["production", "review", "数据审核"],
-    ["market", "review", "数据审核"],
-    ["reporting", "review-distribution", "报告审核与发布"],
-    ["reporting", "ledger", "报告台账"],
-  ] as const)("keeps %s %s navigation reachable", (key, section, label) => {
+  it("does not expose retired task, review, or report-center entries", () => {
     const application = formalApplicationDefinitions.find(
-      ({ key: applicationKey }) => applicationKey === key,
+      ({ key }) => key === "production",
     );
-    if (!application) throw new Error(`missing ${key} application`);
-
+    if (!application) throw new Error("missing production application");
     render(
       <BusinessNavigationTree
         application={application}
-        currentRoute={createFormalRoute(key, section)}
+        currentRoute={createFormalRoute("production", "corn-collection")}
         onNavigate={vi.fn()}
       />,
     );
-
-    expect(
-      screen
-        .getAllByRole("button", { name: label })
-        .some((button) => button.getAttribute("aria-current") === "page"),
-    ).toBe(true);
+    expect(screen.queryByRole("button", { name: "产情任务" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "采集任务" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "数据审核" })).toBeNull();
+    expect(screen.queryByText("报表中心")).toBeNull();
   });
 });

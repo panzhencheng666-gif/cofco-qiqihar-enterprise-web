@@ -16,7 +16,6 @@ import { MarketAnalysisWorkspace } from "./market/MarketAnalysisWorkspace";
 import { LogisticsMonitoringWorkspace } from "./market/LogisticsMonitoringWorkspace";
 import { MarketObjectRegistry } from "./market/MarketObjectRegistry";
 import { ProductMarketCollectionWorkspace } from "./market/ProductMarketCollectionWorkspace";
-import { MarketTaskWorkspace } from "./market/MarketTaskWorkspace";
 import type { MarketDocumentDraft } from "./market/MarketDocumentWorkbench";
 import { FormalWorkspaceScopeProvider } from "./UnifiedWorkspacePrimitives";
 import type { RealtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
@@ -135,27 +134,6 @@ export function MarketMonitoringWorkspace({
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
         permissions={permissions}
-      />
-    );
-  }
-  if (section === "tasks" || section === "review") {
-    return (
-      <MarketTaskWorkspace
-        onScopeChange={onScopeChange}
-        onSelectionChange={select}
-        queryAllowed={queryAllowed}
-        scope={scope}
-        selection={activeSelection}
-        workItems={workItems}
-        documentDrafts={documentDrafts}
-        onDocumentDraftChange={onDocumentDraftChange}
-        onWorkItemChange={onWorkItemChange}
-        realtimeRepository={realtimeRepository}
-        onCreateRecord={onCreateRecord}
-        onEditRecord={(productCode, recordId) =>
-          onEditRecord?.("market", productCode, recordId)
-        }
-        reviewMode={section === "review"}
       />
     );
   }

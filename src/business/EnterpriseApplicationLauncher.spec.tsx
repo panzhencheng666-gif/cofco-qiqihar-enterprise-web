@@ -22,8 +22,8 @@ describe("EnterpriseApplicationLauncher", () => {
       "production",
       "market",
       "supply",
-      "reporting",
     ]);
+    expect(launcher).not.toHaveTextContent("报表中心");
     expect(launcher).not.toHaveTextContent(
       /原型|开发|架构入口|数据治理|血缘|运行配置|治理管理员|系统管理员/,
     );

@@ -251,8 +251,8 @@ export function DesignSamplePointTable({
   };
 
   return (
-    <div className="sample-point-governance-workspace__table-region">
-      <header>
+    <div className="sample-point-governance-workspace__table-region enterprise-ledger-workbench">
+      <header className="enterprise-ledger-title enterprise-ledger-title--collection">
         <div>
           <h2>设计参考点清单</h2>
           <p>维护长期参考点。行政区覆盖、坐标范围和适用字段由系统校验。</p>
@@ -279,7 +279,7 @@ export function DesignSamplePointTable({
       >
         <form
           aria-label="设计参考点筛选"
-          className="sample-point-governance-workspace__filters design-sample-point-table__filters"
+          className="enterprise-ledger-query enterprise-ledger-query--design"
           onSubmit={(event) => {
             event.preventDefault();
             setPage(0);
@@ -354,25 +354,29 @@ export function DesignSamplePointTable({
               ))}
             </select>
           </label>
-          <button type="submit">查询</button>
-          <button
-            disabled={!Object.values(filterDraft).some(Boolean)}
-            onClick={() => {
-              const empty = {
-                keyword: "",
-                domainCode: "",
-                productCode: "",
-                objectTypeCode: "",
-                regionCode: "",
-              };
-              setFilterDraft(empty);
-              setFilters(empty);
-              setPage(0);
-            }}
-            type="button"
-          >
-            清除筛选
-          </button>
+          <div className="enterprise-ledger-query__actions">
+            <button className="is-primary" type="submit">
+              查询
+            </button>
+            <button
+              disabled={!Object.values(filterDraft).some(Boolean)}
+              onClick={() => {
+                const empty = {
+                  keyword: "",
+                  domainCode: "",
+                  productCode: "",
+                  objectTypeCode: "",
+                  regionCode: "",
+                };
+                setFilterDraft(empty);
+                setFilters(empty);
+                setPage(0);
+              }}
+              type="button"
+            >
+              清除筛选
+            </button>
+          </div>
         </form>
       </div>
 
@@ -385,96 +389,101 @@ export function DesignSamplePointTable({
       ) : null}
       {listState === "ready" ? (
         <>
-          <div
-            aria-label="设计参考点滚动清单"
-            className="sample-point-governance-workspace__table-scroll sample-point-governance-workspace__table-scroll--bounded"
-            role="region"
-            tabIndex={0}
-          >
-            <table aria-label="设计参考点清单">
-              <thead>
-                <tr>
-                  <th>点位名称</th>
-                  <th>业务对象</th>
-                  <th>行政区</th>
-                  <th>坐标</th>
-                  {canWrite ? <th>操作</th> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {pageData.items.map((point) => (
-                  <tr key={point.id}>
-                    <td>{point.name}</td>
-                    <td>
-                      {labels.domain.get(point.context.domainCode) ?? "未识别"}{" "}
-                      ·{" "}
-                      {labels.product.get(point.context.productCode) ??
-                        "未识别"}{" "}
-                      ·{" "}
-                      {labels.objectType.get(point.context.objectTypeCode) ??
-                        "未识别"}
-                    </td>
-                    <td>{point.regionPath}</td>
-                    <td>
-                      {point.longitude}, {point.latitude}
-                    </td>
-                    {canWrite ? (
-                      <td className="design-sample-point-table__row-actions">
-                        <button
-                          aria-label={`编辑${point.name}`}
-                          onClick={() =>
-                            void loadEditor({ mode: "edit", point })
-                          }
-                          type="button"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          aria-label={`删除${point.name}`}
-                          onClick={() => void remove(point)}
-                          type="button"
-                        >
-                          删除
-                        </button>
-                      </td>
-                    ) : null}
-                  </tr>
-                ))}
-                {pageData.items.length === 0 ? (
+          <div className="enterprise-ledger-table">
+            <div
+              aria-label="设计参考点滚动清单"
+              className="sample-point-governance-workspace__table-scroll--bounded enterprise-ledger-table__scroll"
+              role="region"
+              tabIndex={0}
+            >
+              <table aria-label="设计参考点清单">
+                <thead>
                   <tr>
-                    <td colSpan={canWrite ? 5 : 4}>
-                      没有符合条件的设计参考点。
-                    </td>
+                    <th>点位名称</th>
+                    <th>业务对象</th>
+                    <th>行政区</th>
+                    <th>坐标</th>
+                    {canWrite ? <th>操作</th> : null}
                   </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-          <nav
-            aria-label="设计参考点分页"
-            className="sample-point-governance-workspace__pagination"
-          >
-            <span>
-              共 {pageData.totalElements} 条 · 第 {pageData.pageNumber + 1} /{" "}
-              {pageCount} 页
-            </span>
-            <div>
-              <button
-                disabled={pageData.pageNumber === 0}
-                onClick={() => setPage((value) => Math.max(0, value - 1))}
-                type="button"
-              >
-                上一页
-              </button>
-              <button
-                disabled={pageData.pageNumber + 1 >= pageCount}
-                onClick={() => setPage((value) => value + 1)}
-                type="button"
-              >
-                下一页
-              </button>
+                </thead>
+                <tbody>
+                  {pageData.items.map((point) => (
+                    <tr key={point.id}>
+                      <td>{point.name}</td>
+                      <td>
+                        {labels.domain.get(point.context.domainCode) ??
+                          "未识别"}{" "}
+                        ·{" "}
+                        {labels.product.get(point.context.productCode) ??
+                          "未识别"}{" "}
+                        ·{" "}
+                        {labels.objectType.get(point.context.objectTypeCode) ??
+                          "未识别"}
+                      </td>
+                      <td>{point.regionPath}</td>
+                      <td>
+                        {point.longitude}, {point.latitude}
+                      </td>
+                      {canWrite ? (
+                        <td className="design-sample-point-table__row-actions">
+                          <button
+                            aria-label={`编辑${point.name}`}
+                            className="enterprise-ledger-row-action"
+                            onClick={() =>
+                              void loadEditor({ mode: "edit", point })
+                            }
+                            type="button"
+                          >
+                            编辑
+                          </button>
+                          <button
+                            aria-label={`删除${point.name}`}
+                            className="enterprise-ledger-row-action"
+                            onClick={() => void remove(point)}
+                            type="button"
+                          >
+                            删除
+                          </button>
+                        </td>
+                      ) : null}
+                    </tr>
+                  ))}
+                  {pageData.items.length === 0 ? (
+                    <tr>
+                      <td colSpan={canWrite ? 5 : 4}>
+                        没有符合条件的设计参考点。
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
             </div>
-          </nav>
+            <nav
+              aria-label="设计参考点分页"
+              className="sample-point-governance-workspace__pagination"
+            >
+              <span>
+                共 {pageData.totalElements} 条 · 第 {pageData.pageNumber + 1} /{" "}
+                {pageCount} 页
+              </span>
+              <div>
+                <button
+                  disabled={pageData.pageNumber === 0}
+                  onClick={() => setPage((value) => Math.max(0, value - 1))}
+                  type="button"
+                >
+                  上一页
+                </button>
+                <button
+                  disabled={pageData.pageNumber + 1 >= pageCount}
+                  onClick={() => setPage((value) => value + 1)}
+                  type="button"
+                >
+                  下一页
+                </button>
+              </div>
+            </nav>
+          </div>
         </>
       ) : null}
 

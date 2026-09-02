@@ -41,8 +41,9 @@ describe("EnterpriseShell", () => {
       screen.queryByText("仅展示当前账号已授权且已接入的应用"),
     ).not.toBeInTheDocument();
     expect(screen.getByLabelText("主导航")).toHaveTextContent(
-      "我的工作经营总览产情监测市场监测供需与态势报表中心数据治理系统管理",
+      "我的工作经营总览产情监测市场监测供需与态势数据治理系统管理",
     );
+    expect(screen.getByLabelText("主导航")).not.toHaveTextContent("报表中心");
     expect(screen.getByLabelText("主导航")).not.toHaveTextContent("账号与安全");
   });
 

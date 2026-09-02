@@ -61,7 +61,6 @@ import type {
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeBusinessOperationsPanel } from "./realtime/RealtimeBusinessOperationsPanel";
 import { RealtimeLogisticsOperationsPanel } from "./realtime/RealtimeLogisticsOperationsPanel";
-import { RealtimeReportCenterPanel } from "./realtime/RealtimeReportCenterPanel";
 import {
   resolveRuntimeDataMode,
   type RuntimeDataMode,
@@ -70,7 +69,6 @@ import {
   apiPendingOperationalIdentity,
   apiPendingShellIdentity,
 } from "./runtimeIdentity";
-import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
 import {
   captureInvitationActivationToken,
   clearInvitationActivationToken,
@@ -79,12 +77,6 @@ import {
 const FormalMarketMonitoringWorkspace = lazy(() =>
   import("./MarketMonitoringWorkspace").then((module) => ({
     default: module.FormalMarketMonitoringWorkspace,
-  })),
-);
-
-const FormalReportCenterWorkspace = lazy(() =>
-  import("./ReportCenterWorkspace").then((module) => ({
-    default: module.FormalReportCenterWorkspace,
   })),
 );
 
@@ -976,22 +968,7 @@ export function EnterpriseBusinessApplication({
                 ? (productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
-                    const workItem = currentWorkItems.find(
-                      ({ subject }) =>
-                        subject.kind === "monitoring-object" &&
-                        subject.objectId === recordId,
-                    );
-                    setRealtimeEntryMode(
-                      location.route.section === "review" ||
-                        (location.route.section === "tasks" &&
-                          workItem?.documentStatus === "submitted" &&
-                          (workItem.reviewStatus === "pending" ||
-                            workItem.reviewStatus === "reviewing"))
-                        ? "review"
-                        : location.route.section === "tasks"
-                          ? "entry"
-                          : "view",
-                    );
+                    setRealtimeEntryMode("view");
                     setRealtimeEntryDomain("production");
                   }
                 : undefined
@@ -1048,22 +1025,7 @@ export function EnterpriseBusinessApplication({
                 ? (domain, productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
-                    const workItem = currentWorkItems.find(
-                      ({ subject }) =>
-                        subject.kind === "monitoring-object" &&
-                        subject.objectId === recordId,
-                    );
-                    setRealtimeEntryMode(
-                      location.route.section === "review" ||
-                        (location.route.section === "tasks" &&
-                          workItem?.documentStatus === "submitted" &&
-                          (workItem.reviewStatus === "pending" ||
-                            workItem.reviewStatus === "reviewing"))
-                        ? "review"
-                        : location.route.section === "tasks"
-                          ? "entry"
-                          : "view",
-                    );
+                    setRealtimeEntryMode("view");
                     setRealtimeEntryDomain(domain);
                   }
                 : undefined
@@ -1098,35 +1060,6 @@ export function EnterpriseBusinessApplication({
             selection={location.selection}
             onComposeReport={setReportContext}
             onWorkItemChange={updateWorkItem}
-            workItems={currentWorkItems}
-          />
-        );
-      case "reporting":
-        if (realtimeMode)
-          return (
-            <RealtimeReportCenterPanel
-              permissions={currentSession?.permissions ?? []}
-              repository={repository}
-            />
-          );
-        return (
-          <FormalReportCenterWorkspace
-            queryAllowed={queryAllowed}
-            scope={scope}
-            onScopeChange={updateCoordinates}
-            section={location.route.section}
-            onComposeReport={setReportContext}
-            workflow={reportWorkflow}
-            requestedDataBatchId={
-              location.selection?.type === "report"
-                ? location.selection.id
-                : undefined
-            }
-            requestedWorkItemId={
-              location.selection?.type === "work-item"
-                ? location.selection.id
-                : undefined
-            }
             workItems={currentWorkItems}
           />
         );
@@ -1239,7 +1172,6 @@ export function EnterpriseBusinessApplication({
       marketObjects={marketRegistryObjects}
       onNavigate={navigateAndCloseEntry}
       productionObjects={productionRegistryObjects}
-      reportDatasets={realtimeMode ? [] : approvedBusinessReportDatasets}
       businessNotifications={
         realtimeMode
           ? notificationsConfigured

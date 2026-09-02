@@ -18,7 +18,7 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
   await page.goto("/#/市场监测/玉米市场采集");
 
   await expect(
-    page.getByRole("heading", { name: "采集台账", exact: true }),
+    page.getByRole("heading", { name: "玉米市场采集表", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("tablist", { name: "采集业务模式" })).toHaveCount(
     0,
@@ -27,7 +27,11 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
     0,
   );
 
+  await page.getByRole("button", { name: "维护样本与期间数据" }).click();
   const ledger = page.getByRole("region", { name: "采集台账工作台" });
+  await expect(
+    ledger.getByRole("heading", { name: "采集台账", exact: true }),
+  ).toBeVisible();
   const filters = ledger.getByRole("search");
   const filterControls = filters.locator("input, select, button");
   expect(
@@ -36,7 +40,7 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([40, 40, 40, 40, 40]);
+  ).toEqual([36, 36, 36, 36, 36]);
   const [ledgerWidth, tableWidth] = await Promise.all([
     ledger.evaluate((element) => element.getBoundingClientRect().width),
     ledger
@@ -75,7 +79,7 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([48, 48, 48, 48, 48]);
+  ).toEqual([36, 36, 36, 36, 36]);
   await page.setViewportSize({ width: 1600, height: 900 });
 
   await row.getByRole("button", { name: "查看" }).click();
@@ -93,7 +97,7 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
   await page.getByLabel("采集对象收购价格（元/吨）").fill("2422.00");
   await page.getByRole("button", { name: "保存并正式入库" }).click();
   await expect(page.getByRole("status")).toContainText(
-    "已正式入库，已实时联动总揽监测、市场分析、报表",
+    "已正式入库，已实时联动总揽监测、市场分析",
   );
 
   const stateResponse = await request.get(
@@ -122,32 +126,33 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
   );
 });
 
-test("keeps review, report, and design-sample routes reachable", async ({
+test("retires review and report routes while keeping design samples reachable", async ({
   page,
 }) => {
-  const routes = [
-    ["#/产情监测/数据审核", "本期工作队列"],
-    ["#/市场监测/数据审核", "市场工作队列"],
-    ["#/报表中心/报告审核与发布", "报表中心"],
-    ["#/报表中心/报告台账", "报表中心"],
-    ["#/我的工作/样本点管理", "设计样本点"],
+  const retiredRoutes = [
+    ["#/产情监测/数据审核", "#/产情监测/玉米产情填报"],
+    ["#/市场监测/数据审核", "#/市场监测/玉米市场采集"],
+    ["#/报表中心/报告审核与发布", "#/市场监测/玉米市场采集"],
+    ["#/报表中心/报告台账", "#/市场监测/玉米市场采集"],
   ] as const;
 
-  for (const [hash, visibleText] of routes) {
+  for (const [hash, destination] of retiredRoutes) {
     await page.goto(`/${hash}`);
-    await expect(
-      page.getByText(visibleText, { exact: false }).first(),
-    ).toBeVisible();
     await expect
       .poll(() => decodeURIComponent(new URL(page.url()).hash))
-      .toBe(hash);
+      .toBe(destination);
+    await expect(page.getByText("报表中心", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("数据审核", { exact: true })).toHaveCount(0);
   }
+
+  await page.goto("/#/我的工作/样本点管理");
+  await expect(page.getByText("设计样本点", { exact: true })).toBeVisible();
 
   for (const retiredHash of [
     "#/我的工作/人工审核",
     "#/我的工作/待我处理",
     "#/我的工作/已办事项",
-    "#/我的工作/导入任务",
+    "#/我的工作/记录",
   ]) {
     await page.goto(`/${retiredHash}`);
     await expect
@@ -155,7 +160,6 @@ test("keeps review, report, and design-sample routes reachable", async ({
       .toBe("#/市场监测/玉米市场采集");
     await expect(page.getByText("待我处理", { exact: true })).toHaveCount(0);
     await expect(page.getByText("已办事项", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("导入任务", { exact: true })).toHaveCount(0);
   }
 });
 
@@ -175,7 +179,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([40, 40, 40, 40, 40, 40, 40]);
+  ).toEqual([36, 36, 36, 36, 36, 36, 36]);
 
   await filters
     .getByRole("searchbox", { name: "搜索点位或行政区" })
@@ -219,7 +223,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([40, 40, 40, 40, 40, 40, 40]);
+  ).toEqual([36, 36, 36, 36, 36, 36, 36]);
 
   const beforeEventResponse = await request.get(
     `${controlledApiBaseUrl}/__e2e/state`,
@@ -275,9 +279,7 @@ test("keeps an empty API store empty without loading browser fixtures", async ({
   await setControlledApiMode(request, "empty");
   await page.goto("/#/市场监测/玉米市场采集");
 
-  await expect(
-    page.getByText("当前条件下没有可采集的正式样本。"),
-  ).toBeVisible();
+  await expect(page.getByText("当前范围暂无玉米市场采集记录")).toBeVisible();
   await expect(page.getByText("服务端玉米市场采集任务")).toHaveCount(0);
   await expect(page.getByText("齐齐哈尔市玉米市场运行周填报")).toHaveCount(0);
 });
@@ -292,57 +294,8 @@ test("fails closed when the API response contract fails", async ({
   await expect(page.getByRole("alert", { name: "业务数据状态" })).toContainText(
     "业务数据读取失败",
   );
-  await expect(
-    page.getByRole("region", { name: "采集台账工作台" }).getByRole("status"),
-  ).toContainText("服务端返回格式无效");
   await expect(page.getByText("服务端玉米市场采集任务")).toHaveCount(0);
   await expect(page.getByText("齐齐哈尔市玉米市场运行周填报")).toHaveCount(0);
-});
-
-test("keeps reports fail-closed when the report API is not implemented", async ({
-  page,
-  request,
-}) => {
-  const reportResponse = await request.get(
-    `${controlledApiBaseUrl}/api/v1/reports`,
-  );
-  expect(reportResponse.status()).toBe(404);
-  await expect(reportResponse.json()).resolves.toMatchObject({
-    code: "API_ROUTE_NOT_IMPLEMENTED",
-  });
-
-  const storageKey = "齐齐哈尔粮食商情业务报告工作流-业务真值三";
-  const storedSeed = JSON.stringify({
-    title: "第31周粮食商情周报",
-    source: "browser-fixture",
-  });
-  await page.addInitScript(
-    ({ key, value }) => window.localStorage.setItem(key, value),
-    { key: storageKey, value: storedSeed },
-  );
-  await page.goto("/#/报表中心/业务报告");
-
-  await expect(
-    page.getByRole("heading", { name: "业务报告", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText("第31周粮食商情周报")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "生成报告预览" })).toHaveCount(
-    0,
-  );
-  await expect(page.getByRole("button", { name: /导出当前报告/ })).toHaveCount(
-    0,
-  );
-
-  await page
-    .getByRole("searchbox", { name: "全局搜索" })
-    .fill("齐齐哈尔市全域玉米供需平衡分析报告");
-  await expect(page.getByRole("listbox").getByRole("option")).toHaveCount(0);
-  await expect(page.getByText("未找到匹配的业务页面")).toBeVisible();
-  await expect
-    .poll(() =>
-      page.evaluate((key) => window.localStorage.getItem(key), storageKey),
-    )
-    .toBe(storedSeed);
 });
 
 test("canonicalizes invalid routes without exposing injected identifiers", async ({
@@ -351,10 +304,7 @@ test("canonicalizes invalid routes without exposing injected identifiers", async
   await page.goto("/#/不存在的模块/INTERNAL-001");
 
   await expect(
-    page.getByRole("heading", { name: "采集台账", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("row", { name: /龙江县粮食贸易样本一号/ }),
+    page.getByRole("heading", { name: "玉米市场采集表", exact: true }),
   ).toBeVisible();
   await expect
     .poll(() => decodeURIComponent(new URL(page.url()).hash))

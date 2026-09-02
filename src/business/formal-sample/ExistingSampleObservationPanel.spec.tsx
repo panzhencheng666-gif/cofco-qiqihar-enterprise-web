@@ -1,6 +1,7 @@
 import {
   act,
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -236,6 +237,7 @@ function renderPanel(
   api = repository(),
   onSaved = vi.fn(),
   permissions: readonly string[] = ["BUSINESS_CREATE", "BUSINESS_UPDATE"],
+  initialMode: "LEDGER" | "POINTS" = "POINTS",
 ) {
   render(
     <ExistingSampleObservationPanel
@@ -248,6 +250,9 @@ function renderPanel(
       <div>原有采集台账内容</div>
     </ExistingSampleObservationPanel>,
   );
+  if (initialMode === "POINTS") {
+    fireEvent.click(screen.getByRole("button", { name: "维护样本与期间数据" }));
+  }
   return { api, onSaved };
 }
 
@@ -355,14 +360,16 @@ describe("ExistingSampleObservationPanel", () => {
       subscribeBusinessEvents: vi.fn(() => vi.fn()),
     };
 
-    renderPanel(api);
+    renderPanel(api, vi.fn(), ["BUSINESS_CREATE", "BUSINESS_UPDATE"], "LEDGER");
 
+    expect(screen.getByText("原有采集台账内容")).toBeVisible();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "维护样本与期间数据" }),
+    );
     expect(
       await screen.findByRole("heading", { name: "采集台账" }),
     ).toBeVisible();
-    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
-    expect(screen.queryByText("正式样本台账")).not.toBeInTheDocument();
-    expect(screen.queryByText("已有样本数据更新")).not.toBeInTheDocument();
     const row = await screen.findByRole("row", {
       name: /龙沙区兴农农资店/u,
     });
@@ -1202,10 +1209,11 @@ describe("ExistingSampleObservationPanel", () => {
       "DEEP_PROCESSOR",
     );
     await userEvent.type(screen.getByLabelText("搜索样本企业"), "旧筛选");
-    await userEvent.click(screen.getByRole("button", { name: "返回采集台账" }));
-    expect(
-      await screen.findByRole("heading", { name: "采集台账" }),
-    ).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "返回样本台账" }));
+    expect(screen.getByText("原有采集台账内容")).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "维护样本与期间数据" }),
+    );
     await openCollectionData();
     expect(screen.getByLabelText("筛选对象类型")).toHaveValue("");
     expect(screen.getByLabelText("搜索样本企业")).toHaveValue("");
@@ -1434,8 +1442,9 @@ describe("ExistingSampleObservationPanel", () => {
     expect(JSON.stringify(savedCommand)).not.toContain("MKT_SALE_BASE_PRICE");
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("status")).toHaveTextContent(
-      /已正式入库.*总揽.*市场分析.*报表/u,
+      /已正式入库.*总揽.*市场分析/u,
     );
+    expect(screen.getByRole("status")).not.toHaveTextContent("报表");
   });
 
   it("uses a formal two-pane workspace and collapses below tablet width", () => {
@@ -1456,15 +1465,18 @@ describe("ExistingSampleObservationPanel", () => {
     expect(css).toMatch(
       /\.existing-observation__sample-list\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*auto/u,
     );
-    expect(css).not.toMatch(/\.existing-observation[^}]*position:\s*fixed/u);
     expect(css).toMatch(
-      /\.existing-observation__filters\s+:is\(input, select\)[^{]*\{[^}]*height:\s*40px/u,
+      /\.existing-observation__drawer\s*\{[^}]*position:\s*fixed/u,
     );
     expect(css).toMatch(
-      /\.existing-observation__filters\s*>\s*button\s*\{[^}]*height:\s*40px/u,
+      /\.existing-observation__drawer\s*\{[^}]*position:\s*fixed/u,
     );
-    expect(css).toMatch(
-      /@media \(max-width:\s*640px\)[\s\S]*\.existing-observation__filters\s+:is\(input, select\)[^{]*\{[^}]*height:\s*48px/u,
+    const unifiedCss = readFileSync(
+      "src/business/unified-workspaces.css",
+      "utf8",
+    );
+    expect(unifiedCss).toMatch(
+      /\.enterprise-ledger-query--design[\s\S]*:is\(input, select, \.region-cascader > summary\)[^{]*\{[^}]*height:\s*36px/u,
     );
     expect(css).toMatch(
       /\.formal-sample-ledger__layout\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
