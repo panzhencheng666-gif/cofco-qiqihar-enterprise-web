@@ -224,15 +224,6 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       shortLabel: "工作",
       note: "统一处理本人待填报、待审核、退回、异常和发布事项",
       navigation: [
-        { route: createFormalRoute("work", "tasks"), label: "待我处理" },
-        { route: createFormalRoute("work", "submitted"), label: "待我填报" },
-        { route: createFormalRoute("work", "review"), label: "待我审核" },
-        {
-          route: createFormalRoute("work", "exceptions"),
-          label: "退回与异常",
-        },
-        { route: createFormalRoute("work", "completed"), label: "已办事项" },
-        { route: createFormalRoute("work", "imports"), label: "导入任务" },
         {
           route: createFormalRoute("work", "sample-governance"),
           label: "样本点管理",
@@ -282,12 +273,10 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           route: createFormalRoute("production", "regional-annual"),
           label: "地区产情填报",
         },
-        { route: createFormalRoute("production", "tasks"), label: "产情任务" },
         {
           route: createFormalRoute("production", "objects"),
           label: "调查对象",
         },
-        { route: createFormalRoute("production", "review"), label: "数据审核" },
         {
           route: createFormalRoute("production", "analysis"),
           label: "产情分析",
@@ -325,9 +314,7 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           route: createFormalRoute("market", "paddy-logistics"),
           label: "稻谷物流监测",
         },
-        { route: createFormalRoute("market", "tasks"), label: "采集任务" },
         { route: createFormalRoute("market", "objects"), label: "监测对象" },
-        { route: createFormalRoute("market", "review"), label: "数据审核" },
         { route: createFormalRoute("market", "analysis"), label: "市场分析" },
       ],
     },

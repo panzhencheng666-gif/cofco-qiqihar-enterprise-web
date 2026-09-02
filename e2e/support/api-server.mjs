@@ -61,6 +61,47 @@ const workItems = [
     responsibleParty: "服务端授权用户",
   },
 ];
+const formalSamplePoints = [
+  {
+    id: "E2E-FORMAL-SAMPLE-001",
+    kindCode: "MARKET_SUBJECT",
+    canonicalName: "龙江县粮食贸易样本一号",
+    regionCode: "230221101001",
+    objectTypeCode: "TRADER",
+    objectTypeName: "贸易商",
+    businessDomain: "MARKET",
+    address: "龙江县龙江镇通齐村",
+    approvalState: "APPROVED",
+    locationState: "VERIFIED",
+    longitude: 123.9182,
+    latitude: 47.3543,
+    effectiveFrom: "2026-01-01",
+    effectiveTo: null,
+    version: 3,
+    annualObservationCount: 2,
+    networkMembershipCount: 0,
+  },
+];
+const eligibleFormalSamples = formalSamplePoints.map((point) => ({
+  samplePointId: point.id,
+  sampleName: point.canonicalName,
+  objectTypeCode: point.objectTypeCode,
+  objectTypeName: point.objectTypeName,
+  domain: "MARKET",
+  productCode: "CORN",
+  regionCode: point.regionCode,
+  regionName: "通齐村",
+  latitude: String(point.latitude),
+  longitude: String(point.longitude),
+  effectiveFrom: point.effectiveFrom,
+  effectiveTo: point.effectiveTo,
+  latestObservationId: "E2E-OBSERVATION-002",
+  latestObservedAt: "2026-08-25T10:58:50Z",
+  latestValues: {
+    MKT_PURCHASE_BASE_PRICE: "2410.00",
+    MKT_SALE_BASE_PRICE: "2430.00",
+  },
+}));
 const marketWorkRecord = {
   id: "E2E-MARKET-WORK-001",
   productCode: "CORN",
@@ -1068,6 +1109,45 @@ const server = createServer(async (request, response) => {
   }
 
   const empty = mode === "empty";
+  if (method === "GET" && url.pathname === "/api/v1/formal-sample-points") {
+    data(response, page(empty ? [] : formalSamplePoints, 20));
+    return;
+  }
+  if (
+    method === "GET" &&
+    /^\/api\/v1\/formal-sample-points\/[^/]+$/u.test(url.pathname)
+  ) {
+    const id = decodeURIComponent(url.pathname.split("/").at(-1) ?? "");
+    const point = formalSamplePoints.find((item) => item.id === id);
+    if (!point || empty) {
+      json(response, 404, {
+        code: "FORMAL_SAMPLE_POINT_NOT_FOUND",
+        message: "Formal sample point not found",
+      });
+      return;
+    }
+    data(response, point);
+    return;
+  }
+  if (
+    method === "GET" &&
+    url.pathname === "/api/v1/formal-sample-observations/eligible-samples"
+  ) {
+    data(response, empty ? [] : eligibleFormalSamples);
+    return;
+  }
+  if (
+    method === "GET" &&
+    url.pathname === "/api/v1/formal-sample-observations/observations"
+  ) {
+    data(response, {
+      items: [],
+      totalElements: 0,
+      pageNumber: 0,
+      pageSize: 20,
+    });
+    return;
+  }
   if (method === "GET" && url.pathname === "/api/v1/notifications") {
     data(response, { items: [], unreadCount: 0 });
     return;

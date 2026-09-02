@@ -206,7 +206,7 @@ describe("useFormalEnterpriseLocation", () => {
     });
 
     expect(decodeURIComponent(window.location.hash)).toBe(
-      "#/我的工作/待我处理",
+      "#/市场监测/玉米市场采集",
     );
     expect(window.location.href).not.toContain("INTERNAL-001");
   });

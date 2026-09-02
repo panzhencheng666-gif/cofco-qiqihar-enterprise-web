@@ -146,10 +146,12 @@ export function FormalSamplePointLedger({
   domain,
   productCode,
   repository,
+  onCollectData,
 }: {
   domain: FormalSampleObservationDomain;
   productCode: string;
   repository: RealtimeBusinessRepository;
+  onCollectData: (samplePointId: string) => void;
 }) {
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
   const [objectTypes, setObjectTypes] = useState<readonly MasterObjectType[]>(
@@ -229,7 +231,7 @@ export function FormalSamplePointLedger({
   );
 
   const loadDetail = useCallback(
-    async (id: string) => {
+    async (id: string, intent: "VIEW" | "EDIT" | "DELETE" = "VIEW") => {
       if (!repository.getFormalSamplePoint) return;
       const version = ++detailRequestVersion.current;
       setDetailBusy(true);
@@ -238,7 +240,8 @@ export function FormalSamplePointLedger({
         const next = await repository.getFormalSamplePoint(id);
         if (version === detailRequestVersion.current) {
           setDetail(next);
-          setConfirmingId(null);
+          setConfirmingId(intent === "DELETE" ? next.id : null);
+          setEditor(intent === "EDIT" ? editEditor(next) : null);
         }
       } catch (error) {
         if (version === detailRequestVersion.current) {
@@ -416,13 +419,11 @@ export function FormalSamplePointLedger({
   }
 
   return (
-    <section className="formal-sample-ledger" aria-label="正式样本台账工作台">
+    <section className="formal-sample-ledger" aria-label="采集台账工作台">
       <header>
         <div>
-          <h2>正式样本台账</h2>
-          <p>
-            稳定信息在此维护；销量、价格等期间观测继续在已有样本数据更新中填写。
-          </p>
+          <h2>采集台账</h2>
+          <p>统一维护样本稳定信息，并从每行填写或更新期间采集数据。</p>
         </div>
         <div className="formal-sample-ledger__header-actions">
           <strong>共 {page.totalElements} 个</strong>
@@ -437,7 +438,7 @@ export function FormalSamplePointLedger({
                 setNotice("");
               }}
             >
-              新增正式样本
+              新增样本
             </button>
           )}
         </div>
@@ -597,6 +598,7 @@ export function FormalSamplePointLedger({
               <tr>
                 <th>样本名称</th>
                 <th>地区</th>
+                <th>对象类型</th>
                 <th>定位</th>
                 <th>年度观测</th>
                 <th>年度样本网</th>
@@ -608,16 +610,41 @@ export function FormalSamplePointLedger({
                 <tr key={point.id}>
                   <td>{point.canonicalName}</td>
                   <td>{regionName(point.regionCode)}</td>
+                  <td>{point.objectTypeName}</td>
                   <td>{coordinate(point)}</td>
                   <td>{point.annualObservationCount}</td>
                   <td>{point.networkMembershipCount}</td>
                   <td>
-                    <button
-                      type="button"
-                      onClick={() => void loadDetail(point.id)}
-                    >
-                      查看详情
-                    </button>
+                    <div className="formal-sample-ledger__row-actions">
+                      <button
+                        type="button"
+                        onClick={() => void loadDetail(point.id)}
+                      >
+                        查看
+                      </button>
+                      {canWrite && (
+                        <button
+                          type="button"
+                          onClick={() => void loadDetail(point.id, "EDIT")}
+                        >
+                          编辑
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void loadDetail(point.id, "DELETE")}
+                      >
+                        删除
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onCollectData(point.id)}
+                      >
+                        {point.annualObservationCount > 0
+                          ? "更新采集数据"
+                          : "填写采集数据"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -698,7 +725,13 @@ export function FormalSamplePointLedger({
               </button>
             )}
             {detail.networkMembershipCount > 0 ? (
-              <p>该样本仍属于年度样本网，需先在年度治理中解除引用。</p>
+              <p>
+                该样本仍被年度样本网引用，不能删除。请先到样本点管理解除年度引用，再返回本页重试。
+              </p>
+            ) : detail.annualObservationCount > 0 ? (
+              <p>
+                该样本已有业务历史，不能删除。请保留样本档案并使用“更新采集数据”维护后续记录。
+              </p>
             ) : confirmingId === detail.id ? (
               <div className="formal-sample-ledger__delete-confirmation">
                 <p>删除会同步清理可删除的正式业务数据，且不可撤销。</p>

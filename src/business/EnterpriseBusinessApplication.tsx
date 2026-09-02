@@ -1186,7 +1186,11 @@ export function EnterpriseBusinessApplication({
                   }
                 : undefined
             }
-            realtimeRepository={realtimeMode ? repository : undefined}
+            realtimeRepository={
+              realtimeMode && typeof repository.listProduction === "function"
+                ? repository
+                : undefined
+            }
             realtimeRefreshToken={realtimeRefreshToken}
           />
         );
@@ -1253,7 +1257,14 @@ export function EnterpriseBusinessApplication({
                   }
                 : undefined
             }
-            realtimeRepository={realtimeMode ? repository : undefined}
+            realtimeRepository={
+              realtimeMode &&
+              (location.route.section.endsWith("-logistics")
+                ? typeof repository.listLogistics === "function"
+                : typeof repository.listMarket === "function")
+                ? repository
+                : undefined
+            }
             realtimeRefreshToken={realtimeRefreshToken}
           />
         );

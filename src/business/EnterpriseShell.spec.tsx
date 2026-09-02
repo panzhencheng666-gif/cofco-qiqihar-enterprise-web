@@ -92,9 +92,15 @@ describe("EnterpriseShell", () => {
     );
 
     expect(screen.getByRole("searchbox", { name: "全局搜索" })).toBeVisible();
-    expect(screen.getByRole("button", { name: /待办/ })).toHaveTextContent(
-      /\d+/,
-    );
+    expect(
+      screen.queryByRole("button", { name: /待办/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("navigation", { name: "业务应用" })).queryByRole(
+        "button",
+        { name: "我的工作" },
+      ),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /通知/ })).toHaveTextContent(
       /\d+/,
     );
@@ -203,7 +209,7 @@ describe("EnterpriseShell", () => {
     expect(screen.getByRole("heading", { name: "workspace" })).toBeVisible();
     expect(screen.getByText("平台名称")).toBeVisible();
     const applications = screen.getByRole("navigation", { name: "业务应用" });
-    expect(within(applications).getAllByRole("button")).toHaveLength(6);
+    expect(within(applications).getAllByRole("button")).toHaveLength(5);
     await user.click(
       within(applications).getByRole("button", { name: "产情监测" }),
     );
@@ -302,7 +308,7 @@ describe("EnterpriseShell", () => {
     expect(taskResult).not.toHaveTextContent("2026-W31");
     await user.click(taskResult);
     expect(onNavigate).toHaveBeenCalledWith(
-      createFormalRoute("production", "tasks"),
+      createFormalRoute("production", "corn-collection"),
       { type: "work-item", id: "WORK-PRODUCTION-FILL-W31" },
     );
 
@@ -323,9 +329,6 @@ describe("EnterpriseShell", () => {
         id: "SUPPLY-2026-MY-APPROVED::supply::玉米",
       },
     );
-
-    await user.click(screen.getByRole("button", { name: /待办/ }));
-    expect(onNavigate).toHaveBeenCalledWith(createFormalRoute("work", "tasks"));
 
     await user.click(screen.getByRole("button", { name: /^通知/ }));
     expect(screen.getByRole("dialog", { name: "业务通知" })).toHaveTextContent(
@@ -488,7 +491,7 @@ describe("EnterpriseShell", () => {
     });
     await user.click(reportingTaskResult);
     expect(props.onNavigate).toHaveBeenLastCalledWith(
-      createFormalRoute("reporting", "review-distribution"),
+      createFormalRoute("reporting", "compose"),
       { type: "work-item", id: reportingItem.workId },
     );
 

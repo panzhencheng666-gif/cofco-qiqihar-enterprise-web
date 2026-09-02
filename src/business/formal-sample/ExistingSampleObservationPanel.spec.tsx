@@ -42,6 +42,12 @@ const sample: EligibleFormalSample = {
 };
 
 function repository() {
+  const point = formalPoint({
+    id: sample.samplePointId,
+    canonicalName: sample.sampleName,
+    objectTypeCode: sample.objectTypeCode ?? "DEEP_PROCESSOR",
+    objectTypeName: sample.objectTypeName ?? "深加工企业",
+  });
   return {
     listObjectTypes: vi.fn().mockResolvedValue([
       { code: "TRADER", name: "贸易商", domain: "MARKET" },
@@ -205,6 +211,24 @@ function repository() {
       synchronizedModules: ["OVERVIEW", "MARKET_ANALYSIS", "REPORTS"],
       values: {},
     }),
+    listFormalSamplePoints: vi.fn().mockResolvedValue({
+      items: [point],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 1,
+      totalPages: 1,
+    }),
+    getFormalSamplePoint: vi.fn().mockResolvedValue(point),
+    createFormalSamplePoint: vi.fn(),
+    updateFormalSamplePoint: vi.fn(),
+    deleteFormalSamplePoint: vi.fn(),
+    subscribeBusinessEvents: vi.fn(
+      (after: number, listener: (event: BusinessNotificationRow) => void) => {
+        void after;
+        void listener;
+        return vi.fn();
+      },
+    ),
   };
 }
 
@@ -220,6 +244,14 @@ function renderPanel(api = repository(), onSaved = vi.fn()) {
     </ExistingSampleObservationPanel>,
   );
   return { api, onSaved };
+}
+
+async function openCollectionData() {
+  await userEvent.click(
+    await screen.findByRole("button", {
+      name: /填写采集数据|更新采集数据/u,
+    }),
+  );
 }
 
 function formalPoint(
@@ -259,6 +291,97 @@ function formalPoint(
 
 describe("ExistingSampleObservationPanel", () => {
   afterEach(cleanup);
+
+  it("uses one collection ledger entry with discoverable row actions", async () => {
+    const point = formalPoint({
+      canonicalName: "龙沙区兴农农资店",
+      objectTypeCode: "AGRICULTURAL_INPUT_STORE",
+      objectTypeName: "农资店",
+    });
+    const api = {
+      ...repository(),
+      loadMasterData: vi.fn().mockResolvedValue({
+        regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
+      }),
+      listFormalSamplePoints: vi.fn().mockResolvedValue({
+        items: [point],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 1,
+        totalPages: 1,
+      }),
+      getFormalSamplePoint: vi.fn().mockResolvedValue(point),
+      createFormalSamplePoint: vi.fn(),
+      updateFormalSamplePoint: vi.fn(),
+      deleteFormalSamplePoint: vi.fn(),
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    };
+
+    renderPanel(api);
+
+    expect(
+      await screen.findByRole("heading", { name: "采集台账" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.queryByText("正式样本台账")).not.toBeInTheDocument();
+    expect(screen.queryByText("已有样本数据更新")).not.toBeInTheDocument();
+    const row = await screen.findByRole("row", {
+      name: /龙沙区兴农农资店/u,
+    });
+    expect(row).toHaveTextContent("农资店");
+    expect(within(row).getByRole("button", { name: "查看" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "删除" })).toBeVisible();
+    expect(
+      within(row).getByRole("button", { name: "填写采集数据" }),
+    ).toBeVisible();
+  });
+
+  it.each([
+    [
+      { networkMembershipCount: 2, annualObservationCount: 0 },
+      "请先到样本点管理解除年度引用",
+    ],
+    [
+      { networkMembershipCount: 0, annualObservationCount: 3 },
+      "请保留样本档案并使用“更新采集数据”维护后续记录",
+    ],
+  ])(
+    "blocks deletion with an executable next step for referenced samples",
+    async (counts, expectedMessage) => {
+      const point = {
+        ...formalPoint(),
+        ...counts,
+      };
+      const deleteFormalSamplePoint = vi.fn();
+      const api = {
+        ...repository(),
+        listFormalSamplePoints: vi.fn().mockResolvedValue({
+          items: [point],
+          pageNumber: 0,
+          pageSize: 20,
+          totalElements: 1,
+          totalPages: 1,
+        }),
+        getFormalSamplePoint: vi.fn().mockResolvedValue(point),
+        deleteFormalSamplePoint,
+      };
+
+      renderPanel(api);
+      const row = await screen.findByRole("row", {
+        name: new RegExp(point.canonicalName, "u"),
+      });
+      await userEvent.click(within(row).getByRole("button", { name: "删除" }));
+
+      expect(
+        await screen.findByRole("region", { name: "正式样本详情" }),
+      ).toHaveTextContent(expectedMessage);
+      expect(
+        screen.queryByRole("button", { name: "确认删除" }),
+      ).not.toBeInTheDocument();
+      expect(deleteFormalSamplePoint).not.toHaveBeenCalled();
+    },
+  );
 
   it("creates and edits the same stable fields with an authoritative GET after each write", async () => {
     const created = formalPoint();
@@ -310,9 +433,8 @@ describe("ExistingSampleObservationPanel", () => {
     };
     renderPanel(api);
 
-    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
     await userEvent.click(
-      await screen.findByRole("button", { name: "新增正式样本" }),
+      await screen.findByRole("button", { name: "新增样本" }),
     );
     await userEvent.type(
       screen.getByLabelText("正式样本名称"),
@@ -434,10 +556,7 @@ describe("ExistingSampleObservationPanel", () => {
     };
     renderPanel(api);
 
-    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
-    await userEvent.click(
-      await screen.findByRole("button", { name: "查看详情" }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "查看" }));
     await userEvent.click(screen.getByRole("button", { name: "编辑稳定信息" }));
     const name = screen.getByLabelText("正式样本名称");
     await userEvent.clear(name);
@@ -496,9 +615,8 @@ describe("ExistingSampleObservationPanel", () => {
       };
       renderPanel(api);
 
-      await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
       await userEvent.click(
-        await screen.findByRole("button", { name: "新增正式样本" }),
+        await screen.findByRole("button", { name: "新增样本" }),
       );
       await userEvent.type(
         screen.getByLabelText("正式样本名称"),
@@ -548,9 +666,8 @@ describe("ExistingSampleObservationPanel", () => {
     };
     renderPanel(api);
 
-    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
     await userEvent.click(
-      await screen.findByRole("button", { name: "新增正式样本" }),
+      await screen.findByRole("button", { name: "新增样本" }),
     );
     await userEvent.type(screen.getByLabelText("正式样本名称"), "待校验样本");
     await userEvent.selectOptions(
@@ -619,7 +736,6 @@ describe("ExistingSampleObservationPanel", () => {
     };
     renderPanel(api);
 
-    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
     expect(await screen.findByText("龙沙区正式样本")).toBeVisible();
     expect(screen.getAllByText("龙沙区").length).toBeGreaterThan(0);
     expect(screen.queryByText("230202")).not.toBeInTheDocument();
@@ -629,7 +745,7 @@ describe("ExistingSampleObservationPanel", () => {
       page: 0,
       pageSize: 20,
     });
-    await userEvent.click(screen.getByRole("button", { name: "查看详情" }));
+    await userEvent.click(screen.getByRole("button", { name: "查看" }));
     await waitFor(() =>
       expect(getFormalSamplePoint).toHaveBeenCalledWith("formal-point-1"),
     );
@@ -695,10 +811,7 @@ describe("ExistingSampleObservationPanel", () => {
       ),
     };
     renderPanel(api);
-    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
-    await userEvent.click(
-      await screen.findByRole("button", { name: "查看详情" }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "查看" }));
     await waitFor(() => expect(getFormalSamplePoint).toHaveBeenCalledTimes(1));
 
     onChange({
@@ -765,10 +878,7 @@ describe("ExistingSampleObservationPanel", () => {
       subscribeBusinessEvents: vi.fn(() => vi.fn()),
     };
     renderPanel(api);
-    await userEvent.click(screen.getByRole("tab", { name: "正式样本台账" }));
-    await userEvent.click(
-      await screen.findByRole("button", { name: "查看详情" }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "查看" }));
     await userEvent.click(screen.getByRole("button", { name: "删除正式样本" }));
     await userEvent.click(screen.getByRole("button", { name: "确认删除" }));
 
@@ -839,9 +949,7 @@ describe("ExistingSampleObservationPanel", () => {
     });
     renderPanel(api);
 
-    await userEvent.click(
-      screen.getByRole("tab", { name: "已有样本数据更新" }),
-    );
+    await openCollectionData();
     await userEvent.click(
       await screen.findByRole("button", { name: /龙沙区兴农农资店/u }),
     );
@@ -909,9 +1017,7 @@ describe("ExistingSampleObservationPanel", () => {
       ),
     };
     renderPanel(withEvents);
-    await userEvent.click(
-      screen.getByRole("tab", { name: "已有样本数据更新" }),
-    );
+    await openCollectionData();
     await userEvent.click(
       await screen.findByRole("button", { name: /中粮生化能源/u }),
     );
@@ -936,27 +1042,26 @@ describe("ExistingSampleObservationPanel", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("采购基础价（元/吨）")).toHaveValue(2200),
     );
-    expect(withEvents.subscribeBusinessEvents).toHaveBeenCalledTimes(1);
+    expect(withEvents.subscribeBusinessEvents).toHaveBeenCalledTimes(2);
   });
 
   it("switches the whole page between ledger and update modes", async () => {
     renderPanel();
-    expect(screen.getByText("原有采集台账内容")).toBeVisible();
-    await userEvent.click(
-      screen.getByRole("tab", { name: "已有样本数据更新" }),
-    );
-    expect(screen.queryByText("原有采集台账内容")).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "采集台账" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    await openCollectionData();
     expect(
       screen.getByRole("region", { name: "已有正式样本查询" }),
     ).toBeVisible();
-    expect(screen.getByRole("heading", { name: "查询与定位" })).toBeVisible();
-    const process = screen.getByRole("navigation", {
-      name: "已有样本数据更新流程",
-    });
-    expect(within(process).getAllByRole("listitem")).toHaveLength(3);
-    expect(process).toHaveTextContent("查询正式样本");
-    expect(process).toHaveTextContent("填写本次观测");
-    expect(process).toHaveTextContent("正式入库并联动");
+    expect(
+      screen.getByRole("heading", { name: "填写或更新采集数据" }),
+    ).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "返回采集台账" }));
+    expect(
+      await screen.findByRole("heading", { name: "采集台账" }),
+    ).toBeVisible();
   });
 
   it("never lets a late response restore samples from an obsolete filter scope", async () => {
@@ -972,9 +1077,7 @@ describe("ExistingSampleObservationPanel", () => {
       )
       .mockResolvedValueOnce([]);
     renderPanel(api);
-    await userEvent.click(
-      screen.getByRole("tab", { name: "已有样本数据更新" }),
-    );
+    await openCollectionData();
     await waitFor(() =>
       expect(api.listEligibleFormalSamples).toHaveBeenCalledTimes(1),
     );
@@ -998,9 +1101,7 @@ describe("ExistingSampleObservationPanel", () => {
 
   it("filters samples, locks identity, and renders every applicable server field", async () => {
     const { api } = renderPanel();
-    await userEvent.click(
-      screen.getByRole("tab", { name: "已有样本数据更新" }),
-    );
+    await openCollectionData();
     await screen.findByRole("option", { name: "深加工企业" });
     await userEvent.selectOptions(
       screen.getByLabelText("筛选对象类型"),
@@ -1056,9 +1157,7 @@ describe("ExistingSampleObservationPanel", () => {
 
   it("queries page-visible history by an explicit data year", async () => {
     const { api } = renderPanel();
-    await userEvent.click(
-      screen.getByRole("tab", { name: "已有样本数据更新" }),
-    );
+    await openCollectionData();
     await userEvent.click(
       await screen.findByRole("button", { name: /中粮生化能源/u }),
     );
@@ -1117,9 +1216,7 @@ describe("ExistingSampleObservationPanel", () => {
         pageSize: 20,
       });
     renderPanel(api);
-    await userEvent.click(
-      screen.getByRole("tab", { name: "已有样本数据更新" }),
-    );
+    await openCollectionData();
     await userEvent.click(
       await screen.findByRole("button", { name: /中粮生化能源/u }),
     );
@@ -1155,9 +1252,7 @@ describe("ExistingSampleObservationPanel", () => {
 
   it("saves exactly the displayed contract and reports official linkage", async () => {
     const { api, onSaved } = renderPanel();
-    await userEvent.click(
-      screen.getByRole("tab", { name: "已有样本数据更新" }),
-    );
+    await openCollectionData();
     await userEvent.click(
       await screen.findByRole("button", { name: /中粮生化能源/u }),
     );

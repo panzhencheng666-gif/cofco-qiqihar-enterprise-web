@@ -1,10 +1,12 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { formalApplicationDefinitions } from "../formalEnterpriseData";
 import { createFormalRoute } from "../formalEnterpriseModel";
 import { BusinessNavigationTree } from "./BusinessNavigationTree";
+
+afterEach(cleanup);
 
 describe("BusinessNavigationTree", () => {
   it("renders the current application as one stable keyboard-operable business tree", async () => {
@@ -47,30 +49,28 @@ describe("BusinessNavigationTree", () => {
     );
   });
 
-  it("keeps the independent import task route visible under My Work", async () => {
-    const user = userEvent.setup();
+  it("removes retired workflow navigation instead of hiding it inside My Work", () => {
     const onNavigate = vi.fn();
     const application = formalApplicationDefinitions.find(
-      ({ key }) => key === "work",
+      ({ key }) => key === "production",
     );
     if (!application) throw new Error("missing work application");
 
     render(
       <BusinessNavigationTree
         application={application}
-        currentRoute={createFormalRoute("work", "tasks")}
+        currentRoute={createFormalRoute("production", "corn-collection")}
         onNavigate={onNavigate}
       />,
     );
 
     const navigation = screen.getByRole("navigation", {
-      name: "我的工作模块",
+      name: "产情监测模块",
     });
-    await user.click(
-      within(navigation).getByRole("button", { name: "导入任务" }),
-    );
-    expect(onNavigate).toHaveBeenCalledWith(
-      createFormalRoute("work", "imports"),
-    );
+    expect(navigation).not.toHaveTextContent("我的工作");
+    expect(navigation).not.toHaveTextContent("待我处理");
+    expect(navigation).not.toHaveTextContent("已办事项");
+    expect(navigation).not.toHaveTextContent("导入任务");
+    expect(navigation).not.toHaveTextContent("数据审核");
   });
 });

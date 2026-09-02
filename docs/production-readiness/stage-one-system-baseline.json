@@ -166,73 +166,6 @@
   "menuInventory": [
     {
       "application": "work",
-      "section": "tasks",
-      "label": "待我处理",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "submitted",
-      "label": "待我填报",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "review",
-      "label": "待我审核",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "exceptions",
-      "label": "退回与异常",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "completed",
-      "label": "已办事项",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "imports",
-      "label": "导入任务",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
-        "cofco-qiqihar-enterprise-web:src/business/importing/BusinessImportTaskWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
       "section": "obligations",
       "label": "填报履职周报",
       "implementationLocations": [
@@ -346,32 +279,10 @@
     },
     {
       "application": "production",
-      "section": "tasks",
-      "label": "产情任务",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/production/ProductionTaskWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "production",
       "section": "objects",
       "label": "调查对象",
       "implementationLocations": [
         "cofco-qiqihar-enterprise-web:src/business/production/ProductionObjectRegistry.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "production",
-      "section": "review",
-      "label": "数据审核",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/production/ProductionTaskWorkspace.tsx"
       ],
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
@@ -456,32 +367,10 @@
     },
     {
       "application": "market",
-      "section": "tasks",
-      "label": "采集任务",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/market/MarketTaskWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "market",
       "section": "objects",
       "label": "监测对象",
       "implementationLocations": [
         "cofco-qiqihar-enterprise-web:src/business/market/MarketObjectRegistry.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "market",
-      "section": "review",
-      "label": "数据审核",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/market/MarketTaskWorkspace.tsx"
       ],
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",

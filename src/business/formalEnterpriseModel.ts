@@ -236,7 +236,22 @@ export function getDefaultFormalSection<A extends FormalApplication>(
 }
 
 function defaultFormalRoute(): FormalRoute {
-  return createFormalRoute("work", "tasks");
+  return createFormalRoute("market", "corn-collection");
+}
+
+const retiredSections: Partial<
+  Record<FormalApplication, readonly FormalSection[]>
+> = {
+  work: ["tasks", "submitted", "review", "exceptions", "completed", "imports"],
+  production: ["tasks", "review"],
+  market: ["tasks", "review"],
+  reporting: ["review-distribution", "ledger"],
+};
+
+function activeRoute(route: FormalRoute): FormalRoute {
+  return retiredSections[route.application]?.includes(route.section)
+    ? defaultFormalRoute()
+    : route;
 }
 
 function safelyDecode(value: string): string {
@@ -275,9 +290,11 @@ function readBusinessHash(hash: string): FormalRoute | null {
       candidate === sectionSegment ||
       candidate === aliasedSection,
   );
-  return createFormalRoute(
-    application,
-    section ?? getDefaultFormalSection(application),
+  return activeRoute(
+    createFormalRoute(
+      application,
+      section ?? getDefaultFormalSection(application),
+    ),
   );
 }
 
@@ -313,11 +330,13 @@ export function readFormalRoute(value: string): FormalRoute {
     application === "market" && sectionValue === "logistics"
       ? "corn-logistics"
       : sectionValue;
-  return createFormalRoute(
-    application,
-    isSectionForApplication(application, compatibleSection)
-      ? compatibleSection
-      : getDefaultFormalSection(application),
+  return activeRoute(
+    createFormalRoute(
+      application,
+      isSectionForApplication(application, compatibleSection)
+        ? compatibleSection
+        : getDefaultFormalSection(application),
+    ),
   );
 }
 

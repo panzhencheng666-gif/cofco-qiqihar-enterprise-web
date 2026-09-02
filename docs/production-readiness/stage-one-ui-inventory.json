@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 61,
-  "sourceDigest": "a3e7a55b3fbcc9e67f8d1a8f6c730e760f16a9c7d19255d1fbf3c07b230faf4a",
+  "sourceDigest": "e203448c8ece01b7639bfece729ce8cd91968677ba7b5f216ee2f047aa07a62a",
   "itemCount": 518,
   "countsByKind": {
     "BUTTON": 270,
@@ -238,10 +238,10 @@
       "sourceExcerpt": "<button aria-label={accessibleName} aria-keyshortcuts=\"ArrowLeft ArrowRight\" aria-pressed={selected} className=\"enterprise-comparison-track\" onClick={() => onSelect(model.metricId)} onKeyDown={handleTrackKeyDown} type=\"button\" >"
     },
     {
-      "id": "src/business/components/BusinessNavigationTree.tsx:101:17:BUTTON",
+      "id": "src/business/components/BusinessNavigationTree.tsx:98:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/components/BusinessNavigationTree.tsx",
-      "line": 101,
+      "line": 98,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -378,10 +378,10 @@
       "sourceExcerpt": "<button aria-label={`打开${application.label}`} key={application.key} type=\"button\" onClick={() => { onSelect?.(application.key); setOpen(false); }} >"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1490:13:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1501:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1490,
+      "line": 1501,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -392,10 +392,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={rebuildOperationalState}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1508:11:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1519:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1508,
+      "line": 1519,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -490,10 +490,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => window.location.reload()}>"
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:466:11:BUTTON",
+      "id": "src/business/EnterpriseShell.tsx:462:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 466,
+      "line": 462,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": "aria-label=\"返回市场采集首页\"",
@@ -504,10 +504,10 @@
       "sourceExcerpt": "<button aria-label=\"返回市场采集首页\" className=\"formal-brand\" type=\"button\" onClick={() => onNavigate(createFormalRoute(\"market\", \"corn-collection\")) } >"
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:480:15:BUTTON",
+      "id": "src/business/EnterpriseShell.tsx:476:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 480,
+      "line": 476,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -518,10 +518,10 @@
       "sourceExcerpt": "<button aria-current={ isPrimaryApplicationActive(item.key, location.route) ? \"page\" : undefined } className={ isPrimaryApplicationActive(item.key, location.route) ? \"is-active\" : \"\" } key={item.key} type=\"button\" onClick={() => { onNavi..."
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:503:11:BUTTON",
+      "id": "src/business/EnterpriseShell.tsx:499:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 503,
+      "line": 499,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": "aria-label={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`}",
@@ -532,10 +532,10 @@
       "sourceExcerpt": "<button aria-label={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`} className=\"formal-work-unit\" disabled={!onIdentityOpen} type=\"button\" onClick={() => onIdentityOpen?.(\"organization\")} >"
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:525:13:FILTER_OR_INPUT",
+      "id": "src/business/EnterpriseShell.tsx:521:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 525,
+      "line": 521,
       "column": 13,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"全局搜索\"",
@@ -546,10 +546,10 @@
       "sourceExcerpt": "<input aria-label=\"全局搜索\" placeholder=\"搜索地区、企业、任务和报告\" type=\"search\" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />"
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:536:21:BUTTON",
+      "id": "src/business/EnterpriseShell.tsx:532:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 536,
+      "line": 532,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -560,10 +560,10 @@
       "sourceExcerpt": "<button key={result.id} role=\"option\" type=\"button\" onClick={() => { openSearchResult(result); }} >"
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:556:11:BUTTON",
+      "id": "src/business/EnterpriseShell.tsx:552:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 556,
+      "line": 552,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -571,7 +571,7 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"formal-header-tool\" type=\"button\" onClick={() => onNavigate(createFormalRoute(\"work\", \"tasks\"))} >"
+      "sourceExcerpt": "<button className=\"formal-header-tool\" type=\"button\" onClick={() => setUtilityPanel( utilityPanel === \"notifications\" ? null : \"notifications\", ) } >"
     },
     {
       "id": "src/business/EnterpriseShell.tsx:564:11:BUTTON",
@@ -585,27 +585,13 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"formal-header-tool\" type=\"button\" onClick={() => setUtilityPanel( utilityPanel === \"notifications\" ? null : \"notifications\", ) } >"
-    },
-    {
-      "id": "src/business/EnterpriseShell.tsx:576:11:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 576,
-      "column": 11,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/EnterpriseShell.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
       "sourceExcerpt": "<button className=\"formal-header-tool\" type=\"button\" onClick={() => setUtilityPanel(utilityPanel === \"help\" ? null : \"help\") } >"
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:585:11:BUTTON",
+      "id": "src/business/EnterpriseShell.tsx:573:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 585,
+      "line": 573,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": "aria-label={`当前用户：${shellIdentity.account.displayName}`}",
@@ -616,10 +602,10 @@
       "sourceExcerpt": "<button aria-label={`当前用户：${shellIdentity.account.displayName}`} className=\"formal-user\" disabled={!onIdentityOpen} type=\"button\" onClick={() => onIdentityOpen?.(\"profile\")} >"
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:597:13:DIALOG",
+      "id": "src/business/EnterpriseShell.tsx:585:13:DIALOG",
       "kind": "DIALOG",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 597,
+      "line": 585,
       "column": 13,
       "tag": "section",
       "accessibleNameSource": "aria-label={\n                utilityPanel === \"notifications\" ? \"业务通知\" : \"当前页面帮助\"\n              }",
@@ -630,10 +616,10 @@
       "sourceExcerpt": "<section aria-label={ utilityPanel === \"notifications\" ? \"业务通知\" : \"当前页面帮助\" } className=\"formal-header-information-panel\" role=\"dialog\" >"
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:610:17:BUTTON",
+      "id": "src/business/EnterpriseShell.tsx:598:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 610,
+      "line": 598,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -644,10 +630,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => setUtilityPanel(null)}>"
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:619:25:BUTTON",
+      "id": "src/business/EnterpriseShell.tsx:607:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 619,
+      "line": 607,
       "column": 25,
       "tag": "button",
       "accessibleNameSource": null,
@@ -658,10 +644,10 @@
       "sourceExcerpt": "<button className={ notification.read ? \"is-read\" : \"is-unread\" } key={notification.id} onClick={() => { void onBusinessNotificationRead?.(notification.id); onNavigate(notificationRoute(notification), { type: \"document\", id: notification..."
     },
     {
-      "id": "src/business/EnterpriseShell.tsx:650:23:BUTTON",
+      "id": "src/business/EnterpriseShell.tsx:638:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseShell.tsx",
-      "line": 650,
+      "line": 638,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1022,52 +1008,24 @@
       "sourceExcerpt": "<input aria-label={fieldLabel} data-field-code={field.code} required={field.required} type={number ? \"number\" : \"text\"} {...(number ? decimalInputConstraints(field.precision, field.scale) : {})} value={value} onChange={(event) => onChang..."
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:568:9:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:591:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 568,
-      "column": 9,
+      "line": 591,
+      "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
       "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/ExistingSampleObservationPanel.tsx",
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button type=\"button\" role=\"tab\" aria-selected={mode === \"LEDGER\"} className={mode === \"LEDGER\" ? \"is-active\" : \"\"} onClick={() => setMode(\"LEDGER\")} >"
+      "sourceExcerpt": "<button type=\"button\" onClick={() => { resetSelection(); setRequestedSamplePointId(\"\"); setMode(\"LEDGER\"); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:577:9:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 577,
-      "column": 9,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button type=\"button\" role=\"tab\" aria-selected={mode === \"POINTS\"} className={mode === \"POINTS\" ? \"is-active\" : \"\"} onClick={() => setMode(\"POINTS\")} >"
-    },
-    {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:586:9:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 586,
-      "column": 9,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button type=\"button\" role=\"tab\" aria-selected={mode === \"UPDATE\"} className={mode === \"UPDATE\" ? \"is-active\" : \"\"} onClick={() => setMode(\"UPDATE\")} >"
-    },
-    {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:675:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:614:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 675,
+      "line": 614,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"实际观测时间\"",
@@ -1078,10 +1036,10 @@
       "sourceExcerpt": "<input aria-label=\"实际观测时间\" type=\"datetime-local\" max={localDateTimeValue()} value={observedAt} onChange={(event) => { setObservedAt(event.target.value); setHistoryYear(Number(event.target.value.slice(0, 4))); invalidateQuery(); }} />"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:690:17:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:629:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 690,
+      "line": 629,
       "column": 17,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"筛选对象类型\"",
@@ -1092,10 +1050,10 @@
       "sourceExcerpt": "<select aria-label=\"筛选对象类型\" value={objectTypeCode} onChange={(event) => { setObjectTypeCode(event.target.value); invalidateQuery(); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:709:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:648:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 709,
+      "line": 648,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"筛选业务地区\"",
@@ -1106,10 +1064,10 @@
       "sourceExcerpt": "<select aria-label=\"筛选业务地区\" value={regionCode} onChange={(event) => { setRegionCode(event.target.value); invalidateQuery(); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:727:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:666:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 727,
+      "line": 666,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"搜索样本企业\"",
@@ -1120,10 +1078,10 @@
       "sourceExcerpt": "<input type=\"search\" aria-label=\"搜索样本企业\" placeholder=\"输入名称关键字\" value={keyword} maxLength={100} onChange={(event) => { setKeyword(event.target.value); invalidateQuery(); }} />"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:739:13:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:678:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 739,
+      "line": 678,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1134,10 +1092,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" disabled={busy} onClick={() => void querySamples()} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:765:19:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:704:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 765,
+      "line": 704,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1148,10 +1106,10 @@
       "sourceExcerpt": "<button type=\"button\" key={item.samplePointId} className={ sampleId === item.samplePointId ? \"is-selected\" : \"\" } onClick={() => void chooseSample(item)} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:873:25:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:812:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 873,
+      "line": 812,
       "column": 25,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1162,10 +1120,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"submit\" disabled={busy} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:901:21:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:840:21:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 901,
+      "line": 840,
       "column": 21,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"历史数据年份\"",
@@ -1176,10 +1134,10 @@
       "sourceExcerpt": "<select aria-label=\"历史数据年份\" value={historyYear} onChange={(event) => { const year = Number(event.target.value); setHistoryYear(year); void loadHistory(sample, 0, year); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:949:29:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:888:29:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 949,
+      "line": 888,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1190,10 +1148,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => setHistoryDetail(item)} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:967:23:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:906:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 967,
+      "line": 906,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1204,10 +1162,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={historyPage === 0} onClick={() => void loadHistory(sample, historyPage - 1) } >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:977:23:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:916:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 977,
+      "line": 916,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1218,10 +1176,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={(historyPage + 1) * 20 >= historyTotal} onClick={() => void loadHistory(sample, historyPage + 1) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:430:13:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:431:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 430,
+      "line": 431,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1232,10 +1190,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => { setDetail(null); setConfirmingId(null); setEditor(createEditor()); setNotice(\"\"); }} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:448:11:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:449:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 448,
+      "line": 449,
       "column": 11,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"正式样本业务地区\"",
@@ -1246,10 +1204,10 @@
       "sourceExcerpt": "<select aria-label=\"正式样本业务地区\" value={regionCode} onChange={(event) => { setRegionCode(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:466:11:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:467:11:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 466,
+      "line": 467,
       "column": 11,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"正式样本名称关键字\"",
@@ -1260,10 +1218,10 @@
       "sourceExcerpt": "<input aria-label=\"正式样本名称关键字\" maxLength={200} type=\"search\" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPageNumber(0); }} />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:477:9:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:478:9:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 477,
+      "line": 478,
       "column": 9,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1274,10 +1232,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void query(0)}>"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:502:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:503:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 502,
+      "line": 503,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"正式样本名称\"",
@@ -1288,10 +1246,10 @@
       "sourceExcerpt": "<input aria-label=\"正式样本名称\" maxLength={200} value={editor.canonicalName} onChange={(event) => setEditor({ ...editor, canonicalName: event.target.value }) } />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:513:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:514:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 513,
+      "line": 514,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"正式样本地区\"",
@@ -1302,10 +1260,10 @@
       "sourceExcerpt": "<select aria-label=\"正式样本地区\" value={editor.regionCode} onChange={(event) => setEditor({ ...editor, regionCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:530:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:531:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 530,
+      "line": 531,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"正式样本地址\"",
@@ -1316,10 +1274,10 @@
       "sourceExcerpt": "<input aria-label=\"正式样本地址\" maxLength={500} value={editor.address} onChange={(event) => setEditor({ ...editor, address: event.target.value }) } />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:541:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:542:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 541,
+      "line": 542,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"正式样本经度\"",
@@ -1330,10 +1288,10 @@
       "sourceExcerpt": "<input aria-label=\"正式样本经度\" inputMode=\"decimal\" value={editor.longitude} onChange={(event) => setEditor({ ...editor, longitude: event.target.value }) } />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:552:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:553:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 552,
+      "line": 553,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"正式样本纬度\"",
@@ -1344,10 +1302,10 @@
       "sourceExcerpt": "<input aria-label=\"正式样本纬度\" inputMode=\"decimal\" value={editor.latitude} onChange={(event) => setEditor({ ...editor, latitude: event.target.value }) } />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:563:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:564:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 563,
+      "line": 564,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"正式样本对象分类\"",
@@ -1358,10 +1316,10 @@
       "sourceExcerpt": "<select aria-label=\"正式样本对象分类\" value={editor.objectTypeCode} onChange={(event) => setEditor({ ...editor, objectTypeCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:580:13:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:581:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 580,
+      "line": 581,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1372,10 +1330,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void save()}>"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:583:13:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:584:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 583,
+      "line": 584,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1386,11 +1344,11 @@
       "sourceExcerpt": "<button disabled={writeBusy} type=\"button\" onClick={() => setEditor(null)} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:615:21:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:619:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 615,
-      "column": 21,
+      "line": 619,
+      "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
       "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSamplePointLedger.tsx",
@@ -1400,10 +1358,52 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => void loadDetail(point.id)} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:629:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:626:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 629,
+      "line": 626,
+      "column": 25,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button type=\"button\" onClick={() => void loadDetail(point.id, \"EDIT\")} >"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:633:23:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "line": 633,
+      "column": 23,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button type=\"button\" onClick={() => void loadDetail(point.id, \"DELETE\")} >"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:639:23:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "line": 639,
+      "column": 23,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button type=\"button\" onClick={() => onCollectData(point.id)} >"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:656:15:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "line": 656,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1414,10 +1414,10 @@
       "sourceExcerpt": "<button disabled={busy || page.pageNumber === 0} type=\"button\" onClick={() => void query(page.pageNumber - 1)} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:637:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:664:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 637,
+      "line": 664,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1428,10 +1428,10 @@
       "sourceExcerpt": "<button disabled={busy || page.pageNumber + 1 >= page.totalPages} type=\"button\" onClick={() => void query(page.pageNumber + 1)} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:688:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:715:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 688,
+      "line": 715,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1442,10 +1442,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => { setConfirmingId(null); setEditor(editEditor(detail)); setNotice(\"\"); }} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:705:17:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:738:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 705,
+      "line": 738,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1456,10 +1456,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void remove()} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:712:17:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:745:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 712,
+      "line": 745,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1470,10 +1470,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => setConfirmingId(null)}>"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:717:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:750:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 717,
+      "line": 750,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,

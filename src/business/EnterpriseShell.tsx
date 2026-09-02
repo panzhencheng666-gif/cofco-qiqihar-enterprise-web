@@ -50,11 +50,6 @@ const primaryBusinessApplications = [
     label: "报表中心",
     route: createFormalRoute("reporting", "compose"),
   },
-  {
-    key: "work",
-    label: "我的工作",
-    route: createFormalRoute("work", "tasks"),
-  },
 ] as const;
 
 type SearchResult = {
@@ -68,7 +63,7 @@ type SearchResult = {
 
 function productWorkRoute(item: BusinessWorkItem): FormalRoute {
   if (item.domain === "reporting") {
-    return createFormalRoute("reporting", "review-distribution");
+    return createFormalRoute("reporting", "compose");
   }
   if (item.domain === "supply") {
     return createFormalRoute(
@@ -100,7 +95,14 @@ function productWorkRoute(item: BusinessWorkItem): FormalRoute {
           : "corn-collection",
     );
   }
-  return createFormalRoute("production", "tasks");
+  return createFormalRoute(
+    "production",
+    item.productId === "soybean"
+      ? "soybean-collection"
+      : item.productId === "paddy"
+        ? "rice-collection"
+        : "corn-collection",
+  );
 }
 
 function notificationProductName(productCode: string | null): string {
@@ -417,12 +419,6 @@ export function EnterpriseShell({
         )
         .slice(0, 12)
     : [];
-  const pendingCount = workItems.filter(
-    (item) =>
-      item.obligationStatus === "in-progress" ||
-      item.obligationStatus === "missed" ||
-      item.reviewStatus === "pending",
-  ).length;
   const workItemNotificationCount = workItems.filter(
     (item) =>
       item.qualityStatus === "blocking" || item.reviewStatus === "returned",
@@ -553,14 +549,6 @@ export function EnterpriseShell({
             )}
           </form>
 
-          <button
-            className="formal-header-tool"
-            type="button"
-            onClick={() => onNavigate(createFormalRoute("work", "tasks"))}
-          >
-            <span>待办</span>
-            <b>{pendingCount}</b>
-          </button>
           <button
             className="formal-header-tool"
             type="button"
