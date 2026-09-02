@@ -71,6 +71,8 @@ const RUNTIME_VERSION_KEYS = new Set(["node", "npm", "jdk"]);
 const REPOSITORY_NAMES = ["backend", "frontend", "web"];
 const SHA_256_PATTERN = /^[a-f0-9]{64}$/;
 const GIT_SHA_PATTERN = /^[a-f0-9]{40}$/;
+const MIGRATION_VERSION_PATTERN = /^(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*))*$/u;
+const MIGRATION_FILENAME_PATTERN = /^V((?:0|[1-9]\d*)(?:[._]\d+)*)__/u;
 const REPOSITORY_ARRAY_KEYS = [
   "artifacts",
   "contracts",
@@ -95,6 +97,28 @@ const NOFOLLOW_READ_FLAGS =
 
 function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function parseMigrationPath(path) {
+  const match = MIGRATION_FILENAME_PATTERN.exec(basename(path));
+  if (!match) return null;
+  const components = match[1].split(/[._]/u).map((part) => BigInt(part));
+  return {
+    path,
+    version: components.map((part) => part.toString()).join("."),
+    components,
+  };
+}
+
+function compareMigrationVersions(left, right) {
+  const length = Math.max(left.components.length, right.components.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = left.components[index] ?? 0n;
+    const rightPart = right.components[index] ?? 0n;
+    if (leftPart < rightPart) return -1;
+    if (leftPart > rightPart) return 1;
+  }
+  return 0;
 }
 
 async function runGit(root, ...args) {
@@ -565,10 +589,7 @@ async function buildBackendRepository(descriptor) {
     migrationDirectory,
     `${label}.migrations.directory`,
   );
-  const migrationPaths = allMigrationPaths.map((path) => {
-    const match = /^V(\d+)__/u.exec(basename(path));
-    return match ? { path, version: BigInt(match[1]) } : null;
-  });
+  const migrationPaths = allMigrationPaths.map(parseMigrationPath);
   const unsupportedMigration = migrationPaths.findIndex(
     (entry) => entry === null,
   );
@@ -577,17 +598,20 @@ async function buildBackendRepository(descriptor) {
       `${label}.migrations contains unsupported migration ${allMigrationPaths[unsupportedMigration]}`,
     );
   }
-  migrationPaths.sort((left, right) =>
-    left.version < right.version
-      ? -1
-      : left.version > right.version
-        ? 1
-        : compareText(left.path, right.path),
+  migrationPaths.sort(
+    (left, right) =>
+      compareMigrationVersions(left, right) ||
+      compareText(left.path, right.path),
   );
   if (migrationPaths.length === 0)
-    throw new Error(`${label}.migrations contains no V<number>__ files`);
+    throw new Error(`${label}.migrations contains no Flyway versioned files`);
   for (let index = 1; index < migrationPaths.length; index += 1) {
-    if (migrationPaths[index - 1].version === migrationPaths[index].version) {
+    if (
+      compareMigrationVersions(
+        migrationPaths[index - 1],
+        migrationPaths[index],
+      ) === 0
+    ) {
       throw new Error(
         `${label} migration order has duplicate V${migrationPaths[index].version}`,
       );
@@ -600,13 +624,13 @@ async function buildBackendRepository(descriptor) {
         path,
         `${label}.migrations.files[${index}]`,
       )),
-      version: version.toString(),
+      version,
     })),
   );
   const migrations = {
     directory: migrationDirectory,
     files: migrationFiles,
-    highestVersion: migrationPaths.at(-1).version.toString(),
+    highestVersion: migrationPaths.at(-1).version,
     collectionSha256: sha256(canonicalJson(migrationFiles)),
   };
   const repository = {
@@ -932,19 +956,18 @@ function validateMigrationOrder(repository, label) {
     assertFileDigestAndSize(file, fileLabel);
     if (
       typeof file.version !== "string" ||
-      !/^(?:0|[1-9]\d*)$/u.test(file.version)
+      !MIGRATION_VERSION_PATTERN.test(file.version)
     ) {
       throw new Error(
-        `${fileLabel}.version must be a non-negative decimal string`,
+        `${fileLabel}.version must be a canonical numeric Flyway version`,
       );
     }
-    const match = /^V(\d+)__/u.exec(basename(path));
-    if (!match)
+    const pathVersion = parseMigrationPath(path);
+    if (!pathVersion)
       throw new Error(
         `${label} migration order cannot be determined for ${path}`,
       );
-    const pathVersion = BigInt(match[1]);
-    if (BigInt(file.version) !== pathVersion) {
+    if (file.version !== pathVersion.version) {
       throw new Error(
         `${label} migration version metadata does not match ${path}`,
       );
@@ -953,13 +976,13 @@ function validateMigrationOrder(repository, label) {
   });
 
   for (let index = 1; index < versions.length; index += 1) {
-    if (versions[index] <= versions[index - 1]) {
+    if (compareMigrationVersions(versions[index], versions[index - 1]) <= 0) {
       throw new Error(
-        `${label} migration order must be strictly ascending by V number`,
+        `${label} migration order must be strictly ascending by Flyway version`,
       );
     }
   }
-  const highestVersion = versions.at(-1).toString();
+  const highestVersion = versions.at(-1).version;
   if (repository.migrations.highestVersion !== highestVersion) {
     throw new Error(`${label}.migrations highest version mismatch`);
   }
@@ -1368,28 +1391,31 @@ export async function verifyReleaseManifest({
         repository.migrations.directory,
         `${label}.migrations.directory`,
       );
-      const migrationPaths = (
-        await collectRuntimeDirectoryPaths(
-          root,
-          directory,
-          `${label}.migrations.directory`,
-        )
-      )
-        .map((path) => {
-          const match = /^V(\d+)__/u.exec(basename(path));
-          return match ? { path, version: BigInt(match[1]) } : null;
-        })
-        .filter(Boolean);
-      migrationPaths.sort((left, right) =>
-        left.version < right.version
-          ? -1
-          : left.version > right.version
-            ? 1
-            : compareText(left.path, right.path),
+      const allMigrationPaths = await collectRuntimeDirectoryPaths(
+        root,
+        directory,
+        `${label}.migrations.directory`,
+      );
+      const migrationPaths = allMigrationPaths.map(parseMigrationPath);
+      const unsupportedMigration = migrationPaths.findIndex(
+        (entry) => entry === null,
+      );
+      if (unsupportedMigration !== -1) {
+        throw new Error(
+          `${label}.migrations contains unsupported migration ${allMigrationPaths[unsupportedMigration]}`,
+        );
+      }
+      migrationPaths.sort(
+        (left, right) =>
+          compareMigrationVersions(left, right) ||
+          compareText(left.path, right.path),
       );
       for (let index = 1; index < migrationPaths.length; index += 1) {
         if (
-          migrationPaths[index - 1].version === migrationPaths[index].version
+          compareMigrationVersions(
+            migrationPaths[index - 1],
+            migrationPaths[index],
+          ) === 0
         ) {
           throw new Error(
             `${label}.migrations file list mismatch: duplicate V${migrationPaths[index].version}`,
@@ -1412,7 +1438,7 @@ export async function verifyReleaseManifest({
       if (repository.migrations.collectionSha256 !== expectedCollectionSha256) {
         throw new Error(`${label}.migrations collection SHA-256 mismatch`);
       }
-      const highestVersion = migrationPaths.at(-1)?.version.toString();
+      const highestVersion = migrationPaths.at(-1)?.version;
       if (repository.migrations.highestVersion !== highestVersion) {
         throw new Error(`${label}.migrations highest version mismatch`);
       }
