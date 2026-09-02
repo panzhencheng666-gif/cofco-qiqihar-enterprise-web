@@ -204,9 +204,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
   await editForm.getByLabel("点位名称").fill("受控更新设计点");
   await editForm.getByRole("button", { name: "保存" }).click();
   await expect(createdDetail).toContainText("受控更新设计点");
-  await createdDetail
-    .getByRole("button", { name: "返回设计样本台账" })
-    .click();
+  await createdDetail.getByRole("button", { name: "返回设计样本台账" }).click();
   const updatedRow = page.getByRole("row", { name: /受控更新设计点/ });
   await expect(updatedRow).toBeVisible();
 
