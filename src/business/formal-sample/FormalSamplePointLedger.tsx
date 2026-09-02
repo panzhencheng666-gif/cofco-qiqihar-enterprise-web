@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
+  EligibleFormalSample,
   FormalSampleObservationDomain,
   FormalSamplePointMutation,
   FormalSamplePointRow,
@@ -146,11 +147,13 @@ export function FormalSamplePointLedger({
   domain,
   productCode,
   repository,
+  permissions,
   onCollectData,
 }: {
   domain: FormalSampleObservationDomain;
   productCode: string;
   repository: RealtimeBusinessRepository;
+  permissions: readonly string[];
   onCollectData: (samplePointId: string) => void;
 }) {
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
@@ -161,6 +164,9 @@ export function FormalSamplePointLedger({
   const [keyword, setKeyword] = useState("");
   const [pageNumber, setPageNumber] = useState(0);
   const [page, setPage] = useState<Page<FormalSamplePointRow>>(emptyPage);
+  const [eligibleSamples, setEligibleSamples] = useState<
+    readonly EligibleFormalSample[]
+  >([]);
   const [detail, setDetail] = useState<FormalSamplePointRow | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -171,6 +177,10 @@ export function FormalSamplePointLedger({
   const [notice, setNotice] = useState("");
   const requestVersion = useRef(0);
   const detailRequestVersion = useRef(0);
+  const detailRegion = useRef<HTMLElement>(null);
+  const editorRegion = useRef<HTMLElement>(null);
+  const pendingFocusTarget = useRef<"DETAIL" | "EDITOR" | null>(null);
+  const eligibilityObservedAt = useRef(new Date().toISOString());
   const regionNames = useMemo(
     () => new Map(regions.map(({ code, name }) => [code, name])),
     [regions],
@@ -178,9 +188,21 @@ export function FormalSamplePointLedger({
   const regionName = (code: string) =>
     regionNames.get(code) ?? "地区名称待同步";
   const busy = listBusy || detailBusy || deleteBusy || writeBusy;
-  const canWrite =
-    typeof repository.createFormalSamplePoint === "function" &&
+  const canCreate =
+    permissions.includes("BUSINESS_CREATE") &&
+    typeof repository.createFormalSamplePoint === "function";
+  const canUpdate =
+    permissions.includes("BUSINESS_UPDATE") &&
     typeof repository.updateFormalSamplePoint === "function";
+  const canDelete =
+    permissions.includes("BUSINESS_UPDATE") &&
+    typeof repository.deleteFormalSamplePoint === "function";
+  const canCollect = permissions.includes("BUSINESS_CREATE");
+  const eligibleById = useMemo(
+    () =>
+      new Map(eligibleSamples.map((sample) => [sample.samplePointId, sample])),
+    [eligibleSamples],
+  );
   const availableObjectTypes =
     !editor?.objectTypeCode ||
     objectTypes.some(({ code }) => code === editor.objectTypeCode)
@@ -201,14 +223,25 @@ export function FormalSamplePointLedger({
       setListBusy(true);
       setNotice("");
       try {
-        const next = await repository.listFormalSamplePoints({
-          regionCode: regionCode || undefined,
-          keyword: keyword.trim() || undefined,
-          page: requestedPage,
-          pageSize: 20,
-        });
+        const [next, eligible] = await Promise.all([
+          repository.listFormalSamplePoints({
+            regionCode: regionCode || undefined,
+            keyword: keyword.trim() || undefined,
+            page: requestedPage,
+            pageSize: 20,
+          }),
+          repository.listEligibleFormalSamples?.({
+            domain,
+            productCode,
+            regionCode: regionCode || undefined,
+            keyword: keyword.trim() || undefined,
+            year: Number(eligibilityObservedAt.current.slice(0, 4)),
+            observedAt: eligibilityObservedAt.current,
+          }) ?? Promise.resolve([]),
+        ]);
         if (version !== requestVersion.current) return;
         setPage(next);
+        setEligibleSamples(eligible);
         setPageNumber(next.pageNumber);
         if (detail && !next.items.some(({ id }) => id === detail.id)) {
           setDetail(null);
@@ -218,6 +251,7 @@ export function FormalSamplePointLedger({
       } catch (error) {
         if (version === requestVersion.current) {
           setPage(emptyPage);
+          setEligibleSamples([]);
           setDetail(null);
           setNotice(
             formalSampleError(error, "正式样本列表读取失败，请稍后重试。"),
@@ -227,11 +261,14 @@ export function FormalSamplePointLedger({
         if (version === requestVersion.current) setListBusy(false);
       }
     },
-    [detail, keyword, pageNumber, regionCode, repository],
+    [detail, domain, keyword, pageNumber, productCode, regionCode, repository],
   );
 
   const loadDetail = useCallback(
-    async (id: string, intent: "VIEW" | "EDIT" | "DELETE" = "VIEW") => {
+    async (
+      id: string,
+      intent: "VIEW" | "EDIT" | "DELETE" | "REFRESH" = "VIEW",
+    ) => {
       if (!repository.getFormalSamplePoint) return;
       const version = ++detailRequestVersion.current;
       setDetailBusy(true);
@@ -239,6 +276,12 @@ export function FormalSamplePointLedger({
       try {
         const next = await repository.getFormalSamplePoint(id);
         if (version === detailRequestVersion.current) {
+          pendingFocusTarget.current =
+            intent === "REFRESH"
+              ? null
+              : intent === "EDIT"
+                ? "EDITOR"
+                : "DETAIL";
           setDetail(next);
           setConfirmingId(intent === "DELETE" ? next.id : null);
           setEditor(intent === "EDIT" ? editEditor(next) : null);
@@ -285,11 +328,32 @@ export function FormalSamplePointLedger({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domain, productCode, repository]);
 
-  const eventSequence = useRef(0);
-  const eventState = useRef({ query, loadDetail, selectedId: detail?.id });
   useEffect(() => {
-    eventState.current = { query, loadDetail, selectedId: detail?.id };
-  }, [detail?.id, loadDetail, query]);
+    const target = pendingFocusTarget.current;
+    if (target === "EDITOR" && editor) {
+      editorRegion.current?.focus();
+      pendingFocusTarget.current = null;
+    } else if (target === "DETAIL" && detail && !editor) {
+      detailRegion.current?.focus();
+      pendingFocusTarget.current = null;
+    }
+  }, [detail, editor]);
+
+  const eventSequence = useRef(0);
+  const eventState = useRef({
+    query,
+    loadDetail,
+    selectedId: detail?.id,
+    editedId: editor?.pointId,
+  });
+  useEffect(() => {
+    eventState.current = {
+      query,
+      loadDetail,
+      selectedId: detail?.id,
+      editedId: editor?.pointId,
+    };
+  }, [detail?.id, editor?.pointId, loadDetail, query]);
 
   useEffect(() => {
     if (!repository.subscribeBusinessEvents) return undefined;
@@ -298,20 +362,30 @@ export function FormalSamplePointLedger({
       (event) => {
         if (event.sequence <= eventSequence.current) return;
         eventSequence.current = event.sequence;
-        if (
-          event.aggregateType !== "FORMAL_SAMPLE_POINT" &&
-          !event.actionCode.startsWith("FORMAL_SAMPLE_POINT_")
-        ) {
+        const observationChanged =
+          event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED" &&
+          (!event.productCode || event.productCode === productCode);
+        const samplePointChanged =
+          event.aggregateType === "FORMAL_SAMPLE_POINT" ||
+          event.actionCode.startsWith("FORMAL_SAMPLE_POINT_");
+        if (!observationChanged && !samplePointChanged) {
           return;
         }
         const {
           query: refresh,
           loadDetail: refreshDetail,
           selectedId,
+          editedId,
         } = eventState.current;
-        setEditor(null);
+        if (samplePointChanged && event.aggregateId === editedId)
+          setEditor(null);
         void refresh().then(() => {
-          if (!selectedId) return;
+          if (
+            !samplePointChanged ||
+            !selectedId ||
+            event.aggregateId !== selectedId
+          )
+            return;
           if (
             event.actionCode === "FORMAL_SAMPLE_POINT_DELETED" &&
             event.aggregateId === selectedId
@@ -320,11 +394,11 @@ export function FormalSamplePointLedger({
             setConfirmingId(null);
             return;
           }
-          void refreshDetail(selectedId);
+          void refreshDetail(selectedId, "REFRESH");
         });
       },
     );
-  }, [repository]);
+  }, [productCode, repository]);
 
   const save = async () => {
     if (!editor || !repository.getFormalSamplePoint) return;
@@ -378,7 +452,7 @@ export function FormalSamplePointLedger({
   };
 
   const remove = async () => {
-    if (!detail || !repository.deleteFormalSamplePoint) return;
+    if (!canDelete || !detail || !repository.deleteFormalSamplePoint) return;
     setDeleteBusy(true);
     setNotice("");
     try {
@@ -410,11 +484,7 @@ export function FormalSamplePointLedger({
     }
   };
 
-  if (
-    !repository.listFormalSamplePoints ||
-    !repository.getFormalSamplePoint ||
-    !repository.deleteFormalSamplePoint
-  ) {
+  if (!repository.listFormalSamplePoints || !repository.getFormalSamplePoint) {
     return <p role="status">正式样本档案服务暂不可用。</p>;
   }
 
@@ -427,11 +497,12 @@ export function FormalSamplePointLedger({
         </div>
         <div className="formal-sample-ledger__header-actions">
           <strong>共 {page.totalElements} 个</strong>
-          {canWrite && (
+          {canCreate && (
             <button
               disabled={busy}
               type="button"
               onClick={() => {
+                pendingFocusTarget.current = "EDITOR";
                 setDetail(null);
                 setConfirmingId(null);
                 setEditor(createEditor());
@@ -481,6 +552,8 @@ export function FormalSamplePointLedger({
       </div>
       {editor && (
         <section
+          ref={editorRegion}
+          tabIndex={-1}
           className="formal-sample-ledger__editor"
           aria-label="正式样本稳定信息"
         >
@@ -606,48 +679,70 @@ export function FormalSamplePointLedger({
               </tr>
             </thead>
             <tbody>
-              {page.items.map((point) => (
-                <tr key={point.id}>
-                  <td>{point.canonicalName}</td>
-                  <td>{regionName(point.regionCode)}</td>
-                  <td>{point.objectTypeName}</td>
-                  <td>{coordinate(point)}</td>
-                  <td>{point.annualObservationCount}</td>
-                  <td>{point.networkMembershipCount}</td>
-                  <td>
-                    <div className="formal-sample-ledger__row-actions">
-                      <button
-                        type="button"
-                        onClick={() => void loadDetail(point.id)}
-                      >
-                        查看
-                      </button>
-                      {canWrite && (
+              {page.items.map((point) => {
+                const eligible = eligibleById.get(point.id);
+                const collectionAllowed = canCollect && Boolean(eligible);
+                return (
+                  <tr key={point.id}>
+                    <td>{point.canonicalName}</td>
+                    <td>{regionName(point.regionCode)}</td>
+                    <td>{point.objectTypeName}</td>
+                    <td>{coordinate(point)}</td>
+                    <td>{point.annualObservationCount}</td>
+                    <td>{point.networkMembershipCount}</td>
+                    <td>
+                      <div className="formal-sample-ledger__row-actions">
                         <button
                           type="button"
-                          onClick={() => void loadDetail(point.id, "EDIT")}
+                          onClick={() => void loadDetail(point.id)}
                         >
-                          编辑
+                          查看
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => void loadDetail(point.id, "DELETE")}
-                      >
-                        删除
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onCollectData(point.id)}
-                      >
-                        {point.annualObservationCount > 0
-                          ? "更新采集数据"
-                          : "填写采集数据"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {canUpdate && (
+                          <button
+                            type="button"
+                            onClick={() => void loadDetail(point.id, "EDIT")}
+                          >
+                            编辑
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => void loadDetail(point.id, "DELETE")}
+                          >
+                            删除
+                          </button>
+                        )}
+                        <button
+                          disabled={!collectionAllowed}
+                          title={
+                            !canCollect
+                              ? "当前账号没有填写正式采集数据的权限"
+                              : !eligible
+                                ? "该样本不符合当前业务、品种或观测时点的采集条件"
+                                : undefined
+                          }
+                          type="button"
+                          onClick={() => {
+                            if (collectionAllowed) onCollectData(point.id);
+                          }}
+                        >
+                          {eligible?.latestObservationId
+                            ? canCollect
+                              ? "更新采集数据"
+                              : "无采集权限"
+                            : eligible
+                              ? canCollect
+                                ? "填写采集数据"
+                                : "无采集权限"
+                              : "当前业务不可采集"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {page.items.length === 0 && <p>当前条件下没有正式样本。</p>}
@@ -673,6 +768,8 @@ export function FormalSamplePointLedger({
         </div>
         {detail && (
           <section
+            ref={detailRegion}
+            tabIndex={-1}
             className="formal-sample-ledger__detail"
             aria-label="正式样本详情"
           >
@@ -711,11 +808,12 @@ export function FormalSamplePointLedger({
                 <dd>{detail.networkMembershipCount}</dd>
               </div>
             </dl>
-            {canWrite && (
+            {canUpdate && (
               <button
                 disabled={busy}
                 type="button"
                 onClick={() => {
+                  pendingFocusTarget.current = "EDITOR";
                   setConfirmingId(null);
                   setEditor(editEditor(detail));
                   setNotice("");
@@ -724,7 +822,7 @@ export function FormalSamplePointLedger({
                 编辑稳定信息
               </button>
             )}
-            {detail.networkMembershipCount > 0 ? (
+            {!canDelete ? null : detail.networkMembershipCount > 0 ? (
               <p>
                 该样本仍被年度样本网引用，不能删除。请先到样本点管理解除年度引用，再返回本页重试。
               </p>

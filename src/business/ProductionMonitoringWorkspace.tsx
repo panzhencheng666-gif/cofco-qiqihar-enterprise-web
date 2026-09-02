@@ -48,6 +48,7 @@ export interface ProductionMonitoringWorkspaceProps {
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  permissions?: readonly string[];
 }
 
 const defaultProductionScope: OperationalScope = {
@@ -75,6 +76,7 @@ export function ProductionMonitoringWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken,
+  permissions = [],
 }: ProductionMonitoringWorkspaceProps) {
   const [localSelection, setLocalSelection] = useState(selection);
   const selectionIsControlled = onSelectionChange !== undefined;
@@ -108,6 +110,7 @@ export function ProductionMonitoringWorkspace({
         workItems={workItems}
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
+        permissions={permissions}
       />
     );
   }
@@ -177,6 +180,7 @@ export function FormalProductionMonitoringWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken,
+  permissions = [],
 }: {
   section: ProductionSection;
   selection?: FormalSelection;
@@ -202,6 +206,7 @@ export function FormalProductionMonitoringWorkspace({
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  permissions?: readonly string[];
 }) {
   return (
     <FormalWorkspaceScopeProvider
@@ -224,6 +229,7 @@ export function FormalProductionMonitoringWorkspace({
         onEditRecord={onEditRecord}
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
+        permissions={permissions}
         workItems={workItems}
         scope={scope}
         section={section}

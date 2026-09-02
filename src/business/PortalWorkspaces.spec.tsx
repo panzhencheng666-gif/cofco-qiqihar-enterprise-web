@@ -382,7 +382,7 @@ describe("enterprise portal workspaces", () => {
 
     await user.click(within(row).getByRole("button", { name: "补充产情填报" }));
     expect(onOpenBusiness).toHaveBeenCalledWith(
-      { application: "production", section: "tasks" },
+      { application: "production", section: "corn-collection" },
       { type: "work-item", id: source!.workId },
     );
     expect(document.body).not.toHaveTextContent(
@@ -1137,7 +1137,7 @@ describe("enterprise portal workspaces", () => {
     );
     expect(onRouteChange).toHaveBeenLastCalledWith({
       application: "market",
-      section: "tasks",
+      section: "corn-collection",
     });
     expect(
       screen.queryByRole("table", { name: "经营运行台账" }),

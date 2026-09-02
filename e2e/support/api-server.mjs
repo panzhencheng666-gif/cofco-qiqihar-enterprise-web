@@ -82,26 +82,34 @@ const formalSamplePoints = [
     networkMembershipCount: 0,
   },
 ];
-const eligibleFormalSamples = formalSamplePoints.map((point) => ({
-  samplePointId: point.id,
-  sampleName: point.canonicalName,
-  objectTypeCode: point.objectTypeCode,
-  objectTypeName: point.objectTypeName,
-  domain: "MARKET",
-  productCode: "CORN",
-  regionCode: point.regionCode,
-  regionName: "通齐村",
-  latitude: String(point.latitude),
-  longitude: String(point.longitude),
-  effectiveFrom: point.effectiveFrom,
-  effectiveTo: point.effectiveTo,
-  latestObservationId: "E2E-OBSERVATION-002",
-  latestObservedAt: "2026-08-25T10:58:50Z",
-  latestValues: {
-    MKT_PURCHASE_BASE_PRICE: "2410.00",
-    MKT_SALE_BASE_PRICE: "2430.00",
-  },
-}));
+const initialFormalObservationValues = {
+  MKT_OBJECT_TYPE: "TRADER",
+  MKT_REGION: "230221101001",
+  MKT_PURCHASE_BASE_PRICE: "2410.00",
+  MKT_SALE_BASE_PRICE: "2430.00",
+  MKT_REPORTER_NAME: "已认证用户",
+};
+let formalObservationValues = { ...initialFormalObservationValues };
+let formalObservationReads = 0;
+let formalObservationId = "E2E-OBSERVATION-002";
+const eligibleFormalSamples = () =>
+  formalSamplePoints.map((point) => ({
+    samplePointId: point.id,
+    sampleName: point.canonicalName,
+    objectTypeCode: point.objectTypeCode,
+    objectTypeName: point.objectTypeName,
+    domain: "MARKET",
+    productCode: "CORN",
+    regionCode: point.regionCode,
+    regionName: "通齐村",
+    latitude: String(point.latitude),
+    longitude: String(point.longitude),
+    effectiveFrom: point.effectiveFrom,
+    effectiveTo: point.effectiveTo,
+    latestObservationId: formalObservationId,
+    latestObservedAt: "2026-08-25T10:58:50Z",
+    latestValues: { ...formalObservationValues },
+  }));
 const marketWorkRecord = {
   id: "E2E-MARKET-WORK-001",
   productCode: "CORN",
@@ -1034,6 +1042,9 @@ function reset() {
   actorHeaders = [];
   templateDownloads = [];
   workbookImports = [];
+  formalObservationValues = { ...initialFormalObservationValues };
+  formalObservationReads = 0;
+  formalObservationId = "E2E-OBSERVATION-002";
 }
 
 const server = createServer(async (request, response) => {
@@ -1069,6 +1080,7 @@ const server = createServer(async (request, response) => {
       templateDownloads,
       workbookImports,
       writes,
+      formalObservationReads,
     });
     return;
   }
@@ -1093,7 +1105,7 @@ const server = createServer(async (request, response) => {
       subjectId: "server-user",
       displayName: "已认证用户",
       workUnitCode: "QIQIHAR_BUSINESS",
-      permissions: ["BUSINESS_READ", "BUSINESS_CREATE"],
+      permissions: ["BUSINESS_READ", "BUSINESS_CREATE", "BUSINESS_UPDATE"],
       regionCodes: ["230200", "230221", "230221101", "230221101001"],
     });
     return;
@@ -1133,18 +1145,64 @@ const server = createServer(async (request, response) => {
     method === "GET" &&
     url.pathname === "/api/v1/formal-sample-observations/eligible-samples"
   ) {
-    data(response, empty ? [] : eligibleFormalSamples);
+    formalObservationReads += 1;
+    data(response, empty ? [] : eligibleFormalSamples());
     return;
   }
   if (
     method === "GET" &&
     url.pathname === "/api/v1/formal-sample-observations/observations"
   ) {
+    formalObservationReads += 1;
     data(response, {
-      items: [],
-      totalElements: 0,
+      items: empty
+        ? []
+        : [
+            {
+              observationId: formalObservationId,
+              observedAt: "2026-08-25T10:58:50Z",
+              officialSavedAt: "2026-08-25T10:59:00Z",
+              actorDisplayName: "已认证用户",
+              projectionVersion: "e2e-projection-v1",
+              synchronizedModules: ["OVERVIEW", "MARKET_ANALYSIS", "REPORTS"],
+              values: { ...formalObservationValues },
+              latest: true,
+            },
+          ],
+      totalElements: empty ? 0 : 1,
       pageNumber: 0,
       pageSize: 20,
+    });
+    return;
+  }
+  if (
+    method === "POST" &&
+    url.pathname === "/api/v1/formal-sample-observations/observations"
+  ) {
+    const body = await readBody(request);
+    formalObservationId = "E2E-OBSERVATION-003";
+    formalObservationValues = {
+      ...(body.payload?.coreValues ?? {}),
+      ...(body.payload?.facts ?? {}),
+    };
+    writes.push({
+      action: "save-formal-sample-observation",
+      body,
+      idempotencyKey: request.headers["idempotency-key"] ?? null,
+    });
+    actorHeaders.push(request.headers["x-actor"] ?? null);
+    json(response, 201, {
+      data: {
+        observationId: formalObservationId,
+        samplePointId: body.samplePointId,
+        domain: body.domain,
+        productCode: body.productCode,
+        observedAt: body.observedAt,
+        officialSavedAt: "2026-09-02T01:30:00Z",
+        projectionVersion: "e2e-projection-v2",
+        synchronizedModules: ["OVERVIEW", "MARKET_ANALYSIS", "REPORTS"],
+        values: { ...formalObservationValues },
+      },
     });
     return;
   }

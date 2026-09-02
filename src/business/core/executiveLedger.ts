@@ -49,9 +49,25 @@ export interface ExecutiveLedgerQuery {
 export type ExecutiveDrillDownTarget =
   | {
       application: "production";
-      section: "tasks" | "objects" | "analysis";
+      section:
+        | "corn-collection"
+        | "soybean-collection"
+        | "rice-collection"
+        | "objects"
+        | "analysis";
     }
-  | { application: "market"; section: "tasks" | "objects" | "analysis" }
+  | {
+      application: "market";
+      section:
+        | "corn-collection"
+        | "soybean-collection"
+        | "paddy-collection"
+        | "corn-logistics"
+        | "soybean-logistics"
+        | "paddy-logistics"
+        | "objects"
+        | "analysis";
+    }
   | {
       application: "supply";
       section: "calculation" | "comparison" | "versions";
@@ -62,7 +78,7 @@ export type ExecutiveDrillDownTarget =
     }
   | {
       application: "reporting";
-      section: "compose" | "review-distribution" | "ledger";
+      section: "compose";
     };
 
 interface ExecutiveLineage {
@@ -599,15 +615,32 @@ function workflowSnapshotVersion(
   return `${prefix}-${periodKey}-CURRENT`;
 }
 
-function businessWorkTarget(
-  domain: BusinessWorkItem["domain"],
-): ExecutiveDrillDownTarget {
-  if (domain === "production")
-    return { application: "production", section: "tasks" };
-  if (domain === "market") return { application: "market", section: "tasks" };
-  if (domain === "supply")
+function businessWorkTarget(item: BusinessWorkItem): ExecutiveDrillDownTarget {
+  const product =
+    item.productId === "soybean"
+      ? "soybean"
+      : item.productId === "paddy" || item.productId === "rice"
+        ? "rice"
+        : "corn";
+  if (item.domain === "production") {
+    const section =
+      product === "rice" ? "rice-collection" : `${product}-collection`;
+    return { application: "production", section };
+  }
+  if (item.domain === "market") {
+    const section =
+      item.businessSubtypeId === "market.logistics"
+        ? product === "rice"
+          ? "paddy-logistics"
+          : `${product}-logistics`
+        : product === "rice"
+          ? "paddy-collection"
+          : `${product}-collection`;
+    return { application: "market", section };
+  }
+  if (item.domain === "supply")
     return { application: "supply", section: "calculation" };
-  return { application: "reporting", section: "review-distribution" };
+  return { application: "reporting", section: "compose" };
 }
 
 function businessDomainLabel(domain: BusinessWorkItem["domain"]): string {
@@ -749,7 +782,7 @@ function projectWorkRisks(
         sourceVersionId: workflowSnapshotVersion(query.periodKey, "business"),
         cutoff: latestBusinessWorkTimestamp(item),
         coverage: `${item.regionLabel} · ${item.businessLabel}`,
-        drillDownTarget: businessWorkTarget(item.domain),
+        drillDownTarget: businessWorkTarget(item),
       },
     ];
   });
@@ -855,7 +888,7 @@ function projectWorkDuties(
         sourceVersionId: workflowSnapshotVersion(query.periodKey, "business"),
         cutoff: latestBusinessWorkTimestamp(item),
         coverage: `${item.regionLabel} · ${item.businessLabel}`,
-        drillDownTarget: businessWorkTarget(item.domain),
+        drillDownTarget: businessWorkTarget(item),
       };
     });
 }
@@ -990,10 +1023,7 @@ function projectReportReleases(
         coverage: `${report.scope.region} · ${report.scope.product}`,
         drillDownTarget: {
           application: "reporting",
-          section:
-            report.status === "已发布" || report.status === "已替代"
-              ? "ledger"
-              : "review-distribution",
+          section: "compose",
         },
       },
     ];

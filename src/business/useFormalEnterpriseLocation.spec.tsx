@@ -107,7 +107,7 @@ describe("useFormalEnterpriseLocation", () => {
 
     await user.click(screen.getByRole("button", { name: "open task" }));
     expect(decodeURIComponent(pushed.at(-1)?.url ?? "")).toContain(
-      "#/产情监测/产情任务",
+      "#/市场监测/玉米市场采集",
     );
     expect(pushed.at(-1)?.url).not.toMatch(
       /page=|section=|selectionId|PROD-W31-002/,
@@ -125,7 +125,7 @@ describe("useFormalEnterpriseLocation", () => {
 
     await user.click(screen.getByRole("button", { name: "update filters" }));
     expect(decodeURIComponent(replaced.at(-1)?.url ?? "")).toContain(
-      "#/产情监测/产情任务",
+      "#/市场监测/玉米市场采集",
     );
     expect(replaced.at(-1)?.url).not.toMatch(
       /region=|product=|period=|qiqihar-nehe|corn|2026-W31/,

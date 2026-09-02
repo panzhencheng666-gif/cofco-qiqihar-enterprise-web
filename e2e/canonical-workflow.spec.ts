@@ -12,6 +12,7 @@ test.beforeEach(async ({ request }) => {
 
 test("uses one unified existing-sample ledger and opens row-owned collection", async ({
   page,
+  request,
 }) => {
   await page.goto("/#/市场监测/玉米市场采集");
 
@@ -40,6 +41,43 @@ test("uses one unified existing-sample ledger and opens row-owned collection", a
   await expect(
     page.getByRole("heading", { name: "填写或更新采集数据" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "本次正式观测" }),
+  ).toBeVisible();
+  await expect(page.getByRole("cell", { name: "已认证用户" })).toBeVisible();
+  await page.getByLabel("采集对象收购价格（元/吨）").fill("2422.00");
+  await page.getByRole("button", { name: "保存并正式入库" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "已正式入库，已实时联动总揽监测、市场分析、报表",
+  );
+  await expect(page.getByLabel("采集对象收购价格（元/吨）")).toHaveValue(
+    "2422.00",
+  );
+
+  const stateResponse = await request.get(
+    `${controlledApiBaseUrl}/__e2e/state`,
+  );
+  expect(stateResponse.ok()).toBe(true);
+  const state = (await stateResponse.json()) as {
+    data: { formalObservationReads: number; writes: readonly unknown[] };
+  };
+  expect(state.data.formalObservationReads).toBeGreaterThanOrEqual(5);
+  expect(state.data.writes).toContainEqual(
+    expect.objectContaining({
+      action: "save-formal-sample-observation",
+      idempotencyKey: expect.any(String),
+      body: expect.objectContaining({
+        domain: "MARKET",
+        samplePointId: "E2E-FORMAL-SAMPLE-001",
+        productCode: "CORN",
+        payload: expect.objectContaining({
+          coreValues: expect.objectContaining({
+            MKT_PURCHASE_BASE_PRICE: "2422.00",
+          }),
+        }),
+      }),
+    }),
+  );
   await expect(
     page.getByRole("button", { name: "返回采集台账" }),
   ).toBeVisible();

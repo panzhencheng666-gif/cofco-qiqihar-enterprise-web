@@ -272,6 +272,7 @@ export function LogisticsMonitoringWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken = 0,
+  permissions = [],
 }: {
   productCode: "CORN" | "SOYBEAN" | "RICE";
   scope: OperationalScope;
@@ -290,6 +291,7 @@ export function LogisticsMonitoringWorkspace({
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  permissions?: readonly string[];
 }) {
   const [nodeType, setNodeType] = useState("");
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
@@ -705,6 +707,7 @@ export function LogisticsMonitoringWorkspace({
       </div>
       <ExistingSampleObservationPanel
         domain="LOGISTICS"
+        permissions={permissions}
         productCode={productCode}
         repository={realtimeRepository}
         onSaved={() => setRecordsRevision((value) => value + 1)}

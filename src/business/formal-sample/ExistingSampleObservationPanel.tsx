@@ -200,12 +200,14 @@ export function ExistingSampleObservationPanel({
   domain,
   productCode,
   repository,
+  permissions = [],
   onSaved,
   children,
 }: {
   domain: FormalSampleObservationDomain;
   productCode: string;
   repository?: RealtimeBusinessRepository;
+  permissions?: readonly string[];
   onSaved: () => void;
   children?: ReactNode;
 }) {
@@ -286,6 +288,12 @@ export function ExistingSampleObservationPanel({
     setHistory([]);
     setHistoryTotal(0);
     setHistoryDetail(null);
+  }, []);
+
+  const resetUpdateFilters = useCallback(() => {
+    setObjectTypeCode("");
+    setRegionCode("");
+    setKeyword("");
   }, []);
 
   const invalidateQuery = useCallback(() => {
@@ -415,9 +423,11 @@ export function ExistingSampleObservationPanel({
   );
 
   const querySamplesRef = useRef(querySamples);
+  const loadHistoryRef = useRef(loadHistory);
   useEffect(() => {
     querySamplesRef.current = querySamples;
-  }, [querySamples]);
+    loadHistoryRef.current = loadHistory;
+  }, [loadHistory, querySamples]);
   const eventSequence = useRef(0);
   const eventState = useRef({ sample, productCode, historyYear, loadHistory });
   useEffect(() => {
@@ -471,11 +481,25 @@ export function ExistingSampleObservationPanel({
         if (active) setRegions(data.regions);
       })
       .catch(() => undefined);
-    void querySamplesRef.current(requestedSamplePointId || undefined, true);
+    void querySamplesRef
+      .current(requestedSamplePointId || undefined, true)
+      .then((preserved) => {
+        if (!active || !preserved || !requestedSamplePointId) return;
+        const selectedHistoryYear = Number(observedAt.slice(0, 4));
+        setHistoryYear(selectedHistoryYear);
+        void loadHistoryRef.current(preserved, 0, selectedHistoryYear);
+      });
     return () => {
       active = false;
     };
-  }, [domain, mode, productCode, repository, requestedSamplePointId]);
+  }, [
+    domain,
+    mode,
+    observedAt,
+    productCode,
+    repository,
+    requestedSamplePointId,
+  ]);
 
   const chooseSample = async (selected: EligibleFormalSample) => {
     if (!repository) return;
@@ -566,9 +590,11 @@ export function ExistingSampleObservationPanel({
           <Suspense fallback={<p role="status">正在读取正式样本台账…</p>}>
             <FormalSamplePointLedger
               domain={domain}
+              permissions={permissions}
               productCode={productCode}
               repository={repository}
               onCollectData={(samplePointId) => {
+                resetUpdateFilters();
                 resetSelection();
                 setRequestedSamplePointId(samplePointId);
                 setMode("UPDATE");
@@ -591,6 +617,7 @@ export function ExistingSampleObservationPanel({
             <button
               type="button"
               onClick={() => {
+                resetUpdateFilters();
                 resetSelection();
                 setRequestedSamplePointId("");
                 setMode("LEDGER");
@@ -707,7 +734,10 @@ export function ExistingSampleObservationPanel({
                     className={
                       sampleId === item.samplePointId ? "is-selected" : ""
                     }
-                    onClick={() => void chooseSample(item)}
+                    onClick={() => {
+                      if (sampleId !== item.samplePointId)
+                        void chooseSample(item);
+                    }}
                   >
                     <strong>{item.sampleName}</strong>
                     <span>

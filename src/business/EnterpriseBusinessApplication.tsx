@@ -1130,6 +1130,7 @@ export function EnterpriseBusinessApplication({
         }
         return (
           <FormalProductionMonitoringWorkspace
+            permissions={currentSession?.permissions ?? []}
             queryAllowed={queryAllowed}
             scope={scope}
             onScopeChange={updateCoordinates}
@@ -1197,6 +1198,7 @@ export function EnterpriseBusinessApplication({
       case "market":
         return (
           <FormalMarketMonitoringWorkspace
+            permissions={currentSession?.permissions ?? []}
             queryAllowed={queryAllowed}
             scope={scope}
             onScopeChange={updateCoordinates}

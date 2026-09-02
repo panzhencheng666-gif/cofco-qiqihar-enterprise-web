@@ -411,7 +411,7 @@ export function normalizeFormalLocation(
   const savedViewId = safeSessionValue(location.savedViewId);
   return {
     location: {
-      route: location.route,
+      route: activeRoute(location.route),
       coordinates: scope.scope.coordinates,
       ...(selection ? { selection } : {}),
       ...(savedViewId ? { savedViewId } : {}),

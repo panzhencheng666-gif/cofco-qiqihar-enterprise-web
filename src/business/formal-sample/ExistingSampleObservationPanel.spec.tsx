@@ -232,10 +232,15 @@ function repository() {
   };
 }
 
-function renderPanel(api = repository(), onSaved = vi.fn()) {
+function renderPanel(
+  api = repository(),
+  onSaved = vi.fn(),
+  permissions: readonly string[] = ["BUSINESS_CREATE", "BUSINESS_UPDATE"],
+) {
   render(
     <ExistingSampleObservationPanel
       domain="MARKET"
+      permissions={permissions}
       productCode="CORN"
       repository={api as unknown as RealtimeBusinessRepository}
       onSaved={onSaved}
@@ -294,12 +299,24 @@ describe("ExistingSampleObservationPanel", () => {
 
   it("uses one collection ledger entry with discoverable row actions", async () => {
     const point = formalPoint({
+      id: sample.samplePointId,
       canonicalName: "龙沙区兴农农资店",
       objectTypeCode: "AGRICULTURAL_INPUT_STORE",
       objectTypeName: "农资店",
     });
     const api = {
       ...repository(),
+      listEligibleFormalSamples: vi.fn().mockResolvedValue([
+        {
+          ...sample,
+          sampleName: point.canonicalName,
+          objectTypeCode: point.objectTypeCode,
+          objectTypeName: point.objectTypeName,
+          latestObservationId: "",
+          latestObservedAt: "",
+          latestValues: {},
+        },
+      ]),
       loadMasterData: vi.fn().mockResolvedValue({
         regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
       }),
@@ -335,6 +352,38 @@ describe("ExistingSampleObservationPanel", () => {
     expect(
       within(row).getByRole("button", { name: "填写采集数据" }),
     ).toBeVisible();
+  });
+
+  it("fails closed for mutation controls when the account has read-only permissions", async () => {
+    renderPanel(repository(), vi.fn(), []);
+
+    const row = await screen.findByRole("row", {
+      name: /中粮生化能源/u,
+    });
+    expect(screen.queryByRole("button", { name: "新增样本" })).toBeNull();
+    expect(within(row).queryByRole("button", { name: "编辑" })).toBeNull();
+    expect(within(row).queryByRole("button", { name: "删除" })).toBeNull();
+    expect(
+      within(row).getByRole("button", { name: "无采集权限" }),
+    ).toBeDisabled();
+  });
+
+  it("focuses the authoritative detail region after a row view action", async () => {
+    renderPanel();
+    await userEvent.click(await screen.findByRole("button", { name: "查看" }));
+
+    expect(
+      await screen.findByRole("region", { name: "正式样本详情" }),
+    ).toHaveFocus();
+  });
+
+  it("focuses the stable-information editor after a row edit action", async () => {
+    renderPanel();
+    await userEvent.click(await screen.findByRole("button", { name: "编辑" }));
+
+    expect(
+      await screen.findByRole("region", { name: "正式样本稳定信息" }),
+    ).toHaveFocus();
   });
 
   it.each([
@@ -813,24 +862,80 @@ describe("ExistingSampleObservationPanel", () => {
     renderPanel(api);
     await userEvent.click(await screen.findByRole("button", { name: "查看" }));
     await waitFor(() => expect(getFormalSamplePoint).toHaveBeenCalledTimes(1));
+    const queryButton = screen.getByRole("button", { name: "查询" });
+    queryButton.focus();
+    expect(queryButton).toHaveFocus();
 
-    onChange({
-      id: "event-1",
-      sequence: 9,
-      aggregateType: "FORMAL_SAMPLE_POINT",
-      aggregateId: "formal-point-1",
-      actionCode: "FORMAL_SAMPLE_POINT_UPDATED",
-      productCode: null,
-      regionCodes: ["230202"],
-      occurredAt: "2026-09-01T08:00:00Z",
-      read: false,
+    act(() => {
+      onChange({
+        id: "event-1",
+        sequence: 9,
+        aggregateType: "FORMAL_SAMPLE_POINT",
+        aggregateId: "formal-point-1",
+        actionCode: "FORMAL_SAMPLE_POINT_UPDATED",
+        productCode: null,
+        regionCodes: ["230202"],
+        occurredAt: "2026-09-01T08:00:00Z",
+        read: false,
+      });
     });
 
     await waitFor(() =>
       expect(listFormalSamplePoints).toHaveBeenCalledTimes(2),
     );
     await waitFor(() => expect(getFormalSamplePoint).toHaveBeenCalledTimes(2));
+    expect(queryButton).toHaveFocus();
     expect(api.subscribeBusinessEvents).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves an active edit when an outbox event belongs to another sample", async () => {
+    const point = formalPoint({ canonicalName: "龙沙区当前编辑样本" });
+    let onChange: (event: BusinessNotificationRow) => void = () => undefined;
+    const listFormalSamplePoints = vi.fn().mockResolvedValue({
+      items: [point],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    const api = {
+      ...repository(),
+      listFormalSamplePoints,
+      getFormalSamplePoint: vi.fn().mockResolvedValue(point),
+      subscribeBusinessEvents: vi.fn(
+        (
+          _after: number,
+          listener: (event: BusinessNotificationRow) => void,
+        ) => {
+          onChange = listener;
+          return vi.fn();
+        },
+      ),
+    };
+    renderPanel(api);
+    await userEvent.click(await screen.findByRole("button", { name: "编辑" }));
+    const name = await screen.findByLabelText("正式样本名称");
+    await userEvent.clear(name);
+    await userEvent.type(name, "尚未保存的名称");
+
+    act(() => {
+      onChange({
+        id: "event-other-sample",
+        sequence: 10,
+        aggregateType: "FORMAL_SAMPLE_POINT",
+        aggregateId: "another-formal-point",
+        actionCode: "FORMAL_SAMPLE_POINT_UPDATED",
+        productCode: null,
+        regionCodes: ["230202"],
+        occurredAt: "2026-09-01T08:00:00Z",
+        read: false,
+      });
+    });
+
+    await waitFor(() =>
+      expect(listFormalSamplePoints).toHaveBeenCalledTimes(2),
+    );
+    expect(name).toHaveValue("尚未保存的名称");
   });
 
   it("keeps a version-conflict reason visible after the authoritative requery", async () => {
@@ -914,6 +1019,20 @@ describe("ExistingSampleObservationPanel", () => {
     };
     const api = repository();
     api.listEligibleFormalSamples.mockResolvedValue([agriculturalSample]);
+    api.listFormalSamplePoints.mockResolvedValue({
+      items: [
+        formalPoint({
+          id: agriculturalSample.samplePointId,
+          canonicalName: agriculturalSample.sampleName,
+          objectTypeCode: agriculturalSample.objectTypeCode ?? "",
+          objectTypeName: agriculturalSample.objectTypeName ?? "",
+        }),
+      ],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
     api.loadMarketDefinition.mockResolvedValue({
       productCode: "CORN",
       objectTypeCode: "AGRICULTURAL_INPUT_STORE",
@@ -1003,6 +1122,7 @@ describe("ExistingSampleObservationPanel", () => {
     const api = repository();
     api.listEligibleFormalSamples
       .mockResolvedValueOnce([sample])
+      .mockResolvedValueOnce([sample])
       .mockResolvedValueOnce([refreshed]);
     const withEvents = {
       ...api,
@@ -1046,7 +1166,7 @@ describe("ExistingSampleObservationPanel", () => {
   });
 
   it("switches the whole page between ledger and update modes", async () => {
-    renderPanel();
+    const { api } = renderPanel();
     expect(
       await screen.findByRole("heading", { name: "采集台账" }),
     ).toBeVisible();
@@ -1058,10 +1178,22 @@ describe("ExistingSampleObservationPanel", () => {
     expect(
       screen.getByRole("heading", { name: "填写或更新采集数据" }),
     ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "本次正式观测" })).toBeVisible();
+    await waitFor(() =>
+      expect(api.listFormalSampleObservationHistory).toHaveBeenCalled(),
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("筛选对象类型"),
+      "DEEP_PROCESSOR",
+    );
+    await userEvent.type(screen.getByLabelText("搜索样本企业"), "旧筛选");
     await userEvent.click(screen.getByRole("button", { name: "返回采集台账" }));
     expect(
       await screen.findByRole("heading", { name: "采集台账" }),
     ).toBeVisible();
+    await openCollectionData();
+    expect(screen.getByLabelText("筛选对象类型")).toHaveValue("");
+    expect(screen.getByLabelText("搜索样本企业")).toHaveValue("");
   });
 
   it("never lets a late response restore samples from an obsolete filter scope", async () => {
@@ -1069,6 +1201,7 @@ describe("ExistingSampleObservationPanel", () => {
     let resolveOld: (items: readonly EligibleFormalSample[]) => void = () =>
       undefined;
     api.listEligibleFormalSamples
+      .mockResolvedValueOnce([sample])
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
@@ -1079,7 +1212,7 @@ describe("ExistingSampleObservationPanel", () => {
     renderPanel(api);
     await openCollectionData();
     await waitFor(() =>
-      expect(api.listEligibleFormalSamples).toHaveBeenCalledTimes(1),
+      expect(api.listEligibleFormalSamples).toHaveBeenCalledTimes(2),
     );
     await screen.findByRole("option", { name: "深加工企业" });
     await userEvent.selectOptions(
@@ -1088,7 +1221,7 @@ describe("ExistingSampleObservationPanel", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "查询正式样本" }));
     await waitFor(() =>
-      expect(api.listEligibleFormalSamples).toHaveBeenCalledTimes(2),
+      expect(api.listEligibleFormalSamples).toHaveBeenCalledTimes(3),
     );
     resolveOld([sample]);
     await waitFor(() =>
