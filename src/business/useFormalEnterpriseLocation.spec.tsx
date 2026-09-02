@@ -64,6 +64,17 @@ function LocationProbe() {
       <button type="button" onClick={() => setSavedViewId("view-1")}>
         save view
       </button>
+      <button
+        type="button"
+        onClick={() =>
+          navigate(createFormalRoute("production", "corn-collection"), {
+            type: "formal-sample-edit",
+            id: "sample-point:42",
+          })
+        }
+      >
+        edit formal sample
+      </button>
     </div>
   );
 }
@@ -178,6 +189,27 @@ describe("useFormalEnterpriseLocation", () => {
     );
     expect(screen.getByLabelText("location")).not.toHaveTextContent(
       "PROD-W31-002",
+    );
+  });
+
+  it("restores a sample workflow page from the hash after reload", async () => {
+    const user = userEvent.setup();
+    render(<LocationProbe />);
+
+    await user.click(
+      screen.getByRole("button", { name: "edit formal sample" }),
+    );
+    const persistedUrl = window.location.href;
+    expect(decodeURIComponent(window.location.hash)).toBe(
+      "#/产情监测/玉米产情填报/编辑正式样本/sample-point:42",
+    );
+
+    cleanup();
+    window.history.replaceState({}, "", persistedUrl);
+    render(<LocationProbe />);
+
+    expect(screen.getByLabelText("location")).toHaveTextContent(
+      '"type":"formal-sample-edit","id":"sample-point:42"',
     );
   });
 

@@ -132,6 +132,17 @@ const formalBusinessRouteNames = {
   };
 };
 
+export type SampleWorkflowSelectionType =
+  | "formal-sample-list"
+  | "formal-sample-create"
+  | "formal-sample-view"
+  | "formal-sample-edit"
+  | "formal-sample-observation"
+  | "design-sample-list"
+  | "design-sample-create"
+  | "design-sample-view"
+  | "design-sample-edit";
+
 export interface FormalSelection {
   type:
     | "work-item"
@@ -139,9 +150,26 @@ export interface FormalSelection {
     | "document"
     | "exception"
     | "report"
-    | "release-version";
+    | "release-version"
+    | SampleWorkflowSelectionType;
   id: string;
 }
+
+const sampleWorkflowSelectionNames = {
+  "formal-sample-list": "正式样本",
+  "formal-sample-create": "新增正式样本",
+  "formal-sample-view": "正式样本详情",
+  "formal-sample-edit": "编辑正式样本",
+  "formal-sample-observation": "填写正式样本数据",
+  "design-sample-list": "设计样本",
+  "design-sample-create": "新增设计样本",
+  "design-sample-view": "设计样本详情",
+  "design-sample-edit": "编辑设计样本",
+} as const satisfies Record<SampleWorkflowSelectionType, string>;
+
+const sampleWorkflowSelectionTypes = Object.keys(
+  sampleWorkflowSelectionNames,
+) as SampleWorkflowSelectionType[];
 
 export interface BusinessCoordinates {
   regionId: string;
@@ -362,7 +390,20 @@ export function writeFormalRoute(route: FormalRoute): string {
 }
 
 export function writeFormalLocation(location: FormalLocation): string {
-  return writeFormalRoute(location.route);
+  const route = writeFormalRoute(location.route);
+  const selection = location.selection;
+  if (
+    !selection ||
+    !sampleWorkflowSelectionTypes.includes(
+      selection.type as SampleWorkflowSelectionType,
+    )
+  ) {
+    return route;
+  }
+  const id = safeSessionValue(selection.id);
+  if (!id) return route;
+  const type = selection.type as SampleWorkflowSelectionType;
+  return `${route}/${sampleWorkflowSelectionNames[type]}/${encodeURIComponent(id)}`;
 }
 
 export function readFormalLocation(
@@ -370,10 +411,12 @@ export function readFormalLocation(
   authority: FormalLocationAuthority,
 ): FormalLocationReadResult {
   const scope = readOperationalScope("", toOperationalScopeIdentity(authority));
+  const selection = readSampleWorkflowSelection(search);
   return {
     location: {
       route: readFormalRoute(search),
       coordinates: scope.scope.coordinates,
+      ...(selection ? { selection } : {}),
     },
     issues: scope.issues,
     queryAllowed: scope.queryAllowed,
@@ -387,6 +430,7 @@ const formalSelectionTypes: readonly FormalSelection["type"][] = [
   "exception",
   "report",
   "release-version",
+  ...sampleWorkflowSelectionTypes,
 ];
 
 function safeSessionValue(value: string | undefined): string | undefined {
@@ -394,6 +438,20 @@ function safeSessionValue(value: string | undefined): string | undefined {
     return undefined;
   }
   return value;
+}
+
+function readSampleWorkflowSelection(
+  value: string,
+): FormalSelection | undefined {
+  const { encodedHash, hash } = routeInputParts(value);
+  const decoded = safelyDecode(encodedHash || hash).replace(/^#\/?/, "");
+  const [, , pageName, id, ...extra] = decoded.split("/");
+  if (!pageName || !id || extra.length > 0) return undefined;
+  const type = sampleWorkflowSelectionTypes.find(
+    (candidate) => sampleWorkflowSelectionNames[candidate] === pageName,
+  );
+  const safeId = safeSessionValue(id);
+  return type && safeId ? { type, id: safeId } : undefined;
 }
 
 export function normalizeFormalLocation(
