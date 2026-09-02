@@ -248,6 +248,14 @@ export interface FormalSampleMaintainerView {
   version: number;
 }
 
+export interface SamplePointImportResult {
+  id: string;
+  statusCode: "COMPLETED" | "COMPLETED_WITH_ERRORS";
+  importedRows: number;
+  failedRows: number;
+  completedAt: string;
+}
+
 export interface FormalSamplePointListInput {
   regionCode?: string;
   keyword?: string;
@@ -1525,6 +1533,12 @@ export interface RealtimeBusinessRepository {
     expectedVersion: number,
   ): Promise<DesignSamplePointRow>;
   deleteDesignSamplePoint?(id: string, expectedVersion: number): Promise<void>;
+  downloadDesignSamplePointTemplate?(): Promise<Blob>;
+  importDesignSamplePoints?(
+    file: File,
+    idempotencyKey: string,
+  ): Promise<SamplePointImportResult>;
+  downloadDesignSamplePointImportErrors?(importId: string): Promise<Blob>;
   listFormalSamplePoints?(
     input: FormalSamplePointListInput,
   ): Promise<Page<FormalSamplePointRow>>;
@@ -1542,6 +1556,12 @@ export interface RealtimeBusinessRepository {
     input: FormalSampleMaintainerMutation,
   ): Promise<FormalSampleMaintainerView>;
   deleteFormalSamplePoint?(id: string, expectedVersion: number): Promise<void>;
+  downloadFormalSamplePointTemplate?(): Promise<Blob>;
+  importFormalSamplePoints?(
+    file: File,
+    idempotencyKey: string,
+  ): Promise<SamplePointImportResult>;
+  downloadFormalSamplePointImportErrors?(importId: string): Promise<Blob>;
   generateSampleNetworkCandidates?(
     year: number,
     carriedFromYear?: number,
@@ -2041,6 +2061,21 @@ export function createRealtimeBusinessRepository(
       client.delete(`/api/v1/design-sample-points/${encodeURIComponent(id)}`, {
         expectedVersion,
       }),
+    downloadDesignSamplePointTemplate: () =>
+      client.download("/api/v1/design-sample-points/import-template"),
+    importDesignSamplePoints: (file, idempotencyKey) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return client.upload<SamplePointImportResult>(
+        "/api/v1/design-sample-points/imports",
+        form,
+        { "Idempotency-Key": idempotencyKey },
+      );
+    },
+    downloadDesignSamplePointImportErrors: (importId) =>
+      client.download(
+        `/api/v1/design-sample-points/imports/${encodeURIComponent(importId)}/errors`,
+      ),
     listFormalSamplePoints: (input) =>
       client.get<Page<FormalSamplePointRow>>("/api/v1/formal-sample-points", {
         regionCode: input.regionCode,
@@ -2068,6 +2103,21 @@ export function createRealtimeBusinessRepository(
       client.delete(`/api/v1/formal-sample-points/${encodeURIComponent(id)}`, {
         expectedVersion,
       }),
+    downloadFormalSamplePointTemplate: () =>
+      client.download("/api/v1/formal-sample-points/import-template"),
+    importFormalSamplePoints: (file, idempotencyKey) => {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return client.upload<SamplePointImportResult>(
+        "/api/v1/formal-sample-points/imports",
+        form,
+        { "Idempotency-Key": idempotencyKey },
+      );
+    },
+    downloadFormalSamplePointImportErrors: (importId) =>
+      client.download(
+        `/api/v1/formal-sample-points/imports/${encodeURIComponent(importId)}/errors`,
+      ),
     generateSampleNetworkCandidates: (year, carriedFromYear) =>
       client.post<AnnualSampleNetwork>(`/api/v1/sample-networks/${year}`, {
         carriedFromYear: carriedFromYear ?? null,

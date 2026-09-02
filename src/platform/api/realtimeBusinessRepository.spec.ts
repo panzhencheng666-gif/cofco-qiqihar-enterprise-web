@@ -294,6 +294,55 @@ describe("realtime business repository", () => {
     );
   });
 
+  it("connects atomic design and formal sample workbook imports", async () => {
+    const { api, download, upload } = client();
+    upload.mockResolvedValue({
+      id: "import-1",
+      statusCode: "COMPLETED",
+      importedRows: 2,
+      failedRows: 0,
+      completedAt: "2026-09-02T08:00:00Z",
+    });
+    const repository = createRealtimeBusinessRepository(api);
+    const file = new File(["workbook"], "样本点.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    await repository.downloadDesignSamplePointTemplate!();
+    await repository.importDesignSamplePoints!(file, "design-import-key");
+    await repository.downloadDesignSamplePointImportErrors!("import/1");
+    await repository.downloadFormalSamplePointTemplate!();
+    await repository.importFormalSamplePoints!(file, "formal-import-key");
+    await repository.downloadFormalSamplePointImportErrors!("import/2");
+
+    expect(download.mock.calls).toEqual([
+      ["/api/v1/design-sample-points/import-template"],
+      ["/api/v1/design-sample-points/imports/import%2F1/errors"],
+      ["/api/v1/formal-sample-points/import-template"],
+      ["/api/v1/formal-sample-points/imports/import%2F2/errors"],
+    ]);
+    expect(upload).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/design-sample-points/imports",
+      expect.any(FormData),
+      { "Idempotency-Key": "design-import-key" },
+    );
+    expect(upload).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/formal-sample-points/imports",
+      expect.any(FormData),
+      { "Idempotency-Key": "formal-import-key" },
+    );
+    expect((upload.mock.calls[0]?.[1] as FormData).get("file")).toMatchObject({
+      name: "样本点.xlsx",
+      size: file.size,
+    });
+    expect((upload.mock.calls[1]?.[1] as FormData).get("file")).toMatchObject({
+      name: "样本点.xlsx",
+      size: file.size,
+    });
+  });
+
   it("keeps formal-sample filters, locked object identity, and idempotent save aligned", async () => {
     expectTypeOf<EligibleFormalSample>()
       .toHaveProperty("objectTypeCode")
