@@ -3834,8 +3834,31 @@
   color: #36546c;
   background: #edf2f5;
 }
+.formal-sample-ledger__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 250px;
+}
+.formal-sample-ledger__row-actions button {
+  min-height: 32px;
+  padding: 4px 9px;
+  border: 1px solid #9fb0bf;
+  background: #fff;
+  color: #17324d;
+  font: inherit;
+  cursor: pointer;
+}
+.formal-sample-ledger__row-actions button:last-child {
+  border-color: #436f8f;
+  background: #edf5fa;
+  color: #153f5c;
+  font-weight: 700;
+}
 .formal-sample-ledger__detail {
   padding: 14px;
+  position: sticky;
+  top: 12px;
 }
 .formal-sample-ledger__detail h3 {
   margin: 0 0 10px;

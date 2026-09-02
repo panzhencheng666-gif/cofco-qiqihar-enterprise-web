@@ -107,7 +107,7 @@ test("runs a logistics return, revision, resubmission, and approval against Post
     .getByRole("button", { name: "关闭物流监测记录详情" })
     .click();
 
-  await page.goto("/#/我的工作/待我处理");
+  await page.goto("/#/市场监测/数据审核");
   let operatorDialog = await openWorkItem(
     page,
     "继续物流填报",
@@ -125,7 +125,7 @@ test("runs a logistics return, revision, resubmission, and approval against Post
     .click();
 
   await reviewerPage.goto(
-    `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
+    `${liveBrowserAccounts.reviewer.url}/#/市场监测/数据审核`,
   );
   let reviewerDialog = await openWorkItem(
     reviewerPage,

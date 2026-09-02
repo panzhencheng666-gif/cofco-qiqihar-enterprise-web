@@ -38,7 +38,7 @@ const FormalSamplePointLedger = lazy(() =>
 );
 
 type ValueMap = Record<string, string>;
-type PageMode = "LEDGER" | "POINTS" | "UPDATE";
+type PageMode = "LEDGER" | "UPDATE";
 
 const moduleLabels: Readonly<Record<string, string>> = {
   OVERVIEW: "总揽监测",
@@ -200,16 +200,19 @@ export function ExistingSampleObservationPanel({
   domain,
   productCode,
   repository,
+  permissions = [],
   onSaved,
   children,
 }: {
   domain: FormalSampleObservationDomain;
   productCode: string;
   repository?: RealtimeBusinessRepository;
+  permissions?: readonly string[];
   onSaved: () => void;
   children?: ReactNode;
 }) {
   const [mode, setMode] = useState<PageMode>("LEDGER");
+  const [requestedSamplePointId, setRequestedSamplePointId] = useState("");
   const [observedAt, setObservedAt] = useState(localDateTimeValue);
   const [objectTypes, setObjectTypes] = useState<readonly MasterObjectType[]>(
     [],
@@ -285,6 +288,12 @@ export function ExistingSampleObservationPanel({
     setHistory([]);
     setHistoryTotal(0);
     setHistoryDetail(null);
+  }, []);
+
+  const resetUpdateFilters = useCallback(() => {
+    setObjectTypeCode("");
+    setRegionCode("");
+    setKeyword("");
   }, []);
 
   const invalidateQuery = useCallback(() => {
@@ -414,9 +423,11 @@ export function ExistingSampleObservationPanel({
   );
 
   const querySamplesRef = useRef(querySamples);
+  const loadHistoryRef = useRef(loadHistory);
   useEffect(() => {
     querySamplesRef.current = querySamples;
-  }, [querySamples]);
+    loadHistoryRef.current = loadHistory;
+  }, [loadHistory, querySamples]);
   const eventSequence = useRef(0);
   const eventState = useRef({ sample, productCode, historyYear, loadHistory });
   useEffect(() => {
@@ -470,11 +481,25 @@ export function ExistingSampleObservationPanel({
         if (active) setRegions(data.regions);
       })
       .catch(() => undefined);
-    void querySamplesRef.current();
+    void querySamplesRef
+      .current(requestedSamplePointId || undefined, true)
+      .then((preserved) => {
+        if (!active || !preserved || !requestedSamplePointId) return;
+        const selectedHistoryYear = Number(observedAt.slice(0, 4));
+        setHistoryYear(selectedHistoryYear);
+        void loadHistoryRef.current(preserved, 0, selectedHistoryYear);
+      });
     return () => {
       active = false;
     };
-  }, [domain, mode, productCode, repository]);
+  }, [
+    domain,
+    mode,
+    observedAt,
+    productCode,
+    repository,
+    requestedSamplePointId,
+  ]);
 
   const chooseSample = async (selected: EligibleFormalSample) => {
     if (!repository) return;
@@ -560,105 +585,46 @@ export function ExistingSampleObservationPanel({
 
   return (
     <div className="existing-observation">
-      <div
-        className="existing-observation__modes"
-        role="tablist"
-        aria-label="采集业务模式"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "LEDGER"}
-          className={mode === "LEDGER" ? "is-active" : ""}
-          onClick={() => setMode("LEDGER")}
-        >
-          采集台账
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "POINTS"}
-          className={mode === "POINTS" ? "is-active" : ""}
-          onClick={() => setMode("POINTS")}
-        >
-          正式样本台账
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "UPDATE"}
-          className={mode === "UPDATE" ? "is-active" : ""}
-          onClick={() => setMode("UPDATE")}
-        >
-          已有样本数据更新
-        </button>
-      </div>
-
       {mode === "LEDGER" ? (
-        children
-      ) : mode === "POINTS" ? (
-        repository ? (
+        repository.listFormalSamplePoints ? (
           <Suspense fallback={<p role="status">正在读取正式样本台账…</p>}>
             <FormalSamplePointLedger
               domain={domain}
+              permissions={permissions}
               productCode={productCode}
               repository={repository}
+              onCollectData={(samplePointId) => {
+                resetUpdateFilters();
+                resetSelection();
+                setRequestedSamplePointId(samplePointId);
+                setMode("UPDATE");
+              }}
             />
           </Suspense>
-        ) : null
+        ) : (
+          children
+        )
       ) : (
         <section
           className="existing-observation__page"
-          aria-label="已有样本数据更新工作台"
+          aria-label="采集数据填写工作台"
         >
           <header className="existing-observation__header">
             <div className="existing-observation__header-copy">
-              <h2>已有样本数据更新</h2>
-              <p>选择已正式生效的样本，保存一次即正式入库并保留历史。</p>
+              <h2>填写或更新采集数据</h2>
+              <p>当前样本身份保持锁定，本页只填写本次期间观测。</p>
             </div>
-            <span className="existing-observation__header-badge">
-              正式数据直报
-            </span>
-            <nav
-              className="existing-observation__process"
-              aria-label="已有样本数据更新流程"
+            <button
+              type="button"
+              onClick={() => {
+                resetUpdateFilters();
+                resetSelection();
+                setRequestedSamplePointId("");
+                setMode("LEDGER");
+              }}
             >
-              <ol>
-                <li className={!sample ? "is-current" : "is-complete"}>
-                  <span>01</span>
-                  <div>
-                    <strong>查询正式样本</strong>
-                    <small>按类型、地区或名称定位</small>
-                  </div>
-                </li>
-                <li
-                  className={
-                    !sample
-                      ? ""
-                      : notice.startsWith("已正式入库")
-                        ? "is-complete"
-                        : "is-current"
-                  }
-                >
-                  <span>02</span>
-                  <div>
-                    <strong>填写本次观测</strong>
-                    <small>字段与采集台账同源</small>
-                  </div>
-                </li>
-                <li
-                  className={
-                    notice.startsWith("已正式入库") ? "is-current" : ""
-                  }
-                >
-                  <span>03</span>
-                  <div>
-                    <strong>正式入库并联动</strong>
-                    <small>一次保存、历史留痕</small>
-                  </div>
-                </li>
-              </ol>
-            </nav>
+              返回采集台账
+            </button>
           </header>
 
           <section
@@ -768,7 +734,10 @@ export function ExistingSampleObservationPanel({
                     className={
                       sampleId === item.samplePointId ? "is-selected" : ""
                     }
-                    onClick={() => void chooseSample(item)}
+                    onClick={() => {
+                      if (sampleId !== item.samplePointId)
+                        void chooseSample(item);
+                    }}
                   >
                     <strong>{item.sampleName}</strong>
                     <span>

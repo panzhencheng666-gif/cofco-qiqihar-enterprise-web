@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import type {
-  OperationalScope,
   OperationalScopeIdentity,
   OperationalScopeIssue,
 } from "./core/operationalScope";
@@ -23,10 +22,8 @@ import {
 } from "./businessReportWorkflow";
 import { EnterpriseShell } from "./EnterpriseShell";
 import { IdentityGovernancePanel } from "./identity/IdentityGovernancePanel";
-import { BusinessImportTaskWorkspace } from "./importing/BusinessImportTaskWorkspace";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
-import { FormalMyWorkWorkspace } from "./MyWorkWorkspace";
 import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
 import { FormalSupplyDemandWorkspace } from "./SupplyDemandWorkspace";
 import { RegionalAnnualProductionWorkspace } from "./production/RegionalAnnualProductionWorkspace";
@@ -57,7 +54,6 @@ import {
   enterpriseLogoutPath,
 } from "@/platform/api/browserSession";
 import type {
-  BatchReviewWorkItemsResult,
   BusinessNotificationRow,
   CurrentSession,
   RealtimeBusinessRepository,
@@ -66,7 +62,6 @@ import type {
 import { RealtimeBusinessOperationsPanel } from "./realtime/RealtimeBusinessOperationsPanel";
 import { RealtimeLogisticsOperationsPanel } from "./realtime/RealtimeLogisticsOperationsPanel";
 import { RealtimeReportCenterPanel } from "./realtime/RealtimeReportCenterPanel";
-import { RealtimeWorkObligationReportPanel } from "./realtime/RealtimeWorkObligationReportPanel";
 import {
   resolveRuntimeDataMode,
   type RuntimeDataMode,
@@ -76,7 +71,6 @@ import {
   apiPendingShellIdentity,
 } from "./runtimeIdentity";
 import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
-import { createFormalRoute } from "./formalEnterpriseModel";
 import {
   captureInvitationActivationToken,
   clearInvitationActivationToken,
@@ -115,32 +109,6 @@ export async function loadAllWorkItems(
     rows.push(...next.items);
   }
   return [...new Map(rows.map((row) => [row.id, row])).values()];
-}
-
-function batchReviewDomains(
-  scope: OperationalScope,
-): readonly ("PRODUCTION" | "MARKET" | "LOGISTICS")[] {
-  if (scope.coordinates.businessDomainId === "production") {
-    return ["PRODUCTION"];
-  }
-  if (scope.coordinates.businessDomainId === "market") {
-    if (scope.coordinates.businessSubtypeId === "market.logistics") {
-      return ["LOGISTICS"];
-    }
-    if (scope.coordinates.businessSubtypeId === "market.quote-trade") {
-      return ["MARKET"];
-    }
-    return ["MARKET", "LOGISTICS"];
-  }
-  return ["PRODUCTION", "MARKET", "LOGISTICS"];
-}
-
-function batchReviewProductCode(
-  productId: string | undefined,
-): string | undefined {
-  if (!productId) return undefined;
-  if (productId.toLowerCase() === "paddy") return "RICE";
-  return productId.toUpperCase();
 }
 
 export interface EnterpriseBusinessApplicationProps {
@@ -307,45 +275,6 @@ function routeProductCode(section: string): RealtimeProductCode | null {
   if (section.startsWith("rice-") || section.startsWith("paddy-"))
     return "RICE";
   return null;
-}
-
-function realtimeEntryRoute(
-  application: "production" | "market",
-  productId: string | null,
-  businessSubtypeId?: string,
-) {
-  const normalizedProduct = productId?.toUpperCase();
-  if (
-    normalizedProduct !== "CORN" &&
-    normalizedProduct !== "SOYBEAN" &&
-    normalizedProduct !== "RICE"
-  )
-    return null;
-  const product =
-    normalizedProduct === "SOYBEAN"
-      ? "soybean"
-      : normalizedProduct === "RICE"
-        ? "paddy"
-        : "corn";
-  if (application === "production") {
-    if (product === "soybean")
-      return createFormalRoute("production", "soybean-collection");
-    if (product === "paddy")
-      return createFormalRoute("production", "rice-collection");
-    return createFormalRoute("production", "corn-collection");
-  }
-  if (businessSubtypeId === "market.logistics") {
-    if (product === "soybean")
-      return createFormalRoute("market", "soybean-logistics");
-    if (product === "paddy")
-      return createFormalRoute("market", "paddy-logistics");
-    return createFormalRoute("market", "corn-logistics");
-  }
-  if (product === "soybean")
-    return createFormalRoute("market", "soybean-collection");
-  if (product === "paddy")
-    return createFormalRoute("market", "paddy-collection");
-  return createFormalRoute("market", "corn-collection");
 }
 
 const scopeIssueLabels: Readonly<
@@ -744,54 +673,6 @@ export function EnterpriseBusinessApplication({
     }
     navigate(...parameters);
   };
-  const openBusinessWork = (...parameters: Parameters<typeof navigate>) => {
-    const [route, selection] = parameters;
-    const selectedWorkItem =
-      realtimeMode && selection?.type === "work-item"
-        ? operationalState.workItems.find(
-            ({ workId }) => workId === selection.id,
-          )
-        : undefined;
-    const resolvedEntryRoute =
-      selectedWorkItem &&
-      (route.application === "production" || route.application === "market")
-        ? realtimeEntryRoute(
-            route.application,
-            selectedWorkItem.productId,
-            selectedWorkItem.businessSubtypeId,
-          )
-        : null;
-    const effectiveRoute = resolvedEntryRoute ?? route;
-    const productCode = routeProductCode(effectiveRoute.section);
-    if (productCode) setRealtimeEntryProductCode(productCode);
-    setRealtimeEntryRecordId(
-      selectedWorkItem?.subject.kind === "monitoring-object"
-        ? selectedWorkItem.subject.objectId
-        : undefined,
-    );
-    setRealtimeEntryMode(
-      selectedWorkItem?.documentStatus === "submitted" &&
-        (selectedWorkItem.reviewStatus === "pending" ||
-          selectedWorkItem.reviewStatus === "reviewing")
-        ? "review"
-        : "entry",
-    );
-    setRealtimeEntryDomain(
-      realtimeMode && selection?.type === "work-item" && productCode
-        ? effectiveRoute.application === "production"
-          ? "production"
-          : effectiveRoute.application === "market"
-            ? effectiveRoute.section.endsWith("-logistics")
-              ? "logistics"
-              : "market"
-            : null
-        : null,
-    );
-    // Keep the workbench route behind the modal. The resolved business route is only
-    // used to select the correct record editor/reviewer; processing a task must not
-    // navigate the employee away from "我的工作" into a new-entry page.
-    navigate(resolvedEntryRoute ? location.route : route, selection);
-  };
   const {
     workItems,
     marketDocumentDrafts,
@@ -1031,78 +912,6 @@ export function EnterpriseBusinessApplication({
     setPersistenceMessage("");
   };
 
-  const reviewCurrentWorkItem = async (
-    item: BusinessWorkItem,
-    action: "approve" | "return",
-    reason?: string,
-  ): Promise<void> => {
-    if (item.subject.kind !== "monitoring-object") {
-      throw new Error("当前事项不属于可直接审核的业务记录。");
-    }
-    const recordId = item.subject.objectId;
-    const sourceType = item.subject.objectTypeId.toUpperCase();
-    if (sourceType === "PRODUCTION") {
-      const record = await repository.getProduction(recordId);
-      await repository.transitionProduction(
-        recordId,
-        action,
-        record.version,
-        reason,
-      );
-    } else if (sourceType === "MARKET") {
-      const record = await repository.getMarket(recordId);
-      await repository.transitionMarket(
-        recordId,
-        action,
-        record.version,
-        reason,
-      );
-    } else if (sourceType === "LOGISTICS") {
-      const record = await repository.getLogistics(recordId);
-      await repository.transitionLogistics(
-        recordId,
-        action,
-        record.version,
-        reason,
-      );
-    } else {
-      throw new Error("当前事项缺少可识别的业务类型，暂不能审核。");
-    }
-    setRealtimeRefreshToken((value) => value + 1);
-  };
-
-  const batchApproveCurrentWorkScope =
-    async (): Promise<BatchReviewWorkItemsResult> => {
-      if (!repository.batchApproveWorkItems) {
-        throw new Error("当前服务尚未启用批量审核");
-      }
-      const regionId =
-        scope.coordinates.regionId === "authorized-all"
-          ? undefined
-          : scope.coordinates.regionId;
-      const productCode = batchReviewProductCode(scope.coordinates.productId);
-      const results: BatchReviewWorkItemsResult[] = [];
-      for (const domain of batchReviewDomains(scope)) {
-        results.push(
-          await repository.batchApproveWorkItems({
-            domain,
-            regionId,
-            productCode,
-          }),
-        );
-      }
-      setRealtimeRefreshToken((value) => value + 1);
-      return results.reduce<BatchReviewWorkItemsResult>(
-        (combined, result) => ({
-          requestedCount: combined.requestedCount + result.requestedCount,
-          approvedCount: combined.approvedCount + result.approvedCount,
-          failedCount: combined.failedCount + result.failedCount,
-          failures: [...combined.failures, ...result.failures],
-        }),
-        { requestedCount: 0, approvedCount: 0, failedCount: 0, failures: [] },
-      );
-    };
-
   const workspace = (() => {
     switch (location.route.application) {
       case "overview":
@@ -1130,6 +939,7 @@ export function EnterpriseBusinessApplication({
         }
         return (
           <FormalProductionMonitoringWorkspace
+            permissions={currentSession?.permissions ?? []}
             queryAllowed={queryAllowed}
             scope={scope}
             onScopeChange={updateCoordinates}
@@ -1186,13 +996,18 @@ export function EnterpriseBusinessApplication({
                   }
                 : undefined
             }
-            realtimeRepository={realtimeMode ? repository : undefined}
+            realtimeRepository={
+              realtimeMode && typeof repository.listProduction === "function"
+                ? repository
+                : undefined
+            }
             realtimeRefreshToken={realtimeRefreshToken}
           />
         );
       case "market":
         return (
           <FormalMarketMonitoringWorkspace
+            permissions={currentSession?.permissions ?? []}
             queryAllowed={queryAllowed}
             scope={scope}
             onScopeChange={updateCoordinates}
@@ -1253,7 +1068,14 @@ export function EnterpriseBusinessApplication({
                   }
                 : undefined
             }
-            realtimeRepository={realtimeMode ? repository : undefined}
+            realtimeRepository={
+              realtimeMode &&
+              (location.route.section.endsWith("-logistics")
+                ? typeof repository.listLogistics === "function"
+                : typeof repository.listMarket === "function")
+                ? repository
+                : undefined
+            }
             realtimeRefreshToken={realtimeRefreshToken}
           />
         );
@@ -1309,54 +1131,17 @@ export function EnterpriseBusinessApplication({
           />
         );
       case "work":
-        if (location.route.section === "sample-governance") {
-          if (realtimeMode && currentSession) {
-            return (
-              <SamplePointGovernanceWorkspace
-                mode="design"
-                refreshSequenceByYear={sampleNetworkRefreshSequenceByYear}
-                repository={repository}
-                session={currentSession}
-              />
-            );
-          }
-          return <div role="status">正在读取样本点信息</div>;
-        }
-        if (
-          realtimeMode &&
-          location.route.section === "obligations" &&
-          currentSession
-        ) {
+        if (realtimeMode && currentSession) {
           return (
-            <RealtimeWorkObligationReportPanel
+            <SamplePointGovernanceWorkspace
+              mode="design"
+              refreshSequenceByYear={sampleNetworkRefreshSequenceByYear}
               repository={repository}
               session={currentSession}
             />
           );
         }
-        return (
-          <FormalMyWorkWorkspace
-            scope={scope}
-            onScopeChange={updateCoordinates}
-            section={location.route.section}
-            onOpenBusiness={openBusinessWork}
-            workItems={currentWorkItems}
-            canBatchApprove={
-              realtimeMode &&
-              Boolean(currentSession?.permissions.includes("BUSINESS_APPROVE"))
-            }
-            onBatchApprove={
-              realtimeMode ? batchApproveCurrentWorkScope : undefined
-            }
-            onReviewItem={realtimeMode ? reviewCurrentWorkItem : undefined}
-            importTasks={
-              realtimeMode &&
-              currentSession?.permissions.includes("BUSINESS_IMPORT") ? (
-                <BusinessImportTaskWorkspace repository={repository} />
-              ) : undefined
-            }
-          />
-        );
+        return <div role="status">正在读取样本点信息</div>;
     }
   })();
 

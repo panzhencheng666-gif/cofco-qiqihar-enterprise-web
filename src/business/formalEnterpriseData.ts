@@ -222,24 +222,11 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       code: "01",
       label: "我的工作",
       shortLabel: "工作",
-      note: "统一处理本人待填报、待审核、退回、异常和发布事项",
+      note: "维护设计样本点稳定信息",
       navigation: [
-        { route: createFormalRoute("work", "tasks"), label: "待我处理" },
-        { route: createFormalRoute("work", "submitted"), label: "待我填报" },
-        { route: createFormalRoute("work", "review"), label: "待我审核" },
-        {
-          route: createFormalRoute("work", "exceptions"),
-          label: "退回与异常",
-        },
-        { route: createFormalRoute("work", "completed"), label: "已办事项" },
-        { route: createFormalRoute("work", "imports"), label: "导入任务" },
         {
           route: createFormalRoute("work", "sample-governance"),
           label: "样本点管理",
-        },
-        {
-          route: createFormalRoute("work", "obligations"),
-          label: "填报履职周报",
         },
       ],
     },
@@ -353,6 +340,11 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
       note: "按地区、品种和时间形成产情、市场、物流与供需业务报告",
       navigation: [
         { route: createFormalRoute("reporting", "compose"), label: "业务报告" },
+        {
+          route: createFormalRoute("reporting", "review-distribution"),
+          label: "报告审核与发布",
+        },
+        { route: createFormalRoute("reporting", "ledger"), label: "报告台账" },
       ],
     },
   ];

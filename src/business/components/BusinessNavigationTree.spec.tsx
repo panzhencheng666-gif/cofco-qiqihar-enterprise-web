@@ -47,8 +47,7 @@ describe("BusinessNavigationTree", () => {
     );
   });
 
-  it("keeps the independent import task route visible under My Work", async () => {
-    const user = userEvent.setup();
+  it("keeps only design-sample maintenance under My Work", () => {
     const onNavigate = vi.fn();
     const application = formalApplicationDefinitions.find(
       ({ key }) => key === "work",
@@ -58,7 +57,7 @@ describe("BusinessNavigationTree", () => {
     render(
       <BusinessNavigationTree
         application={application}
-        currentRoute={createFormalRoute("work", "tasks")}
+        currentRoute={createFormalRoute("work", "sample-governance")}
         onNavigate={onNavigate}
       />,
     );
@@ -66,11 +65,38 @@ describe("BusinessNavigationTree", () => {
     const navigation = screen.getByRole("navigation", {
       name: "我的工作模块",
     });
-    await user.click(
-      within(navigation).getByRole("button", { name: "导入任务" }),
+    expect(
+      within(navigation).getByRole("button", { name: "样本点管理" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(navigation).not.toHaveTextContent("人工审核");
+    expect(navigation).not.toHaveTextContent("待我处理");
+    expect(navigation).not.toHaveTextContent("已办事项");
+    expect(navigation).not.toHaveTextContent("导入任务");
+  });
+
+  it.each([
+    ["production", "review", "数据审核"],
+    ["market", "review", "数据审核"],
+    ["reporting", "review-distribution", "报告审核与发布"],
+    ["reporting", "ledger", "报告台账"],
+  ] as const)("keeps %s %s navigation reachable", (key, section, label) => {
+    const application = formalApplicationDefinitions.find(
+      ({ key: applicationKey }) => applicationKey === key,
     );
-    expect(onNavigate).toHaveBeenCalledWith(
-      createFormalRoute("work", "imports"),
+    if (!application) throw new Error(`missing ${key} application`);
+
+    render(
+      <BusinessNavigationTree
+        application={application}
+        currentRoute={createFormalRoute(key, section)}
+        onNavigate={vi.fn()}
+      />,
     );
+
+    expect(
+      screen
+        .getAllByRole("button", { name: label })
+        .some((button) => button.getAttribute("aria-current") === "page"),
+    ).toBe(true);
   });
 });

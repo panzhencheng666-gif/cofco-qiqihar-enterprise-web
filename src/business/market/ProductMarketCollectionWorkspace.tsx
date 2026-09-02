@@ -445,6 +445,7 @@ export function ProductMarketCollectionWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken = 0,
+  permissions = [],
 }: {
   section: MarketSection;
   scope: OperationalScope;
@@ -463,6 +464,7 @@ export function ProductMarketCollectionWorkspace({
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  permissions?: readonly string[];
 }) {
   const context = requiredContext(section);
   const productCode =
@@ -1098,6 +1100,7 @@ export function ProductMarketCollectionWorkspace({
       </div>
       <ExistingSampleObservationPanel
         domain="MARKET"
+        permissions={permissions}
         productCode={productCode}
         repository={realtimeRepository}
         onSaved={() => setRecordsRevision((value) => value + 1)}

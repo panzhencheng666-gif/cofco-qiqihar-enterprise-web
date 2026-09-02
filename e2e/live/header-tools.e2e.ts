@@ -103,7 +103,7 @@ test("uses durable notifications, permission-scoped work navigation, and page he
     /#\/%E6%88%91%E7%9A%84%E5%B7%A5%E4%BD%9C\/%E5%BE%85%E6%88%91%E5%A4%84%E7%90%86/u,
   );
   await expect(
-    page.getByRole("heading", { name: "待我处理", exact: true }),
+    page.getByRole("heading", { name: "本期工作队列", exact: true }),
   ).toBeVisible();
 
   const operatorReviewItem = page
@@ -116,7 +116,7 @@ test("uses durable notifications, permission-scoped work navigation, and page he
   const reviewerPage = await reviewerContext.newPage();
   const reviewerErrors = trackBrowserErrors(reviewerPage);
   await reviewerPage.goto(
-    `${liveBrowserAccounts.reviewer.url}/#/我的工作/待我处理`,
+    `${liveBrowserAccounts.reviewer.url}/#/产情监测/数据审核`,
   );
   const sourceWorkItem = reviewerPage
     .getByRole("row")
@@ -156,7 +156,7 @@ test("uses durable notifications, permission-scoped work navigation, and page he
 
   await page.getByRole("button", { name: "帮助" }).click();
   const helpPanel = page.getByRole("dialog", { name: "当前页面帮助" });
-  await expect(helpPanel).toContainText("我的工作 · 待我处理");
+  await expect(helpPanel).toContainText("产情监测 · 数据审核");
   await expect(helpPanel).toContainText("操作步骤");
   await expect(helpPanel).toContainText("权限与数据规则");
   await expect(helpPanel).toContainText("异常处理");

@@ -50,7 +50,7 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
   );
   expect(anonymousSession.status()).toBe(401);
   await anonymousPage.goto(
-    `${stageThreeBrowserEndpoints.anonymous.url}/#/我的工作/待我处理`,
+    `${stageThreeBrowserEndpoints.anonymous.url}/#/市场监测/玉米市场采集`,
   );
   await expect(
     anonymousPage.getByRole("heading", { name: "登录企业账号" }),
@@ -75,7 +75,7 @@ test("fails closed for missing sessions, unavailable HTTP, and insufficient regi
   const unavailablePage = await unavailableContext.newPage();
   const unavailableErrors = trackBrowserErrors(unavailablePage);
   await unavailablePage.goto(
-    `${stageThreeBrowserEndpoints.unavailable.url}/#/我的工作/待我处理`,
+    `${stageThreeBrowserEndpoints.unavailable.url}/#/市场监测/玉米市场采集`,
   );
   await expect(
     unavailablePage.getByRole("heading", { name: "身份服务暂时不可用" }),

@@ -34,6 +34,8 @@ const visibleSectionsByApplication: Readonly<
     "soybean-collection",
     "rice-collection",
     "regional-annual",
+    "tasks",
+    "review",
     "analysis",
   ],
   market: [
@@ -43,12 +45,13 @@ const visibleSectionsByApplication: Readonly<
     "corn-logistics",
     "soybean-logistics",
     "paddy-logistics",
+    "tasks",
+    "review",
     "analysis",
   ],
   supply: ["balance"],
-  reporting: ["compose", "comprehensive"],
-  // 待填报、待审核、退回与异常统一进入“待我处理”工作台，旧路由仍可兼容访问。
-  work: ["tasks", "completed", "imports", "sample-governance"],
+  reporting: ["compose", "review-distribution", "ledger", "comprehensive"],
+  work: ["sample-governance"],
   overview: ["map"],
 };
 

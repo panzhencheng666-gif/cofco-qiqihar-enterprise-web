@@ -8,16 +8,7 @@ import {
 import type { EnterpriseRegionId } from "./enterpriseRegions";
 
 export const formalSectionsByApplication = {
-  work: [
-    "tasks",
-    "submitted",
-    "review",
-    "exceptions",
-    "completed",
-    "imports",
-    "sample-governance",
-    "obligations",
-  ],
+  work: ["sample-governance"],
   overview: ["operations", "risks", "duty", "releases", "map"],
   production: [
     "corn-collection",
@@ -86,14 +77,7 @@ const formalBusinessRouteNames = {
   work: {
     application: "我的工作",
     sections: {
-      tasks: "待我处理",
-      submitted: "待我填报",
-      review: "待我审核",
-      exceptions: "退回与异常",
-      completed: "已办事项",
-      imports: "导入任务",
       "sample-governance": "样本点管理",
-      obligations: "填报履职周报",
     },
   },
   overview: {
@@ -236,8 +220,28 @@ export function getDefaultFormalSection<A extends FormalApplication>(
 }
 
 function defaultFormalRoute(): FormalRoute {
-  return createFormalRoute("work", "tasks");
+  return createFormalRoute("market", "corn-collection");
 }
+
+const retiredWorkHashSections = new Set([
+  "人工审核",
+  "待我处理",
+  "待我填报",
+  "待我审核",
+  "退回与异常",
+  "已办事项",
+  "导入任务",
+  "填报履职周报",
+]);
+const retiredWorkQuerySections = new Set([
+  "tasks",
+  "submitted",
+  "review",
+  "exceptions",
+  "completed",
+  "imports",
+  "obligations",
+]);
 
 function safelyDecode(value: string): string {
   try {
@@ -257,6 +261,9 @@ function readBusinessHash(hash: string): FormalRoute | null {
       candidate === applicationSegment,
   );
   if (!application) return null;
+  if (application === "work" && retiredWorkHashSections.has(sectionSegment)) {
+    return defaultFormalRoute();
+  }
   const sectionNames = formalBusinessRouteNames[application]
     .sections as Readonly<Record<string, string>>;
   const legacySectionAliases: Partial<
@@ -305,10 +312,16 @@ export function readFormalRoute(value: string): FormalRoute {
 
   const parameters = new URLSearchParams(search);
   const applicationValue = parameters.get("page");
-  const application = isFormalApplication(applicationValue)
-    ? applicationValue
-    : "work";
+  if (!isFormalApplication(applicationValue)) return defaultFormalRoute();
+  const application = applicationValue;
   const sectionValue = parameters.get("section");
+  if (
+    application === "work" &&
+    sectionValue !== null &&
+    retiredWorkQuerySections.has(sectionValue)
+  ) {
+    return defaultFormalRoute();
+  }
   const compatibleSection =
     application === "market" && sectionValue === "logistics"
       ? "corn-logistics"

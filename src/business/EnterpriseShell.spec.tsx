@@ -17,7 +17,7 @@ describe("EnterpriseShell", () => {
     render(
       <EnterpriseShell
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onIdentityOpen={onIdentityOpen}
@@ -59,7 +59,7 @@ describe("EnterpriseShell", () => {
     };
     const props = {
       location: {
-        route: createFormalRoute("work", "tasks"),
+        route: createFormalRoute("work", "sample-governance"),
         coordinates: { regionId: "authorized-all" },
       },
       onNavigate: vi.fn(),
@@ -92,9 +92,9 @@ describe("EnterpriseShell", () => {
     );
 
     expect(screen.getByRole("searchbox", { name: "全局搜索" })).toBeVisible();
-    expect(screen.getByRole("button", { name: /待办/ })).toHaveTextContent(
-      /\d+/,
-    );
+    expect(
+      screen.queryByRole("button", { name: /待办/ }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /通知/ })).toHaveTextContent(
       /\d+/,
     );
@@ -141,7 +141,7 @@ describe("EnterpriseShell", () => {
     render(
       <EnterpriseShell
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onNavigate={vi.fn()}
@@ -216,7 +216,7 @@ describe("EnterpriseShell", () => {
     render(
       <EnterpriseShell
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onNavigate={vi.fn()}
@@ -324,8 +324,9 @@ describe("EnterpriseShell", () => {
       },
     );
 
-    await user.click(screen.getByRole("button", { name: /待办/ }));
-    expect(onNavigate).toHaveBeenCalledWith(createFormalRoute("work", "tasks"));
+    expect(
+      screen.queryByRole("button", { name: /待办/ }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^通知/ }));
     expect(screen.getByRole("dialog", { name: "业务通知" })).toHaveTextContent(
@@ -367,7 +368,7 @@ describe("EnterpriseShell", () => {
           },
         ]}
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onBusinessNotificationRead={onBusinessNotificationRead}
@@ -427,7 +428,7 @@ describe("EnterpriseShell", () => {
     };
     const props = {
       location: {
-        route: createFormalRoute("work", "tasks"),
+        route: createFormalRoute("work", "sample-governance"),
         coordinates: { regionId: "authorized-all" },
       },
       onNavigate: vi.fn(),
@@ -520,7 +521,7 @@ describe("EnterpriseShell", () => {
     render(
       <EnterpriseShell
         location={{
-          route: createFormalRoute("work", "tasks"),
+          route: createFormalRoute("work", "sample-governance"),
           coordinates: { regionId: "authorized-all" },
         }}
         onNavigate={vi.fn()}

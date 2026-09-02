@@ -103,8 +103,7 @@
       "application": "work",
       "label": "我的工作",
       "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/formalEnterpriseData.ts",
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
+        "cofco-qiqihar-enterprise-web:src/business/formalEnterpriseData.ts"
       ],
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
@@ -164,85 +163,6 @@
     }
   ],
   "menuInventory": [
-    {
-      "application": "work",
-      "section": "tasks",
-      "label": "待我处理",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "submitted",
-      "label": "待我填报",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "review",
-      "label": "待我审核",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "exceptions",
-      "label": "退回与异常",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "completed",
-      "label": "已办事项",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "imports",
-      "label": "导入任务",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
-        "cofco-qiqihar-enterprise-web:src/business/importing/BusinessImportTaskWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "application": "work",
-      "section": "obligations",
-      "label": "填报履职周报",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
-        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/workflow/interfaceadapter/WorkObligationReportController.java"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
     {
       "application": "work",
       "section": "sample-governance",
@@ -530,12 +450,34 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "reporting",
+      "section": "review-distribution",
+      "label": "报告审核与发布",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ReportCenterWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "reporting",
+      "section": "ledger",
+      "label": "报告台账",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/ReportCenterWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
     }
   ],
   "uiInteractionInventory": {
     "path": "docs/production-readiness/stage-one-ui-inventory.json",
     "sourceBoundary": "src/business 下全部非测试 TSX",
-    "itemCount": 518,
+    "itemCount": 497,
     "ownerRepository": "cofco-qiqihar-enterprise-web",
     "status": "IMPLEMENTED",
     "verificationStage": "阶段二/三",
@@ -578,16 +520,6 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "PARTIAL",
       "verificationStage": "阶段二/三"
-    },
-    {
-      "id": "shell.pending-work",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/EnterpriseShell.tsx",
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段三"
     },
     {
       "id": "shell.notifications",
@@ -702,16 +634,6 @@
       "ownerRepository": "cofco-qiqihar-enterprise-backend",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三/八"
-    },
-    {
-      "id": "work.open-source-record",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
-        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/workflow/interfaceadapter/WorkItemController.java"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段三"
     },
     {
       "id": "overview.scope-filter",
@@ -936,16 +858,6 @@
       "implementationLocations": [
         "cofco-qiqihar-enterprise-web:src/business/importing/BusinessImportStatus.tsx",
         "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/importing/interfaceadapter/LogisticsImportController.java"
-      ],
-      "ownerRepository": "cofco-qiqihar-enterprise-backend",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三"
-    },
-    {
-      "id": "work-obligation.csv-export-download",
-      "implementationLocations": [
-        "cofco-qiqihar-enterprise-web:src/business/MyWorkWorkspace.tsx",
-        "cofco-qiqihar-enterprise-backend:src/main/java/com/cofco/qiqihar/graintrade/workflow/interfaceadapter/WorkObligationReportController.java"
       ],
       "ownerRepository": "cofco-qiqihar-enterprise-backend",
       "status": "IMPLEMENTED",

@@ -53,7 +53,7 @@ const primaryBusinessApplications = [
   {
     key: "work",
     label: "我的工作",
-    route: createFormalRoute("work", "tasks"),
+    route: createFormalRoute("work", "sample-governance"),
   },
 ] as const;
 
@@ -417,12 +417,6 @@ export function EnterpriseShell({
         )
         .slice(0, 12)
     : [];
-  const pendingCount = workItems.filter(
-    (item) =>
-      item.obligationStatus === "in-progress" ||
-      item.obligationStatus === "missed" ||
-      item.reviewStatus === "pending",
-  ).length;
   const workItemNotificationCount = workItems.filter(
     (item) =>
       item.qualityStatus === "blocking" || item.reviewStatus === "returned",
@@ -553,14 +547,6 @@ export function EnterpriseShell({
             )}
           </form>
 
-          <button
-            className="formal-header-tool"
-            type="button"
-            onClick={() => onNavigate(createFormalRoute("work", "tasks"))}
-          >
-            <span>待办</span>
-            <b>{pendingCount}</b>
-          </button>
           <button
             className="formal-header-tool"
             type="button"
