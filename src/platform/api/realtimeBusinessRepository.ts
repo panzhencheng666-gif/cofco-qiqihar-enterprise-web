@@ -208,6 +208,8 @@ export interface FormalSamplePointRow {
   objectTypeName: string;
   businessDomain: string;
   address: string;
+  maintainerSubjectId: string | null;
+  maintainerDisplayName: string | null;
   approvalState: string;
   locationState: string;
   longitude: number | null;
@@ -226,6 +228,24 @@ export interface FormalSamplePointMutation {
   longitude: number;
   latitude: number;
   objectTypeCode: string;
+  maintainerSubjectId: string;
+  maintainerChangeReason?: string;
+}
+
+export interface FormalSampleMaintainerMutation {
+  maintainerSubjectId: string;
+  maintainerChangeReason: string;
+  expectedVersion: number;
+}
+
+export interface FormalSampleMaintainerView {
+  id: string;
+  kindCode: string;
+  canonicalName: string;
+  regionCode: string;
+  maintainerSubjectId: string;
+  maintainerDisplayName: string;
+  version: number;
 }
 
 export interface FormalSamplePointListInput {
@@ -662,6 +682,8 @@ export interface EligibleFormalSample {
   productCode: string;
   regionCode: string;
   regionName: string;
+  maintainerSubjectId: string | null;
+  maintainerDisplayName: string | null;
   latitude: string;
   longitude: string;
   effectiveFrom: string;
@@ -1515,6 +1537,10 @@ export interface RealtimeBusinessRepository {
     input: FormalSamplePointMutation,
     expectedVersion: number,
   ): Promise<FormalSamplePointRow>;
+  assignFormalSampleMaintainer?(
+    id: string,
+    input: FormalSampleMaintainerMutation,
+  ): Promise<FormalSampleMaintainerView>;
   deleteFormalSamplePoint?(id: string, expectedVersion: number): Promise<void>;
   generateSampleNetworkCandidates?(
     year: number,
@@ -2032,6 +2058,11 @@ export function createRealtimeBusinessRepository(
       client.put<FormalSamplePointRow>(
         `/api/v1/formal-sample-points/${encodeURIComponent(id)}`,
         { ...input, expectedVersion },
+      ),
+    assignFormalSampleMaintainer: (id, input) =>
+      client.put<FormalSampleMaintainerView>(
+        `/api/v1/formal-sample-points/${encodeURIComponent(id)}/maintainer`,
+        input,
       ),
     deleteFormalSamplePoint: (id, expectedVersion) =>
       client.delete(`/api/v1/formal-sample-points/${encodeURIComponent(id)}`, {

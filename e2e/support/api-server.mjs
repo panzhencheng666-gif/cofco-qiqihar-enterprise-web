@@ -71,6 +71,8 @@ const formalSamplePoints = [
     objectTypeName: "贸易商",
     businessDomain: "MARKET",
     address: "龙江县龙江镇通齐村",
+    maintainerSubjectId: "e2e-reporter",
+    maintainerDisplayName: "验收填报员",
     approvalState: "APPROVED",
     locationState: "VERIFIED",
     longitude: 123.9182,
@@ -215,6 +217,8 @@ const eligibleFormalSamples = () =>
     productCode: "CORN",
     regionCode: point.regionCode,
     regionName: "通齐村",
+    maintainerSubjectId: point.maintainerSubjectId,
+    maintainerDisplayName: point.maintainerDisplayName,
     latitude: String(point.latitude),
     longitude: String(point.longitude),
     effectiveFrom: point.effectiveFrom,
@@ -1235,7 +1239,13 @@ const server = createServer(async (request, response) => {
       subjectId: "server-user",
       displayName: "已认证用户",
       workUnitCode: "QIQIHAR_BUSINESS",
-      permissions: ["BUSINESS_READ", "BUSINESS_CREATE", "BUSINESS_UPDATE"],
+      permissions: [
+        "BUSINESS_READ",
+        "BUSINESS_CREATE",
+        "BUSINESS_UPDATE",
+        "FORMAL_SAMPLE_MANAGE",
+        "FORMAL_SAMPLE_DELETE",
+      ],
       regionCodes: ["230200", "230221", "230221101", "230221101001"],
     });
     return;
@@ -1380,6 +1390,29 @@ const server = createServer(async (request, response) => {
   }
   if (method === "GET" && url.pathname === "/api/v1/formal-sample-points") {
     data(response, page(empty ? [] : formalSamplePoints, 20));
+    return;
+  }
+  if (method === "GET" && url.pathname === "/api/v1/identity/employees") {
+    data(response, [
+      {
+        subjectId: "e2e-reporter",
+        displayName: "验收填报员",
+        workUnitCode: "QIQIHAR_BUSINESS",
+        workUnitName: "齐齐哈尔业务组",
+        accountStatus: "ACTIVE",
+        employmentStatus: "ACTIVE",
+        roles: [{ code: "BUSINESS_OPERATOR", name: "业务填报员" }],
+        positions: [
+          {
+            code: "REGIONAL_REPORTER",
+            name: "区域填报岗",
+            primaryPosition: true,
+          },
+        ],
+        regionCodes: ["230221101001"],
+        version: 1,
+      },
+    ]);
     return;
   }
   if (
