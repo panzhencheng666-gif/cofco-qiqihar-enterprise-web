@@ -2,35 +2,6 @@ import { readFileSync } from "node:fs";
 
 import { expect, it } from "vitest";
 
-it("keeps production and market task routes connected to realtime record operations", () => {
-  const productionRoute = readFileSync(
-    "src/business/ProductionMonitoringWorkspace.tsx",
-    "utf8",
-  );
-  const marketRoute = readFileSync(
-    "src/business/MarketMonitoringWorkspace.tsx",
-    "utf8",
-  );
-  const productionTasks = readFileSync(
-    "src/business/production/ProductionTaskWorkspace.tsx",
-    "utf8",
-  );
-  const marketTasks = readFileSync(
-    "src/business/market/MarketTaskWorkspace.tsx",
-    "utf8",
-  );
-
-  for (const source of [productionRoute, marketRoute]) {
-    expect(source).toContain("realtimeRepository={realtimeRepository}");
-    expect(source).toContain('reviewMode={section === "review"}');
-  }
-  for (const source of [productionTasks, marketTasks]) {
-    expect(source).toContain("item.subject.objectId");
-    expect(source).toContain("onEditRecord?.(productCode");
-    expect(source).toContain("BUSINESS_CREATE");
-  }
-});
-
 it("keeps production objects behind the authoritative API contract", () => {
   const repository = readFileSync(
     "src/platform/api/realtimeBusinessRepository.ts",

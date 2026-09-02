@@ -15,9 +15,7 @@ export const formalSectionsByApplication = {
     "soybean-collection",
     "rice-collection",
     "regional-annual",
-    "tasks",
     "objects",
-    "review",
     "analysis",
   ],
   market: [
@@ -27,9 +25,7 @@ export const formalSectionsByApplication = {
     "corn-logistics",
     "soybean-logistics",
     "paddy-logistics",
-    "tasks",
     "objects",
-    "review",
     "analysis",
   ],
   supply: [
@@ -44,7 +40,6 @@ export const formalSectionsByApplication = {
     "comparison",
     "versions",
   ],
-  reporting: ["compose", "review-distribution", "ledger"],
 } as const;
 
 export const formalApplications = Object.keys(
@@ -70,7 +65,7 @@ export type OverviewSection = SectionFor<"overview">;
 export type ProductionSection = SectionFor<"production">;
 export type MarketSection = SectionFor<"market">;
 export type SupplySection = SectionFor<"supply">;
-export type ReportingSection = SectionFor<"reporting">;
+export type ReportingSection = "compose" | "review-distribution" | "ledger";
 export type FormalSection = SectionFor<FormalApplication>;
 
 const formalBusinessRouteNames = {
@@ -100,9 +95,7 @@ const formalBusinessRouteNames = {
       "corn-collection": "玉米产情填报",
       "soybean-collection": "大豆产情填报",
       "rice-collection": "稻谷产情填报",
-      tasks: "产情任务",
       objects: "调查对象",
-      review: "数据审核",
       analysis: "产情分析",
     },
   },
@@ -115,9 +108,7 @@ const formalBusinessRouteNames = {
       "corn-logistics": "玉米物流监测",
       "soybean-logistics": "大豆物流监测",
       "paddy-logistics": "稻谷物流监测",
-      tasks: "采集任务",
       objects: "监测对象",
-      review: "数据审核",
       analysis: "市场分析",
     },
   },
@@ -132,14 +123,6 @@ const formalBusinessRouteNames = {
       calculation: "供需测算",
       comparison: "四年对比",
       versions: "核定记录",
-    },
-  },
-  reporting: {
-    application: "报表中心",
-    sections: {
-      compose: "业务报告",
-      "review-distribution": "报告审核与发布",
-      ledger: "报告台账",
     },
   },
 } as const satisfies {
@@ -226,21 +209,21 @@ function defaultFormalRoute(): FormalRoute {
 const retiredWorkHashSections = new Set([
   "人工审核",
   "待我处理",
-  "待我填报",
-  "待我审核",
-  "退回与异常",
   "已办事项",
-  "导入任务",
-  "填报履职周报",
+  "记录",
 ]);
-const retiredWorkQuerySections = new Set([
+const retiredWorkQuerySections = new Set(["tasks", "completed"]);
+const retiredProductionSections = new Set([
   "tasks",
-  "submitted",
   "review",
-  "exceptions",
-  "completed",
-  "imports",
-  "obligations",
+  "产情任务",
+  "数据审核",
+]);
+const retiredMarketSections = new Set([
+  "tasks",
+  "review",
+  "采集任务",
+  "数据审核",
 ]);
 
 function safelyDecode(value: string): string {
@@ -255,6 +238,9 @@ function readBusinessHash(hash: string): FormalRoute | null {
   const decoded = safelyDecode(hash).replace(/^#\/?/, "");
   if (!decoded) return null;
   const [applicationSegment, sectionSegment] = decoded.split("/");
+  if (applicationSegment === "报表中心" || applicationSegment === "reporting") {
+    return defaultFormalRoute();
+  }
   const application = formalApplications.find(
     (candidate) =>
       formalBusinessRouteNames[candidate].application === applicationSegment ||
@@ -263,6 +249,15 @@ function readBusinessHash(hash: string): FormalRoute | null {
   if (!application) return null;
   if (application === "work" && retiredWorkHashSections.has(sectionSegment)) {
     return defaultFormalRoute();
+  }
+  if (
+    application === "production" &&
+    retiredProductionSections.has(sectionSegment)
+  ) {
+    return createFormalRoute("production", "corn-collection");
+  }
+  if (application === "market" && retiredMarketSections.has(sectionSegment)) {
+    return createFormalRoute("market", "corn-collection");
   }
   const sectionNames = formalBusinessRouteNames[application]
     .sections as Readonly<Record<string, string>>;
@@ -321,6 +316,20 @@ export function readFormalRoute(value: string): FormalRoute {
     retiredWorkQuerySections.has(sectionValue)
   ) {
     return defaultFormalRoute();
+  }
+  if (
+    application === "production" &&
+    sectionValue !== null &&
+    retiredProductionSections.has(sectionValue)
+  ) {
+    return createFormalRoute("production", "corn-collection");
+  }
+  if (
+    application === "market" &&
+    sectionValue !== null &&
+    retiredMarketSections.has(sectionValue)
+  ) {
+    return createFormalRoute("market", "corn-collection");
   }
   const compatibleSection =
     application === "market" && sectionValue === "logistics"

@@ -36,12 +36,12 @@ function destinationFor(
 ): BusinessWorkProjection["destination"] {
   const route: FormalRoute =
     item.domain === "production"
-      ? createFormalRoute("production", "tasks")
+      ? createFormalRoute("production", "corn-collection")
       : item.domain === "market"
-        ? createFormalRoute("market", "tasks")
+        ? createFormalRoute("market", "corn-collection")
         : item.domain === "supply"
           ? createFormalRoute("supply", "calculation")
-          : createFormalRoute("reporting", "review-distribution");
+          : createFormalRoute("market", "corn-collection");
   return { route, selection: { type: "work-item", id: item.workId } };
 }
 

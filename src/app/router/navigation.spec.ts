@@ -9,7 +9,6 @@ describe("enterprise navigation", () => {
       "production-monitoring:view",
       "market-monitoring:view",
       "supply-situation:view",
-      "report-center:view",
       "data-governance:view",
       "system-administration:view",
       "account-security:view",
@@ -21,7 +20,6 @@ describe("enterprise navigation", () => {
       "产情监测",
       "市场监测",
       "供需与态势",
-      "报表中心",
       "数据治理",
       "系统管理",
     ]);

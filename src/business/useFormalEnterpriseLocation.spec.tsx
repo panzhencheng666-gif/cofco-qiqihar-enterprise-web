@@ -35,7 +35,7 @@ function LocationProbe() {
       <button
         type="button"
         onClick={() =>
-          navigate(createFormalRoute("production", "tasks"), {
+          navigate(createFormalRoute("production", "corn-collection"), {
             type: "work-item",
             id: "PROD-W31-002",
           })
@@ -57,7 +57,7 @@ function LocationProbe() {
       </button>
       <button
         type="button"
-        onClick={() => navigate(createFormalRoute("market", "tasks"))}
+        onClick={() => navigate(createFormalRoute("market", "corn-collection"))}
       >
         open market
       </button>
@@ -107,7 +107,7 @@ describe("useFormalEnterpriseLocation", () => {
 
     await user.click(screen.getByRole("button", { name: "open task" }));
     expect(decodeURIComponent(pushed.at(-1)?.url ?? "")).toContain(
-      "#/产情监测/产情任务",
+      "#/产情监测/玉米产情填报",
     );
     expect(pushed.at(-1)?.url).not.toMatch(
       /page=|section=|selectionId|PROD-W31-002/,
@@ -125,7 +125,7 @@ describe("useFormalEnterpriseLocation", () => {
 
     await user.click(screen.getByRole("button", { name: "update filters" }));
     expect(decodeURIComponent(replaced.at(-1)?.url ?? "")).toContain(
-      "#/产情监测/产情任务",
+      "#/产情监测/玉米产情填报",
     );
     expect(replaced.at(-1)?.url).not.toMatch(
       /region=|product=|period=|qiqihar-nehe|corn|2026-W31/,

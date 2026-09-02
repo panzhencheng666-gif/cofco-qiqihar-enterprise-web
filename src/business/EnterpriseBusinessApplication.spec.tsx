@@ -13,8 +13,6 @@ import {
   loadAllWorkItems,
   type EnterpriseBusinessApplicationProps,
 } from "./EnterpriseBusinessApplication";
-import type { OperationalScopeIdentity } from "./core/operationalScope";
-import { fixtureOperationalIdentity } from "./formalEnterpriseData";
 import {
   createDefaultFixtureOperationalState,
   fixtureOperationalStateStorageKey,
@@ -30,7 +28,6 @@ import {
   PRODUCTION_SURVEY_CONTRACT_DIGEST,
   PRODUCTION_SURVEY_CONTRACT_VERSION,
 } from "@/platform/api/productionSurveyContract";
-import { createFixtureBusinessReportSeeds } from "./businessReportWorkflow";
 import { invitationActivationStorageKey } from "./identity/invitationActivationSession";
 
 const fixtureBusinessReportStorageKey =
@@ -1106,115 +1103,6 @@ describe("formal enterprise prototype", () => {
     ).toBeVisible();
   });
 
-  it("uses scoped business reports without reading report seeds or search fixtures", async () => {
-    const user = userEvent.setup();
-    window.localStorage.setItem(
-      fixtureBusinessReportStorageKey,
-      JSON.stringify(createFixtureBusinessReportSeeds()),
-    );
-    const getItem = vi.spyOn(Storage.prototype, "getItem");
-    const setItem = vi.spyOn(Storage.prototype, "setItem");
-    const repository = {
-      loadCurrentSession: () =>
-        Promise.resolve({
-          subjectId: "wang-yang",
-          displayName: "王洋",
-          workUnitCode: "QIQIHAR_BUSINESS",
-          permissions: ["REPORT_PREVIEW", "REPORT_EXPORT"],
-          regionCodes: ["230200"],
-        }),
-      loadMasterData: () =>
-        Promise.resolve({
-          products: [{ code: "CORN", name: "服务端玉米" }],
-          periods: [
-            {
-              code: "2026-W32",
-              name: "2026 年第 32 周",
-              startsOn: "2026-08-03",
-              endsOn: "2026-08-09",
-            },
-          ],
-          regions: [
-            {
-              code: "230200",
-              name: "齐齐哈尔市",
-              parentCode: null,
-              level: "PREFECTURE",
-            },
-          ],
-        }),
-      listCultivars: () => Promise.resolve([]),
-      loadReportParameterOptions: () =>
-        Promise.resolve({
-          definitions: [
-            {
-              code: "COMPREHENSIVE_DAILY",
-              name: "综合经营日报",
-              businessDomain: "COMPREHENSIVE",
-              businessSubtype: "MANAGEMENT",
-              frequencyCode: "DAILY",
-              sections: [],
-            },
-          ],
-          formats: [{ code: "CSV", label: "CSV（中文列名）" }],
-        }),
-      listWorkItems: () =>
-        Promise.resolve({
-          items: [],
-          pageNumber: 0,
-          pageSize: 100,
-          totalElements: 0,
-          totalPages: 0,
-        }),
-    } as unknown as RealtimeBusinessRepository;
-
-    render(
-      <EnterpriseBusinessApplication
-        dataMode="api"
-        initialSearch="?page=reporting&section=compose"
-        repository={repository}
-      />,
-    );
-
-    expect(
-      await screen.findByRole("heading", { name: "业务报告" }),
-    ).toBeVisible();
-    expect(await screen.findByText("王洋")).toBeVisible();
-    expect(
-      await screen.findByRole("button", { name: "生成并下载报告" }),
-    ).toBeVisible();
-    expect(document.body).not.toHaveTextContent("第31周粮食商情周报");
-    expect(
-      screen.getByText(
-        "按日、周、月生成一份综合经营报告，三品种四业务域使用同一审核后数据快照",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        "报告目录由服务端维护，仅提供综合经营日报、周报和月报。",
-      ),
-    ).toBeVisible();
-
-    await user.type(
-      screen.getByRole("searchbox", { name: "全局搜索" }),
-      "齐齐哈尔市全域玉米供需平衡分析报告",
-    );
-    expect(
-      within(screen.getByRole("listbox")).queryByRole("option"),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("未找到匹配的业务页面")).toBeVisible();
-    expect(
-      getItem.mock.calls.some(
-        ([key]) => key === fixtureBusinessReportStorageKey,
-      ),
-    ).toBe(false);
-    expect(
-      setItem.mock.calls.some(
-        ([key]) => key === fixtureBusinessReportStorageKey,
-      ),
-    ).toBe(false);
-  });
-
   it("keeps API empty data fail-closed and uses an authorization-pending identity", async () => {
     saveFixtureOperationalState(
       window.localStorage,
@@ -1405,9 +1293,9 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button").length).toBeGreaterThan(
-      15,
-    );
+    expect(within(navigation).getAllByRole("button")).toHaveLength(15);
+    expect(within(navigation).queryByText("产情任务")).not.toBeInTheDocument();
+    expect(within(navigation).queryByText("数据审核")).not.toBeInTheDocument();
     expect(within(navigation).getByText("玉米产情填报")).toBeVisible();
     expect(within(navigation).getByText("大豆产情填报")).toBeVisible();
     expect(within(navigation).getByText("稻谷产情填报")).toBeVisible();
@@ -1427,7 +1315,7 @@ describe("formal enterprise prototype", () => {
     expect(
       within(navigation).queryByText("稻谷供需平衡"),
     ).not.toBeInTheDocument();
-    expect(within(navigation).getByText("业务报告")).toBeVisible();
+    expect(within(navigation).queryByText("业务报告")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("导入任务")).not.toBeInTheDocument();
     expect(within(navigation).getByText("样本点管理")).toBeVisible();
     expect(within(navigation).queryByText("待我处理")).not.toBeInTheDocument();
@@ -1435,11 +1323,14 @@ describe("formal enterprise prototype", () => {
     expect(within(navigation).queryByText("审核中心")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("异常处理")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("已完成")).not.toBeInTheDocument();
-    expect(within(navigation).getByText("产情任务")).toBeVisible();
+    expect(within(navigation).queryByText("产情任务")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("调查对象")).not.toBeInTheDocument();
-    expect(within(navigation).getAllByText("数据审核")).toHaveLength(2);
-    expect(within(navigation).getByText("报告审核与发布")).toBeVisible();
-    expect(within(navigation).getByText("报告台账")).toBeVisible();
+    expect(within(navigation).queryByText("采集任务")).not.toBeInTheDocument();
+    expect(within(navigation).queryByText("数据审核")).not.toBeInTheDocument();
+    expect(
+      within(navigation).queryByText("报告审核与发布"),
+    ).not.toBeInTheDocument();
+    expect(within(navigation).queryByText("报告台账")).not.toBeInTheDocument();
   });
 
   it("changes applications through the location-owned route", async () => {
@@ -1634,94 +1525,6 @@ describe("formal enterprise prototype", () => {
     expect(screen.getByRole("combobox", { name: "经营期间" })).toHaveValue("");
     expect(screen.getByRole("alert")).toHaveTextContent("请选择经营期间");
     expect(document.body).not.toHaveTextContent("unsupported-period");
-  });
-
-  it("opens an approved report search result at the exact nine-field compose scope", async () => {
-    const user = userEvent.setup();
-    render(
-      <EnterpriseBusinessApplication initialSearch="?page=overview&section=operations" />,
-    );
-
-    await user.type(
-      screen.getByRole("searchbox", { name: "全局搜索" }),
-      "齐齐哈尔市全域玉米供需平衡分析报告",
-    );
-    await user.click(
-      screen.getByRole("option", {
-        name: /齐齐哈尔市全域玉米供需平衡分析报告.*报告数据/,
-      }),
-    );
-
-    expect(decodeURIComponent(window.location.hash)).toBe(
-      "#/报表中心/业务报告",
-    );
-    expect(
-      await screen.findByText("已按所选已核定数据精确带入报告生成条件。"),
-    ).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "业务类型" })).toHaveValue(
-      "supply",
-    );
-    await user.click(screen.getByRole("button", { name: "更多条件" }));
-    expect(screen.getByRole("combobox", { name: "业务分类" })).toHaveValue(
-      "supply.results",
-    );
-    expect(screen.getByLabelText("选择地区")).toHaveTextContent("齐齐哈尔市");
-    expect(screen.getByRole("combobox", { name: "产品或专题" })).toHaveValue(
-      "corn",
-    );
-    expect(screen.getByRole("combobox", { name: "具体品种" })).toHaveValue(
-      "not-applicable",
-    );
-    expect(screen.getByRole("combobox", { name: "报告频率" })).toHaveValue(
-      "月报",
-    );
-    expect(screen.getByRole("combobox", { name: "报告期间" })).toHaveValue(
-      "2026/27营销年度",
-    );
-    expect(screen.getByRole("combobox", { name: "报告模板" })).toHaveValue(
-      "供需平衡分析报告",
-    );
-    expect(screen.getByRole("combobox", { name: "采用数据" })).toHaveValue(
-      "SUPPLY-2026-MY-APPROVED",
-    );
-    expect(screen.getByRole("button", { name: "生成报告" })).toBeEnabled();
-    expect(document.body).not.toHaveTextContent("SUPPLY-2026-MY-APPROVED");
-  });
-
-  it("keeps report workflow actions within the current identity permissions", async () => {
-    const user = userEvent.setup();
-    window.localStorage.removeItem("齐齐哈尔粮食商情业务报告工作流-业务真值三");
-    const draftOnlyIdentity: OperationalScopeIdentity = {
-      ...fixtureOperationalIdentity,
-      authorization: {
-        ...fixtureOperationalIdentity.authorization,
-        permissionKeys: ["enterprise:fixtures:read", "report.draft.save"],
-      },
-    };
-    render(
-      <EnterpriseBusinessApplication
-        initialSearch="?page=overview&section=operations"
-        operationalIdentity={draftOnlyIdentity}
-      />,
-    );
-
-    await user.type(
-      screen.getByRole("searchbox", { name: "全局搜索" }),
-      "齐齐哈尔市全域玉米种植生产监测报告",
-    );
-    await user.click(
-      screen.getByRole("option", {
-        name: /齐齐哈尔市全域玉米种植生产监测报告.*报告数据/,
-      }),
-    );
-    await user.click(screen.getByRole("button", { name: "生成报告" }));
-    expect(screen.getByRole("dialog", { name: "编制业务报告" })).toBeVisible();
-    const saveDraft = screen.getByRole("button", { name: "保存草稿" });
-    expect(saveDraft).toBeEnabled();
-    await user.click(saveDraft);
-
-    expect(await screen.findByText("草稿已保存")).toBeVisible();
-    expect(screen.getByRole("button", { name: "送审" })).toBeDisabled();
   });
 
   it("loads persisted object registries instead of reconstructing them on refresh", () => {

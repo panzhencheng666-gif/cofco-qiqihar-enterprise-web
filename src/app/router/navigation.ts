@@ -187,32 +187,6 @@ export const implementedNavigation: readonly NavigationItem[] = [
     ],
   },
   {
-    key: "report-center",
-    label: "报表中心",
-    spaceLabel: "报表运营空间",
-    path: "/reports",
-    icon: "reports",
-    requiredCapability: "report-center:view",
-    contextItems: [
-      { key: "reports-overview", label: "报表总览", path: "/reports" },
-      {
-        key: "reports-duty",
-        label: "履责报告",
-        path: "/reports/duty",
-      },
-      {
-        key: "reports-business",
-        label: "业务分析报告",
-        path: "/reports/business",
-      },
-      {
-        key: "reports-version",
-        label: "报告版本",
-        path: "/reports/versions",
-      },
-    ],
-  },
-  {
     key: "data-governance",
     label: "数据治理",
     spaceLabel: "数据治理空间",
@@ -323,11 +297,6 @@ export const refineResources: IResourceItem[] = [
     name: "supply-situation",
     list: "/supply",
     meta: { label: "供需与态势" },
-  },
-  {
-    name: "report-center",
-    list: "/reports",
-    meta: { label: "报表中心" },
   },
   {
     name: "data-governance",

@@ -511,8 +511,11 @@ export function FormalSamplePointLedger({
   }
 
   return (
-    <section className="formal-sample-ledger" aria-label="采集台账工作台">
-      <header>
+    <section
+      className="formal-sample-ledger enterprise-ledger-workbench"
+      aria-label="采集台账工作台"
+    >
+      <header className="enterprise-ledger-title enterprise-ledger-title--collection">
         <div>
           <h2>采集台账</h2>
           <p>统一维护样本稳定信息，并从每行填写或更新期间采集数据。</p>
@@ -536,7 +539,10 @@ export function FormalSamplePointLedger({
           )}
         </div>
       </header>
-      <div className="formal-sample-ledger__filters" role="search">
+      <div
+        className="enterprise-ledger-query enterprise-ledger-query--design"
+        role="search"
+      >
         <label>
           <span>实际观测时间</span>
           <input
@@ -598,9 +604,16 @@ export function FormalSamplePointLedger({
             }}
           />
         </label>
-        <button disabled={busy} type="button" onClick={() => void query(0)}>
-          查询
-        </button>
+        <div className="enterprise-ledger-query__actions">
+          <button
+            className="is-primary"
+            disabled={busy}
+            type="button"
+            onClick={() => void query(0)}
+          >
+            查询
+          </button>
+        </div>
       </div>
       {editor && (
         <section
@@ -721,89 +734,98 @@ export function FormalSamplePointLedger({
           detail ? " formal-sample-ledger__layout--detail" : ""
         }`}
       >
-        <div className="formal-sample-ledger__table">
-          <table>
-            <thead>
-              <tr>
-                <th>样本名称</th>
-                <th>地区</th>
-                <th>对象类型</th>
-                <th>定位</th>
-                <th>最近观测</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleSamples.map((samplePoint) => {
-                const collectionAllowed = canCollect;
-                return (
-                  <tr key={samplePoint.samplePointId}>
-                    <td>{samplePoint.sampleName}</td>
-                    <td>{samplePoint.regionName}</td>
-                    <td>{samplePoint.objectTypeName ?? "待同步"}</td>
-                    <td>{coordinate(samplePoint)}</td>
-                    <td>{latestObservation(samplePoint.latestObservedAt)}</td>
-                    <td>
-                      <div className="formal-sample-ledger__row-actions">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void loadDetail(samplePoint.samplePointId)
-                          }
-                        >
-                          查看
-                        </button>
-                        {canUpdate && (
+        <div className="formal-sample-ledger__table enterprise-ledger-table">
+          <div className="enterprise-ledger-table__scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>样本名称</th>
+                  <th>地区</th>
+                  <th>对象类型</th>
+                  <th>定位</th>
+                  <th>最近观测</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleSamples.map((samplePoint) => {
+                  const collectionAllowed = canCollect;
+                  return (
+                    <tr key={samplePoint.samplePointId}>
+                      <td>{samplePoint.sampleName}</td>
+                      <td>{samplePoint.regionName}</td>
+                      <td>{samplePoint.objectTypeName ?? "待同步"}</td>
+                      <td>{coordinate(samplePoint)}</td>
+                      <td>{latestObservation(samplePoint.latestObservedAt)}</td>
+                      <td>
+                        <div className="formal-sample-ledger__row-actions">
                           <button
+                            className="enterprise-ledger-row-action"
                             type="button"
                             onClick={() =>
-                              void loadDetail(samplePoint.samplePointId, "EDIT")
+                              void loadDetail(samplePoint.samplePointId)
                             }
                           >
-                            编辑
+                            查看
                           </button>
-                        )}
-                        {canDelete && (
+                          {canUpdate && (
+                            <button
+                              className="enterprise-ledger-row-action"
+                              type="button"
+                              onClick={() =>
+                                void loadDetail(
+                                  samplePoint.samplePointId,
+                                  "EDIT",
+                                )
+                              }
+                            >
+                              编辑
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              className="enterprise-ledger-row-action"
+                              type="button"
+                              onClick={() =>
+                                void loadDetail(
+                                  samplePoint.samplePointId,
+                                  "DELETE",
+                                )
+                              }
+                            >
+                              删除
+                            </button>
+                          )}
                           <button
-                            type="button"
-                            onClick={() =>
-                              void loadDetail(
-                                samplePoint.samplePointId,
-                                "DELETE",
-                              )
+                            className="enterprise-ledger-row-action"
+                            disabled={!collectionAllowed}
+                            title={
+                              !canCollect
+                                ? "当前账号没有填写正式采集数据的权限"
+                                : undefined
                             }
+                            type="button"
+                            onClick={() => {
+                              if (collectionAllowed)
+                                onCollectData(samplePoint.samplePointId);
+                            }}
                           >
-                            删除
+                            {samplePoint.latestObservationId
+                              ? canCollect
+                                ? "更新采集数据"
+                                : "无采集权限"
+                              : canCollect
+                                ? "填写采集数据"
+                                : "无采集权限"}
                           </button>
-                        )}
-                        <button
-                          disabled={!collectionAllowed}
-                          title={
-                            !canCollect
-                              ? "当前账号没有填写正式采集数据的权限"
-                              : undefined
-                          }
-                          type="button"
-                          onClick={() => {
-                            if (collectionAllowed)
-                              onCollectData(samplePoint.samplePointId);
-                          }}
-                        >
-                          {samplePoint.latestObservationId
-                            ? canCollect
-                              ? "更新采集数据"
-                              : "无采集权限"
-                            : canCollect
-                              ? "填写采集数据"
-                              : "无采集权限"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           {visibleSamples.length === 0 && (
             <p>当前条件下没有可采集的正式样本。</p>
           )}

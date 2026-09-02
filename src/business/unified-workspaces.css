@@ -7409,7 +7409,8 @@
 :is(
   .enterprise-ledger-query--production,
   .enterprise-ledger-query--market,
-  .enterprise-ledger-query--logistics
+  .enterprise-ledger-query--logistics,
+  .enterprise-ledger-query--design
 ) {
   min-height: 0;
   display: grid;
@@ -7427,7 +7428,8 @@
 :is(
     .enterprise-ledger-query--production,
     .enterprise-ledger-query--market,
-    .enterprise-ledger-query--logistics
+    .enterprise-ledger-query--logistics,
+    .enterprise-ledger-query--design
   )
   > :is(label, .region-cascade-selector, .workspace-region-cascade) {
   width: auto;
@@ -7441,7 +7443,8 @@
 :is(
     .enterprise-ledger-query--production,
     .enterprise-ledger-query--market,
-    .enterprise-ledger-query--logistics
+    .enterprise-ledger-query--logistics,
+    .enterprise-ledger-query--design
   )
   > .workspace-region-cascade
   .region-cascade-selector {
@@ -7453,7 +7456,8 @@
 :is(
     .enterprise-ledger-query--production,
     .enterprise-ledger-query--market,
-    .enterprise-ledger-query--logistics
+    .enterprise-ledger-query--logistics,
+    .enterprise-ledger-query--design
   )
   :is(label > span, .region-cascader__label) {
   margin: 0;
@@ -7466,7 +7470,8 @@
 :is(
     .enterprise-ledger-query--production,
     .enterprise-ledger-query--market,
-    .enterprise-ledger-query--logistics
+    .enterprise-ledger-query--logistics,
+    .enterprise-ledger-query--design
   )
   :is(input, select, .region-cascader > summary) {
   height: 36px;
@@ -7479,7 +7484,8 @@
 :is(
     .enterprise-ledger-query--production,
     .enterprise-ledger-query--market,
-    .enterprise-ledger-query--logistics
+    .enterprise-ledger-query--logistics,
+    .enterprise-ledger-query--design
   )
   > .enterprise-ledger-query__actions {
   grid-column: -2 / -1;
@@ -7487,6 +7493,18 @@
   justify-self: end;
   width: auto;
   margin-inline-start: 0;
+}
+
+:is(
+    .enterprise-ledger-query--production,
+    .enterprise-ledger-query--market,
+    .enterprise-ledger-query--logistics,
+    .enterprise-ledger-query--design
+  )
+  > .enterprise-ledger-query__actions
+  button {
+  height: 36px;
+  min-height: 36px;
 }
 
 .enterprise-ledger-title--collection {
@@ -7615,7 +7633,8 @@
   :is(
     .enterprise-ledger-query--production,
     .enterprise-ledger-query--market,
-    .enterprise-ledger-query--logistics
+    .enterprise-ledger-query--logistics,
+    .enterprise-ledger-query--design
   ) {
     grid-template-columns: repeat(3, minmax(160px, 1fr));
   }
@@ -7623,7 +7642,8 @@
   :is(
       .enterprise-ledger-query--production,
       .enterprise-ledger-query--market,
-      .enterprise-ledger-query--logistics
+      .enterprise-ledger-query--logistics,
+      .enterprise-ledger-query--design
     )
     > .enterprise-ledger-query__actions {
     grid-column: 1 / -1;
@@ -7647,7 +7667,8 @@
   :is(
     .enterprise-ledger-query--production,
     .enterprise-ledger-query--market,
-    .enterprise-ledger-query--logistics
+    .enterprise-ledger-query--logistics,
+    .enterprise-ledger-query--design
   ) {
     grid-template-columns: repeat(2, minmax(160px, 1fr));
   }
@@ -7657,7 +7678,8 @@
   :is(
     .enterprise-ledger-query--production,
     .enterprise-ledger-query--market,
-    .enterprise-ledger-query--logistics
+    .enterprise-ledger-query--logistics,
+    .enterprise-ledger-query--design
   ) {
     grid-template-columns: minmax(0, 1fr);
     padding: 12px;
@@ -7666,7 +7688,8 @@
   :is(
       .enterprise-ledger-query--production,
       .enterprise-ledger-query--market,
-      .enterprise-ledger-query--logistics
+      .enterprise-ledger-query--logistics,
+      .enterprise-ledger-query--design
     )
     > .enterprise-ledger-query__actions {
     grid-column: 1;

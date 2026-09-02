@@ -27,8 +27,5 @@ describe("productWorkspaceContext", () => {
     expect(
       getProductWorkspaceContext(createFormalRoute("overview", "operations")),
     ).toBeNull();
-    expect(
-      getProductWorkspaceContext(createFormalRoute("reporting", "compose")),
-    ).toBeNull();
   });
 });

@@ -219,13 +219,19 @@ function localizedComparison(
 function routeForTarget(target: ExecutiveDrillDownTarget): FormalRoute {
   switch (target.application) {
     case "production":
-      return createFormalRoute("production", target.section);
+      return createFormalRoute(
+        "production",
+        target.section === "tasks" ? "corn-collection" : target.section,
+      );
     case "market":
-      return createFormalRoute("market", target.section);
+      return createFormalRoute(
+        "market",
+        target.section === "tasks" ? "corn-collection" : target.section,
+      );
     case "supply":
       return createFormalRoute("supply", target.section);
     case "reporting":
-      return createFormalRoute("reporting", target.section);
+      return createFormalRoute("market", "corn-collection");
     case "overview":
       return createFormalRoute("overview", target.section);
   }

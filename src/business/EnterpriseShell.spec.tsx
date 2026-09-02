@@ -2,7 +2,6 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { businessWorkFixtures } from "./data/businessWorkFixtures";
-import { approvedBusinessReportDatasets } from "./data/businessReportDatasets";
 import { productionMonitoringObjects } from "./data/monitoringRegistryFixtures";
 import { fixtureOperationalIdentity } from "./formalEnterpriseData";
 import { createFormalRoute } from "./formalEnterpriseModel";
@@ -146,7 +145,6 @@ describe("EnterpriseShell", () => {
         }}
         onNavigate={vi.fn()}
         queryAllowed
-        reportDatasets={approvedBusinessReportDatasets}
         scope={restrictedScope}
         shellIdentity={{
           platformName: "平台名称",
@@ -203,7 +201,10 @@ describe("EnterpriseShell", () => {
     expect(screen.getByRole("heading", { name: "workspace" })).toBeVisible();
     expect(screen.getByText("平台名称")).toBeVisible();
     const applications = screen.getByRole("navigation", { name: "业务应用" });
-    expect(within(applications).getAllByRole("button")).toHaveLength(6);
+    expect(within(applications).getAllByRole("button")).toHaveLength(5);
+    expect(
+      within(applications).queryByText("报表中心"),
+    ).not.toBeInTheDocument();
     await user.click(
       within(applications).getByRole("button", { name: "产情监测" }),
     );
@@ -249,7 +250,6 @@ describe("EnterpriseShell", () => {
           coordinates: { regionId: "authorized-all" },
         }}
         onNavigate={onNavigate}
-        reportDatasets={approvedBusinessReportDatasets}
         shellIdentity={{
           platformName: "平台名称",
           workUnit: {
@@ -302,7 +302,7 @@ describe("EnterpriseShell", () => {
     expect(taskResult).not.toHaveTextContent("2026-W31");
     await user.click(taskResult);
     expect(onNavigate).toHaveBeenCalledWith(
-      createFormalRoute("production", "tasks"),
+      createFormalRoute("production", "corn-collection"),
       { type: "work-item", id: "WORK-PRODUCTION-FILL-W31" },
     );
 
@@ -310,19 +310,7 @@ describe("EnterpriseShell", () => {
       screen.getByRole("searchbox", { name: "全局搜索" }),
       "齐齐哈尔市全域玉米供需平衡分析报告",
     );
-    const reportResult = screen.getByRole("option", {
-      name: /齐齐哈尔市全域玉米供需平衡分析报告.*报告数据/,
-    });
-    expect(reportResult).toHaveTextContent("2026/27营销年度");
-    expect(reportResult).not.toHaveTextContent("SUPPLY");
-    await user.click(reportResult);
-    expect(onNavigate).toHaveBeenCalledWith(
-      createFormalRoute("reporting", "compose"),
-      {
-        type: "report",
-        id: "SUPPLY-2026-MY-APPROVED::supply::玉米",
-      },
-    );
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
 
     expect(
       screen.queryByRole("button", { name: /待办/ }),
@@ -489,7 +477,7 @@ describe("EnterpriseShell", () => {
     });
     await user.click(reportingTaskResult);
     expect(props.onNavigate).toHaveBeenLastCalledWith(
-      createFormalRoute("reporting", "review-distribution"),
+      createFormalRoute("market", "corn-collection"),
       { type: "work-item", id: reportingItem.workId },
     );
 

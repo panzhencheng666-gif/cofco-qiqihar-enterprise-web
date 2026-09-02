@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Route, Routes } from "react-router";
+import { Navigate, Route, Routes } from "react-router";
 import { CapabilityBoundary } from "@/app/router/CapabilityBoundary";
 import { EnterpriseShell } from "@/app/shell/EnterpriseShell";
 
@@ -74,14 +74,7 @@ export function AppRouter() {
               </CapabilityBoundary>
             }
           />
-          <Route
-            path="/reports/*"
-            element={
-              <CapabilityBoundary capability="report-center:view">
-                <ModuleWorkspacePage />
-              </CapabilityBoundary>
-            }
-          />
+          <Route path="/reports/*" element={<Navigate replace to="/" />} />
           <Route
             path="/governance/*"
             element={

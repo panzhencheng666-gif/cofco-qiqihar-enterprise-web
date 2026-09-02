@@ -5,7 +5,6 @@ import type { BusinessWorkItem } from "./core/businessWork";
 import type { MonitoringObject } from "./core/monitoringRegistry";
 import type { OperationalScope } from "./core/operationalScope";
 import { businessWorkFixtures } from "./data/businessWorkFixtures";
-import type { ApprovedBusinessReportDataset } from "./data/businessReportDatasets";
 import type { BusinessNotificationRow } from "@/platform/api/realtimeBusinessRepository";
 import {
   marketMonitoringObjects,
@@ -46,11 +45,6 @@ const primaryBusinessApplications = [
     route: createFormalRoute("supply", "balance"),
   },
   {
-    key: "reporting",
-    label: "报表中心",
-    route: createFormalRoute("reporting", "compose"),
-  },
-  {
     key: "work",
     label: "我的工作",
     route: createFormalRoute("work", "sample-governance"),
@@ -68,7 +62,7 @@ type SearchResult = {
 
 function productWorkRoute(item: BusinessWorkItem): FormalRoute {
   if (item.domain === "reporting") {
-    return createFormalRoute("reporting", "review-distribution");
+    return createFormalRoute("market", "corn-collection");
   }
   if (item.domain === "supply") {
     return createFormalRoute(
@@ -100,7 +94,7 @@ function productWorkRoute(item: BusinessWorkItem): FormalRoute {
           : "corn-collection",
     );
   }
-  return createFormalRoute("production", "tasks");
+  return createFormalRoute("production", "corn-collection");
 }
 
 function notificationProductName(productCode: string | null): string {
@@ -199,20 +193,6 @@ function pageHelpContent(route: FormalRoute): PageHelpContent {
         "自动项缺失时先补齐地区产情；人工项缺失时本页明确显示待填报，系统不得以样本点数据替代。",
     };
   }
-  if (route.application === "reporting") {
-    return {
-      purpose: "按授权范围生成产情、市场、物流或供需业务报告。",
-      steps: [
-        "选择报告类型、地区层级和时间范围。",
-        "生成预览并核对数据范围、来源和统计口径。",
-        "确认无误后导出允许的报告格式。",
-      ],
-      rules:
-        "报告范围不得超过当前账号授权地区和业务范围，系统不会默认导出无边界的大范围数据。",
-      exception:
-        "预览为空时先检查筛选条件及上游记录是否已审核，不得使用未核定数据替代。",
-    };
-  }
   if (route.section === "analysis") {
     return {
       purpose: "比较当前年度与前三年同地区、同品种、同口径的已核定指标。",
@@ -280,7 +260,6 @@ export function EnterpriseShell({
   workItems = businessWorkFixtures,
   productionObjects = productionMonitoringObjects,
   marketObjects = marketMonitoringObjects,
-  reportDatasets = [],
   businessNotifications,
   businessNotificationUnreadCount,
   onBusinessNotificationRead,
@@ -295,7 +274,6 @@ export function EnterpriseShell({
   workItems?: readonly BusinessWorkItem[];
   productionObjects?: readonly MonitoringObject[];
   marketObjects?: readonly MonitoringObject[];
-  reportDatasets?: readonly ApprovedBusinessReportDataset[];
   businessNotifications?: readonly BusinessNotificationRow[];
   businessNotificationUnreadCount?: number;
   onBusinessNotificationRead?: (id: string) => void | Promise<void>;
@@ -325,11 +303,7 @@ export function EnterpriseShell({
   const currentHelp = pageHelpContent(location.route);
   const searchablePages: SearchResult[] = formalApplicationDefinitions
     .filter(
-      ({ key }) =>
-        key === "production" ||
-        key === "market" ||
-        key === "supply" ||
-        key === "reporting",
+      ({ key }) => key === "production" || key === "market" || key === "supply",
     )
     .flatMap((application) =>
       application.navigation.map((item) => ({
@@ -387,31 +361,9 @@ export function EnterpriseShell({
           return risk ? [base, risk] : [base];
         })
     : [];
-  const searchableReports: SearchResult[] = queryAllowed
-    ? reportDatasets
-        .filter(({ region }) =>
-          region.includes("齐齐哈尔") ? regionAllowed("qiqihar-all") : true,
-        )
-        .map((report) => ({
-          id: `report:${report.application}:${report.product}:${report.dataBatchId}`,
-          label: `${report.region}${report.product}${report.reportTemplate}`,
-          detail: `${report.period} · ${report.frequency}`,
-          kind: "报告数据" as const,
-          route: createFormalRoute("reporting", "compose"),
-          selection: {
-            type: "report" as const,
-            id: `${report.dataBatchId}::${report.application}::${report.product}`,
-          },
-        }))
-    : [];
   const normalizedQuery = searchQuery.trim();
   const searchResults = normalizedQuery
-    ? [
-        ...searchablePages,
-        ...searchableObjects,
-        ...searchableTasks,
-        ...searchableReports,
-      ]
+    ? [...searchablePages, ...searchableObjects, ...searchableTasks]
         .filter(({ label, detail, kind }) =>
           `${label}${detail}${kind}`.includes(normalizedQuery),
         )

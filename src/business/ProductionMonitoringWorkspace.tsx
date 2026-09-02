@@ -18,7 +18,6 @@ import {
 import { ProductionAnalysisWorkspace } from "./production/ProductionAnalysisWorkspace";
 import { ProductionObjectRegistry } from "./production/ProductionObjectRegistry";
 import { ProductProductionCollectionWorkspace } from "./production/ProductProductionCollectionWorkspace";
-import { ProductionTaskWorkspace } from "./production/ProductionTaskWorkspace";
 import { ProductionAnalysisPanel } from "./analysis/ProductionAnalysisPanel";
 import type { ProductionDocumentDraft } from "./production/ProductionDocumentWorkbench";
 import { FormalWorkspaceScopeProvider } from "./UnifiedWorkspacePrimitives";
@@ -111,25 +110,6 @@ export function ProductionMonitoringWorkspace({
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
         permissions={permissions}
-      />
-    );
-  }
-  if (section === "tasks" || section === "review") {
-    return (
-      <ProductionTaskWorkspace
-        onScopeChange={onScopeChange}
-        onSelectionChange={select}
-        scope={scope}
-        selection={activeSelection}
-        queryAllowed={queryAllowed}
-        documentDrafts={documentDrafts}
-        onDocumentDraftChange={onDocumentDraftChange}
-        onWorkItemChange={onWorkItemChange}
-        workItems={workItems}
-        realtimeRepository={realtimeRepository}
-        onCreateRecord={onCreateRecord}
-        onEditRecord={onEditRecord}
-        reviewMode={section === "review"}
       />
     );
   }

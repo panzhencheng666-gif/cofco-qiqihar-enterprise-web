@@ -269,12 +269,10 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           route: createFormalRoute("production", "regional-annual"),
           label: "地区产情填报",
         },
-        { route: createFormalRoute("production", "tasks"), label: "产情任务" },
         {
           route: createFormalRoute("production", "objects"),
           label: "调查对象",
         },
-        { route: createFormalRoute("production", "review"), label: "数据审核" },
         {
           route: createFormalRoute("production", "analysis"),
           label: "产情分析",
@@ -312,9 +310,7 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           route: createFormalRoute("market", "paddy-logistics"),
           label: "稻谷物流监测",
         },
-        { route: createFormalRoute("market", "tasks"), label: "采集任务" },
         { route: createFormalRoute("market", "objects"), label: "监测对象" },
-        { route: createFormalRoute("market", "review"), label: "数据审核" },
         { route: createFormalRoute("market", "analysis"), label: "市场分析" },
       ],
     },
@@ -332,32 +328,12 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
         { route: createFormalRoute("supply", "records"), label: "计算记录" },
       ],
     },
-    {
-      key: "reporting",
-      code: "06",
-      label: "报表中心",
-      shortLabel: "报表",
-      note: "按地区、品种和时间形成产情、市场、物流与供需业务报告",
-      navigation: [
-        { route: createFormalRoute("reporting", "compose"), label: "业务报告" },
-        {
-          route: createFormalRoute("reporting", "review-distribution"),
-          label: "报告审核与发布",
-        },
-        { route: createFormalRoute("reporting", "ledger"), label: "报告台账" },
-      ],
-    },
   ];
 
-export const reportingNavigation: readonly ReportingNavigationGroup[] = [
-  {
-    label: "报告工作",
-    items: [{ key: "compose", label: "业务报告" }],
-  },
-];
+export const reportingNavigation: readonly ReportingNavigationGroup[] = [];
 
 export const formalWorkspaceByApplication: Record<
-  Exclude<FormalApplication, "reporting" | "overview">,
+  Exclude<FormalApplication, "overview">,
   FormalWorkspace
 > = {
   work: {

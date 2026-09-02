@@ -32,11 +32,6 @@ export const businessLauncherApplications: readonly {
     label: "供需与态势",
     description: "开展供需测算、四年对比与核定记录查询",
   },
-  {
-    key: "reporting",
-    label: "报表中心",
-    description: "编制、复核、分发并查询正式业务报告",
-  },
 ];
 
 export function EnterpriseApplicationLauncher({

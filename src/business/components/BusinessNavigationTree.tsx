@@ -45,12 +45,9 @@ const visibleSectionsByApplication: Readonly<
     "corn-logistics",
     "soybean-logistics",
     "paddy-logistics",
-    "tasks",
-    "review",
     "analysis",
   ],
   supply: ["balance"],
-  reporting: ["compose", "review-distribution", "ledger", "comprehensive"],
   work: ["sample-governance"],
   overview: ["map"],
 };
@@ -71,7 +68,6 @@ export function BusinessNavigationTree({
       key === "production" ||
       key === "market" ||
       key === "supply" ||
-      key === "reporting" ||
       key === "overview" ||
       key === "work",
   );

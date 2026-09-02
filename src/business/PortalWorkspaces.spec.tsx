@@ -656,7 +656,7 @@ describe("enterprise portal workspaces", () => {
     );
     expect(onRouteChange).toHaveBeenLastCalledWith({
       application: "market",
-      section: "tasks",
+      section: "corn-collection",
     });
     expect(
       screen.queryByRole("table", { name: "经营运行台账" }),
