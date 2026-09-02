@@ -180,7 +180,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([36, 36, 36, 36, 36, 36, 36]);
+  ).toEqual([36, 36, 36, 36]);
 
   await filters
     .getByRole("searchbox", { name: "搜索点位或行政区" })
@@ -193,6 +193,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
   const editor = page.getByRole("form", { name: "新建设计参考点" });
   await editor.getByLabel("点位名称").fill("受控新增设计点");
   await editor.getByLabel("行政区").selectOption("230221101001");
+  await editor.getByLabel("详细地址").fill("龙江镇通齐村兴农路2号");
   await editor.getByLabel("经度").fill("123.9001");
   await editor.getByLabel("纬度").fill("47.3001");
   await editor.getByRole("button", { name: "保存" }).click();
@@ -226,7 +227,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([36, 36, 36, 36, 36, 36, 36]);
+  ).toEqual([36, 36, 36, 36]);
 
   const beforeEventResponse = await request.get(
     `${controlledApiBaseUrl}/__e2e/state`,

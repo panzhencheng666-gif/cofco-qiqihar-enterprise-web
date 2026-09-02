@@ -86,16 +86,17 @@ const formalSamplePoints = [
 ];
 const initialDesignSamplePoint = {
   id: "E2E-DESIGN-SAMPLE-001",
-  contractVersion: "design-sample-fields-v1",
+  contractVersion: "design-sample-fields-v2",
   contractDigest: `sha256:${"a".repeat(64)}`,
   context: {
-    domainCode: "PRODUCTION",
-    productCode: "CORN",
-    objectTypeCode: "FARMER",
+    domainCode: "REFERENCE",
+    productCode: "GENERAL",
+    objectTypeCode: "REFERENCE_POINT",
   },
   values: {
     DSP_NAME: "受控设计参考点",
     DSP_REGION_CODE: "230221101001",
+    DSP_ADDRESS: "龙江镇通齐村兴农路1号",
     DSP_LONGITUDE: "123.9182",
     DSP_LATITUDE: "47.3543",
   },
@@ -124,11 +125,19 @@ const designDomains = [
     aliases: [],
     sortOrder: 20,
   },
+  {
+    code: "REFERENCE",
+    label: "参考点",
+    description: "参考点",
+    aliases: [],
+    sortOrder: 30,
+  },
 ];
 const designProducts = [
   { code: "CORN", label: "玉米", aliases: [], sortOrder: 10 },
   { code: "SOYBEAN", label: "大豆", aliases: [], sortOrder: 20 },
   { code: "RICE", label: "稻谷", aliases: [], sortOrder: 30 },
+  { code: "GENERAL", label: "通用", aliases: [], sortOrder: 40 },
 ];
 const designObjectTypes = [
   {
@@ -145,17 +154,30 @@ const designObjectTypes = [
     aliases: [],
     sortOrder: 20 + index,
   })),
+  {
+    domainCode: "REFERENCE",
+    code: "REFERENCE_POINT",
+    label: "参考点",
+    aliases: [],
+    sortOrder: 40,
+  },
 ];
 const supportedDesignContexts = designObjectTypes
   .slice(0, 9)
   .flatMap((objectType, objectIndex) =>
-    designProducts.map((product, productIndex) => ({
+    designProducts.slice(0, 3).map((product, productIndex) => ({
       domainCode: objectType.domainCode,
       productCode: product.code,
       objectTypeCode: objectType.code,
-      sortOrder: objectIndex * designProducts.length + productIndex + 1,
+      sortOrder: objectIndex * 3 + productIndex + 1,
     })),
-  );
+  )
+  .concat({
+    domainCode: "REFERENCE",
+    productCode: "GENERAL",
+    objectTypeCode: "REFERENCE_POINT",
+    sortOrder: 28,
+  });
 function designField(code, label, valueType, sortOrder) {
   return {
     code,
@@ -181,7 +203,7 @@ function designField(code, label, valueType, sortOrder) {
 }
 function designFieldContract(context) {
   return {
-    contractVersion: "design-sample-fields-v1",
+    contractVersion: "design-sample-fields-v2",
     contractDigest: `sha256:${"a".repeat(64)}`,
     context,
     domains: designDomains,
@@ -191,8 +213,9 @@ function designFieldContract(context) {
     identityFields: [
       designField("DSP_NAME", "点位名称", "STRING", 10),
       designField("DSP_REGION_CODE", "行政区", "STRING", 20),
-      designField("DSP_LONGITUDE", "经度", "DECIMAL", 30),
-      designField("DSP_LATITUDE", "纬度", "DECIMAL", 40),
+      designField("DSP_ADDRESS", "详细地址", "STRING", 30),
+      designField("DSP_LONGITUDE", "经度", "DECIMAL", 40),
+      designField("DSP_LATITUDE", "纬度", "DECIMAL", 50),
     ],
     observationFields: [],
   };
@@ -1269,9 +1292,10 @@ const server = createServer(async (request, response) => {
       response,
       200,
       designFieldContract({
-        domainCode: url.searchParams.get("domainCode") ?? "PRODUCTION",
-        productCode: url.searchParams.get("productCode") ?? "CORN",
-        objectTypeCode: url.searchParams.get("objectTypeCode") ?? "FARMER",
+        domainCode: url.searchParams.get("domainCode") ?? "REFERENCE",
+        productCode: url.searchParams.get("productCode") ?? "GENERAL",
+        objectTypeCode:
+          url.searchParams.get("objectTypeCode") ?? "REFERENCE_POINT",
       }),
     );
     return;
