@@ -186,9 +186,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
     .getByRole("searchbox", { name: "搜索点位或行政区" })
     .fill("受控设计参考点");
   await filters.getByRole("button", { name: "查询" }).click();
-  await expect(
-    page.getByText("共 1 个参考点，当前显示 1 个"),
-  ).toBeVisible();
+  await expect(page.getByText("共 1 个参考点，当前显示 1 个")).toBeVisible();
   await expect(page.getByText("第 1 页")).toBeVisible();
   await filters.getByRole("button", { name: "清除筛选" }).click();
 
