@@ -118,7 +118,7 @@ function client(
       void path;
       void body;
       void headers;
-      return Promise.resolve({
+      return Promise.resolve<unknown>({
         id: "photo-1",
         state: "STAGED",
         originalFilename: "field.png",
@@ -333,11 +333,11 @@ describe("realtime business repository", () => {
       expect.any(FormData),
       { "Idempotency-Key": "formal-import-key" },
     );
-    expect((upload.mock.calls[0]?.[1] as FormData).get("file")).toMatchObject({
+    expect(upload.mock.calls[0]?.[1].get("file")).toMatchObject({
       name: "样本点.xlsx",
       size: file.size,
     });
-    expect((upload.mock.calls[1]?.[1] as FormData).get("file")).toMatchObject({
+    expect(upload.mock.calls[1]?.[1].get("file")).toMatchObject({
       name: "样本点.xlsx",
       size: file.size,
     });
@@ -450,7 +450,7 @@ describe("realtime business repository", () => {
     const { api, get, post, upload, download } = client();
     get.mockResolvedValueOnce([] as never);
     post.mockResolvedValueOnce({ draftId: "draft-1" } as never);
-    upload.mockResolvedValueOnce({ jobId: "merge-job-1" } as never);
+    upload.mockResolvedValueOnce({ jobId: "merge-job-1" });
     const repository = createRealtimeBusinessRepository(api);
     const workbook = new File(["xlsx"], "身份治理.xlsx", {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

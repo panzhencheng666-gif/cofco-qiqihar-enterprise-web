@@ -263,6 +263,7 @@ export function LogisticsMonitoringWorkspace({
   onScopeChange,
   selection,
   onSelectionChange,
+  onSelectionClear,
   queryAllowed,
   workItems = businessWorkFixtures,
   documentDrafts = {},
@@ -279,6 +280,7 @@ export function LogisticsMonitoringWorkspace({
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   selection?: FormalSelection;
   onSelectionChange: (selection: FormalSelection) => void;
+  onSelectionClear?: () => void;
   queryAllowed: boolean;
   workItems?: readonly BusinessWorkItem[];
   documentDrafts?: Readonly<Record<string, MarketDocumentDraft>>;
@@ -710,6 +712,9 @@ export function LogisticsMonitoringWorkspace({
         permissions={permissions}
         productCode={productCode}
         repository={realtimeRepository}
+        selection={selection}
+        onSelectionChange={onSelectionChange}
+        onSelectionClear={onSelectionClear}
         onSaved={() => setRecordsRevision((value) => value + 1)}
       >
         <section

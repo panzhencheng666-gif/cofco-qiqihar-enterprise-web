@@ -96,6 +96,7 @@ export function MarketMonitoringWorkspace({
         onDocumentDraftChange={onDocumentDraftChange}
         onScopeChange={onScopeChange}
         onSelectionChange={select}
+        onSelectionClear={clearSelection}
         onWorkItemChange={onWorkItemChange}
         onCreateRecord={onCreateRecord}
         onEditRecord={(productCode, recordId) =>
@@ -121,6 +122,7 @@ export function MarketMonitoringWorkspace({
         onDocumentDraftChange={onDocumentDraftChange}
         onScopeChange={onScopeChange}
         onSelectionChange={select}
+        onSelectionClear={clearSelection}
         onWorkItemChange={onWorkItemChange}
         onCreateRecord={onCreateRecord}
         onEditRecord={(productCode, recordId) =>

@@ -99,6 +99,7 @@ export function ProductionMonitoringWorkspace({
         onDocumentDraftChange={onDocumentDraftChange}
         onScopeChange={onScopeChange}
         onSelectionChange={select}
+        onSelectionClear={clearSelection}
         onWorkItemChange={onWorkItemChange}
         onCreateRecord={onCreateRecord}
         onEditRecord={onEditRecord}

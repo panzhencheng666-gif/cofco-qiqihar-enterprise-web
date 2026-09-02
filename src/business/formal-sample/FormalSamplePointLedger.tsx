@@ -11,6 +11,8 @@ import type {
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+import type { FormalSelection } from "../formalEnterpriseModel";
+import { SamplePointImportPanel } from "./SamplePointImportPanel";
 
 const pageSize = 20;
 
@@ -198,12 +200,18 @@ export function FormalSamplePointLedger({
   productCode,
   repository,
   permissions,
+  selection,
+  onSelectionChange,
+  onSelectionClear,
   onCollectData,
 }: {
   domain: FormalSampleObservationDomain;
   productCode: string;
   repository: RealtimeBusinessRepository;
   permissions: readonly string[];
+  selection?: FormalSelection;
+  onSelectionChange?: (selection: FormalSelection) => void;
+  onSelectionClear?: () => void;
   onCollectData: (samplePointId: string) => void;
 }) {
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
@@ -234,6 +242,7 @@ export function FormalSamplePointLedger({
   const detailRegion = useRef<HTMLElement>(null);
   const editorRegion = useRef<HTMLElement>(null);
   const pendingFocusTarget = useRef<"DETAIL" | "EDITOR" | null>(null);
+  const hydratedSelection = useRef("");
   const regionNames = useMemo(
     () => new Map(regions.map(({ code, name }) => [code, name])),
     [regions],
@@ -250,6 +259,7 @@ export function FormalSamplePointLedger({
     permissions.includes("FORMAL_SAMPLE_DELETE") &&
     typeof repository.deleteFormalSamplePoint === "function";
   const canCollect = permissions.includes("BUSINESS_CREATE");
+  const canImport = permissions.includes("BUSINESS_IMPORT");
   const totalPages = Math.ceil(eligibleSamples.length / pageSize);
   const visibleSamples = useMemo(
     () =>
@@ -274,6 +284,8 @@ export function FormalSamplePointLedger({
       editor?.regionCode ?? detail?.regionCode ?? "",
     ),
   );
+  const showList = selection ? selection.type === "formal-sample-list" : true;
+  const navigate = (next: FormalSelection) => onSelectionChange?.(next);
 
   const query = useCallback(
     async (requestedPage = pageNumber) => {
@@ -414,6 +426,41 @@ export function FormalSamplePointLedger({
     // Initial authoritative query belongs to this mounted ledger instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManage, domain, productCode, repository]);
+
+  useEffect(() => {
+    if (!selection || !selection.type.startsWith("formal-sample-")) return;
+    const key = `${selection.type}:${selection.id}`;
+    if (hydratedSelection.current === key) return;
+    hydratedSelection.current = key;
+    if (selection.type === "formal-sample-list") {
+      queueMicrotask(() => {
+        setConfirmingId(null);
+        setMaintainerEditor(null);
+        setNotice("");
+        setDetail(null);
+        setEditor(null);
+      });
+      return;
+    }
+    if (selection.type === "formal-sample-create") {
+      queueMicrotask(() => {
+        setConfirmingId(null);
+        setMaintainerEditor(null);
+        setNotice("");
+        pendingFocusTarget.current = "EDITOR";
+        setDetail(null);
+        setEditor(createEditor());
+      });
+      return;
+    }
+    if (selection.type === "formal-sample-view") {
+      queueMicrotask(() => void loadDetail(selection.id, "VIEW"));
+      return;
+    }
+    if (selection.type === "formal-sample-edit") {
+      queueMicrotask(() => void loadDetail(selection.id, "EDIT"));
+    }
+  }, [loadDetail, selection]);
 
   useEffect(() => {
     const target = pendingFocusTarget.current;
@@ -568,6 +615,7 @@ export function FormalSamplePointLedger({
           ? "正式样本已新增并重新查询。"
           : "正式样本稳定信息已更新并重新查询。",
       );
+      navigate({ type: "formal-sample-view", id: authoritative.id });
     } catch (error) {
       const message = formalSampleWriteError(
         error,
@@ -602,6 +650,7 @@ export function FormalSamplePointLedger({
       setEditor(null);
       await query(pageNumber);
       setNotice("正式样本已删除，列表已重新查询。");
+      navigate({ type: "formal-sample-list", id: "list" });
     } catch (error) {
       const message = formalSampleError(
         error,
@@ -635,112 +684,134 @@ export function FormalSamplePointLedger({
       className="formal-sample-ledger enterprise-ledger-workbench"
       aria-label="采集台账工作台"
     >
-      <header className="enterprise-ledger-title enterprise-ledger-title--collection">
-        <div>
-          <h2>采集台账</h2>
-          <p>统一维护样本稳定信息，并从每行填写或更新期间采集数据。</p>
-        </div>
-        <div className="formal-sample-ledger__header-actions">
-          <strong>共 {eligibleSamples.length} 个</strong>
-          {canCreate && (
-            <button
-              disabled={busy}
-              type="button"
-              onClick={() => {
-                pendingFocusTarget.current = "EDITOR";
-                setDetail(null);
-                setConfirmingId(null);
-                setEditor(createEditor());
-                setMaintainerEditor(null);
-                setNotice("");
-              }}
-            >
-              新增样本
-            </button>
-          )}
-        </div>
-      </header>
-      <div
-        className="enterprise-ledger-query enterprise-ledger-query--design"
-        role="search"
-      >
-        <label>
-          <span>实际观测时间</span>
-          <input
-            aria-label="采集台账观测时间"
-            type="datetime-local"
-            value={observedAt}
-            onChange={(event) => {
-              setObservedAt(event.target.value);
-              setPageNumber(0);
-            }}
-          />
-        </label>
-        <label>
-          <span>对象类型</span>
-          <select
-            aria-label="采集台账对象类型"
-            value={objectTypeCode}
-            onChange={(event) => {
-              setObjectTypeCode(event.target.value);
-              setPageNumber(0);
-            }}
-          >
-            <option value="">全部对象类型</option>
-            {objectTypes.map((objectType) => (
-              <option key={objectType.code} value={objectType.code}>
-                {objectType.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>业务地区</span>
-          <select
-            aria-label="采集台账业务地区"
-            value={regionCode}
-            onChange={(event) => {
-              setRegionCode(event.target.value);
-              setPageNumber(0);
-            }}
-          >
-            <option value="">全部授权地区</option>
-            {regions.map((region) => (
-              <option key={region.code} value={region.code}>
-                {region.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>样本名称</span>
-          <input
-            aria-label="采集台账样本名称"
-            maxLength={200}
-            type="search"
-            value={keyword}
-            onChange={(event) => {
-              setKeyword(event.target.value);
-              setPageNumber(0);
-            }}
-          />
-        </label>
-        <div className="enterprise-ledger-query__actions">
-          <button
-            className="is-primary"
-            disabled={busy}
-            type="button"
-            onClick={() => void query(0)}
-          >
-            查询
+      {onSelectionClear && (
+        <div className="enterprise-ledger-table__toolbar">
+          <button type="button" onClick={onSelectionClear}>
+            返回业务台账
           </button>
         </div>
-      </div>
+      )}
+      {showList && (
+        <>
+          <header className="enterprise-ledger-title enterprise-ledger-title--collection">
+            <div>
+              <h2>采集台账</h2>
+              <p>统一维护样本稳定信息，并从每行填写或更新期间采集数据。</p>
+            </div>
+            <div className="formal-sample-ledger__header-actions">
+              <strong>共 {eligibleSamples.length} 个</strong>
+              {canCreate && (
+                <button
+                  disabled={busy}
+                  type="button"
+                  onClick={() => {
+                    if (onSelectionChange) {
+                      navigate({ type: "formal-sample-create", id: "new" });
+                      return;
+                    }
+                    pendingFocusTarget.current = "EDITOR";
+                    setDetail(null);
+                    setConfirmingId(null);
+                    setEditor(createEditor());
+                    setMaintainerEditor(null);
+                    setNotice("");
+                  }}
+                >
+                  新增样本
+                </button>
+              )}
+            </div>
+          </header>
+          {canImport && (
+            <SamplePointImportPanel
+              kind="formal"
+              repository={repository}
+              onImported={() => query(0)}
+            />
+          )}
+          <div
+            className="enterprise-ledger-query enterprise-ledger-query--design"
+            role="search"
+          >
+            <label>
+              <span>实际观测时间</span>
+              <input
+                aria-label="采集台账观测时间"
+                type="datetime-local"
+                value={observedAt}
+                onChange={(event) => {
+                  setObservedAt(event.target.value);
+                  setPageNumber(0);
+                }}
+              />
+            </label>
+            <label>
+              <span>对象类型</span>
+              <select
+                aria-label="采集台账对象类型"
+                value={objectTypeCode}
+                onChange={(event) => {
+                  setObjectTypeCode(event.target.value);
+                  setPageNumber(0);
+                }}
+              >
+                <option value="">全部对象类型</option>
+                {objectTypes.map((objectType) => (
+                  <option key={objectType.code} value={objectType.code}>
+                    {objectType.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>业务地区</span>
+              <select
+                aria-label="采集台账业务地区"
+                value={regionCode}
+                onChange={(event) => {
+                  setRegionCode(event.target.value);
+                  setPageNumber(0);
+                }}
+              >
+                <option value="">全部授权地区</option>
+                {regions.map((region) => (
+                  <option key={region.code} value={region.code}>
+                    {region.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>样本名称</span>
+              <input
+                aria-label="采集台账样本名称"
+                maxLength={200}
+                type="search"
+                value={keyword}
+                onChange={(event) => {
+                  setKeyword(event.target.value);
+                  setPageNumber(0);
+                }}
+              />
+            </label>
+            <div className="enterprise-ledger-query__actions">
+              <button
+                className="is-primary"
+                disabled={busy}
+                type="button"
+                onClick={() => void query(0)}
+              >
+                查询
+              </button>
+            </div>
+          </div>
+        </>
+      )}
       {editor && (
         <section
           ref={editorRegion}
           tabIndex={-1}
-          className="formal-sample-ledger__editor"
+          className="formal-sample-page formal-sample-page--form"
           aria-label="正式样本稳定信息"
         >
           <header>
@@ -756,7 +827,7 @@ export function FormalSamplePointLedger({
               <strong>版本 {editor.expectedVersion}</strong>
             )}
           </header>
-          <div className="formal-sample-ledger__editor-grid">
+          <div className="formal-sample-page__field-grid">
             <label>
               <span>名称</span>
               <input
@@ -785,7 +856,7 @@ export function FormalSamplePointLedger({
                 ))}
               </select>
             </label>
-            <label className="formal-sample-ledger__editor-address">
+            <label className="formal-sample-page__address">
               <span>地址</span>
               <input
                 aria-label="正式样本地址"
@@ -858,156 +929,177 @@ export function FormalSamplePointLedger({
               </select>
             </label>
           </div>
-          <div className="formal-sample-ledger__editor-actions">
+          <div className="formal-sample-page__actions">
             <button disabled={busy} type="button" onClick={() => void save()}>
               {editor.mode === "CREATE" ? "保存正式样本" : "保存修改"}
             </button>
             <button
               disabled={writeBusy}
               type="button"
-              onClick={() => setEditor(null)}
+              onClick={() => {
+                setEditor(null);
+                navigate({ type: "formal-sample-list", id: "list" });
+              }}
             >
-              取消
+              返回正式样本台账
             </button>
           </div>
         </section>
       )}
-      <div
-        className={`formal-sample-ledger__layout${
-          detail ? " formal-sample-ledger__layout--detail" : ""
-        }`}
-      >
-        <div className="formal-sample-ledger__table enterprise-ledger-table">
-          <div className="enterprise-ledger-table__scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>样本名称</th>
-                  <th>地区</th>
-                  <th>对象类型</th>
-                  <th>维护人</th>
-                  <th>定位</th>
-                  <th>最近观测</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleSamples.map((samplePoint) => {
-                  const collectionAllowed =
-                    canCollect && Boolean(samplePoint.maintainerSubjectId);
-                  return (
-                    <tr key={samplePoint.samplePointId}>
-                      <td>{samplePoint.sampleName}</td>
-                      <td>{samplePoint.regionName}</td>
-                      <td>{samplePoint.objectTypeName ?? "待同步"}</td>
-                      <td>
-                        {samplePoint.maintainerDisplayName ?? "未指定维护人"}
-                      </td>
-                      <td>{coordinate(samplePoint)}</td>
-                      <td>{latestObservation(samplePoint.latestObservedAt)}</td>
-                      <td>
-                        <div className="formal-sample-ledger__row-actions">
-                          <button
-                            className="enterprise-ledger-row-action"
-                            type="button"
-                            onClick={() =>
-                              void loadDetail(samplePoint.samplePointId)
-                            }
-                          >
-                            查看
-                          </button>
-                          {canUpdate && (
+      <div className="formal-sample-ledger__layout">
+        {showList && (
+          <div className="formal-sample-ledger__table enterprise-ledger-table">
+            <div className="enterprise-ledger-table__scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>样本名称</th>
+                    <th>地区</th>
+                    <th>对象类型</th>
+                    <th>维护人</th>
+                    <th>定位</th>
+                    <th>最近观测</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleSamples.map((samplePoint) => {
+                    const collectionAllowed =
+                      canCollect && Boolean(samplePoint.maintainerSubjectId);
+                    return (
+                      <tr key={samplePoint.samplePointId}>
+                        <td>{samplePoint.sampleName}</td>
+                        <td>{samplePoint.regionName}</td>
+                        <td>{samplePoint.objectTypeName ?? "待同步"}</td>
+                        <td>
+                          {samplePoint.maintainerDisplayName ?? "未指定维护人"}
+                        </td>
+                        <td>{coordinate(samplePoint)}</td>
+                        <td>
+                          {latestObservation(samplePoint.latestObservedAt)}
+                        </td>
+                        <td>
+                          <div className="formal-sample-ledger__row-actions">
                             <button
                               className="enterprise-ledger-row-action"
                               type="button"
-                              onClick={() =>
-                                void loadDetail(
-                                  samplePoint.samplePointId,
-                                  "EDIT",
-                                )
-                              }
+                              onClick={() => {
+                                if (onSelectionChange) {
+                                  navigate({
+                                    type: "formal-sample-view",
+                                    id: samplePoint.samplePointId,
+                                  });
+                                } else
+                                  void loadDetail(samplePoint.samplePointId);
+                              }}
                             >
-                              编辑
+                              查看
                             </button>
-                          )}
-                          {canDelete && (
+                            {canUpdate && (
+                              <button
+                                className="enterprise-ledger-row-action"
+                                type="button"
+                                onClick={() => {
+                                  if (onSelectionChange) {
+                                    navigate({
+                                      type: "formal-sample-edit",
+                                      id: samplePoint.samplePointId,
+                                    });
+                                  } else
+                                    void loadDetail(
+                                      samplePoint.samplePointId,
+                                      "EDIT",
+                                    );
+                                }}
+                              >
+                                编辑
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                className="enterprise-ledger-row-action"
+                                type="button"
+                                onClick={() => {
+                                  if (onSelectionChange) {
+                                    navigate({
+                                      type: "formal-sample-view",
+                                      id: samplePoint.samplePointId,
+                                    });
+                                  } else
+                                    void loadDetail(
+                                      samplePoint.samplePointId,
+                                      "DELETE",
+                                    );
+                                }}
+                              >
+                                删除
+                              </button>
+                            )}
                             <button
                               className="enterprise-ledger-row-action"
-                              type="button"
-                              onClick={() =>
-                                void loadDetail(
-                                  samplePoint.samplePointId,
-                                  "DELETE",
-                                )
+                              disabled={!collectionAllowed}
+                              title={
+                                !canCollect
+                                  ? "当前账号没有填写正式采集数据的权限"
+                                  : !samplePoint.maintainerSubjectId
+                                    ? "请先由管理员指定维护人"
+                                    : undefined
                               }
+                              type="button"
+                              onClick={() => {
+                                if (collectionAllowed)
+                                  onCollectData(samplePoint.samplePointId);
+                              }}
                             >
-                              删除
+                              {samplePoint.latestObservationId
+                                ? canCollect
+                                  ? samplePoint.maintainerSubjectId
+                                    ? "更新采集数据"
+                                    : "先指定维护人"
+                                  : "无采集权限"
+                                : canCollect
+                                  ? samplePoint.maintainerSubjectId
+                                    ? "填写采集数据"
+                                    : "先指定维护人"
+                                  : "无采集权限"}
                             </button>
-                          )}
-                          <button
-                            className="enterprise-ledger-row-action"
-                            disabled={!collectionAllowed}
-                            title={
-                              !canCollect
-                                ? "当前账号没有填写正式采集数据的权限"
-                                : !samplePoint.maintainerSubjectId
-                                  ? "请先由管理员指定维护人"
-                                  : undefined
-                            }
-                            type="button"
-                            onClick={() => {
-                              if (collectionAllowed)
-                                onCollectData(samplePoint.samplePointId);
-                            }}
-                          >
-                            {samplePoint.latestObservationId
-                              ? canCollect
-                                ? samplePoint.maintainerSubjectId
-                                  ? "更新采集数据"
-                                  : "先指定维护人"
-                                : "无采集权限"
-                              : canCollect
-                                ? samplePoint.maintainerSubjectId
-                                  ? "填写采集数据"
-                                  : "先指定维护人"
-                                : "无采集权限"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {visibleSamples.length === 0 && (
-            <p>当前条件下没有可采集的正式样本。</p>
-          )}
-          {totalPages > 1 && (
-            <div className="formal-sample-ledger__pagination">
-              <button
-                disabled={busy || pageNumber === 0}
-                type="button"
-                onClick={() => setPageNumber((value) => value - 1)}
-              >
-                上一页
-              </button>
-              <span>第 {pageNumber + 1} 页</span>
-              <button
-                disabled={busy || pageNumber + 1 >= totalPages}
-                type="button"
-                onClick={() => setPageNumber((value) => value + 1)}
-              >
-                下一页
-              </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+            {visibleSamples.length === 0 && (
+              <p>当前条件下没有可采集的正式样本。</p>
+            )}
+            {totalPages > 1 && (
+              <div className="formal-sample-ledger__pagination">
+                <button
+                  disabled={busy || pageNumber === 0}
+                  type="button"
+                  onClick={() => setPageNumber((value) => value - 1)}
+                >
+                  上一页
+                </button>
+                <span>第 {pageNumber + 1} 页</span>
+                <button
+                  disabled={busy || pageNumber + 1 >= totalPages}
+                  type="button"
+                  onClick={() => setPageNumber((value) => value + 1)}
+                >
+                  下一页
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {detail && (
           <section
             ref={detailRegion}
             tabIndex={-1}
-            className="formal-sample-ledger__detail"
+            className="formal-sample-page formal-sample-page--detail"
             aria-label="正式样本详情"
           >
             <h3>{detail.canonicalName}</h3>
@@ -1054,6 +1146,10 @@ export function FormalSamplePointLedger({
                 disabled={busy}
                 type="button"
                 onClick={() => {
+                  if (onSelectionChange) {
+                    navigate({ type: "formal-sample-edit", id: detail.id });
+                    return;
+                  }
                   pendingFocusTarget.current = "EDITOR";
                   setConfirmingId(null);
                   setEditor(editEditor(detail));
@@ -1177,6 +1273,15 @@ export function FormalSamplePointLedger({
                 删除正式样本
               </button>
             )}
+            <button
+              disabled={busy}
+              type="button"
+              onClick={() =>
+                navigate({ type: "formal-sample-list", id: "list" })
+              }
+            >
+              返回正式样本台账
+            </button>
           </section>
         )}
       </div>

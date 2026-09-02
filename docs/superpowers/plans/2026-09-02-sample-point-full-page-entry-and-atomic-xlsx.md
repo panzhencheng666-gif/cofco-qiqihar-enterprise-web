@@ -46,64 +46,68 @@ Web repository: /Users/federal/Documents/Codex/2026-09-02/cofco-web-ledger-brows
 ### Task 1: Prepare Backend branch and write red endpoint contracts
 
 **Files:**
+
 - Test: src/test/java/com/cofco/qiqihar/graintrade/designsample/point/interfaceadapter/DesignSamplePointImportRestIntegrationTest.java
 - Test: src/test/java/com/cofco/qiqihar/graintrade/formalsamplepoint/interfaceadapter/FormalSamplePointImportRestIntegrationTest.java
 
 **Interfaces:**
+
 - Consumes: current origin/main CRUD, import-job, audit, and outbox contracts.
 - Produces: failing contracts for Tasks 2-4.
 
 - [ ] **Step 1: Create the isolated Backend worktree**
 
-    git fetch origin main
-    git worktree add -b codex/20260902-sample-full-page-entry \
-      /Users/federal/Documents/Codex/2026-09-02/cofco-web-unified-existing-sample-ledger-20260902/work/backend-sample-full-page-entry \
-      origin/main
-    git -C /Users/federal/Documents/Codex/2026-09-02/cofco-web-unified-existing-sample-ledger-20260902/work/backend-sample-full-page-entry status --short --branch
+  git fetch origin main
+  git worktree add -b codex/20260902-sample-full-page-entry \
+  /Users/federal/Documents/Codex/2026-09-02/cofco-web-unified-existing-sample-ledger-20260902/work/backend-sample-full-page-entry \
+  origin/main
+  git -C /Users/federal/Documents/Codex/2026-09-02/cofco-web-unified-existing-sample-ledger-20260902/work/backend-sample-full-page-entry status --short --branch
 
 Expected: clean feature branch tracking current origin/main.
 
 - [ ] **Step 2: Write endpoint tests for these exact resources**
 
-    GET  /api/v1/design-sample-points/import-template
-    POST /api/v1/design-sample-points/imports
-    GET  /api/v1/design-sample-points/imports/{importId}/errors
-    GET  /api/v1/formal-sample-points/import-template
-    POST /api/v1/formal-sample-points/imports
-    GET  /api/v1/formal-sample-points/imports/{importId}/errors
+  GET /api/v1/design-sample-points/import-template
+  POST /api/v1/design-sample-points/imports
+  GET /api/v1/design-sample-points/imports/{importId}/errors
+  GET /api/v1/formal-sample-points/import-template
+  POST /api/v1/formal-sample-points/imports
+  GET /api/v1/formal-sample-points/imports/{importId}/errors
 
 Each POST uses multipart part file and Idempotency-Key. Cover a valid two-row workbook, row 3 invalid, identical replay, key reuse with different bytes, out-of-scope region, invalid formal maintainer, and cross-template upload.
 
 - [ ] **Step 3: Prove the endpoint tests fail**
 
-    ./mvnw -Dtest=DesignSamplePointImportRestIntegrationTest,FormalSamplePointImportRestIntegrationTest test
+  ./mvnw -Dtest=DesignSamplePointImportRestIntegrationTest,FormalSamplePointImportRestIntegrationTest test
 
 Expected: FAIL with 404.
 
 - [ ] **Step 4: Commit red tests**
 
-    git add src/test/java/com/cofco/qiqihar/graintrade/designsample/point/interfaceadapter/DesignSamplePointImportRestIntegrationTest.java \
-      src/test/java/com/cofco/qiqihar/graintrade/formalsamplepoint/interfaceadapter/FormalSamplePointImportRestIntegrationTest.java
-    git commit -m "test: define atomic sample point xlsx imports"
+  git add src/test/java/com/cofco/qiqihar/graintrade/designsample/point/interfaceadapter/DesignSamplePointImportRestIntegrationTest.java \
+  src/test/java/com/cofco/qiqihar/graintrade/formalsamplepoint/interfaceadapter/FormalSamplePointImportRestIntegrationTest.java
+  git commit -m "test: define atomic sample point xlsx imports"
 
 ### Task 2: Build the safe shared workbook boundary
 
 **Files:**
+
 - Create: src/main/java/com/cofco/qiqihar/graintrade/samplepoint/importing/SamplePointMasterWorkbook.java
 - Create: src/test/java/com/cofco/qiqihar/graintrade/samplepoint/importing/SamplePointMasterWorkbookTest.java
 
 **Interfaces:**
+
 - Consumes: hardened ZIP/XML limits and metadata binding from BusinessImportWorkbook.
 - Produces:
 
-    public final class SamplePointMasterWorkbook {
-        public enum Kind { DESIGN, FORMAL }
-        public record Column(String code, String label, boolean required) {}
-        public record Template(Kind kind, String version, String digest, List<Column> columns) {}
-        public record Row(int rowNumber, Map<String, String> values) {}
-        public static byte[] create(Template template);
-        public static List<Row> parse(byte[] bytes, Template expected, int maximumRows);
-    }
+  public final class SamplePointMasterWorkbook {
+  public enum Kind { DESIGN, FORMAL }
+  public record Column(String code, String label, boolean required) {}
+  public record Template(Kind kind, String version, String digest, List<Column> columns) {}
+  public record Row(int rowNumber, Map<String, String> values) {}
+  public static byte[] create(Template template);
+  public static List<Row> parse(byte[] bytes, Template expected, int maximumRows);
+  }
 
 - [ ] **Step 1: Write failing parser/template tests**
 
@@ -111,7 +115,7 @@ Cover exact header order, hidden kind/version/digest, Office round trip, missing
 
 - [ ] **Step 2: Run and see the missing class**
 
-    ./mvnw -Dtest=SamplePointMasterWorkbookTest test
+  ./mvnw -Dtest=SamplePointMasterWorkbookTest test
 
 Expected: compile failure because the class does not exist.
 
@@ -121,16 +125,17 @@ Use existing hardened XLSX primitives. Throw only INVALID_SAMPLE_POINT_IMPORT_FO
 
 - [ ] **Step 4: Run and commit**
 
-    ./mvnw -Dtest=SamplePointMasterWorkbookTest test
-    git add src/main/java/com/cofco/qiqihar/graintrade/samplepoint/importing/SamplePointMasterWorkbook.java \
-      src/test/java/com/cofco/qiqihar/graintrade/samplepoint/importing/SamplePointMasterWorkbookTest.java
-    git commit -m "feat: add safe sample point xlsx contract"
+  ./mvnw -Dtest=SamplePointMasterWorkbookTest test
+  git add src/main/java/com/cofco/qiqihar/graintrade/samplepoint/importing/SamplePointMasterWorkbook.java \
+  src/test/java/com/cofco/qiqihar/graintrade/samplepoint/importing/SamplePointMasterWorkbookTest.java
+  git commit -m "feat: add safe sample point xlsx contract"
 
 Expected: PASS and clean commit.
 
 ### Task 3: Implement atomic design-sample import
 
 **Files:**
+
 - Create: src/main/java/com/cofco/qiqihar/graintrade/samplepoint/importing/SamplePointImportResult.java
 - Create: src/main/java/com/cofco/qiqihar/graintrade/designsample/point/application/DesignSamplePointImportService.java
 - Modify: src/main/java/com/cofco/qiqihar/graintrade/designsample/point/application/DesignSamplePointService.java
@@ -165,16 +170,17 @@ Template uses XLSX content type and Chinese filename. Upload returns 201 new or 
 
 - [ ] **Step 5: Run and commit**
 
-    ./mvnw -Dtest=SamplePointMasterWorkbookTest,DesignSamplePointImportRestIntegrationTest,DesignSamplePointRestIntegrationTest test
-    git add src/main/java/com/cofco/qiqihar/graintrade/samplepoint/importing \
-      src/main/java/com/cofco/qiqihar/graintrade/designsample/point
-    git commit -m "feat: import design sample points atomically"
+  ./mvnw -Dtest=SamplePointMasterWorkbookTest,DesignSamplePointImportRestIntegrationTest,DesignSamplePointRestIntegrationTest test
+  git add src/main/java/com/cofco/qiqihar/graintrade/samplepoint/importing \
+  src/main/java/com/cofco/qiqihar/graintrade/designsample/point
+  git commit -m "feat: import design sample points atomically"
 
 Expected: PASS; invalid workbook yields zero design rows and zero design events.
 
 ### Task 4: Implement atomic formal-sample import
 
 **Files:**
+
 - Create: src/main/java/com/cofco/qiqihar/graintrade/formalsamplepoint/application/FormalSamplePointImportService.java
 - Modify: FormalSamplePointService.java
 - Modify: FormalSamplePointController.java
@@ -200,9 +206,9 @@ On success emit FORMAL_SAMPLE_POINT_CREATED per row and complete the import. On 
 
 - [ ] **Step 5: Run and commit**
 
-    ./mvnw -Dtest=FormalSamplePointImportRestIntegrationTest,FormalSamplePointWriteRestIntegrationTest,FormalSamplePointRestIntegrationTest,FormalSampleObservationRestIntegrationTest test
-    git add src/main/java/com/cofco/qiqihar/graintrade/formalsamplepoint
-    git commit -m "feat: import formal sample points atomically"
+  ./mvnw -Dtest=FormalSamplePointImportRestIntegrationTest,FormalSamplePointWriteRestIntegrationTest,FormalSamplePointRestIntegrationTest,FormalSampleObservationRestIntegrationTest test
+  git add src/main/java/com/cofco/qiqihar/graintrade/formalsamplepoint
+  git commit -m "feat: import formal sample points atomically"
 
 Expected: PASS with authoritative maintainer requery and no period row.
 
@@ -212,39 +218,40 @@ Expected: PASS with authoritative maintainer requery and no period row.
 
 - [ ] **Step 1: Run the full gate**
 
-    ./mvnw spotless:check
-    ./mvnw verify
+  ./mvnw spotless:check
+  ./mvnw verify
 
 Expected: BUILD SUCCESS.
 
 - [ ] **Step 2: Verify boundary**
 
-    git status --short --branch
-    git diff origin/main...HEAD --check
-    git log --oneline origin/main..HEAD
+  git status --short --branch
+  git diff origin/main...HEAD --check
+  git log --oneline origin/main..HEAD
 
 Expected: clean and only planned files.
 
 - [ ] **Step 3: Push, PR, required CI, and squash merge**
 
-    git push -u origin codex/20260902-sample-full-page-entry
-    gh pr create --base main --head codex/20260902-sample-full-page-entry \
-      --title "Add atomic sample point XLSX imports" --body-file /tmp/cofco-backend-sample-import-pr.md
-    gh pr checks --watch
-    gh pr merge --squash --delete-branch
+  git push -u origin codex/20260902-sample-full-page-entry
+  gh pr create --base main --head codex/20260902-sample-full-page-entry \
+  --title "Add atomic sample point XLSX imports" --body-file /tmp/cofco-backend-sample-import-pr.md
+  gh pr checks --watch
+  gh pr merge --squash --delete-branch
 
 Expected: merge only after all checks succeed; record PR, merge SHA, and run ID.
 
 - [ ] **Step 4: Verify the exact downstream main run**
 
-    gh run list --branch main --limit 5
-    gh run watch <resolved run ID whose head SHA is the merge SHA>
+  gh run list --branch main --limit 5
+  gh run watch <resolved run ID whose head SHA is the merge SHA>
 
 Expected: success.
 
 ### Task 6: Persist sample workflow pages in Web routing
 
 **Files:**
+
 - Modify: src/business/formalEnterpriseModel.ts
 - Modify: src/business/formalEnterpriseModel.spec.ts
 - Modify: src/business/useFormalEnterpriseLocation.spec.tsx
@@ -263,7 +270,7 @@ Assert writeFormalLocation includes allow-listed page and safe opaque entity ID,
 
 - [ ] **Step 2: Run the tests**
 
-    npx vitest run src/business/formalEnterpriseModel.spec.ts src/business/useFormalEnterpriseLocation.spec.tsx
+  npx vitest run src/business/formalEnterpriseModel.spec.ts src/business/useFormalEnterpriseLocation.spec.tsx
 
 Expected: FAIL because selections are not serialized.
 
@@ -277,13 +284,14 @@ Expected: PASS.
 
 - [ ] **Step 4: Commit**
 
-    git add src/business/formalEnterpriseModel.ts src/business/formalEnterpriseModel.spec.ts \
-      src/business/useFormalEnterpriseLocation.spec.tsx
-    git commit -m "feat: persist sample workflow pages"
+  git add src/business/formalEnterpriseModel.ts src/business/formalEnterpriseModel.spec.ts \
+  src/business/useFormalEnterpriseLocation.spec.tsx
+  git commit -m "feat: persist sample workflow pages"
 
 ### Task 7: Add Web import API and simple import panel
 
 **Files:**
+
 - Modify: src/platform/api/realtimeBusinessRepository.ts
 - Modify: src/platform/api/realtimeBusinessRepository.spec.ts
 - Create: src/business/formal-sample/SamplePointImportPanel.tsx
@@ -312,34 +320,35 @@ Assert URLs, XLSX blob, multipart file, Idempotency-Key, new key after completio
 
 - [ ] **Step 2: Run and see compile failures**
 
-    npx vitest run src/platform/api/realtimeBusinessRepository.spec.ts \
-      src/business/formal-sample/SamplePointImportPanel.spec.tsx
+  npx vitest run src/platform/api/realtimeBusinessRepository.spec.ts \
+  src/business/formal-sample/SamplePointImportPanel.spec.tsx
 
 - [ ] **Step 3: Implement adapters and panel**
 
-    export function SamplePointImportPanel(props: {
-      kind: "design" | "formal";
-      repository: RealtimeBusinessRepository;
-      onImported(): Promise<void> | void;
-    }): React.ReactElement;
+  export function SamplePointImportPanel(props: {
+  kind: "design" | "formal";
+  repository: RealtimeBusinessRepository;
+  onImported(): Promise<void> | void;
+  }): React.ReactElement;
 
 Render only template download, file chooser, 校验并导入, processing text, final summary, and error download. Never render a workflow timeline.
 
 - [ ] **Step 4: Run and commit**
 
-    npx vitest run src/platform/api/realtimeBusinessRepository.spec.ts \
-      src/business/formal-sample/SamplePointImportPanel.spec.tsx
-    git add src/platform/api/realtimeBusinessRepository.ts \
-      src/platform/api/realtimeBusinessRepository.spec.ts \
-      src/business/formal-sample/SamplePointImportPanel.tsx \
-      src/business/formal-sample/SamplePointImportPanel.spec.tsx
-    git commit -m "feat: connect atomic sample point imports"
+  npx vitest run src/platform/api/realtimeBusinessRepository.spec.ts \
+  src/business/formal-sample/SamplePointImportPanel.spec.tsx
+  git add src/platform/api/realtimeBusinessRepository.ts \
+  src/platform/api/realtimeBusinessRepository.spec.ts \
+  src/business/formal-sample/SamplePointImportPanel.tsx \
+  src/business/formal-sample/SamplePointImportPanel.spec.tsx
+  git commit -m "feat: connect atomic sample point imports"
 
 Expected: PASS.
 
 ### Task 8: Move formal sample writes to complete pages
 
 **Files:**
+
 - Create: FormalSamplePointWorkspace.tsx
 - Create: FormalSamplePointFormPage.tsx
 - Create: FormalSampleObservationPage.tsx
@@ -366,7 +375,7 @@ Cover list/create/view/edit/delete confirmation/maintainer/observation update/ba
 
 - [ ] **Step 2: Run and verify failure**
 
-    npx vitest run src/business/formal-sample/ExistingSampleObservationPanel.spec.tsx
+  npx vitest run src/business/formal-sample/ExistingSampleObservationPanel.spec.tsx
 
 - [ ] **Step 3: Make the ledger list-only**
 
@@ -386,20 +395,21 @@ Base business ledger renders only when no formal sample workflow page is active.
 
 - [ ] **Step 7: Run and commit**
 
-    npx vitest run src/business/formal-sample/ExistingSampleObservationPanel.spec.tsx \
-      src/business/ProductionMonitoringWorkspace.spec.tsx \
-      src/business/MarketMonitoringWorkspace.spec.tsx
-    git add src/business/formal-sample \
-      src/business/production/ProductProductionCollectionWorkspace.tsx \
-      src/business/market/ProductMarketCollectionWorkspace.tsx \
-      src/business/market/LogisticsMonitoringWorkspace.tsx
-    git commit -m "feat: move formal sample writes to full pages"
+  npx vitest run src/business/formal-sample/ExistingSampleObservationPanel.spec.tsx \
+  src/business/ProductionMonitoringWorkspace.spec.tsx \
+  src/business/MarketMonitoringWorkspace.spec.tsx
+  git add src/business/formal-sample \
+  src/business/production/ProductProductionCollectionWorkspace.tsx \
+  src/business/market/ProductMarketCollectionWorkspace.tsx \
+  src/business/market/LogisticsMonitoringWorkspace.tsx
+  git commit -m "feat: move formal sample writes to full pages"
 
 Expected: PASS.
 
 ### Task 9: Move design sample writes to complete pages
 
 **Files:**
+
 - Create: src/business/samplepoint/DesignSamplePointFormPage.tsx
 - Modify: DesignSamplePointTable.tsx
 - Modify: SamplePointGovernanceWorkspace.tsx
@@ -412,7 +422,7 @@ Cover route-backed create/view/edit, refresh, context-first field contract, save
 
 - [ ] **Step 2: Run and verify failure**
 
-    npx vitest run src/business/samplepoint/SamplePointGovernanceWorkspace.spec.tsx
+  npx vitest run src/business/samplepoint/SamplePointGovernanceWorkspace.spec.tsx
 
 - [ ] **Step 3: Implement list-only table and full-page form**
 
@@ -424,16 +434,17 @@ Import success reloads list/total. Events reload non-dirty pages; same-object ev
 
 - [ ] **Step 5: Run and commit**
 
-    npx vitest run src/business/samplepoint/SamplePointGovernanceWorkspace.spec.tsx \
-      src/business/EnterpriseBusinessApplication.spec.tsx
-    git add src/business/samplepoint src/business/EnterpriseBusinessApplication.tsx
-    git commit -m "feat: move design sample writes to full pages"
+  npx vitest run src/business/samplepoint/SamplePointGovernanceWorkspace.spec.tsx \
+  src/business/EnterpriseBusinessApplication.spec.tsx
+  git add src/business/samplepoint src/business/EnterpriseBusinessApplication.tsx
+  git commit -m "feat: move design sample writes to full pages"
 
 Expected: PASS.
 
 ### Task 10: Remove card/drawer styling and verify responsive browser behavior
 
 **Files:**
+
 - Modify: src/business/market-monitoring.css
 - Modify: src/business/samplepoint/sample-point-governance-workspace.css
 - Modify: src/business/unified-workspaces.css
@@ -449,19 +460,19 @@ Use headings, border separators, grid form rows, and one action bar. Do not intr
 
 - [ ] **Step 3: Run focused and browser tests**
 
-    npx vitest run src/business/formal-sample/ExistingSampleObservationPanel.spec.tsx \
-      src/business/samplepoint/SamplePointGovernanceWorkspace.spec.tsx
-    npm run build
-    npm run test:e2e:preview -- --grep "sample"
+  npx vitest run src/business/formal-sample/ExistingSampleObservationPanel.spec.tsx \
+  src/business/samplepoint/SamplePointGovernanceWorkspace.spec.tsx
+  npm run build
+  npm run test:e2e:preview -- --grep "sample"
 
 Expected: PASS with no console warnings, including the null-controlled-input warning.
 
 - [ ] **Step 4: Commit**
 
-    git add src/business/market-monitoring.css \
-      src/business/samplepoint/sample-point-governance-workspace.css \
-      src/business/unified-workspaces.css tests/enterprise-workflows.spec.ts
-    git commit -m "fix: present sample entry as formal workspaces"
+  git add src/business/market-monitoring.css \
+  src/business/samplepoint/sample-point-governance-workspace.css \
+  src/business/unified-workspaces.css tests/enterprise-workflows.spec.ts
+  git commit -m "fix: present sample entry as formal workspaces"
 
 ### Task 11: Complete Web gate, merge, governed deployment, and live acceptance
 
@@ -469,34 +480,34 @@ Expected: PASS with no console warnings, including the null-controlled-input war
 
 - [ ] **Step 1: Run the complete Web gate**
 
-    npm run verify
+  npm run verify
 
 Expected: all format, lint, architecture, inventory, Vitest, runtime, identity, preproduction, performance, observability, build, budget, and Playwright gates pass.
 
 - [ ] **Step 2: Commit status and verify boundary**
 
-    git add docs/superpowers/specs/2026-09-02-sample-point-full-page-entry-and-atomic-xlsx-design.md
-    git commit -m "docs: record sample workflow verification"
-    git status --short --branch
-    git diff origin/main...HEAD --check
+  git add docs/superpowers/specs/2026-09-02-sample-point-full-page-entry-and-atomic-xlsx-design.md
+  git commit -m "docs: record sample workflow verification"
+  git status --short --branch
+  git diff origin/main...HEAD --check
 
 Expected: clean, planned boundary.
 
 - [ ] **Step 3: Push, PR, required CI, and squash merge**
 
-    git push -u origin codex/20260902-sample-full-page-entry
-    gh pr create --base main --head codex/20260902-sample-full-page-entry \
-      --title "Move sample point writes to full-page workflows" \
-      --body-file /tmp/cofco-web-sample-pages-pr.md
-    gh pr checks --watch
-    gh pr merge --squash --delete-branch
+  git push -u origin codex/20260902-sample-full-page-entry
+  gh pr create --base main --head codex/20260902-sample-full-page-entry \
+  --title "Move sample point writes to full-page workflows" \
+  --body-file /tmp/cofco-web-sample-pages-pr.md
+  gh pr checks --watch
+  gh pr merge --squash --delete-branch
 
 Expected: merge only after checks succeed; record PR, merge SHA, and run ID.
 
 - [ ] **Step 4: Verify exact downstream Web main CI**
 
-    gh run list --branch main --limit 5
-    gh run watch <resolved run ID whose head SHA equals the merge SHA>
+  gh run list --branch main --limit 5
+  gh run watch <resolved run ID whose head SHA equals the merge SHA>
 
 Expected: success.
 
@@ -510,15 +521,15 @@ Expected: served asset hash matches the Web merge. If release evidence is unavai
 
 - [ ] **Step 6: Run live browser acceptance**
 
-    formal list -> create page -> save -> authoritative requery
-    formal list -> edit page -> save -> authoritative requery
-    formal list -> protected delete -> clear rejection
-    formal list -> observation page -> object fields -> save
-    design list -> create/edit pages -> save -> authoritative requery
-    valid design/formal XLSX -> rows persist
-    one invalid row -> zero persist -> error file
-    second browser -> SSE list/total/overview/map/analysis refresh
-    390px and desktop -> no overflow/drawer/side card
+  formal list -> create page -> save -> authoritative requery
+  formal list -> edit page -> save -> authoritative requery
+  formal list -> protected delete -> clear rejection
+  formal list -> observation page -> object fields -> save
+  design list -> create/edit pages -> save -> authoritative requery
+  valid design/formal XLSX -> rows persist
+  one invalid row -> zero persist -> error file
+  second browser -> SSE list/total/overview/map/analysis refresh
+  390px and desktop -> no overflow/drawer/side card
 
 Expected: all paths pass, console is clean, and screenshots/network evidence identify the running merge SHA.
 
@@ -530,4 +541,3 @@ Expected: all paths pass, console is clean, and screenshots/network evidence ide
 - Placeholder scan found no TODO, TBD, deferred implementation, or “similar to” step.
 - Type consistency uses one SamplePointImportResult, one shared workbook, allow-listed route types, and matching repository/panel methods.
 - Complexity check adds no approval model, draft table, second fact model, bulk update/delete, or user-visible import state machine.
-

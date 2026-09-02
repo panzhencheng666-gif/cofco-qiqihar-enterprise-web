@@ -10,7 +10,7 @@ type SamplePointKind = "design" | "formal";
 export interface SamplePointImportPanelProps {
   kind: SamplePointKind;
   repository: RealtimeBusinessRepository;
-  onImported(): Promise<void> | void;
+  onImported: () => Promise<void> | void;
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -41,12 +41,12 @@ export function SamplePointImportPanel({
   const handleTemplate = async () => {
     setError(undefined);
     try {
-      const action =
+      const blob =
         kind === "design"
-          ? repository.downloadDesignSamplePointTemplate
-          : repository.downloadFormalSamplePointTemplate;
-      if (!action) throw new Error("template unavailable");
-      downloadBlob(await action(), `${label}批量新增模板.xlsx`);
+          ? await repository.downloadDesignSamplePointTemplate?.()
+          : await repository.downloadFormalSamplePointTemplate?.();
+      if (!blob) throw new Error("template unavailable");
+      downloadBlob(blob, `${label}批量新增模板.xlsx`);
     } catch {
       setError("模板下载失败，请稍后重试。");
     }
@@ -58,12 +58,11 @@ export function SamplePointImportPanel({
     setError(undefined);
     setResult(undefined);
     try {
-      const action =
+      const next =
         kind === "design"
-          ? repository.importDesignSamplePoints
-          : repository.importFormalSamplePoints;
-      if (!action) throw new Error("import unavailable");
-      const next = await action(file, idempotencyKey);
+          ? await repository.importDesignSamplePoints?.(file, idempotencyKey)
+          : await repository.importFormalSamplePoints?.(file, idempotencyKey);
+      if (!next) throw new Error("import unavailable");
       setResult(next);
       if (next.importedRows > 0) await onImported();
       setIdempotencyKey(crypto.randomUUID());
@@ -80,12 +79,12 @@ export function SamplePointImportPanel({
     if (!result || result.failedRows === 0) return;
     setError(undefined);
     try {
-      const action =
+      const blob =
         kind === "design"
-          ? repository.downloadDesignSamplePointImportErrors
-          : repository.downloadFormalSamplePointImportErrors;
-      if (!action) throw new Error("errors unavailable");
-      downloadBlob(await action(result.id), `${label}导入错误明细.csv`);
+          ? await repository.downloadDesignSamplePointImportErrors?.(result.id)
+          : await repository.downloadFormalSamplePointImportErrors?.(result.id);
+      if (!blob) throw new Error("errors unavailable");
+      downloadBlob(blob, `${label}导入错误明细.csv`);
     } catch {
       setError("错误明细下载失败，请稍后重试。");
     }

@@ -6,6 +6,7 @@ import type {
   SampleNetworkComparison,
 } from "@/platform/api/realtimeBusinessRepository";
 import { WorkspaceHeader } from "../UnifiedWorkspacePrimitives";
+import type { FormalSelection } from "../formalEnterpriseModel";
 import { AnnualSampleNetworkPanel } from "./AnnualSampleNetworkPanel";
 import { DesignSamplePointTable } from "./DesignSamplePointTable";
 import { SamplePointCoordinateGovernancePanel } from "./SamplePointCoordinateGovernancePanel";
@@ -67,6 +68,9 @@ export function SamplePointGovernanceWorkspace({
   refreshSequenceByYear = {},
   repository,
   session,
+  selection,
+  onSelectionChange,
+  onSelectionClear,
 }: {
   currentYear?: number;
   initialModule?: GovernanceModule;
@@ -75,6 +79,9 @@ export function SamplePointGovernanceWorkspace({
   refreshSequenceByYear?: Readonly<Record<number, number>>;
   repository: RealtimeBusinessRepository;
   session: CurrentSession;
+  selection?: FormalSelection;
+  onSelectionChange?: (selection: FormalSelection) => void;
+  onSelectionClear?: () => void;
 }) {
   const [activeModule, setActiveModule] = useState<GovernanceModule>(
     mode === "design" ? "design" : initialModule,
@@ -262,6 +269,9 @@ export function SamplePointGovernanceWorkspace({
             refreshSequence={designDatasetRefreshSequence}
             repository={repository}
             session={session}
+            selection={selection}
+            onSelectionChange={onSelectionChange}
+            onSelectionClear={onSelectionClear}
           />
         ) : null}
         {activeModule === "annual" ? (
