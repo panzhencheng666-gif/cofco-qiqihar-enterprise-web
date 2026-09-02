@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CurrentSession,
@@ -15,6 +15,8 @@ import type {
   DesignSampleFieldDefinition,
 } from "@/platform/api/designSampleFieldContract";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+import type { FormalSelection } from "../formalEnterpriseModel";
+import { SamplePointImportPanel } from "../formal-sample/SamplePointImportPanel";
 
 const PAGE_SIZE = 20;
 const BOOTSTRAP_CONTEXT: DesignSampleContext = {
@@ -40,11 +42,17 @@ export function DesignSamplePointTable({
   refreshSequence,
   repository,
   session,
+  selection,
+  onSelectionChange,
+  onSelectionClear,
 }: {
   onListStateChange: (state: ListState, total?: number) => void;
   refreshSequence: number;
   repository: RealtimeBusinessRepository;
   session: CurrentSession;
+  selection?: FormalSelection;
+  onSelectionChange?: (selection: FormalSelection) => void;
+  onSelectionClear?: () => void;
 }) {
   const [listState, setListState] = useState<ListState>("loading");
   const [pageData, setPageData] =
@@ -62,13 +70,18 @@ export function DesignSamplePointTable({
   const [catalog, setCatalog] = useState<DesignSampleFieldContract>();
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
   const [editor, setEditor] = useState<Editor>();
+  const [viewPoint, setViewPoint] = useState<DesignSamplePointRow>();
   const [editorContract, setEditorContract] =
     useState<DesignSampleFieldContract>();
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const hydratedSelection = useRef("");
   const canWrite = session.permissions.includes("BUSINESS_UPDATE");
+  const canImport = session.permissions.includes("BUSINESS_IMPORT");
+  const showList = selection ? selection.type === "design-sample-list" : true;
+  const navigate = (next: FormalSelection) => onSelectionChange?.(next);
 
   useEffect(() => {
     let active = true;
@@ -183,6 +196,51 @@ export function DesignSamplePointTable({
     [repository],
   );
 
+  useEffect(() => {
+    if (!selection || !selection.type.startsWith("design-sample-")) return;
+    const key = `${selection.type}:${selection.id}`;
+    if (hydratedSelection.current === key) return;
+    hydratedSelection.current = key;
+    if (selection.type === "design-sample-list") {
+      queueMicrotask(() => {
+        setActionError("");
+        setEditor(undefined);
+        setViewPoint(undefined);
+      });
+      return;
+    }
+    if (selection.type === "design-sample-create") {
+      queueMicrotask(() => {
+        setActionError("");
+        setViewPoint(undefined);
+        void loadEditor({ mode: "create" });
+      });
+      return;
+    }
+    if (!repository.getDesignSamplePoint) {
+      queueMicrotask(() =>
+        setActionError("最新点位信息暂不可用，请稍后重试。"),
+      );
+      return;
+    }
+    void repository
+      .getDesignSamplePoint(selection.id)
+      .then((point) => {
+        if (selection.type === "design-sample-view") {
+          setEditor(undefined);
+          setViewPoint(point);
+        } else if (selection.type === "design-sample-edit") {
+          setViewPoint(undefined);
+          void loadEditor({ mode: "edit", point });
+        }
+      })
+      .catch((error: unknown) =>
+        setActionError(
+          errorMessage(error, "最新点位信息暂不可用，请稍后重试。"),
+        ),
+      );
+  }, [loadEditor, repository, selection]);
+
   const reload = () => setRefresh((value) => value + 1);
 
   const save = async () => {
@@ -232,6 +290,7 @@ export function DesignSamplePointTable({
     setEditorContract(undefined);
     reload();
     setSaving(false);
+    navigate({ type: "design-sample-view", id: saved.id });
   };
 
   const remove = async (point: DesignSamplePointRow) => {
@@ -245,6 +304,7 @@ export function DesignSamplePointTable({
     try {
       await repository.deleteDesignSamplePoint(point.id, point.version);
       reload();
+      navigate({ type: "design-sample-list", id: "list" });
     } catch (error) {
       setActionError(errorMessage(error, "删除失败，请刷新清单后重试。"));
     }
@@ -252,239 +312,341 @@ export function DesignSamplePointTable({
 
   return (
     <div className="sample-point-governance-workspace__table-region enterprise-ledger-workbench">
-      <header className="enterprise-ledger-title enterprise-ledger-title--collection">
-        <div>
-          <h2>设计参考点清单</h2>
-          <p>维护长期参考点。行政区覆盖、坐标范围和适用字段由系统校验。</p>
+      {onSelectionClear ? (
+        <div className="enterprise-ledger-table__toolbar">
+          <button onClick={onSelectionClear} type="button">
+            返回业务台账
+          </button>
         </div>
-        <div className="design-sample-point-table__header-actions">
-          {listState === "ready" ? (
-            <strong>{pageData.totalElements} 个参考点</strong>
-          ) : null}
-          {canWrite ? (
-            <button
-              onClick={() => void loadEditor({ mode: "create" })}
-              type="button"
-            >
-              新建设计参考点
-            </button>
-          ) : null}
-        </div>
-      </header>
-
-      <div
-        aria-label="设计参考点台账工具栏"
-        className="sample-point-governance-workspace__toolbar"
-        role="toolbar"
-      >
-        <form
-          aria-label="设计参考点筛选"
-          className="enterprise-ledger-query enterprise-ledger-query--design"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setPage(0);
-            setFilters(filterDraft);
-          }}
-          role="search"
-        >
-          <label className="sample-point-governance-workspace__filter-query">
-            <span>关键词</span>
-            <input
-              aria-label="搜索点位或行政区"
-              onChange={(event) =>
-                setFilterDraft((current) => ({
-                  ...current,
-                  keyword: event.target.value,
-                }))
-              }
-              placeholder="搜索点位或行政区"
-              type="search"
-              value={filterDraft.keyword}
-            />
-          </label>
-          <CatalogFilter
-            label="业务类型"
-            onChange={(domainCode) =>
-              setFilterDraft((current) => ({
-                ...current,
-                domainCode,
-                objectTypeCode: "",
-              }))
-            }
-            options={catalog?.domains ?? []}
-            value={filterDraft.domainCode}
-          />
-          <CatalogFilter
-            label="产品"
-            onChange={(productCode) =>
-              setFilterDraft((current) => ({ ...current, productCode }))
-            }
-            options={catalog?.products ?? []}
-            value={filterDraft.productCode}
-          />
-          <CatalogFilter
-            label="对象类别"
-            onChange={(objectTypeCode) =>
-              setFilterDraft((current) => ({ ...current, objectTypeCode }))
-            }
-            options={(catalog?.objectTypes ?? []).filter(
-              (option) =>
-                !filterDraft.domainCode ||
-                option.domainCode === filterDraft.domainCode,
-            )}
-            value={filterDraft.objectTypeCode}
-          />
-          <label>
-            <span>行政区</span>
-            <select
-              aria-label="筛选行政区"
-              onChange={(event) =>
-                setFilterDraft((current) => ({
-                  ...current,
-                  regionCode: event.target.value,
-                }))
-              }
-              value={filterDraft.regionCode}
-            >
-              <option value="">全部行政区</option>
-              {regions.map((region) => (
-                <option key={region.code} value={region.code}>
-                  {region.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="enterprise-ledger-query__actions">
-            <button className="is-primary" type="submit">
-              查询
-            </button>
-            <button
-              disabled={!Object.values(filterDraft).some(Boolean)}
-              onClick={() => {
-                const empty = {
-                  keyword: "",
-                  domainCode: "",
-                  productCode: "",
-                  objectTypeCode: "",
-                  regionCode: "",
-                };
-                setFilterDraft(empty);
-                setFilters(empty);
-                setPage(0);
-              }}
-              type="button"
-            >
-              清除筛选
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {actionError ? <p role="alert">{actionError}</p> : null}
-      {listState === "loading" ? (
-        <p role="status">正在读取设计参考点清单…</p>
       ) : null}
-      {listState === "unavailable" ? (
-        <p role="alert">设计参考点清单暂不可用，请稍后重试。</p>
-      ) : null}
-      {listState === "ready" ? (
+      {showList ? (
         <>
-          <div className="enterprise-ledger-table">
-            <div
-              aria-label="设计参考点滚动清单"
-              className="sample-point-governance-workspace__table-scroll--bounded enterprise-ledger-table__scroll"
-              role="region"
-              tabIndex={0}
-            >
-              <table aria-label="设计参考点清单">
-                <thead>
-                  <tr>
-                    <th>点位名称</th>
-                    <th>业务对象</th>
-                    <th>行政区</th>
-                    <th>坐标</th>
-                    {canWrite ? <th>操作</th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageData.items.map((point) => (
-                    <tr key={point.id}>
-                      <td>{point.name}</td>
-                      <td>
-                        {labels.domain.get(point.context.domainCode) ??
-                          "未识别"}{" "}
-                        ·{" "}
-                        {labels.product.get(point.context.productCode) ??
-                          "未识别"}{" "}
-                        ·{" "}
-                        {labels.objectType.get(point.context.objectTypeCode) ??
-                          "未识别"}
-                      </td>
-                      <td>{point.regionPath}</td>
-                      <td>
-                        {point.longitude}, {point.latitude}
-                      </td>
-                      {canWrite ? (
-                        <td className="design-sample-point-table__row-actions">
-                          <button
-                            aria-label={`编辑${point.name}`}
-                            className="enterprise-ledger-row-action"
-                            onClick={() =>
-                              void loadEditor({ mode: "edit", point })
-                            }
-                            type="button"
-                          >
-                            编辑
-                          </button>
-                          <button
-                            aria-label={`删除${point.name}`}
-                            className="enterprise-ledger-row-action"
-                            onClick={() => void remove(point)}
-                            type="button"
-                          >
-                            删除
-                          </button>
-                        </td>
-                      ) : null}
-                    </tr>
-                  ))}
-                  {pageData.items.length === 0 ? (
-                    <tr>
-                      <td colSpan={canWrite ? 5 : 4}>
-                        没有符合条件的设计参考点。
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
+          <header className="enterprise-ledger-title enterprise-ledger-title--collection">
+            <div>
+              <h2>设计参考点清单</h2>
+              <p>维护长期参考点。行政区覆盖、坐标范围和适用字段由系统校验。</p>
             </div>
-            <nav
-              aria-label="设计参考点分页"
-              className="sample-point-governance-workspace__pagination"
-            >
-              <span>
-                共 {pageData.totalElements} 条 · 第 {pageData.pageNumber + 1} /{" "}
-                {pageCount} 页
-              </span>
-              <div>
+            <div className="design-sample-point-table__header-actions">
+              {listState === "ready" ? (
+                <strong>{pageData.totalElements} 个参考点</strong>
+              ) : null}
+              {canWrite ? (
                 <button
-                  disabled={pageData.pageNumber === 0}
-                  onClick={() => setPage((value) => Math.max(0, value - 1))}
+                  onClick={() => {
+                    if (onSelectionChange) {
+                      navigate({ type: "design-sample-create", id: "new" });
+                    } else void loadEditor({ mode: "create" });
+                  }}
                   type="button"
                 >
-                  上一页
+                  新建设计参考点
+                </button>
+              ) : null}
+            </div>
+          </header>
+
+          {canImport ? (
+            <SamplePointImportPanel
+              kind="design"
+              repository={repository}
+              onImported={() => reload()}
+            />
+          ) : null}
+
+          <div
+            aria-label="设计参考点台账工具栏"
+            className="sample-point-governance-workspace__toolbar"
+            role="toolbar"
+          >
+            <form
+              aria-label="设计参考点筛选"
+              className="enterprise-ledger-query enterprise-ledger-query--design"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setPage(0);
+                setFilters(filterDraft);
+              }}
+              role="search"
+            >
+              <label className="sample-point-governance-workspace__filter-query">
+                <span>关键词</span>
+                <input
+                  aria-label="搜索点位或行政区"
+                  onChange={(event) =>
+                    setFilterDraft((current) => ({
+                      ...current,
+                      keyword: event.target.value,
+                    }))
+                  }
+                  placeholder="搜索点位或行政区"
+                  type="search"
+                  value={filterDraft.keyword}
+                />
+              </label>
+              <CatalogFilter
+                label="业务类型"
+                onChange={(domainCode) =>
+                  setFilterDraft((current) => ({
+                    ...current,
+                    domainCode,
+                    objectTypeCode: "",
+                  }))
+                }
+                options={catalog?.domains ?? []}
+                value={filterDraft.domainCode}
+              />
+              <CatalogFilter
+                label="产品"
+                onChange={(productCode) =>
+                  setFilterDraft((current) => ({ ...current, productCode }))
+                }
+                options={catalog?.products ?? []}
+                value={filterDraft.productCode}
+              />
+              <CatalogFilter
+                label="对象类别"
+                onChange={(objectTypeCode) =>
+                  setFilterDraft((current) => ({ ...current, objectTypeCode }))
+                }
+                options={(catalog?.objectTypes ?? []).filter(
+                  (option) =>
+                    !filterDraft.domainCode ||
+                    option.domainCode === filterDraft.domainCode,
+                )}
+                value={filterDraft.objectTypeCode}
+              />
+              <label>
+                <span>行政区</span>
+                <select
+                  aria-label="筛选行政区"
+                  onChange={(event) =>
+                    setFilterDraft((current) => ({
+                      ...current,
+                      regionCode: event.target.value,
+                    }))
+                  }
+                  value={filterDraft.regionCode}
+                >
+                  <option value="">全部行政区</option>
+                  {regions.map((region) => (
+                    <option key={region.code} value={region.code}>
+                      {region.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="enterprise-ledger-query__actions">
+                <button className="is-primary" type="submit">
+                  查询
                 </button>
                 <button
-                  disabled={pageData.pageNumber + 1 >= pageCount}
-                  onClick={() => setPage((value) => value + 1)}
+                  disabled={!Object.values(filterDraft).some(Boolean)}
+                  onClick={() => {
+                    const empty = {
+                      keyword: "",
+                      domainCode: "",
+                      productCode: "",
+                      objectTypeCode: "",
+                      regionCode: "",
+                    };
+                    setFilterDraft(empty);
+                    setFilters(empty);
+                    setPage(0);
+                  }}
                   type="button"
                 >
-                  下一页
+                  清除筛选
                 </button>
               </div>
-            </nav>
+            </form>
           </div>
+
+          {actionError ? <p role="alert">{actionError}</p> : null}
+          {listState === "loading" ? (
+            <p role="status">正在读取设计参考点清单…</p>
+          ) : null}
+          {listState === "unavailable" ? (
+            <p role="alert">设计参考点清单暂不可用，请稍后重试。</p>
+          ) : null}
+          {listState === "ready" ? (
+            <>
+              <div className="enterprise-ledger-table">
+                <div
+                  aria-label="设计参考点滚动清单"
+                  className="sample-point-governance-workspace__table-scroll--bounded enterprise-ledger-table__scroll"
+                  role="region"
+                  tabIndex={0}
+                >
+                  <table aria-label="设计参考点清单">
+                    <thead>
+                      <tr>
+                        <th>点位名称</th>
+                        <th>业务对象</th>
+                        <th>行政区</th>
+                        <th>坐标</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageData.items.map((point) => (
+                        <tr key={point.id}>
+                          <td>{point.name}</td>
+                          <td>
+                            {labels.domain.get(point.context.domainCode) ??
+                              "未识别"}{" "}
+                            ·{" "}
+                            {labels.product.get(point.context.productCode) ??
+                              "未识别"}{" "}
+                            ·{" "}
+                            {labels.objectType.get(
+                              point.context.objectTypeCode,
+                            ) ?? "未识别"}
+                          </td>
+                          <td>{point.regionPath}</td>
+                          <td>
+                            {point.longitude}, {point.latitude}
+                          </td>
+                          <td className="design-sample-point-table__row-actions">
+                            <button
+                              aria-label={`查看${point.name}`}
+                              className="enterprise-ledger-row-action"
+                              onClick={() => {
+                                if (onSelectionChange) {
+                                  navigate({
+                                    type: "design-sample-view",
+                                    id: point.id,
+                                  });
+                                } else setViewPoint(point);
+                              }}
+                              type="button"
+                            >
+                              查看
+                            </button>
+                            {canWrite ? (
+                              <>
+                                <button
+                                  aria-label={`编辑${point.name}`}
+                                  className="enterprise-ledger-row-action"
+                                  onClick={() => {
+                                    if (onSelectionChange) {
+                                      navigate({
+                                        type: "design-sample-edit",
+                                        id: point.id,
+                                      });
+                                    } else
+                                      void loadEditor({ mode: "edit", point });
+                                  }}
+                                  type="button"
+                                >
+                                  编辑
+                                </button>
+                                <button
+                                  aria-label={`删除${point.name}`}
+                                  className="enterprise-ledger-row-action"
+                                  onClick={() => void remove(point)}
+                                  type="button"
+                                >
+                                  删除
+                                </button>
+                              </>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ))}
+                      {pageData.items.length === 0 ? (
+                        <tr>
+                          <td colSpan={5}>没有符合条件的设计参考点。</td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+                <nav
+                  aria-label="设计参考点分页"
+                  className="sample-point-governance-workspace__pagination"
+                >
+                  <span>
+                    共 {pageData.totalElements} 条 · 第{" "}
+                    {pageData.pageNumber + 1} / {pageCount} 页
+                  </span>
+                  <div>
+                    <button
+                      disabled={pageData.pageNumber === 0}
+                      onClick={() => setPage((value) => Math.max(0, value - 1))}
+                      type="button"
+                    >
+                      上一页
+                    </button>
+                    <button
+                      disabled={pageData.pageNumber + 1 >= pageCount}
+                      onClick={() => setPage((value) => value + 1)}
+                      type="button"
+                    >
+                      下一页
+                    </button>
+                  </div>
+                </nav>
+              </div>
+            </>
+          ) : null}
         </>
+      ) : null}
+
+      {viewPoint ? (
+        <section
+          className="design-sample-point-page"
+          aria-label="设计参考点详情"
+        >
+          <header>
+            <div>
+              <h3>{viewPoint.name}</h3>
+              <p>设计参考点稳定信息</p>
+            </div>
+          </header>
+          <dl>
+            <div>
+              <dt>业务对象</dt>
+              <dd>
+                {labels.domain.get(viewPoint.context.domainCode) ?? "未识别"} ·{" "}
+                {labels.product.get(viewPoint.context.productCode) ?? "未识别"}{" "}
+                ·{" "}
+                {labels.objectType.get(viewPoint.context.objectTypeCode) ??
+                  "未识别"}
+              </dd>
+            </div>
+            <div>
+              <dt>行政区</dt>
+              <dd>{viewPoint.regionPath}</dd>
+            </div>
+            <div>
+              <dt>坐标</dt>
+              <dd>
+                {viewPoint.longitude}，{viewPoint.latitude}
+              </dd>
+            </div>
+          </dl>
+          <div className="design-sample-point-page__actions">
+            {canWrite ? (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({ type: "design-sample-edit", id: viewPoint.id })
+                }
+              >
+                编辑
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setViewPoint(undefined);
+                navigate({ type: "design-sample-list", id: "list" });
+              }}
+            >
+              返回设计样本台账
+            </button>
+          </div>
+        </section>
       ) : null}
 
       {editor ? (
@@ -492,7 +654,10 @@ export function DesignSamplePointTable({
           contract={editorContract}
           error={editorError}
           mode={editor.mode}
-          onCancel={() => setEditor(undefined)}
+          onCancel={() => {
+            setEditor(undefined);
+            navigate({ type: "design-sample-list", id: "list" });
+          }}
           onContextChange={async (context) => {
             if (!repository.loadDesignSamplePointFields) return;
             setEditorError("");
@@ -553,7 +718,7 @@ function DesignSamplePointEditor({
   return (
     <form
       aria-label={mode === "create" ? "新建设计参考点" : "编辑设计参考点"}
-      className="design-sample-point-editor"
+      className="design-sample-point-page"
       onSubmit={(event) => {
         event.preventDefault();
         onSave();

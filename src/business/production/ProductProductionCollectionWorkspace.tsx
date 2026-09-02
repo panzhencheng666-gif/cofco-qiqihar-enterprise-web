@@ -331,6 +331,7 @@ export function ProductProductionCollectionWorkspace({
   onScopeChange,
   selection,
   onSelectionChange,
+  onSelectionClear,
   queryAllowed,
   workItems = businessWorkFixtures,
   documentDrafts = {},
@@ -347,6 +348,7 @@ export function ProductProductionCollectionWorkspace({
   onScopeChange: (coordinates: Partial<BusinessCoordinates>) => void;
   selection?: FormalSelection;
   onSelectionChange: (selection: FormalSelection) => void;
+  onSelectionClear?: () => void;
   queryAllowed: boolean;
   workItems?: readonly BusinessWorkItem[];
   documentDrafts?: Readonly<Record<string, ProductionDocumentDraft>>;
@@ -1030,6 +1032,9 @@ export function ProductProductionCollectionWorkspace({
         permissions={permissions}
         productCode={productCode}
         repository={realtimeRepository}
+        selection={selection}
+        onSelectionChange={onSelectionChange}
+        onSelectionClear={onSelectionClear}
         onSaved={() => setRecordsRevision((value) => value + 1)}
       >
         <section

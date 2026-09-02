@@ -161,7 +161,7 @@
 
 .design-sample-point-table__header-actions,
 .design-sample-point-table__row-actions,
-.design-sample-point-editor footer {
+.design-sample-point-page footer {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -169,7 +169,7 @@
 
 .design-sample-point-table__header-actions button,
 .design-sample-point-table__row-actions button,
-.design-sample-point-editor button {
+.design-sample-point-page button {
   min-height: 34px;
   padding: 0 13px;
   border: 1px solid #9fb7c5;
@@ -180,7 +180,7 @@
 }
 
 .design-sample-point-table__header-actions button,
-.design-sample-point-editor button[type="submit"] {
+.design-sample-point-page button[type="submit"] {
   border-color: #0f7193;
   color: #fff;
   background: #0f7193;
@@ -191,7 +191,9 @@
   padding: 0 9px;
 }
 
-.design-sample-point-editor {
+.design-sample-point-page {
+  box-sizing: border-box;
+  width: 100%;
   margin-top: 18px;
   padding: 16px;
   border: 1px solid #b9d2df;
@@ -199,12 +201,12 @@
   background: #f8fbfc;
 }
 
-.design-sample-point-editor header h3,
-.design-sample-point-editor header p {
+.design-sample-point-page header h3,
+.design-sample-point-page header p {
   margin: 0;
 }
 
-.design-sample-point-editor header p {
+.design-sample-point-page header p {
   margin-top: 4px;
   color: #667f8f;
   font-size: 12px;
@@ -218,15 +220,15 @@
   margin-top: 14px;
 }
 
-.design-sample-point-editor label {
+.design-sample-point-page label {
   display: grid;
   gap: 5px;
   color: #526c7c;
   font-size: 12px;
 }
 
-.design-sample-point-editor input,
-.design-sample-point-editor select {
+.design-sample-point-page input,
+.design-sample-point-page select {
   min-height: 36px;
   min-width: 0;
   padding: 0 9px;
@@ -236,12 +238,12 @@
   background: #fff;
 }
 
-.design-sample-point-editor footer {
+.design-sample-point-page footer {
   justify-content: flex-end;
   margin-top: 16px;
 }
 
-.design-sample-point-editor button:disabled {
+.design-sample-point-page button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }

@@ -1071,6 +1071,11 @@ export function EnterpriseBusinessApplication({
               refreshSequenceByYear={sampleNetworkRefreshSequenceByYear}
               repository={repository}
               session={currentSession}
+              selection={location.selection}
+              onSelectionChange={(selection) =>
+                navigateAndCloseEntry(location.route, selection)
+              }
+              onSelectionClear={() => navigateAndCloseEntry(location.route)}
             />
           );
         }

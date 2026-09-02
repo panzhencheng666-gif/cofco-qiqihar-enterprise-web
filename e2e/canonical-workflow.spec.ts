@@ -87,6 +87,7 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
     page.getByRole("region", { name: "正式样本详情" }),
   ).toContainText("龙江县龙江镇通齐村");
 
+  await page.getByRole("button", { name: "返回正式样本台账" }).click();
   await row.getByRole("button", { name: "更新采集数据" }).click();
   await expect(
     page.getByRole("heading", { name: "填写或更新采集数据" }),
@@ -195,13 +196,15 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
   await editor.getByLabel("经度").fill("123.9001");
   await editor.getByLabel("纬度").fill("47.3001");
   await editor.getByRole("button", { name: "保存" }).click();
-  await expect(page.getByText("受控新增设计点", { exact: true })).toBeVisible();
+  const createdDetail = page.getByRole("region", { name: "设计参考点详情" });
+  await expect(createdDetail).toContainText("受控新增设计点");
 
-  const createdRow = page.getByRole("row", { name: /受控新增设计点/ });
-  await createdRow.getByRole("button", { name: "编辑受控新增设计点" }).click();
+  await createdDetail.getByRole("button", { name: "编辑" }).click();
   const editForm = page.getByRole("form", { name: "编辑设计参考点" });
   await editForm.getByLabel("点位名称").fill("受控更新设计点");
   await editForm.getByRole("button", { name: "保存" }).click();
+  await expect(createdDetail).toContainText("受控更新设计点");
+  await createdDetail.getByRole("button", { name: "返回设计样本台账" }).click();
   const updatedRow = page.getByRole("row", { name: /受控更新设计点/ });
   await expect(updatedRow).toBeVisible();
 

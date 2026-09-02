@@ -270,6 +270,35 @@ describe("formal location", () => {
       queryAllowed: true,
     });
   });
+
+  it("persists only allow-listed sample workflow pages with safe entity keys", () => {
+    const location: FormalLocation = {
+      route: createFormalRoute("production", "corn-collection"),
+      coordinates: { regionId: "authorized-all" },
+      selection: { type: "formal-sample-edit", id: "sample-point:42" },
+    };
+
+    expect(writeFormalLocation(location)).toBe(
+      "#/产情监测/玉米产情填报/编辑正式样本/sample-point%3A42",
+    );
+    expect(
+      readFormalLocation(writeFormalLocation(location), authorization).location
+        .selection,
+    ).toEqual({ type: "formal-sample-edit", id: "sample-point:42" });
+
+    expect(
+      readFormalLocation(
+        "#/产情监测/玉米产情填报/编辑正式样本/not%2Fsafe",
+        authorization,
+      ).location.selection,
+    ).toBeUndefined();
+    expect(
+      readFormalLocation(
+        `#/产情监测/玉米产情填报/编辑正式样本/${"a".repeat(161)}`,
+        authorization,
+      ).location.selection,
+    ).toBeUndefined();
+  });
 });
 
 describe("weekly responsibility control", () => {

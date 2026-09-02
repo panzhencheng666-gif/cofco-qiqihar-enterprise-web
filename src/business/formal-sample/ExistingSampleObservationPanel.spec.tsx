@@ -356,6 +356,40 @@ function eligibleSampleFor(point: {
 }
 
 describe("ExistingSampleObservationPanel", () => {
+  it("renders a routed formal create page without nesting the business ledger", async () => {
+    const onSelectionChange = vi.fn();
+    render(
+      <ExistingSampleObservationPanel
+        domain="MARKET"
+        permissions={[
+          "BUSINESS_CREATE",
+          "FORMAL_SAMPLE_MANAGE",
+          "FORMAL_SAMPLE_DELETE",
+        ]}
+        productCode="CORN"
+        repository={repository() as unknown as RealtimeBusinessRepository}
+        selection={{ type: "formal-sample-create", id: "new" }}
+        onSelectionChange={onSelectionChange}
+        onSaved={() => undefined}
+      >
+        <div>原有采集台账内容</div>
+      </ExistingSampleObservationPanel>,
+    );
+
+    expect(
+      await screen.findByRole("region", { name: "正式样本稳定信息" }),
+    ).toBeVisible();
+    expect(screen.queryByText("原有采集台账内容")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "返回正式样本台账" }),
+    );
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      type: "formal-sample-list",
+      id: "list",
+    });
+  });
+
   afterEach(cleanup);
 
   it("uses one collection ledger entry with discoverable row actions", async () => {
@@ -1411,10 +1445,7 @@ describe("ExistingSampleObservationPanel", () => {
     );
     await userEvent.type(screen.getByLabelText("搜索样本企业"), "旧筛选");
     await userEvent.click(screen.getByRole("button", { name: "返回样本台账" }));
-    expect(screen.getByText("原有采集台账内容")).toBeVisible();
-    await userEvent.click(
-      screen.getByRole("button", { name: "维护样本与期间数据" }),
-    );
+    expect(screen.getByRole("heading", { name: "采集台账" })).toBeVisible();
     await openCollectionData();
     expect(screen.getByLabelText("筛选对象类型")).toHaveValue("");
     expect(screen.getByLabelText("搜索样本企业")).toHaveValue("");
@@ -1648,30 +1679,23 @@ describe("ExistingSampleObservationPanel", () => {
     expect(screen.getByRole("status")).not.toHaveTextContent("报表");
   });
 
-  it("uses a formal two-pane workspace and collapses below tablet width", () => {
+  it("uses full-page sample workflows without the retired drawer structure", () => {
+    const panelSource = readFileSync(
+      "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
+      "utf8",
+    );
+    const ledgerSource = readFileSync(
+      "src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "utf8",
+    );
     const css = readFileSync("src/business/market-monitoring.css", "utf8");
     const shellCss = readFileSync("src/business/formal-enterprise.css", "utf8");
-    expect(css).toMatch(
-      /\.existing-observation__workspace\s*\{[\s\S]*grid-template-columns:\s*minmax\([^;]+\)\s+minmax\([^;]+\)/u,
-    );
-    expect(css).toMatch(
-      /@media \(max-width:\s*900px\)[\s\S]*\.existing-observation__workspace\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
-    );
-    expect(css).toMatch(
-      /@media \(max-width:\s*900px\)[\s\S]*\.existing-observation__samples\s*\{[^}]*contain:\s*none[^}]*overflow:\s*visible/u,
-    );
-    expect(css).toMatch(
-      /\.existing-observation__samples\s*\{[^}]*display:\s*grid[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)[^}]*contain:\s*size[^}]*overflow:\s*hidden[^}]*position:\s*static/u,
-    );
-    expect(css).toMatch(
-      /\.existing-observation__sample-list\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*auto/u,
-    );
-    expect(css).toMatch(
-      /\.existing-observation__drawer\s*\{[^}]*position:\s*fixed/u,
-    );
-    expect(css).toMatch(
-      /\.existing-observation__drawer\s*\{[^}]*position:\s*fixed/u,
-    );
+    expect(panelSource).not.toContain("existing-observation__drawer");
+    expect(panelSource).not.toContain('role="dialog"');
+    expect(panelSource).not.toContain("LedgerDrawer");
+    expect(ledgerSource).not.toContain("formal-sample-ledger__layout--detail");
+    expect(ledgerSource).not.toContain("formal-sample-ledger__editor");
+    expect(css).toMatch(/\.existing-observation__page\s*\{[^}]*width:\s*100%/u);
     const unifiedCss = readFileSync(
       "src/business/unified-workspaces.css",
       "utf8",
@@ -1682,17 +1706,12 @@ describe("ExistingSampleObservationPanel", () => {
     expect(css).toMatch(
       /\.formal-sample-ledger__layout\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
     );
-    expect(css).toMatch(
-      /\.formal-sample-ledger__layout--detail\s*\{[^}]*grid-template-columns:\s*minmax\([^;]+\)\s+minmax\([^;]+\)/u,
-    );
+    expect(css).toMatch(/\.formal-sample-page\s*\{[^}]*width:\s*100%/u);
     expect(css).toMatch(
       /\.formal-sample-ledger__row-actions\s*\{[^}]*flex-wrap:\s*nowrap[^}]*white-space:\s*nowrap/u,
     );
     expect(css).toMatch(
       /\.formal-sample-ledger__filters\s*\{[^}]*grid-template-columns:[^;]*minmax\([^;]+\)[^;]*minmax\([^;]+\)[^;]*minmax\([^;]+\)[^;]*minmax\([^;]+\)\s+auto/u,
-    );
-    expect(css).toMatch(
-      /@media \(max-width:\s*900px\)[\s\S]*\.formal-sample-ledger__layout--detail\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
     );
     expect(shellCss).toMatch(
       /@media \(max-width:\s*1180px\)[\s\S]*\.formal-enterprise\s*\{[^}]*min-width:\s*0/u,

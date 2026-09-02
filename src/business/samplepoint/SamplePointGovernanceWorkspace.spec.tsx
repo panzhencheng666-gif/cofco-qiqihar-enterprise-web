@@ -369,6 +369,36 @@ describe("SamplePointGovernanceWorkspace", () => {
     ).toBeVisible();
   });
 
+  it("renders a routed design create page without nesting the ledger", async () => {
+    const onSelectionChange = vi.fn();
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        mode="design"
+        repository={repository()}
+        selection={{ type: "design-sample-create", id: "new" }}
+        onSelectionChange={onSelectionChange}
+        session={{
+          ...session,
+          permissions: [...session.permissions, "BUSINESS_UPDATE"],
+        }}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("form", { name: "新建设计参考点" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("table", { name: "设计参考点清单" }),
+    ).not.toBeInTheDocument();
+    expect(document.querySelector(".design-sample-point-editor")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "取消" }));
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      type: "design-sample-list",
+      id: "list",
+    });
+  });
+
   it("uses the authoritative V159 page for read-only listing and count", async () => {
     const listDesignSamplePoints = vi.fn().mockResolvedValue({
       items: [designPoint()],
