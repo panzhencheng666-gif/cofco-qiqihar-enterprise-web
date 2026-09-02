@@ -174,15 +174,13 @@ export function SamplePointGovernanceWorkspace({
       className="sample-point-governance-workspace"
       data-layout="ledger-workbench"
     >
-      <WorkspaceHeader
-        eyebrow="平台运营管理部 / 数据治理"
-        title={mode === "design" ? "设计样本点" : "样本点管理"}
-        summary={
-          mode === "design"
-            ? "维护不随年份变化的业务对象点位、行政区、坐标和适用信息；数量以清单实时结果为准。"
-            : "分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
-        }
-      />
+      {mode === "all" ? (
+        <WorkspaceHeader
+          eyebrow="平台运营管理部 / 数据治理"
+          title="样本点管理"
+          summary="分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
+        />
+      ) : null}
 
       {mode === "all" ? (
         <nav
@@ -206,15 +204,17 @@ export function SamplePointGovernanceWorkspace({
         </nav>
       ) : null}
 
-      <div className="sample-point-governance-workspace__context">
-        <strong>{moduleGuidance[activeModule].title}</strong>
-        <span>{moduleGuidance[activeModule].description}</span>
-        {activeModule === "annual" && (
-          <span className="sample-point-governance-workspace__context-year">
-            管理年度：{year}年
-          </span>
-        )}
-      </div>
+      {mode === "all" ? (
+        <div className="sample-point-governance-workspace__context">
+          <strong>{moduleGuidance[activeModule].title}</strong>
+          <span>{moduleGuidance[activeModule].description}</span>
+          {activeModule === "annual" && (
+            <span className="sample-point-governance-workspace__context-year">
+              管理年度：{year}年
+            </span>
+          )}
+        </div>
+      ) : null}
 
       {activeModule === "annual" ? (
         <dl
@@ -235,7 +235,7 @@ export function SamplePointGovernanceWorkspace({
           />
         </dl>
       ) : null}
-      {activeModule === "design" ? (
+      {mode === "all" && activeModule === "design" ? (
         <dl
           aria-label="设计参考点概况"
           className="sample-point-governance-workspace__status-line"
@@ -272,6 +272,7 @@ export function SamplePointGovernanceWorkspace({
             selection={selection}
             onSelectionChange={onSelectionChange}
             onSelectionClear={onSelectionClear}
+            standalone={mode === "design"}
           />
         ) : null}
         {activeModule === "annual" ? (
