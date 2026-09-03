@@ -155,7 +155,50 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([36, 36, 36, 36]);
+  ).toEqual([36, 36, 36, 36, 36, 36, 36]);
+  const designTable = page.getByRole("table", { name: "设计参考点清单" });
+  const designScroll = page.getByRole("region", {
+    name: "设计参考点滚动清单",
+  });
+  for (const width of [1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(designTable).toBeVisible();
+    expect(
+      await designScroll.evaluate(
+        (element) => element.clientWidth <= element.scrollWidth,
+      ),
+    ).toBe(true);
+    expect(
+      await designTable
+        .getByRole("row")
+        .first()
+        .evaluate((element) => element.getBoundingClientRect().height >= 36),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  const importPanel = page.getByRole("group", {
+    name: "设计样本点批量导入",
+  });
+  await expect(
+    importPanel.getByRole("button", { name: "下载产情类模板" }),
+  ).toBeVisible();
+  await expect(
+    importPanel.getByRole("button", { name: "下载市场类模板" }),
+  ).toBeVisible();
+  await importPanel
+    .getByRole("combobox", { name: "设计参考点导入分类" })
+    .selectOption("MARKET");
+  await importPanel.getByLabel("选择 XLSX 文件").setInputFiles({
+    name: "市场类设计参考点.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from("controlled-xlsx"),
+  });
+  await importPanel.getByRole("button", { name: "校验并导入" }).click();
+  await expect(
+    page.getByText("XLSX导入设计参考点", { exact: true }),
+  ).toBeVisible();
 
   await filters
     .getByRole("searchbox", { name: "搜索点位或行政区" })
@@ -203,7 +246,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([36, 36, 36, 36]);
+  ).toEqual([36, 36, 36, 36, 36, 36, 36]);
 
   const beforeEventResponse = await request.get(
     `${controlledApiBaseUrl}/__e2e/state`,

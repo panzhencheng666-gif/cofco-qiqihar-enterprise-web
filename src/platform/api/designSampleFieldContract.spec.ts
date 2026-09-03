@@ -136,7 +136,7 @@ function validContract() {
     objectType("REFERENCE", "REFERENCE_POINT", 10),
   ];
   return {
-    contractVersion: "design-sample-fields-v2",
+    contractVersion: "design-sample-fields-v3",
     contractDigest: `sha256:${"a".repeat(64)}`,
     context,
     domains,

@@ -86,12 +86,12 @@ const formalSamplePoints = [
 ];
 const initialDesignSamplePoint = {
   id: "E2E-DESIGN-SAMPLE-001",
-  contractVersion: "design-sample-fields-v2",
+  contractVersion: "design-sample-fields-v3",
   contractDigest: `sha256:${"a".repeat(64)}`,
   context: {
-    domainCode: "REFERENCE",
-    productCode: "GENERAL",
-    objectTypeCode: "REFERENCE_POINT",
+    domainCode: "PRODUCTION",
+    productCode: "CORN",
+    objectTypeCode: "FARMER",
   },
   values: {
     DSP_NAME: "受控设计参考点",
@@ -178,7 +178,7 @@ const supportedDesignContexts = designObjectTypes
     objectTypeCode: "REFERENCE_POINT",
     sortOrder: 28,
   });
-function designField(code, label, valueType, sortOrder) {
+function designField(code, label, valueType, sortOrder, required = true) {
   return {
     code,
     sectionCode: "IDENTITY",
@@ -190,8 +190,8 @@ function designField(code, label, valueType, sortOrder) {
     maxLength: valueType === "STRING" ? 200 : null,
     unit: null,
     enumOptions: [],
-    required: true,
-    nullable: false,
+    required,
+    nullable: !required,
     defaultValue: null,
     editable: true,
     minimumValue: null,
@@ -203,7 +203,7 @@ function designField(code, label, valueType, sortOrder) {
 }
 function designFieldContract(context) {
   return {
-    contractVersion: "design-sample-fields-v2",
+    contractVersion: "design-sample-fields-v3",
     contractDigest: `sha256:${"a".repeat(64)}`,
     context,
     domains: designDomains,
@@ -211,11 +211,16 @@ function designFieldContract(context) {
     objectTypes: designObjectTypes,
     supportedContexts: supportedDesignContexts,
     identityFields: [
-      designField("DSP_NAME", "点位名称", "STRING", 10),
-      designField("DSP_REGION_CODE", "行政区", "STRING", 20),
-      designField("DSP_ADDRESS", "详细地址", "STRING", 30),
-      designField("DSP_LONGITUDE", "经度", "DECIMAL", 40),
-      designField("DSP_LATITUDE", "纬度", "DECIMAL", 50),
+      designField("DOMAIN_CODE", "业务分类", "STRING", 10),
+      designField("PRODUCT_CODE", "品种", "STRING", 20),
+      designField("OBJECT_TYPE_CODE", "参考对象类型", "STRING", 30),
+      designField("DSP_NAME", "点位名称", "STRING", 40),
+      designField("DSP_REGION_CODE", "行政区", "STRING", 50),
+      designField("DSP_ADDRESS", "详细地址", "STRING", 60),
+      designField("DSP_LONGITUDE", "经度", "DECIMAL", 70),
+      designField("DSP_LATITUDE", "纬度", "DECIMAL", 80),
+      designField("DSP_MAINTAINER_NAME", "维护人", "STRING", 90, false),
+      designField("DSP_MAINTAINER_UNIT", "维护单位", "STRING", 100, false),
     ],
     observationFields: [],
   };
@@ -1268,6 +1273,7 @@ const server = createServer(async (request, response) => {
         "BUSINESS_READ",
         "BUSINESS_CREATE",
         "BUSINESS_UPDATE",
+        "BUSINESS_IMPORT",
         "FORMAL_SAMPLE_MANAGE",
         "FORMAL_SAMPLE_DELETE",
       ],
@@ -1314,6 +1320,39 @@ const server = createServer(async (request, response) => {
         (!regionCode || point.regionCode.startsWith(regionCode)),
     );
     data(response, page(items, 20));
+    return;
+  }
+  if (
+    method === "POST" &&
+    url.pathname === "/api/v1/design-sample-points/imports"
+  ) {
+    await readBytes(request);
+    const domainCode = url.searchParams.get("domain") ?? "PRODUCTION";
+    const point = {
+      ...initialDesignSamplePoint,
+      id: `E2E-DESIGN-IMPORT-${designSamplePoints.length + 1}`,
+      context: {
+        domainCode,
+        productCode: "CORN",
+        objectTypeCode: domainCode === "MARKET" ? "MARKET_OBJECT_1" : "FARMER",
+      },
+      values: {
+        ...initialDesignSamplePoint.values,
+        DSP_NAME: "XLSX导入设计参考点",
+        DSP_MAINTAINER_NAME: "导入维护人",
+        DSP_MAINTAINER_UNIT: "导入维护单位",
+      },
+      name: "XLSX导入设计参考点",
+    };
+    designSamplePoints.push(point);
+    writes.push({ action: "import-design-sample-point", domainCode });
+    data(response, {
+      id: "E2E-DESIGN-IMPORT-JOB-1",
+      statusCode: "COMPLETED",
+      importedRows: 1,
+      failedRows: 0,
+      completedAt: "2026-09-03T07:00:00Z",
+    });
     return;
   }
   if (

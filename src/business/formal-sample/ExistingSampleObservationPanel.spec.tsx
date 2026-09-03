@@ -492,6 +492,27 @@ describe("ExistingSampleObservationPanel", () => {
     renderPanel(api);
 
     await screen.findByRole("option", { name: "深加工企业" });
+    const ledger = screen.getByRole("table");
+    for (const heading of [
+      "样本名称",
+      "地区",
+      "业务类别",
+      "品种",
+      "对象类型",
+      "维护人",
+      "填报状态",
+      "更新时间",
+      "操作",
+    ]) {
+      expect(
+        within(ledger).getByRole("columnheader", { name: heading }),
+      ).toBeVisible();
+    }
+    expect(
+      within(ledger).queryByRole("columnheader", {
+        name: "采购基础价（元/吨）",
+      }),
+    ).not.toBeInTheDocument();
     const observedAt = screen.getByLabelText("采集台账观测时间");
     await userEvent.clear(observedAt);
     await userEvent.type(observedAt, "2026-09-02T08:30");
@@ -517,6 +538,12 @@ describe("ExistingSampleObservationPanel", () => {
         observedAt: new Date("2026-09-02T08:30").toISOString(),
       }),
     );
+    expect(
+      await within(ledger).findByRole("columnheader", {
+        name: "采购基础价（元/吨）",
+      }),
+    ).toBeVisible();
+    expect(within(ledger).getByText("2097.0000")).toBeVisible();
   });
 
   it("fails closed for mutation controls when the account has read-only permissions", async () => {

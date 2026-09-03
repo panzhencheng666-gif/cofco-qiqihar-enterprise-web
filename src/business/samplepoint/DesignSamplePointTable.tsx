@@ -30,9 +30,9 @@ import {
 
 const PAGE_SIZE = 20;
 const BOOTSTRAP_CONTEXT: DesignSampleContext = {
-  domainCode: "REFERENCE",
-  productCode: "GENERAL",
-  objectTypeCode: "REFERENCE_POINT",
+  domainCode: "PRODUCTION",
+  productCode: "CORN",
+  objectTypeCode: "FARMER",
 };
 const LOCATION_FIELD_CODES = new Set([
   "DSP_NAME",
@@ -40,6 +40,8 @@ const LOCATION_FIELD_CODES = new Set([
   "DSP_ADDRESS",
   "DSP_LONGITUDE",
   "DSP_LATITUDE",
+  "DSP_MAINTAINER_NAME",
+  "DSP_MAINTAINER_UNIT",
 ]);
 const EMPTY_PAGE: Page<DesignSamplePointRow> = {
   items: [],
@@ -81,13 +83,19 @@ export function DesignSamplePointTable({
   const [filterDraft, setFilterDraft] = useState({
     keyword: "",
     regionCode: "",
+    domainCode: "",
+    productCode: "",
+    objectTypeCode: "",
   });
   const [filters, setFilters] = useState(filterDraft);
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
+  const [catalog, setCatalog] = useState<DesignSampleFieldContract>();
   const [editor, setEditor] = useState<Editor>();
   const [viewPoint, setViewPoint] = useState<DesignSamplePointRow>();
   const [editorContract, setEditorContract] =
     useState<DesignSampleFieldContract>();
+  const [editorContext, setEditorContext] =
+    useState<DesignSampleContext>(BOOTSTRAP_CONTEXT);
   const [editorValues, setEditorValues] = useState<Record<string, string>>({});
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -104,6 +112,19 @@ export function DesignSamplePointTable({
       .loadMasterData()
       .then((master) => {
         if (active) setRegions(master.regions);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [repository]);
+
+  useEffect(() => {
+    let active = true;
+    void repository
+      .loadDesignSamplePointFields?.(BOOTSTRAP_CONTEXT)
+      .then((contract) => {
+        if (active) setCatalog(contract);
       })
       .catch(() => undefined);
     return () => {
@@ -175,6 +196,7 @@ export function DesignSamplePointTable({
         }
       }
       const context = currentEditor.point?.context ?? BOOTSTRAP_CONTEXT;
+      setEditorContext(context);
       setEditor(currentEditor);
       setEditorContract(undefined);
       setEditorError("");
@@ -200,6 +222,42 @@ export function DesignSamplePointTable({
     },
     [repository],
   );
+
+  const changeEditorContext = (partial: Partial<DesignSampleContext>) => {
+    const definition = catalog ?? editorContract;
+    if (!definition || !repository.loadDesignSamplePointFields) return;
+    const requested = { ...editorContext, ...partial };
+    const next =
+      definition.supportedContexts.find(
+        (candidate) =>
+          candidate.domainCode === requested.domainCode &&
+          candidate.productCode === requested.productCode &&
+          candidate.objectTypeCode === requested.objectTypeCode,
+      ) ??
+      definition.supportedContexts.find(
+        (candidate) =>
+          candidate.domainCode === requested.domainCode &&
+          candidate.productCode === requested.productCode,
+      ) ??
+      definition.supportedContexts.find(
+        (candidate) => candidate.domainCode === requested.domainCode,
+      );
+    if (!next) return;
+    const context = {
+      domainCode: next.domainCode,
+      productCode: next.productCode,
+      objectTypeCode: next.objectTypeCode,
+    };
+    setEditorContext(context);
+    setEditorContract(undefined);
+    setEditorError("");
+    void repository
+      .loadDesignSamplePointFields(context)
+      .then(setEditorContract)
+      .catch((error) =>
+        setEditorError(errorMessage(error, "字段信息暂不可用，请稍后重试。")),
+      );
+  };
 
   useEffect(() => {
     if (!selection || !selection.type.startsWith("design-sample-")) return;
@@ -335,6 +393,29 @@ export function DesignSamplePointTable({
           />
 
           <SamplePointLedgerFilters ariaLabel="设计参考点筛选">
+            <label>
+              <span>参考类别</span>
+              <select
+                aria-label="筛选参考类别"
+                onChange={(event) =>
+                  setFilterDraft((current) => ({
+                    ...current,
+                    domainCode: event.target.value,
+                    objectTypeCode: "",
+                  }))
+                }
+                value={filterDraft.domainCode}
+              >
+                <option value="">全部类别</option>
+                {catalog?.domains
+                  .filter((option) => option.code !== "REFERENCE")
+                  .map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}类
+                    </option>
+                  ))}
+              </select>
+            </label>
             <label className="sample-point-governance-workspace__filter-query">
               <span>关键词</span>
               <input
@@ -370,6 +451,58 @@ export function DesignSamplePointTable({
                 ))}
               </select>
             </label>
+            <label>
+              <span>品种</span>
+              <select
+                aria-label="筛选品种"
+                onChange={(event) =>
+                  setFilterDraft((current) => ({
+                    ...current,
+                    productCode: event.target.value,
+                  }))
+                }
+                value={filterDraft.productCode}
+              >
+                <option value="">全部品种</option>
+                {catalog?.products
+                  .filter((option) => option.code !== "GENERAL")
+                  .map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              <span>参考对象类型</span>
+              <select
+                aria-label="筛选参考对象类型"
+                onChange={(event) =>
+                  setFilterDraft((current) => ({
+                    ...current,
+                    objectTypeCode: event.target.value,
+                  }))
+                }
+                value={filterDraft.objectTypeCode}
+              >
+                <option value="">全部对象类型</option>
+                {catalog?.objectTypes
+                  .filter(
+                    (option) =>
+                      option.domainCode !== "REFERENCE" &&
+                      (!filterDraft.domainCode ||
+                        option.domainCode === filterDraft.domainCode),
+                  )
+                  .map((option) => (
+                    <option
+                      key={`${option.domainCode}:${option.code}`}
+                      value={option.code}
+                    >
+                      {option.label}
+                    </option>
+                  ))}
+              </select>
+            </label>
             <div className="enterprise-ledger-query__actions">
               <button
                 className="is-primary"
@@ -387,6 +520,9 @@ export function DesignSamplePointTable({
                   const empty = {
                     keyword: "",
                     regionCode: "",
+                    domainCode: "",
+                    productCode: "",
+                    objectTypeCode: "",
                   };
                   setFilterDraft(empty);
                   setFilters(empty);
@@ -410,8 +546,18 @@ export function DesignSamplePointTable({
             <>
               <SamplePointLedgerTable
                 ariaLabel="设计参考点清单"
-                className="formal-sample-ledger__table enterprise-ledger-table"
-                headers={["点位名称", "行政区", "详细地址", "坐标", "操作"]}
+                className="formal-sample-ledger__table enterprise-ledger-table enterprise-ledger-table--compact"
+                headers={[
+                  "参考类别",
+                  "点位名称",
+                  "行政区",
+                  "详细地址",
+                  "坐标",
+                  "品种",
+                  "参考对象类型",
+                  "维护人/维护单位",
+                  "操作",
+                ]}
                 scrollClassName="sample-point-governance-workspace__table-scroll--bounded enterprise-ledger-table__scroll"
                 scrollAriaLabel="设计参考点滚动清单"
                 scrollTabIndex={0}
@@ -468,12 +614,27 @@ export function DesignSamplePointTable({
               >
                 {pageData.items.map((point) => (
                   <tr key={point.id}>
+                    <td>
+                      {optionLabel(
+                        catalog?.domains,
+                        point.context.domainCode,
+                        "类",
+                      )}
+                    </td>
                     <td>{point.name}</td>
                     <td>{point.regionPath}</td>
                     <td>{displayValue(point.values.DSP_ADDRESS)}</td>
                     <td>
                       {point.longitude}, {point.latitude}
                     </td>
+                    <td>
+                      {optionLabel(
+                        catalog?.products,
+                        point.context.productCode,
+                      )}
+                    </td>
+                    <td>{objectTypeLabel(catalog, point.context)}</td>
+                    <td>{maintainerLabel(point)}</td>
                     <td>
                       <SamplePointLedgerRowActions>
                         <button
@@ -585,13 +746,16 @@ export function DesignSamplePointTable({
 
       {editor ? (
         <DesignSamplePointEditor
+          catalog={catalog ?? editorContract}
           contract={editorContract}
+          context={editorContext}
           error={editorError}
           mode={editor.mode}
           onCancel={() => {
             setEditor(undefined);
             navigate({ type: "design-sample-list", id: "list" });
           }}
+          onContextChange={changeEditorContext}
           onSave={() => void save()}
           onValueChange={(code, value) =>
             setEditorValues((current) => ({ ...current, [code]: value }))
@@ -606,20 +770,26 @@ export function DesignSamplePointTable({
 }
 
 function DesignSamplePointEditor({
+  catalog,
   contract,
+  context,
   error,
   mode,
   onCancel,
+  onContextChange,
   onSave,
   onValueChange,
   regions,
   saving,
   values,
 }: {
+  catalog: DesignSampleFieldContract | undefined;
   contract: DesignSampleFieldContract | undefined;
+  context: DesignSampleContext;
   error: string;
   mode: "create" | "edit";
   onCancel: () => void;
+  onContextChange: (context: Partial<DesignSampleContext>) => void;
   onSave: () => void;
   onValueChange: (code: string, value: string) => void;
   regions: readonly MasterRegion[];
@@ -649,6 +819,79 @@ function DesignSamplePointEditor({
         </>
       }
     >
+      {catalog ? (
+        <>
+          <label>
+            <span>参考类别</span>
+            <select
+              aria-label="参考类别"
+              value={context.domainCode}
+              onChange={(event) =>
+                onContextChange({ domainCode: event.target.value })
+              }
+            >
+              {catalog.domains
+                .filter((option) => option.code !== "REFERENCE")
+                .map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}类
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            <span>品种</span>
+            <select
+              aria-label="品种"
+              value={context.productCode}
+              onChange={(event) =>
+                onContextChange({ productCode: event.target.value })
+              }
+            >
+              {catalog.products
+                .filter((option) =>
+                  catalog.supportedContexts.some(
+                    (candidate) =>
+                      candidate.domainCode === context.domainCode &&
+                      candidate.productCode === option.code,
+                  ),
+                )
+                .map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            <span>参考对象类型</span>
+            <select
+              aria-label="参考对象类型"
+              value={context.objectTypeCode}
+              onChange={(event) =>
+                onContextChange({ objectTypeCode: event.target.value })
+              }
+            >
+              {catalog.objectTypes
+                .filter(
+                  (option) =>
+                    option.domainCode === context.domainCode &&
+                    catalog.supportedContexts.some(
+                      (candidate) =>
+                        candidate.domainCode === context.domainCode &&
+                        candidate.productCode === context.productCode &&
+                        candidate.objectTypeCode === option.code,
+                    ),
+                )
+                .map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
+                ))}
+            </select>
+          </label>
+        </>
+      ) : null}
       {contract ? (
         <>
           {fields.map((field) => (
@@ -847,6 +1090,34 @@ function formValue(value: unknown) {
 
 function displayValue(value: unknown) {
   return formValue(value).trim() || "未填写";
+}
+
+function optionLabel(
+  options: readonly { code: string; label: string }[] | undefined,
+  code: string,
+  suffix = "",
+) {
+  const label = options?.find((option) => option.code === code)?.label;
+  return label ? `${label}${suffix}` : code;
+}
+
+function objectTypeLabel(
+  contract: DesignSampleFieldContract | undefined,
+  context: DesignSampleContext,
+) {
+  return (
+    contract?.objectTypes.find(
+      (option) =>
+        option.domainCode === context.domainCode &&
+        option.code === context.objectTypeCode,
+    )?.label ?? context.objectTypeCode
+  );
+}
+
+function maintainerLabel(point: DesignSamplePointRow) {
+  const name = formValue(point.values.DSP_MAINTAINER_NAME).trim();
+  const unit = formValue(point.values.DSP_MAINTAINER_UNIT).trim();
+  return [name, unit].filter(Boolean).join(" / ") || "未填写";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

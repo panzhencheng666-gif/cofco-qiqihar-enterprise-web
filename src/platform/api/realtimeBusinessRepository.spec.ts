@@ -307,22 +307,26 @@ describe("realtime business repository", () => {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
-    await repository.downloadDesignSamplePointTemplate!();
-    await repository.importDesignSamplePoints!(file, "design-import-key");
+    await repository.downloadDesignSamplePointTemplate!("MARKET");
+    await repository.importDesignSamplePoints!(
+      file,
+      "MARKET",
+      "design-import-key",
+    );
     await repository.downloadDesignSamplePointImportErrors!("import/1");
     await repository.downloadFormalSamplePointTemplate!();
     await repository.importFormalSamplePoints!(file, "formal-import-key");
     await repository.downloadFormalSamplePointImportErrors!("import/2");
 
     expect(download.mock.calls).toEqual([
-      ["/api/v1/design-sample-points/import-template"],
+      ["/api/v1/design-sample-points/import-template?domain=MARKET"],
       ["/api/v1/design-sample-points/imports/import%2F1/errors"],
       ["/api/v1/formal-sample-points/import-template"],
       ["/api/v1/formal-sample-points/imports/import%2F2/errors"],
     ]);
     expect(upload).toHaveBeenNthCalledWith(
       1,
-      "/api/v1/design-sample-points/imports",
+      "/api/v1/design-sample-points/imports?domain=MARKET",
       expect.any(FormData),
       { "Idempotency-Key": "design-import-key" },
     );
@@ -1541,7 +1545,7 @@ describe("realtime business repository", () => {
 
     const expectedPaths = [
       "/api/v1/imports/production?productCode=CORN",
-      "/api/v1/imports/market?productCode=SOYBEAN",
+      "/api/v1/imports/market?productCode=SOYBEAN&objectTypeCode=TRADER",
       "/api/v1/imports/logistics?productCode=RICE",
     ];
     expectedPaths.forEach((path, index) => {
@@ -1555,6 +1559,19 @@ describe("realtime business repository", () => {
       throw new Error("expected multipart form");
     expect(productionForm.getAll("photos")).toHaveLength(1);
     expect((productionForm.get("photos") as File).name).toBe("样本点一.jpg");
+  });
+
+  it("binds market template downloads to the selected object type", async () => {
+    const { api, download } = client();
+    const repository = createRealtimeBusinessRepository(api);
+
+    await repository.downloadMarketXlsxTemplate?.("CORN", "DEEP_PROCESSOR");
+
+    expect(download).toHaveBeenCalledWith("/api/v1/imports/market/template", {
+      format: "xlsx",
+      productCode: "CORN",
+      objectTypeCode: "DEEP_PROCESSOR",
+    });
   });
 
   it("uses only the dedicated returned-correction workbook endpoints", async () => {

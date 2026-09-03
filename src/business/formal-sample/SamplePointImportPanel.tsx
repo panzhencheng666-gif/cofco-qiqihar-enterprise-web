@@ -36,19 +36,28 @@ export function SamplePointImportPanel({
     crypto.randomUUID(),
   );
   const [busy, setBusy] = useState(false);
+  const [designDomain, setDesignDomain] = useState<"PRODUCTION" | "MARKET">(
+    "PRODUCTION",
+  );
   const [result, setResult] = useState<SamplePointImportResult>();
   const [error, setError] = useState<string>();
   const label = kind === "design" ? "设计样本点" : "正式样本";
 
-  const handleTemplate = async () => {
+  const handleTemplate = async (domain = designDomain) => {
     setError(undefined);
     try {
       const blob =
         kind === "design"
-          ? await repository.downloadDesignSamplePointTemplate?.()
+          ? await repository.downloadDesignSamplePointTemplate?.(domain)
           : await repository.downloadFormalSamplePointTemplate?.();
       if (!blob) throw new Error("template unavailable");
-      downloadBlob(blob, `${label}批量新增模板.xlsx`);
+      const templateLabel =
+        kind === "design"
+          ? domain === "PRODUCTION"
+            ? "产情类设计参考点"
+            : "市场类设计参考点"
+          : label;
+      downloadBlob(blob, `${templateLabel}批量新增模板.xlsx`);
     } catch {
       setError("模板下载失败，请稍后重试。");
     }
@@ -62,7 +71,11 @@ export function SamplePointImportPanel({
     try {
       const next =
         kind === "design"
-          ? await repository.importDesignSamplePoints?.(file, idempotencyKey)
+          ? await repository.importDesignSamplePoints?.(
+              file,
+              designDomain,
+              idempotencyKey,
+            )
           : await repository.importFormalSamplePoints?.(file, idempotencyKey);
       if (!next) throw new Error("import unavailable");
       setResult(next);
@@ -92,13 +105,40 @@ export function SamplePointImportPanel({
     }
   };
 
+  const templateActions =
+    kind === "design" ? (
+      <>
+        <button type="button" onClick={() => void handleTemplate("PRODUCTION")}>
+          下载产情类模板
+        </button>
+        <button type="button" onClick={() => void handleTemplate("MARKET")}>
+          下载市场类模板
+        </button>
+        <label>
+          <span>导入分类</span>
+          <select
+            aria-label="设计参考点导入分类"
+            value={designDomain}
+            onChange={(event) =>
+              setDesignDomain(event.target.value as "PRODUCTION" | "MARKET")
+            }
+          >
+            <option value="PRODUCTION">产情类设计参考点</option>
+            <option value="MARKET">市场类设计参考点</option>
+          </select>
+        </label>
+      </>
+    ) : (
+      <button type="button" onClick={() => void handleTemplate()}>
+        下载 XLSX 模板
+      </button>
+    );
+
   if (variant === "standalone") {
     return (
       <section className="sample-point-import" aria-label={`${label}批量导入`}>
         <div className="sample-point-import__actions">
-          <button type="button" onClick={() => void handleTemplate()}>
-            下载 XLSX 模板
-          </button>
+          {templateActions}
           <label>
             <span>选择 XLSX 文件</span>
             <input
@@ -136,9 +176,7 @@ export function SamplePointImportPanel({
 
   const actions = (
     <>
-      <button type="button" onClick={() => void handleTemplate()}>
-        下载 XLSX 模板
-      </button>
+      {templateActions}
       <label className="realtime-business-file-action">
         <span>{file?.name ?? "选择 XLSX 文件"}</span>
         <input

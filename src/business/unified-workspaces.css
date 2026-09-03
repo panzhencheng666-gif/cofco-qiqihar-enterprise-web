@@ -7284,6 +7284,11 @@
   min-width: 5700px;
 }
 
+.enterprise-ledger-table--compact table {
+  width: max-content;
+  min-width: 760px;
+}
+
 .enterprise-ledger-table th,
 .enterprise-ledger-table td {
   height: 41px;

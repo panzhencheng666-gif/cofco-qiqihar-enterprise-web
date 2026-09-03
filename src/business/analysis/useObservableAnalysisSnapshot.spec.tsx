@@ -161,6 +161,45 @@ describe("observable analysis realtime state", () => {
     expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(1);
   });
 
+  it("refetches formal overwrites but ignores design reference changes", async () => {
+    const source = repository();
+    renderHook(() =>
+      useObservableAnalysisSnapshot({ query, repository: source.api }),
+    );
+    await waitFor(() =>
+      expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(1),
+    );
+
+    act(() =>
+      source.emit(
+        event(
+          13,
+          "CORN",
+          ["230200"],
+          "DESIGN_SAMPLE_POINT",
+          "DESIGN_SAMPLE_POINT_UPDATED",
+        ),
+      ),
+    );
+    await Promise.resolve();
+    expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(1);
+
+    act(() =>
+      source.emit(
+        event(
+          14,
+          "CORN",
+          ["230200"],
+          "FORMAL_SAMPLE_OBSERVATION",
+          "FORMAL_SAMPLE_OBSERVATION_SAVED",
+        ),
+      ),
+    );
+    await waitFor(() =>
+      expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(2),
+    );
+  });
+
   it("distinguishes an approved empty result from a failed request", async () => {
     const source = repository();
     source.loadObservableAnalysisSnapshot.mockResolvedValueOnce({

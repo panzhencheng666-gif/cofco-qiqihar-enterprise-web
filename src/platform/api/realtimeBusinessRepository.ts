@@ -1537,9 +1537,12 @@ export interface RealtimeBusinessRepository {
     expectedVersion: number,
   ): Promise<DesignSamplePointRow>;
   deleteDesignSamplePoint?(id: string, expectedVersion: number): Promise<void>;
-  downloadDesignSamplePointTemplate?(): Promise<Blob>;
+  downloadDesignSamplePointTemplate?(
+    domain: "PRODUCTION" | "MARKET",
+  ): Promise<Blob>;
   importDesignSamplePoints?(
     file: File,
+    domain: "PRODUCTION" | "MARKET",
     idempotencyKey: string,
   ): Promise<SamplePointImportResult>;
   downloadDesignSamplePointImportErrors?(importId: string): Promise<Blob>;
@@ -2065,13 +2068,15 @@ export function createRealtimeBusinessRepository(
       client.delete(`/api/v1/design-sample-points/${encodeURIComponent(id)}`, {
         expectedVersion,
       }),
-    downloadDesignSamplePointTemplate: () =>
-      client.download("/api/v1/design-sample-points/import-template"),
-    importDesignSamplePoints: (file, idempotencyKey) => {
+    downloadDesignSamplePointTemplate: (domain) =>
+      client.download(
+        `/api/v1/design-sample-points/import-template?domain=${encodeURIComponent(domain)}`,
+      ),
+    importDesignSamplePoints: (file, domain, idempotencyKey) => {
       const form = new FormData();
       form.append("file", file, file.name);
       return client.upload<SamplePointImportResult>(
-        "/api/v1/design-sample-points/imports",
+        `/api/v1/design-sample-points/imports?domain=${encodeURIComponent(domain)}`,
         form,
         { "Idempotency-Key": idempotencyKey },
       );
@@ -2580,22 +2585,23 @@ export function createRealtimeBusinessRepository(
         format: "xlsx",
         productCode,
       }),
-    importMarketWorkbook: (file, productCode, _objectTypeCode, photos = []) => {
+    importMarketWorkbook: (file, productCode, objectTypeCode, photos = []) => {
       const form = new FormData();
       form.append("file", file, file.name);
       photos.forEach((photo) => form.append("photos", photo, photo.name));
       return client.upload<ProductionImportJob>(
-        `/api/v1/imports/market?productCode=${encodeURIComponent(productCode)}`,
+        `/api/v1/imports/market?productCode=${encodeURIComponent(productCode)}${objectTypeCode ? `&objectTypeCode=${encodeURIComponent(objectTypeCode)}` : ""}`,
         form,
         {
           "Idempotency-Key": crypto.randomUUID(),
         },
       );
     },
-    downloadMarketXlsxTemplate: (productCode) =>
+    downloadMarketXlsxTemplate: (productCode, objectTypeCode) =>
       client.download("/api/v1/imports/market/template", {
         format: "xlsx",
         productCode,
+        ...(objectTypeCode ? { objectTypeCode } : {}),
       }),
     downloadMarketReturnedCorrectionWorkbook: (productCode) =>
       client.download("/api/v1/imports/market/returned-corrections/template", {

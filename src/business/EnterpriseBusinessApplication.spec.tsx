@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   EnterpriseBusinessApplication as RuntimeEnterpriseBusinessApplication,
   loadAllWorkItems,
+  shouldRefreshBusinessData,
   type EnterpriseBusinessApplicationProps,
 } from "./EnterpriseBusinessApplication";
 import {
@@ -184,6 +185,31 @@ afterEach(() => {
 });
 
 describe("formal enterprise prototype", () => {
+  it("keeps design reference events out of the business refresh channel", () => {
+    const notification = {
+      id: "event-1",
+      sequence: 1,
+      aggregateId: "point-1",
+      productCode: "CORN",
+      regionCodes: ["230200"],
+      occurredAt: "2026-09-03T08:00:00Z",
+      read: false,
+    };
+    expect(
+      shouldRefreshBusinessData({
+        ...notification,
+        aggregateType: "DESIGN_SAMPLE_POINT",
+        actionCode: "DESIGN_SAMPLE_POINT_UPDATED",
+      }),
+    ).toBe(false);
+    expect(
+      shouldRefreshBusinessData({
+        ...notification,
+        aggregateType: "FORMAL_SAMPLE_OBSERVATION",
+        actionCode: "FORMAL_SAMPLE_OBSERVATION_SAVED",
+      }),
+    ).toBe(true);
+  });
   it("loads every server work-item page instead of truncating the queue at 100", async () => {
     const listWorkItems = vi.fn(({ page = 0 }: { page?: number }) =>
       Promise.resolve({

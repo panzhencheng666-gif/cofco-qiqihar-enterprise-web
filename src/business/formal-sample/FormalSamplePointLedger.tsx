@@ -6,13 +6,20 @@ import type {
   FormalSampleObservationDomain,
   FormalSamplePointMutation,
   FormalSamplePointRow,
+  LogisticsDefinition,
+  MarketDefinition,
   MasterObjectType,
   MasterRegion,
+  ProductionDefinition,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import type { FormalSelection } from "../formalEnterpriseModel";
 import { SamplePointImportPanel } from "./SamplePointImportPanel";
+import {
+  observationFieldLabel,
+  observationFields,
+} from "./formalSampleObservationFields";
 import {
   SamplePointEditorForm,
   SamplePointLedgerFilters,
@@ -95,6 +102,19 @@ function localDateTimeValue(): string {
 function latestObservation(value: string | null | undefined): string {
   if (!value) return "暂无";
   return value.replace("T", " ").slice(0, 16);
+}
+
+function domainLabel(domain: FormalSampleObservationDomain): string {
+  return { PRODUCTION: "产情", MARKET: "市场", LOGISTICS: "物流" }[domain];
+}
+
+function productLabel(code: string): string {
+  const labels: Readonly<Record<string, string>> = {
+    CORN: "玉米",
+    SOYBEAN: "大豆",
+    RICE: "水稻",
+  };
+  return labels[code] ?? code;
 }
 
 interface EditorState {
@@ -231,6 +251,10 @@ export function FormalSamplePointLedger({
   const [employees, setEmployees] = useState<readonly EmployeeProfile[]>([]);
   const [observedAt, setObservedAt] = useState(localDateTimeValue);
   const [objectTypeCode, setObjectTypeCode] = useState("");
+  const [listDefinition, setListDefinition] = useState<
+    ProductionDefinition | MarketDefinition | LogisticsDefinition | null
+  >(null);
+  const [listDefinitionKey, setListDefinitionKey] = useState("");
   const [regionCode, setRegionCode] = useState("");
   const [keyword, setKeyword] = useState("");
   const [pageNumber, setPageNumber] = useState(0);
@@ -276,6 +300,14 @@ export function FormalSamplePointLedger({
       eligibleSamples.slice(pageNumber * pageSize, (pageNumber + 1) * pageSize),
     [eligibleSamples, pageNumber],
   );
+  const listObservationFields = useMemo(
+    () =>
+      objectTypeCode &&
+      listDefinitionKey === `${domain}:${productCode}:${objectTypeCode}`
+        ? observationFields(domain, listDefinition)
+        : [],
+    [domain, listDefinition, listDefinitionKey, objectTypeCode, productCode],
+  );
   const availableObjectTypes =
     !editor?.objectTypeCode ||
     objectTypes.some(({ code }) => code === editor.objectTypeCode)
@@ -296,6 +328,31 @@ export function FormalSamplePointLedger({
   );
   const showList = selection ? selection.type === "formal-sample-list" : true;
   const navigate = (next: FormalSelection) => onSelectionChange?.(next);
+
+  useEffect(() => {
+    let active = true;
+    if (!objectTypeCode)
+      return () => {
+        active = false;
+      };
+    const request =
+      domain === "PRODUCTION"
+        ? repository.loadProductionDefinition(productCode, objectTypeCode)
+        : domain === "MARKET"
+          ? repository.loadMarketDefinition(productCode, objectTypeCode)
+          : repository.loadLogisticsDefinition(productCode);
+    void request
+      .then((next) => {
+        if (active) {
+          setListDefinition(next);
+          setListDefinitionKey(`${domain}:${productCode}:${objectTypeCode}`);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [domain, objectTypeCode, productCode, repository]);
 
   const query = useCallback(
     async (requestedPage = pageNumber) => {
@@ -955,10 +1012,13 @@ export function FormalSamplePointLedger({
             headers={[
               "样本名称",
               "地区",
+              "业务类别",
+              "品种",
               "对象类型",
               "维护人",
-              "定位",
-              "最近观测",
+              "填报状态",
+              "更新时间",
+              ...listObservationFields.map(observationFieldLabel),
               "操作",
             ]}
             empty={
@@ -985,10 +1045,19 @@ export function FormalSamplePointLedger({
                 <tr key={samplePoint.samplePointId}>
                   <td>{samplePoint.sampleName}</td>
                   <td>{samplePoint.regionName}</td>
+                  <td>{domainLabel(samplePoint.domain)}</td>
+                  <td>{productLabel(samplePoint.productCode)}</td>
                   <td>{samplePoint.objectTypeName ?? "待同步"}</td>
                   <td>{samplePoint.maintainerDisplayName ?? "未指定维护人"}</td>
-                  <td>{coordinate(samplePoint)}</td>
+                  <td>
+                    {samplePoint.latestObservationId ? "已填报" : "未填报"}
+                  </td>
                   <td>{latestObservation(samplePoint.latestObservedAt)}</td>
+                  {listObservationFields.map((field) => (
+                    <td key={field.code}>
+                      {samplePoint.latestValues[field.code] || "—"}
+                    </td>
+                  ))}
                   <td>
                     <SamplePointLedgerRowActions>
                       <button

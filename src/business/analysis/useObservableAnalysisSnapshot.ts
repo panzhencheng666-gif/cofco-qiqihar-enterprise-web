@@ -155,6 +155,18 @@ function matchesScope(
   productCode: string,
   relatedRegions: ReadonlySet<string>,
 ): boolean {
+  if (
+    event.aggregateType === "FORMAL_SAMPLE_OBSERVATION" &&
+    event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED"
+  ) {
+    return (
+      event.productCode === productCode &&
+      (relatedRegions.has(ALL_AUTHORIZED_REGION_CODE) ||
+        relatedRegions.has("") ||
+        relatedRegions.has("*") ||
+        event.regionCodes.some((regionCode) => relatedRegions.has(regionCode)))
+    );
+  }
   if (!isAnalysisInvalidatingAction(event.actionCode)) return false;
   if (event.productCode !== productCode) return false;
   const allAuthorizedRegions =

@@ -79,8 +79,9 @@ describe("SamplePointImportPanel", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "下载 XLSX 模板" }));
-    expect(downloadTemplate).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "下载产情类模板" }));
+    await user.click(screen.getByRole("button", { name: "下载市场类模板" }));
+    expect(downloadTemplate.mock.calls).toEqual([["PRODUCTION"], ["MARKET"]]);
 
     const firstFile = new File(["valid"], "设计样本.xlsx", {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -92,7 +93,8 @@ describe("SamplePointImportPanel", () => {
       "导入完成，已新增 2 条",
     );
     expect(onImported).toHaveBeenCalledTimes(1);
-    expect(importPoints.mock.calls[0]?.[1]).toBe(
+    expect(importPoints.mock.calls[0]?.[1]).toBe("PRODUCTION");
+    expect(importPoints.mock.calls[0]?.[2]).toBe(
       "00000000-0000-4000-8000-000000000001",
     );
 
@@ -105,7 +107,7 @@ describe("SamplePointImportPanel", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "本次零条入库，1 行需要修正",
     );
-    expect(importPoints.mock.calls[1]?.[1]).toBe(
+    expect(importPoints.mock.calls[1]?.[2]).toBe(
       "00000000-0000-4000-8000-000000000002",
     );
     await user.click(screen.getByRole("button", { name: "下载错误明细" }));
