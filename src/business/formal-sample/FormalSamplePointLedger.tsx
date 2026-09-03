@@ -17,6 +17,7 @@ import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import type { FormalSelection } from "../formalEnterpriseModel";
 import { SamplePointImportPanel } from "./SamplePointImportPanel";
 import {
+  mergeObservationFields,
   observationFieldLabel,
   observationFields,
 } from "./formalSampleObservationFields";
@@ -234,6 +235,7 @@ export function FormalSamplePointLedger({
   onSelectionChange,
   onSelectionClear,
   onCollectData,
+  showAllApplicableFields = false,
 }: {
   domain: FormalSampleObservationDomain;
   productCode: string;
@@ -243,6 +245,7 @@ export function FormalSamplePointLedger({
   onSelectionChange?: (selection: FormalSelection) => void;
   onSelectionClear?: () => void;
   onCollectData: (samplePointId: string) => void;
+  showAllApplicableFields?: boolean;
 }) {
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
   const [objectTypes, setObjectTypes] = useState<readonly MasterObjectType[]>(
@@ -255,6 +258,9 @@ export function FormalSamplePointLedger({
     ProductionDefinition | MarketDefinition | LogisticsDefinition | null
   >(null);
   const [listDefinitionKey, setListDefinitionKey] = useState("");
+  const [applicableListFields, setApplicableListFields] = useState<
+    ReturnType<typeof observationFields>
+  >([]);
   const [regionCode, setRegionCode] = useState("");
   const [keyword, setKeyword] = useState("");
   const [pageNumber, setPageNumber] = useState(0);
@@ -302,11 +308,21 @@ export function FormalSamplePointLedger({
   );
   const listObservationFields = useMemo(
     () =>
-      objectTypeCode &&
-      listDefinitionKey === `${domain}:${productCode}:${objectTypeCode}`
-        ? observationFields(domain, listDefinition)
-        : [],
-    [domain, listDefinition, listDefinitionKey, objectTypeCode, productCode],
+      showAllApplicableFields
+        ? applicableListFields
+        : objectTypeCode &&
+            listDefinitionKey === `${domain}:${productCode}:${objectTypeCode}`
+          ? observationFields(domain, listDefinition)
+          : [],
+    [
+      applicableListFields,
+      domain,
+      listDefinition,
+      listDefinitionKey,
+      objectTypeCode,
+      productCode,
+      showAllApplicableFields,
+    ],
   );
   const availableObjectTypes =
     !editor?.objectTypeCode ||
@@ -353,6 +369,50 @@ export function FormalSamplePointLedger({
       active = false;
     };
   }, [domain, objectTypeCode, productCode, repository]);
+
+  useEffect(() => {
+    if (!showAllApplicableFields) return undefined;
+    let active = true;
+    const objectTypeCodes = [
+      ...new Set(
+        eligibleSamples
+          .map(({ objectTypeCode: code }) => code)
+          .filter((code): code is string => Boolean(code)),
+      ),
+    ];
+    const requests =
+      domain === "LOGISTICS"
+        ? [repository.loadLogisticsDefinition(productCode)]
+        : objectTypeCodes.map((code) =>
+            domain === "PRODUCTION"
+              ? repository.loadProductionDefinition(productCode, code)
+              : repository.loadMarketDefinition(productCode, code),
+          );
+    void Promise.all(requests)
+      .then((definitions) => {
+        if (active) {
+          setApplicableListFields(
+            mergeObservationFields(
+              definitions.map((definition) =>
+                observationFields(domain, definition, true),
+              ),
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (active) setApplicableListFields([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    domain,
+    eligibleSamples,
+    productCode,
+    repository,
+    showAllApplicableFields,
+  ]);
 
   const query = useCallback(
     async (requestedPage = pageNumber) => {
@@ -565,7 +625,7 @@ export function FormalSamplePointLedger({
         eventSequence.current = event.sequence;
         const observationChanged =
           event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED" &&
-          (!event.productCode || event.productCode === productCode);
+          event.productCode === productCode;
         const samplePointChanged =
           event.aggregateType === "FORMAL_SAMPLE_POINT" ||
           event.actionCode.startsWith("FORMAL_SAMPLE_POINT_");
@@ -1039,8 +1099,7 @@ export function FormalSamplePointLedger({
             }
           >
             {visibleSamples.map((samplePoint) => {
-              const collectionAllowed =
-                canCollect && Boolean(samplePoint.maintainerSubjectId);
+              const collectionAllowed = canCollect;
               return (
                 <tr key={samplePoint.samplePointId}>
                   <td>{samplePoint.sampleName}</td>
@@ -1120,9 +1179,7 @@ export function FormalSamplePointLedger({
                         title={
                           !canCollect
                             ? "当前账号没有填写正式采集数据的权限"
-                            : !samplePoint.maintainerSubjectId
-                              ? "请先由管理员指定维护人"
-                              : undefined
+                            : undefined
                         }
                         type="button"
                         onClick={() => {
@@ -1134,12 +1191,10 @@ export function FormalSamplePointLedger({
                           ? canCollect
                             ? samplePoint.maintainerSubjectId
                               ? "更新采集数据"
-                              : "先指定维护人"
+                              : "填写采集数据"
                             : "无采集权限"
                           : canCollect
-                            ? samplePoint.maintainerSubjectId
-                              ? "填写采集数据"
-                              : "先指定维护人"
+                            ? "填写采集数据"
                             : "无采集权限"}
                       </button>
                     </SamplePointLedgerRowActions>
@@ -1296,17 +1351,9 @@ export function FormalSamplePointLedger({
                 </div>
               </section>
             )}
-            {!canDelete ? null : detail.networkMembershipCount > 0 ? (
-              <p>
-                该样本仍被年度样本网引用，不能删除。请先到样本点管理解除年度引用，再返回本页重试。
-              </p>
-            ) : detail.annualObservationCount > 0 ? (
-              <p>
-                该样本已有业务历史，不能删除。请保留样本档案并使用“更新采集数据”维护后续记录。
-              </p>
-            ) : confirmingId === detail.id ? (
+            {!canDelete ? null : confirmingId === detail.id ? (
               <div className="formal-sample-ledger__delete-confirmation">
-                <p>删除会同步清理可删除的正式业务数据，且不可撤销。</p>
+                <p>删除会同步清理该样本及其关联正式业务数据，且不可撤销。</p>
                 <button
                   disabled={busy}
                   type="button"

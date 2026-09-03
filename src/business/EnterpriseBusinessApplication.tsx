@@ -1071,7 +1071,8 @@ export function EnterpriseBusinessApplication({
         if (realtimeMode && currentSession) {
           return (
             <SamplePointGovernanceWorkspace
-              mode="design"
+              mode="business"
+              refreshSequence={realtimeRefreshToken}
               refreshSequenceByYear={sampleNetworkRefreshSequenceByYear}
               repository={repository}
               session={currentSession}

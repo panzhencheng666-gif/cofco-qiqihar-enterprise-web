@@ -752,19 +752,13 @@ export function RealtimeBusinessOperationsPanel({
   }
 
   async function downloadWorkbook() {
-    if (!productCode || !objectTypeCode) return;
+    if (!productCode) return;
     setError("");
     try {
       const blob =
         domain === "production"
-          ? await repository.downloadProductionXlsxTemplate?.(
-              productCode,
-              objectTypeCode,
-            )
-          : await repository.downloadMarketXlsxTemplate?.(
-              productCode,
-              objectTypeCode,
-            );
+          ? await repository.downloadProductionXlsxTemplate?.(productCode)
+          : await repository.downloadMarketXlsxTemplate?.(productCode);
       if (!blob) throw new Error("TEMPLATE_NOT_CONFIGURED");
       const href = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -847,7 +841,7 @@ export function RealtimeBusinessOperationsPanel({
             <>
               <button
                 type="button"
-                disabled={busy || importing || !productCode || !objectTypeCode}
+                disabled={busy || importing || !productCode}
                 onClick={() => void downloadWorkbook()}
               >
                 下载 XLSX 模板

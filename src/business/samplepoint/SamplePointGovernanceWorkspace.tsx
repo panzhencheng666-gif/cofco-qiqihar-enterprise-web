@@ -8,13 +8,14 @@ import type {
 import { WorkspaceHeader } from "../UnifiedWorkspacePrimitives";
 import type { FormalSelection } from "../formalEnterpriseModel";
 import { AnnualSampleNetworkPanel } from "./AnnualSampleNetworkPanel";
+import { CurrentSamplePointLedger } from "./CurrentSamplePointLedger";
 import { DesignSamplePointTable } from "./DesignSamplePointTable";
 import { SamplePointCoordinateGovernancePanel } from "./SamplePointCoordinateGovernancePanel";
 import { SamplePointIdentityGovernancePanel } from "./SamplePointIdentityGovernancePanel";
 
 import "./sample-point-governance-workspace.css";
 
-type GovernanceModule = "registry" | "design" | "annual" | "review";
+type GovernanceModule = "current" | "registry" | "design" | "annual" | "review";
 type ReviewModule = "coordinate" | "identity-import" | "identity-merge";
 
 const modules = [
@@ -22,6 +23,10 @@ const modules = [
   ["annual", "年度样本"],
   ["design", "设计参考点"],
   ["review", "变更与审核"],
+] as const satisfies readonly (readonly [GovernanceModule, string])[];
+const businessModules = [
+  ["current", "现有样本"],
+  ["design", "设计参考点"],
 ] as const satisfies readonly (readonly [GovernanceModule, string])[];
 
 const DESIGN_DATASET_AGGREGATE_TYPE = "DESIGN_COORDINATE_DATASET";
@@ -38,6 +43,11 @@ const DESIGN_POINT_ACTIONS = new Set([
 const moduleGuidance: Readonly<
   Record<GovernanceModule, { title: string; description: string }>
 > = {
+  current: {
+    title: "现有样本",
+    description:
+      "按当前已核定业务记录展示权威样本；相同稳定样本身份只显示一次。",
+  },
   registry: {
     title: "样本点名册",
     description:
@@ -74,7 +84,7 @@ export function SamplePointGovernanceWorkspace({
 }: {
   currentYear?: number;
   initialModule?: GovernanceModule;
-  mode?: "all" | "design";
+  mode?: "all" | "business" | "design";
   refreshSequence?: number;
   refreshSequenceByYear?: Readonly<Record<number, number>>;
   repository: RealtimeBusinessRepository;
@@ -84,7 +94,11 @@ export function SamplePointGovernanceWorkspace({
   onSelectionClear?: () => void;
 }) {
   const [activeModule, setActiveModule] = useState<GovernanceModule>(
-    mode === "design" ? "design" : initialModule,
+    mode === "design"
+      ? "design"
+      : mode === "business"
+        ? "current"
+        : initialModule,
   );
   const [reviewModule, setReviewModule] = useState<ReviewModule>("coordinate");
   const [year, setYear] = useState(currentYear);
@@ -174,41 +188,51 @@ export function SamplePointGovernanceWorkspace({
       className="sample-point-governance-workspace"
       data-layout="ledger-workbench"
     >
-      {mode === "all" ? (
+      {mode !== "design" ? (
         <WorkspaceHeader
-          eyebrow="平台运营管理部 / 数据治理"
+          eyebrow={
+            mode === "business"
+              ? "我的工作 / 样本点"
+              : "平台运营管理部 / 数据治理"
+          }
           title="样本点管理"
-          summary="分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
+          summary={
+            mode === "business"
+              ? "查看当前业务使用的现有样本；设计参考点单独维护。"
+              : "分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
+          }
         />
       ) : null}
 
-      {mode === "all" ? (
+      {mode !== "design" ? (
         <nav
           aria-label="样本点治理模块"
           className="sample-point-governance-workspace__tabs"
           role="tablist"
         >
-          {modules.map(([module, label]) => (
-            <button
-              aria-controls={`sample-governance-${module}`}
-              aria-selected={activeModule === module}
-              id={`sample-governance-tab-${module}`}
-              key={module}
-              onClick={() => setActiveModule(module)}
-              role="tab"
-              type="button"
-            >
-              {label}
-            </button>
-          ))}
+          {(mode === "business" ? businessModules : modules).map(
+            ([module, label]) => (
+              <button
+                aria-controls={`sample-governance-${module}`}
+                aria-selected={activeModule === module}
+                id={`sample-governance-tab-${module}`}
+                key={module}
+                onClick={() => setActiveModule(module)}
+                role="tab"
+                type="button"
+              >
+                {label}
+              </button>
+            ),
+          )}
         </nav>
       ) : null}
 
-      {mode === "all" ? (
+      {mode !== "design" ? (
         <div className="sample-point-governance-workspace__context">
           <strong>{moduleGuidance[activeModule].title}</strong>
           <span>{moduleGuidance[activeModule].description}</span>
-          {activeModule === "annual" && (
+          {mode === "all" && activeModule === "annual" && (
             <span className="sample-point-governance-workspace__context-year">
               管理年度：{year}年
             </span>
@@ -235,7 +259,7 @@ export function SamplePointGovernanceWorkspace({
           />
         </dl>
       ) : null}
-      {mode === "all" && activeModule === "design" ? (
+      {mode !== "design" && activeModule === "design" ? (
         <dl
           aria-label="设计参考点概况"
           className="sample-point-governance-workspace__status-line"
@@ -251,12 +275,24 @@ export function SamplePointGovernanceWorkspace({
       <section
         aria-label={mode === "design" ? "设计样本点台账" : undefined}
         aria-labelledby={
-          mode === "all" ? `sample-governance-tab-${activeModule}` : undefined
+          mode !== "design"
+            ? `sample-governance-tab-${activeModule}`
+            : undefined
         }
         className="sample-point-governance-workspace__main"
         id={`sample-governance-${activeModule}`}
-        role={mode === "all" ? "tabpanel" : "region"}
+        role={mode !== "design" ? "tabpanel" : "region"}
       >
+        {activeModule === "current" ? (
+          <CurrentSamplePointLedger
+            refreshSequence={refreshSequence}
+            repository={repository}
+            session={session}
+            selection={selection}
+            onSelectionChange={onSelectionChange}
+            onSelectionClear={onSelectionClear}
+          />
+        ) : null}
         {activeModule === "registry" ? (
           <SamplePointIdentityGovernancePanel
             mode="manage"

@@ -161,7 +161,7 @@ describe("observable analysis realtime state", () => {
     expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(1);
   });
 
-  it("refetches formal overwrites but ignores design reference changes", async () => {
+  it("refetches formal writes and hard deletes but ignores design reference changes", async () => {
     const source = repository();
     renderHook(() =>
       useObservableAnalysisSnapshot({ query, repository: source.api }),
@@ -197,6 +197,21 @@ describe("observable analysis realtime state", () => {
     );
     await waitFor(() =>
       expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(2),
+    );
+
+    act(() =>
+      source.emit(
+        event(
+          15,
+          "CORN",
+          ["230200"],
+          "FORMAL_SAMPLE_POINT",
+          "FORMAL_SAMPLE_POINT_DELETED",
+        ),
+      ),
+    );
+    await waitFor(() =>
+      expect(source.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(3),
     );
   });
 

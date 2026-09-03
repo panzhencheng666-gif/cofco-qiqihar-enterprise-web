@@ -769,7 +769,7 @@ describe("product market collection workspace", () => {
     await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(2));
     await user.click(screen.getByRole("button", { name: "下载 XLSX 模板" }));
     await waitFor(() =>
-      expect(downloadMarketXlsxTemplate).toHaveBeenCalledWith("CORN", "TRADER"),
+      expect(downloadMarketXlsxTemplate).toHaveBeenCalledWith("CORN"),
     );
 
     const file = new File(["market"], "market.xlsx", {

@@ -155,12 +155,15 @@ function matchesScope(
   productCode: string,
   relatedRegions: ReadonlySet<string>,
 ): boolean {
-  if (
+  const isFormalObservationSave =
     event.aggregateType === "FORMAL_SAMPLE_OBSERVATION" &&
-    event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED"
-  ) {
+    event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED";
+  const isFormalSampleDelete =
+    event.aggregateType === "FORMAL_SAMPLE_POINT" &&
+    event.actionCode === "FORMAL_SAMPLE_POINT_DELETED";
+  if (isFormalObservationSave || isFormalSampleDelete) {
     return (
-      event.productCode === productCode &&
+      (isFormalSampleDelete || event.productCode === productCode) &&
       (relatedRegions.has(ALL_AUTHORIZED_REGION_CODE) ||
         relatedRegions.has("") ||
         relatedRegions.has("*") ||

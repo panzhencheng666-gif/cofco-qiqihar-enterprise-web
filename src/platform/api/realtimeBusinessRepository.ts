@@ -1809,20 +1809,14 @@ export interface RealtimeBusinessRepository {
     objectTypeCode: string,
     photos?: readonly File[],
   ): Promise<ProductionImportJob>;
-  downloadProductionXlsxTemplate?(
-    productCode: string,
-    objectTypeCode: string,
-  ): Promise<Blob>;
+  downloadProductionXlsxTemplate?(productCode: string): Promise<Blob>;
   importMarketWorkbook?(
     file: File,
     productCode: string,
     objectTypeCode: string,
     photos?: readonly File[],
   ): Promise<ProductionImportJob>;
-  downloadMarketXlsxTemplate?(
-    productCode: string,
-    objectTypeCode: string,
-  ): Promise<Blob>;
+  downloadMarketXlsxTemplate?(productCode: string): Promise<Blob>;
   downloadMarketReturnedCorrectionWorkbook?(productCode: string): Promise<Blob>;
   importMarketReturnedCorrectionWorkbook?(
     file: File,
@@ -2597,11 +2591,10 @@ export function createRealtimeBusinessRepository(
         },
       );
     },
-    downloadMarketXlsxTemplate: (productCode, objectTypeCode) =>
+    downloadMarketXlsxTemplate: (productCode) =>
       client.download("/api/v1/imports/market/template", {
         format: "xlsx",
         productCode,
-        ...(objectTypeCode ? { objectTypeCode } : {}),
       }),
     downloadMarketReturnedCorrectionWorkbook: (productCode) =>
       client.download("/api/v1/imports/market/returned-corrections/template", {

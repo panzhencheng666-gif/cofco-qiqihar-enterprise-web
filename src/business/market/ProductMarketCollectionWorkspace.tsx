@@ -1033,11 +1033,8 @@ export function ProductMarketCollectionWorkspace({
           : context.productId === "soybean"
             ? "SOYBEAN"
             : "RICE";
-      const objectTypeCode = marketObjectTypeCode[displayedObjectType];
-      const blob = await realtimeRepository.downloadMarketXlsxTemplate(
-        productCode,
-        objectTypeCode,
-      );
+      const blob =
+        await realtimeRepository.downloadMarketXlsxTemplate(productCode);
       const href = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = href;

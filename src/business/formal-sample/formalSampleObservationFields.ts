@@ -80,6 +80,7 @@ export function observationFields(
   domain: FormalSampleObservationDomain,
   definition:
     ProductionDefinition | MarketDefinition | LogisticsDefinition | null,
+  includeLockedValues = false,
 ): readonly ObservationField[] {
   if (!definition) return [];
   if (domain === "PRODUCTION") {
@@ -89,8 +90,8 @@ export function observationFields(
         (field) =>
           field.displayed &&
           !field.calculated &&
-          !field.readOnly &&
-          !lockedCodes.PRODUCTION.has(field.code),
+          (includeLockedValues ||
+            (!field.readOnly && !lockedCodes.PRODUCTION.has(field.code))),
       )
       .map((field) => ({
         code: field.code,
@@ -112,8 +113,9 @@ export function observationFields(
     const core = market.coreFields
       .filter(
         (field) =>
-          !lockedCodes.MARKET.has(field.code) &&
-          !field.controlType.toUpperCase().startsWith("READONLY"),
+          includeLockedValues ||
+          (!lockedCodes.MARKET.has(field.code) &&
+            !field.controlType.toUpperCase().startsWith("READONLY")),
       )
       .map((field) => ({
         code: field.code,
@@ -150,7 +152,9 @@ export function observationFields(
   const logistics = definition as LogisticsDefinition;
   return logistics.fields
     .filter(
-      (field) => !field.readOnly && !lockedCodes.LOGISTICS.has(field.code),
+      (field) =>
+        includeLockedValues ||
+        (!field.readOnly && !lockedCodes.LOGISTICS.has(field.code)),
     )
     .map((field) => ({
       code: field.code,
