@@ -62,10 +62,7 @@ import {
 import { useRealtimeMasterData } from "../realtime/useRealtimeMasterData";
 import { WorkspacePagination } from "../UnifiedWorkspacePrimitives";
 import { ExistingSampleObservationPanel } from "../formal-sample/ExistingSampleObservationPanel";
-import {
-  mergeObservationFields,
-  observationFields,
-} from "../formal-sample/formalSampleObservationFields";
+import { observationFields } from "../formal-sample/formalSampleObservationFields";
 
 const collectionPageSize = 20;
 
@@ -460,30 +457,23 @@ export function ProductProductionCollectionWorkspace({
   }, [masterData, surveyYear, surveyYearWasSelected]);
   useEffect(() => {
     if (!realtimeRepository?.loadProductionDefinition) return;
-    const typeCodes = [
-      ...(objectType ? [productionObjectTypeCode(objectType)] : []),
-      ...persistedRecords
-        .map(({ values }) =>
-          formalProductionObjectTypeCode(
-            values.PROD_OBJECT_TYPE ?? "",
-            productionObjectTypes,
-          ),
-        )
-        .filter((code): code is string => Boolean(code)),
-    ];
-    const uniqueTypeCodes = [...new Set(typeCodes)];
-    if (uniqueTypeCodes.length === 0) {
+    const firstRecordType = persistedRecords[0]?.values.PROD_OBJECT_TYPE;
+    const displayedTypeCode = objectType
+      ? productionObjectTypeCode(objectType)
+      : firstRecordType
+        ? formalProductionObjectTypeCode(firstRecordType, productionObjectTypes)
+        : !recordsLoading && productionObjectTypes[0]
+          ? productionObjectTypeCode(productionObjectTypes[0].id)
+          : undefined;
+    if (!displayedTypeCode) {
       queueMicrotask(() => setLedgerDefinitions([]));
       return;
     }
     let cancelled = false;
-    void Promise.all(
-      uniqueTypeCodes.map((typeCode) =>
-        realtimeRepository.loadProductionDefinition(productCode, typeCode),
-      ),
-    )
-      .then((definitions) => {
-        if (!cancelled) setLedgerDefinitions(definitions);
+    void realtimeRepository
+      .loadProductionDefinition(productCode, displayedTypeCode)
+      .then((definition) => {
+        if (!cancelled) setLedgerDefinitions([definition]);
       })
       .catch(() => {
         if (!cancelled) {
@@ -501,6 +491,7 @@ export function ProductProductionCollectionWorkspace({
     persistedRecords,
     productCode,
     productionObjectTypes,
+    recordsLoading,
     realtimeRepository,
   ]);
   const scopedRegion = pathValue(
@@ -628,9 +619,10 @@ export function ProductProductionCollectionWorkspace({
           })
           .then((samples) => ({
             items: samples.map((sample) => ({
-              id: sample.samplePointId,
+              id: sample.latestObservationId ?? sample.samplePointId,
               values: {
                 ...sample.latestValues,
+                PROD_OBJECT_TYPE: sample.objectTypeCode ?? "",
                 __FORMAL_SAMPLE_ID: sample.samplePointId,
                 __FORMAL_SAMPLE_NAME: sample.sampleName,
                 __FORMAL_SAMPLE_ADDRESS: sample.address,
@@ -640,7 +632,8 @@ export function ProductProductionCollectionWorkspace({
                 __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
                 __FORMAL_SAMPLE_LATITUDE: sample.latitude,
                 __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
-                __FORMAL_LATEST_OBSERVATION_ID: sample.latestObservationId,
+                __FORMAL_LATEST_OBSERVATION_ID:
+                  sample.latestObservationId ?? "",
               },
               allowedActions: [],
               version: sample.version,
@@ -943,11 +936,9 @@ export function ProductProductionCollectionWorkspace({
     (row) =>
       realtimeRepository || !objectType || row.objectTypeId === objectType,
   );
-  const formalLedgerFields = mergeObservationFields(
-    ledgerDefinitions.map((definition) =>
-      observationFields("PRODUCTION", definition),
-    ),
-  );
+  const formalLedgerFields = ledgerDefinitions[0]
+    ? observationFields("PRODUCTION", ledgerDefinitions[0])
+    : [];
   const formalLedgerSections = [
     ...new Set(formalLedgerFields.map(({ section }) => section)),
   ];
@@ -1448,15 +1439,17 @@ export function ProductProductionCollectionWorkspace({
                         <button
                           className="enterprise-ledger-row-action"
                           type="button"
+                          disabled={
+                            Boolean(row.samplePointId) &&
+                            !row.values.__FORMAL_LATEST_OBSERVATION_ID
+                          }
                           onClick={() => {
-                            if (row.samplePointId) {
-                              onSelectionChange({
-                                type: "formal-sample-observation",
-                                id: row.samplePointId,
-                              });
-                              return;
-                            }
-                            if (realtimeRepository && onEditRecord) {
+                            if (
+                              realtimeRepository &&
+                              onEditRecord &&
+                              (!row.samplePointId ||
+                                row.values.__FORMAL_LATEST_OBSERVATION_ID)
+                            ) {
                               onEditRecord(productCode, row.workId);
                               return;
                             }
@@ -1475,7 +1468,7 @@ export function ProductProductionCollectionWorkspace({
                               type="button"
                               onClick={() =>
                                 onSelectionChange({
-                                  type: "formal-sample-edit",
+                                  type: "formal-sample-observation",
                                   id: row.samplePointId!,
                                 })
                               }
@@ -1506,7 +1499,7 @@ export function ProductProductionCollectionWorkspace({
                                       error instanceof RealtimeApiError &&
                                         error.clientMessage
                                         ? error.clientMessage
-                                        : "该样本已有业务记录或年度样本关系，不能删除。",
+                                        : "样本点删除失败，请稍后重试。",
                                     ),
                                   );
                               }}

@@ -901,6 +901,8 @@
         "docs/superpowers/plans/2026-08-22-three-repository-ci-pr-gates.md",
         "docs/superpowers/plans/2026-08-23-sample-network-map-governance-ux.md",
         "docs/superpowers/plans/2026-08-24-five-business-workspaces-implementation.md",
+        "docs/superpowers/plans/2026-09-02-sample-point-full-page-entry-and-atomic-xlsx.md",
+        "docs/superpowers/plans/2026-09-03-existing-sample-list-maintainer.md",
         "docs/superpowers/specs/2026-07-31-contextual-business-report-export-and-enterprise-shell-optimization-design.md",
         "docs/superpowers/specs/2026-07-31-enterprise-platform-information-architecture-redesign-design.md",
         "docs/superpowers/specs/2026-07-31-enterprise-visual-fusion-design.md",
@@ -922,7 +924,9 @@
         "docs/superpowers/specs/2026-08-21-field-backed-analysis-dashboard-visual-redesign.md",
         "docs/superpowers/specs/2026-08-23-enterprise-workbench-clarity-and-live-operations-design.md",
         "docs/superpowers/specs/2026-08-23-sample-network-map-and-governance-ux-design.md",
-        "docs/superpowers/specs/2026-08-24-five-business-workspaces-design.md"
+        "docs/superpowers/specs/2026-08-24-five-business-workspaces-design.md",
+        "docs/superpowers/specs/2026-09-02-sample-point-full-page-entry-and-atomic-xlsx-design.md",
+        "docs/superpowers/specs/2026-09-03-existing-sample-list-maintainer-design.md"
       ]
     }
   ],

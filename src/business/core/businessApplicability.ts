@@ -10,7 +10,8 @@ export type MarketBusinessObjectTypeId =
   | "breeding-farm"
   | "feed-mill"
   | "wholesale-market"
-  | "reserve-storage";
+  | "reserve-storage"
+  | "agricultural-input-store";
 
 export interface BusinessOption<TId extends string> {
   id: TId;
@@ -43,6 +44,10 @@ const marketObjectTypes = {
   "feed-mill": { id: "feed-mill", label: "饲料厂" },
   "wholesale-market": { id: "wholesale-market", label: "批发市场" },
   "reserve-storage": { id: "reserve-storage", label: "承储企业" },
+  "agricultural-input-store": {
+    id: "agricultural-input-store",
+    label: "农资店",
+  },
 } as const satisfies Record<
   MarketBusinessObjectTypeId,
   BusinessOption<MarketBusinessObjectTypeId>
@@ -58,6 +63,7 @@ const marketObjectTypeIdsByProduct: Readonly<
     "feed-mill",
     "wholesale-market",
     "reserve-storage",
+    "agricultural-input-store",
   ],
   soybean: ["trader", "deep-processing", "wholesale-market", "reserve-storage"],
   paddy: ["trader", "deep-processing", "wholesale-market", "reserve-storage"],
@@ -188,6 +194,28 @@ export function getMarketCapabilityGroups(
     label: "库存",
     fields: inventoryFields,
   };
+  if (objectTypeId === "agricultural-input-store") {
+    return [
+      {
+        id: "agricultural-input",
+        label: "农资经营信息",
+        fields: [
+          {
+            id: "AGRI_INPUT_SEED_SALES_VOLUME",
+            label: "种子销售量",
+            unit: "公斤",
+          },
+          {
+            id: "AGRI_INPUT_SEED_RETAIL_PRICE",
+            label: "种子零售价",
+            unit: "元/公斤",
+          },
+          { id: "AGRI_INPUT_SUPPLY_STATUS", label: "供货状态" },
+          { id: "AGRI_INPUT_PLANTING_INTENTION_TREND", label: "种植意向趋势" },
+        ],
+      },
+    ];
+  }
   if (objectTypeId === "trader") {
     return [
       { ...procurement, fields: [...procurement.fields, ...salesFields] },
@@ -231,6 +259,13 @@ export function normalizeMarketObjectType(
   objectTypeId: string,
   roleId?: string,
 ): MarketBusinessObjectTypeId {
+  if (
+    roleId === "agricultural-input-store" ||
+    objectTypeId === "agricultural-input-store" ||
+    objectTypeId === "AGRICULTURAL_INPUT_STORE"
+  ) {
+    return "agricultural-input-store";
+  }
   if (
     roleId === "corn-processor" ||
     roleId === "soy-crusher" ||

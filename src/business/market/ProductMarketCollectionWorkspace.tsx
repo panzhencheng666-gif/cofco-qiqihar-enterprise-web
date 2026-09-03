@@ -69,7 +69,6 @@ import { useRealtimeMasterData } from "../realtime/useRealtimeMasterData";
 import { WorkspacePagination } from "../UnifiedWorkspacePrimitives";
 import { ExistingSampleObservationPanel } from "../formal-sample/ExistingSampleObservationPanel";
 import {
-  mergeObservationFields,
   observationFields,
   type ObservationField,
 } from "../formal-sample/formalSampleObservationFields";
@@ -249,6 +248,7 @@ const marketObjectTypeCode: Readonly<
   "feed-mill": "FEED_MILL",
   "wholesale-market": "WHOLESALE_MARKET",
   "reserve-storage": "RESERVE_ENTERPRISE",
+  "agricultural-input-store": "AGRICULTURAL_INPUT_STORE",
 };
 
 const marketObjectTypeIdByCode: Readonly<
@@ -261,6 +261,7 @@ const marketObjectTypeIdByCode: Readonly<
   FEED_MILL: "feed-mill",
   WHOLESALE_MARKET: "wholesale-market",
   RESERVE_ENTERPRISE: "reserve-storage",
+  AGRICULTURAL_INPUT_STORE: "agricultural-input-store",
 };
 
 function formalMarketObjectTypeOptions(types: readonly MasterObjectType[]) {
@@ -566,30 +567,23 @@ export function ProductMarketCollectionWorkspace({
   }, [productCode, realtimeRepository]);
   useEffect(() => {
     if (!realtimeRepository?.loadMarketDefinition) return;
-    const recordTypeCodes = persistedRecords
-      .map(({ values }) =>
-        values.MKT_OBJECT_TYPE
-          ? formalMarketObjectTypeCode(values.MKT_OBJECT_TYPE, objectTypes)
-          : undefined,
-      )
-      .filter((code): code is string => Boolean(code));
-    const requestedTypeCodes = [
-      ...(objectType ? [marketObjectTypeCode[objectType]] : []),
-      ...recordTypeCodes,
-    ];
-    const uniqueTypeCodes = [...new Set(requestedTypeCodes)];
-    if (uniqueTypeCodes.length === 0) {
+    const firstRecordType = persistedRecords[0]?.values.MKT_OBJECT_TYPE;
+    const displayedTypeCode = objectType
+      ? marketObjectTypeCode[objectType]
+      : firstRecordType
+        ? formalMarketObjectTypeCode(firstRecordType, objectTypes)
+        : !recordsLoading && objectTypes[0]
+          ? marketObjectTypeCode[objectTypes[0].id]
+          : undefined;
+    if (!displayedTypeCode) {
       queueMicrotask(() => setLedgerDefinitions([]));
       return;
     }
     let cancelled = false;
-    void Promise.all(
-      uniqueTypeCodes.map((typeCode) =>
-        realtimeRepository.loadMarketDefinition(productCode, typeCode),
-      ),
-    )
-      .then((definitions) => {
-        if (!cancelled) setLedgerDefinitions(definitions);
+    void realtimeRepository
+      .loadMarketDefinition(productCode, displayedTypeCode)
+      .then((definition) => {
+        if (!cancelled) setLedgerDefinitions([definition]);
       })
       .catch(() => {
         if (!cancelled) {
@@ -607,6 +601,7 @@ export function ProductMarketCollectionWorkspace({
     objectTypes,
     persistedRecords,
     productCode,
+    recordsLoading,
     realtimeRepository,
   ]);
   const scopedRegion = pathValue(
@@ -722,9 +717,10 @@ export function ProductMarketCollectionWorkspace({
           })
           .then((samples) => ({
             items: samples.map((sample) => ({
-              id: sample.samplePointId,
+              id: sample.latestObservationId ?? sample.samplePointId,
               values: {
                 ...sample.latestValues,
+                MKT_OBJECT_TYPE: sample.objectTypeCode ?? "",
                 __FORMAL_SAMPLE_ID: sample.samplePointId,
                 __FORMAL_SAMPLE_NAME: sample.sampleName,
                 __FORMAL_SAMPLE_ADDRESS: sample.address,
@@ -733,6 +729,8 @@ export function ProductMarketCollectionWorkspace({
                 __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
                 __FORMAL_SAMPLE_LATITUDE: sample.latitude,
                 __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
+                __FORMAL_LATEST_OBSERVATION_ID:
+                  sample.latestObservationId ?? "",
               },
               allowedActions: [],
               version: sample.version,
@@ -911,11 +909,9 @@ export function ProductMarketCollectionWorkspace({
   ).length;
   const displayedObjectType: MarketBusinessObjectTypeId =
     objectType || rows[0]?.objectTypeId || objectTypes[0]?.id || "trader";
-  const formalLedgerFields = mergeObservationFields(
-    ledgerDefinitions.map((definition) =>
-      observationFields("MARKET", definition),
-    ),
-  );
+  const formalLedgerFields = ledgerDefinitions[0]
+    ? observationFields("MARKET", ledgerDefinitions[0])
+    : [];
   const displayedGroups: readonly {
     id: string;
     label: string;
@@ -1379,15 +1375,17 @@ export function ProductMarketCollectionWorkspace({
                       <button
                         className="enterprise-ledger-row-action"
                         type="button"
+                        disabled={
+                          Boolean(row.samplePointId) &&
+                          !row.values.__FORMAL_LATEST_OBSERVATION_ID
+                        }
                         onClick={() => {
-                          if (row.samplePointId) {
-                            onSelectionChange({
-                              type: "formal-sample-observation",
-                              id: row.samplePointId,
-                            });
-                            return;
-                          }
-                          if (realtimeRepository && onEditRecord) {
+                          if (
+                            realtimeRepository &&
+                            onEditRecord &&
+                            (!row.samplePointId ||
+                              row.values.__FORMAL_LATEST_OBSERVATION_ID)
+                          ) {
                             onEditRecord(productCode, row.workId);
                             return;
                           }
@@ -1406,7 +1404,7 @@ export function ProductMarketCollectionWorkspace({
                             type="button"
                             onClick={() =>
                               onSelectionChange({
-                                type: "formal-sample-edit",
+                                type: "formal-sample-observation",
                                 id: row.samplePointId!,
                               })
                             }
@@ -1435,7 +1433,7 @@ export function ProductMarketCollectionWorkspace({
                                     error instanceof RealtimeApiError &&
                                       error.clientMessage
                                       ? error.clientMessage
-                                      : "该样本已有业务记录或年度样本关系，不能删除。",
+                                      : "样本点删除失败，请稍后重试。",
                                   ),
                                 );
                             }}

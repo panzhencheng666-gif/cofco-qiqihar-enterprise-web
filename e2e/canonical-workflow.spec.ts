@@ -63,7 +63,7 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
   ).toBe(true);
   await page.setViewportSize({ width: 1600, height: 900 });
 
-  await row.getByRole("button", { name: "查看记录" }).click();
+  await row.getByRole("button", { name: "编辑" }).click();
   await expect(
     page.getByRole("heading", { name: "填写或更新采集数据" }),
   ).toBeVisible();

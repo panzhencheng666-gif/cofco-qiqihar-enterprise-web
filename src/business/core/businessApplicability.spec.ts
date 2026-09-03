@@ -33,6 +33,7 @@ describe("grain business applicability", () => {
       "饲料厂",
       "批发市场",
       "承储企业",
+      "农资店",
     ]);
     expect(
       getMarketObjectTypeOptions("soybean").map(({ label }) => label),

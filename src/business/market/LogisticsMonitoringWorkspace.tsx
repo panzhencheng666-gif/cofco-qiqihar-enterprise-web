@@ -428,7 +428,7 @@ export function LogisticsMonitoringWorkspace({
           })
           .then((samples) => ({
             items: samples.map((sample) => ({
-              id: sample.samplePointId,
+              id: sample.latestObservationId ?? sample.samplePointId,
               productCode,
               values: {
                 ...sample.latestValues,
@@ -439,7 +439,8 @@ export function LogisticsMonitoringWorkspace({
                 __FORMAL_SAMPLE_ID: sample.samplePointId,
                 __FORMAL_SAMPLE_ADDRESS: sample.address,
                 __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
-                __FORMAL_LATEST_OBSERVATION_ID: sample.latestObservationId,
+                __FORMAL_LATEST_OBSERVATION_ID:
+                  sample.latestObservationId ?? "",
               },
               displayValues: {},
               status: "DRAFT",
@@ -928,15 +929,16 @@ export function LogisticsMonitoringWorkspace({
                           <button
                             className="enterprise-ledger-row-action"
                             type="button"
+                            disabled={
+                              Boolean(record.values.__FORMAL_SAMPLE_ID) &&
+                              !record.values.__FORMAL_LATEST_OBSERVATION_ID
+                            }
                             onClick={() => {
-                              if (record.values.__FORMAL_SAMPLE_ID) {
-                                onSelectionChange({
-                                  type: "formal-sample-observation",
-                                  id: record.values.__FORMAL_SAMPLE_ID,
-                                });
-                                return;
-                              }
-                              if (onEditRecord) {
+                              if (
+                                onEditRecord &&
+                                (!record.values.__FORMAL_SAMPLE_ID ||
+                                  record.values.__FORMAL_LATEST_OBSERVATION_ID)
+                              ) {
                                 onEditRecord(productCode, record.id);
                                 return;
                               }
@@ -952,7 +954,7 @@ export function LogisticsMonitoringWorkspace({
                                 type="button"
                                 onClick={() =>
                                   onSelectionChange({
-                                    type: "formal-sample-edit",
+                                    type: "formal-sample-observation",
                                     id: record.values.__FORMAL_SAMPLE_ID,
                                   })
                                 }
@@ -983,7 +985,7 @@ export function LogisticsMonitoringWorkspace({
                                         error instanceof RealtimeApiError &&
                                           error.clientMessage
                                           ? error.clientMessage
-                                          : "该样本已有业务记录或年度样本关系，不能删除。",
+                                          : "样本点删除失败，请稍后重试。",
                                       ),
                                     );
                                 }}

@@ -63,6 +63,9 @@ const loadMasterData = vi.fn().mockResolvedValue({
 
 describe("product market collection workspace", () => {
   it("keeps the market table shell while exposing formal-sample maintenance rows", async () => {
+    const onEditRecord = vi.fn();
+    const onSelectionChange = vi.fn();
+    const deleteFormalSamplePoint = vi.fn().mockResolvedValue(undefined);
     const repository = {
       listMarket: vi.fn().mockResolvedValue({
         items: [],
@@ -97,22 +100,54 @@ describe("product market collection workspace", () => {
             MKT_TRADE_DATE: "2026-08-08",
             MKT_OBJECT_TYPE: "AGRICULTURAL_INPUT_STORE",
             MKT_REGION: "龙沙区",
+            AGRI_INPUT_SEED_SALES_VOLUME: "1250.5000",
+            AGRI_INPUT_SEED_RETAIL_PRICE: "8.7500",
+            AGRI_INPUT_SUPPLY_STATUS: "TIGHT",
+            AGRI_INPUT_PLANTING_INTENTION_TREND: "INCREASE",
           },
         },
       ]),
-      deleteFormalSamplePoint: vi.fn().mockResolvedValue(undefined),
+      deleteFormalSamplePoint,
       loadMarketDefinition: vi.fn().mockResolvedValue({
         productCode: "CORN",
         objectTypeCode: "AGRICULTURAL_INPUT_STORE",
-        coreFields: [],
+        coreFields: [
+          {
+            code: "AGRI_INPUT_SEED_SALES_VOLUME",
+            label: "种子销售量",
+            controlType: "DECIMAL",
+            unit: "公斤",
+            description: null,
+            capability: null,
+            required: false,
+            precision: 18,
+            scale: 4,
+            sortOrder: 130,
+            options: [],
+          },
+          {
+            code: "AGRI_INPUT_SEED_RETAIL_PRICE",
+            label: "种子零售价",
+            controlType: "DECIMAL",
+            unit: "元/公斤",
+            description: null,
+            capability: null,
+            required: false,
+            precision: 18,
+            scale: 4,
+            sortOrder: 131,
+            options: [],
+          },
+        ],
         groups: [],
       }),
     } as unknown as RealtimeBusinessRepository;
 
     render(
       <ProductMarketCollectionWorkspace
+        onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
-        onSelectionChange={vi.fn()}
+        onSelectionChange={onSelectionChange}
         permissions={[
           "BUSINESS_UPDATE",
           "FORMAL_SAMPLE_MANAGE",
@@ -138,11 +173,31 @@ describe("product market collection workspace", () => {
     ).toBeVisible();
     expect(within(row).getByText("龙沙区农资街 8 号")).toBeVisible();
     expect(within(row).getByText("样本维护员")).toBeVisible();
+    expect(
+      await screen.findByRole("columnheader", { name: "种子销售量" }),
+    ).toHaveTextContent("种子销售量公斤");
+    expect(within(row).getByText("1250.5000")).toBeVisible();
     expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: "查看照片" })).toBeNull();
     expect(within(row).getByRole("button", { name: "查看记录" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "删除" })).toBeVisible();
+    await userEvent.click(
+      within(row).getByRole("button", { name: "查看记录" }),
+    );
+    expect(onEditRecord).toHaveBeenCalledWith("CORN", "MKT-DB-001");
+    await userEvent.click(within(row).getByRole("button", { name: "编辑" }));
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      type: "formal-sample-observation",
+      id: "sample-market-1",
+    });
+    await userEvent.click(within(row).getByRole("button", { name: "删除" }));
+    await waitFor(() =>
+      expect(deleteFormalSamplePoint).toHaveBeenCalledWith(
+        "sample-market-1",
+        3,
+      ),
+    );
   });
   it("resolves persisted Chinese object-type labels to formal definition codes", async () => {
     const loadMarketDefinition = vi.fn().mockResolvedValue({
@@ -166,10 +221,21 @@ describe("product market collection workspace", () => {
               MKT_STATUS: "已审核",
             },
           },
+          {
+            id: "MKT-TRADER-001",
+            values: {
+              MKT_OBJECT_TYPE: "贸易商",
+              MKT_SAMPLE_NAME: "正式贸易商样本",
+              MKT_SURVEY_YEAR: "2026",
+              MKT_SURVEY_MONTH: "8",
+              MKT_REGION: "龙江县",
+              MKT_STATUS: "已审核",
+            },
+          },
         ],
         pageNumber: 0,
         pageSize: 20,
-        totalElements: 1,
+        totalElements: 2,
         totalPages: 1,
       }),
       listObjectTypes: vi.fn().mockResolvedValue([
@@ -194,6 +260,8 @@ describe("product market collection workspace", () => {
     await waitFor(() =>
       expect(loadMarketDefinition).toHaveBeenCalledWith("CORN", "FEED_MILL"),
     );
+    expect(loadMarketDefinition).toHaveBeenCalledTimes(1);
+    expect(loadMarketDefinition).not.toHaveBeenCalledWith("CORN", "TRADER");
     expect(
       screen.queryByText(/市场业务字段定义读取失败/u),
     ).not.toBeInTheDocument();
