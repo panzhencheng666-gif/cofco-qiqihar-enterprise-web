@@ -594,8 +594,8 @@ describe("ExistingSampleObservationPanel", () => {
     });
     expect(row).toHaveTextContent("未指定维护人");
     expect(
-      within(row).getByRole("button", { name: "先指定维护人" }),
-    ).toBeDisabled();
+      within(row).getByRole("button", { name: "填写采集数据" }),
+    ).toBeEnabled();
     await userEvent.click(within(row).getByRole("button", { name: "查看" }));
     await userEvent.click(
       await screen.findByRole("button", { name: "指定维护人" }),
@@ -698,17 +698,11 @@ describe("ExistingSampleObservationPanel", () => {
   });
 
   it.each([
-    [
-      { networkMembershipCount: 2, annualObservationCount: 0 },
-      "请先到样本点管理解除年度引用",
-    ],
-    [
-      { networkMembershipCount: 0, annualObservationCount: 3 },
-      "请保留样本档案并使用“更新采集数据”维护后续记录",
-    ],
+    { networkMembershipCount: 2, annualObservationCount: 0 },
+    { networkMembershipCount: 0, annualObservationCount: 3 },
   ])(
-    "blocks deletion with an executable next step for referenced samples",
-    async (counts, expectedMessage) => {
+    "allows an authorized hard delete when the sample has business or network references",
+    async (counts) => {
       const point = {
         ...formalPoint(),
         ...counts,
@@ -735,14 +729,14 @@ describe("ExistingSampleObservationPanel", () => {
         name: new RegExp(point.canonicalName, "u"),
       });
       await userEvent.click(within(row).getByRole("button", { name: "删除" }));
+      await userEvent.click(screen.getByRole("button", { name: "确认删除" }));
 
-      expect(
-        await screen.findByRole("region", { name: "正式样本详情" }),
-      ).toHaveTextContent(expectedMessage);
-      expect(
-        screen.queryByRole("button", { name: "确认删除" }),
-      ).not.toBeInTheDocument();
-      expect(deleteFormalSamplePoint).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect(deleteFormalSamplePoint).toHaveBeenCalledWith(
+          point.id,
+          point.version,
+        ),
+      );
     },
   );
 
@@ -1453,6 +1447,26 @@ describe("ExistingSampleObservationPanel", () => {
     );
     expect(await screen.findByLabelText("采购基础价（元/吨）")).toHaveValue(
       2097,
+    );
+
+    const callsBeforeUnscopedEvent =
+      api.listEligibleFormalSamples.mock.calls.length;
+    act(() => {
+      onChange({
+        id: "event-observation-unscoped",
+        sequence: 9,
+        aggregateType: "FORMAL_SAMPLE_OBSERVATION",
+        aggregateId: "record-other",
+        actionCode: "FORMAL_SAMPLE_OBSERVATION_SAVED",
+        productCode: null,
+        regionCodes: ["230221"],
+        occurredAt: "2026-09-01T07:59:00Z",
+        read: false,
+      });
+    });
+    await Promise.resolve();
+    expect(api.listEligibleFormalSamples).toHaveBeenCalledTimes(
+      callsBeforeUnscopedEvent,
     );
 
     act(() => {

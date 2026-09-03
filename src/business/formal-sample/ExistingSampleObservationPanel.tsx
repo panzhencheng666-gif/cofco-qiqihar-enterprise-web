@@ -480,7 +480,7 @@ export function ExistingSampleObservationPanel({
         const current = eventState.current;
         const observationChanged =
           event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED" &&
-          (!event.productCode || event.productCode === current.productCode);
+          event.productCode === current.productCode;
         const formalSampleChanged = event.actionCode.startsWith(
           "FORMAL_SAMPLE_POINT_",
         );

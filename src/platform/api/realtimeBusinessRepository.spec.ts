@@ -1561,16 +1561,15 @@ describe("realtime business repository", () => {
     expect((productionForm.get("photos") as File).name).toBe("样本点一.jpg");
   });
 
-  it("binds market template downloads to the selected object type", async () => {
+  it("downloads the unified market template without a selected object type", async () => {
     const { api, download } = client();
     const repository = createRealtimeBusinessRepository(api);
 
-    await repository.downloadMarketXlsxTemplate?.("CORN", "DEEP_PROCESSOR");
+    await repository.downloadMarketXlsxTemplate?.("CORN");
 
     expect(download).toHaveBeenCalledWith("/api/v1/imports/market/template", {
       format: "xlsx",
       productCode: "CORN",
-      objectTypeCode: "DEEP_PROCESSOR",
     });
   });
 

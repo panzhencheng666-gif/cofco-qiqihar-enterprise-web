@@ -533,6 +533,59 @@ describe("product production collection workspace", () => {
     );
   });
 
+  it("paginates the complete formal-sample projection twenty rows at a time", async () => {
+    const user = userEvent.setup();
+    const samples = Array.from({ length: 25 }, (_, index) => ({
+      samplePointId: `sample-${index + 1}`,
+      sampleName: `第 ${index + 1} 个正式样本点`,
+      address: null,
+      objectTypeCode: "FARMER",
+      objectTypeName: "农户",
+      domain: "PRODUCTION" as const,
+      productCode: "CORN",
+      regionCode: "230202",
+      regionName: "龙沙区",
+      maintainerSubjectId: null,
+      maintainerDisplayName: null,
+      latitude: "47.3000000",
+      longitude: "123.9000000",
+      effectiveFrom: "2026-01-01",
+      effectiveTo: null,
+      version: 1,
+      annualObservationCount: 1,
+      networkMembershipCount: 0,
+      latestObservationId: `record-${index + 1}`,
+      latestObservedAt: "2026-08-08T00:00:00Z",
+      latestValues: { PROD_OBJECT_TYPE: "FARMER" },
+    }));
+    const listEligibleFormalSamples = vi.fn().mockResolvedValue(samples);
+
+    render(
+      <ProductProductionCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={
+          {
+            listEligibleFormalSamples,
+            loadProductionDefinition: productionDefinition,
+          } as unknown as RealtimeBusinessRepository
+        }
+        scope={scope}
+        section="corn-collection"
+      />,
+    );
+
+    expect(await screen.findByText("第 1 个正式样本点")).toBeVisible();
+    expect(screen.getByText("共 25 个样本点，当前显示 1–20")).toBeVisible();
+    expect(screen.queryByText("第 21 个正式样本点")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "下一页" }));
+
+    expect(await screen.findByText("第 21 个正式样本点")).toBeVisible();
+    expect(screen.getByText("共 25 个样本点，当前显示 21–25")).toBeVisible();
+  });
+
   it("shows persisted records and performs a real CSV/XLSX import", async () => {
     const user = userEvent.setup();
     const listProduction = vi.fn().mockResolvedValue({
@@ -705,10 +758,7 @@ describe("product production collection workspace", () => {
     expect(templateButton).toBeEnabled();
     await user.click(templateButton);
     await waitFor(() =>
-      expect(downloadProductionXlsxTemplate).toHaveBeenCalledWith(
-        "CORN",
-        "FARMER",
-      ),
+      expect(downloadProductionXlsxTemplate).toHaveBeenCalledWith("CORN"),
     );
 
     const file = new File(["header\nvalue"], "production.xlsx", {
