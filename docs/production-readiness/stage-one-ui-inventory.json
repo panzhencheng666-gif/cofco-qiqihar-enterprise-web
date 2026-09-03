@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 58,
-  "sourceDigest": "3356735e5e7a3db0eb77274543281fa8d99c88ecadd5d76a571375fe62d3b597",
+  "sourceDigest": "ec0ee808fcb418606f4fe0bb989456e98c65704cf2e3029efd1fbb507fa2a38e",
   "itemCount": 459,
   "countsByKind": {
     "BUTTON": 250,

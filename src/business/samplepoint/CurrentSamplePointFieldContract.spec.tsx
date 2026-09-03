@@ -7,8 +7,12 @@ import type {
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { FormalSamplePointLedger } from "../formal-sample/FormalSamplePointLedger";
+import { SamplePointLedgerTable } from "../formal-sample/SamplePointLedgerPrimitives";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 const productionObjects = [
   "FARMER",
@@ -80,6 +84,42 @@ function fields(prefix: string) {
 }
 
 describe("current sample field contract", () => {
+  it.each([1440, 1920])(
+    "keeps repeated business labels console-clean at %dpx",
+    (width) => {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: width,
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      render(
+        <SamplePointLedgerTable
+          className="enterprise-ledger-table"
+          headers={[
+            "地区",
+            "对象类型",
+            "填报状态",
+            "地区",
+            "对象类型",
+            "填报状态",
+          ]}
+        >
+          <tr>
+            <td>样本</td>
+          </tr>
+        </SamplePointLedgerTable>,
+      );
+
+      const duplicateKeyErrors = consoleError.mock.calls.filter((call) =>
+        call.some((value) => String(value).includes("same key")),
+      );
+      expect(duplicateKeyErrors).toEqual([]);
+    },
+  );
+
   it.each(contexts)(
     "%s %s %s keeps every applicable latest value visible in the reused ledger",
     async (domain, productCode, objectTypeCode) => {

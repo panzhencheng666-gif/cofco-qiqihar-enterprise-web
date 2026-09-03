@@ -120,8 +120,8 @@ export function SamplePointLedgerTable({
         <table aria-label={ariaLabel}>
           <thead>
             <tr>
-              {headers.map((header) => (
-                <th key={header}>{header}</th>
+              {headers.map((header, index) => (
+                <th key={`${index}:${header}`}>{header}</th>
               ))}
             </tr>
           </thead>
