@@ -174,7 +174,7 @@ describe("product market collection workspace", () => {
     expect(within(row).getByText("龙沙区农资街 8 号")).toBeVisible();
     expect(within(row).getByText("样本维护员")).toBeVisible();
     expect(
-      screen.getByRole("columnheader", { name: "种子销售量" }),
+      await screen.findByRole("columnheader", { name: "种子销售量" }),
     ).toHaveTextContent("种子销售量公斤");
     expect(within(row).getByText("1250.5000")).toBeVisible();
     expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
