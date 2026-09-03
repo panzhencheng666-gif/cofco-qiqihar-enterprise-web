@@ -1273,6 +1273,7 @@ const server = createServer(async (request, response) => {
         "BUSINESS_READ",
         "BUSINESS_CREATE",
         "BUSINESS_UPDATE",
+        "BUSINESS_IMPORT",
         "FORMAL_SAMPLE_MANAGE",
         "FORMAL_SAMPLE_DELETE",
       ],
@@ -1319,6 +1320,39 @@ const server = createServer(async (request, response) => {
         (!regionCode || point.regionCode.startsWith(regionCode)),
     );
     data(response, page(items, 20));
+    return;
+  }
+  if (
+    method === "POST" &&
+    url.pathname === "/api/v1/design-sample-points/imports"
+  ) {
+    await readBytes(request);
+    const domainCode = url.searchParams.get("domain") ?? "PRODUCTION";
+    const point = {
+      ...initialDesignSamplePoint,
+      id: `E2E-DESIGN-IMPORT-${designSamplePoints.length + 1}`,
+      context: {
+        domainCode,
+        productCode: "CORN",
+        objectTypeCode: domainCode === "MARKET" ? "MARKET_OBJECT_1" : "FARMER",
+      },
+      values: {
+        ...initialDesignSamplePoint.values,
+        DSP_NAME: "XLSX导入设计参考点",
+        DSP_MAINTAINER_NAME: "导入维护人",
+        DSP_MAINTAINER_UNIT: "导入维护单位",
+      },
+      name: "XLSX导入设计参考点",
+    };
+    designSamplePoints.push(point);
+    writes.push({ action: "import-design-sample-point", domainCode });
+    data(response, {
+      id: "E2E-DESIGN-IMPORT-JOB-1",
+      statusCode: "COMPLETED",
+      importedRows: 1,
+      failedRows: 0,
+      completedAt: "2026-09-03T07:00:00Z",
+    });
     return;
   }
   if (
