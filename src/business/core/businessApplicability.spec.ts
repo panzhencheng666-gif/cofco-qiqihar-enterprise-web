@@ -84,7 +84,7 @@ describe("grain business applicability", () => {
   });
 
   it.each(["deep-processing", "breeding-farm", "feed-mill"] as const)(
-    "%s keeps procurement price, quantity and grain quality before specialist fields",
+    "%s keeps applicable procurement fields and grain quality before specialist fields",
     (objectType) => {
       const groups = getMarketCapabilityGroups("corn", objectType);
       expect(groups.map(({ id }) => id)).toEqual(
@@ -94,13 +94,16 @@ describe("grain business applicability", () => {
       expect(fields.map(({ id }) => id)).toEqual(
         expect.arrayContaining([
           "purchasePrice",
-          "salesPrice",
           "purchaseVolume",
           "wagonPrice",
           "freight",
           "packaging",
         ]),
       );
+      if (objectType === "deep-processing") {
+        expect(fields.map(({ id }) => id)).not.toContain("salesPrice");
+        expect(fields.map(({ id }) => id)).not.toContain("salesVolume");
+      }
       expect(fields.map(({ id }) => id)).toEqual(
         expect.arrayContaining(
           getGrainQualityFields("corn").map(({ id }) => id),
@@ -109,7 +112,7 @@ describe("grain business applicability", () => {
     },
   );
 
-  it("captures both surveyed-object prices for every procurement object", () => {
+  it("keeps sales price only for object types where it is applicable", () => {
     for (const objectType of [
       "trader",
       "deep-processing",
@@ -119,15 +122,19 @@ describe("grain business applicability", () => {
       const procurement = getMarketCapabilityGroups("corn", objectType).find(
         ({ id }) => id === "procurement",
       );
-      expect(procurement?.fields.map(({ label }) => label)).toEqual([
-        "采集对象收购价格",
-        "采集对象销售价格",
-        "采购量",
-        "车板价",
-        "运费",
-        "包装形态",
-        ...(objectType === "trader" ? ["销售量"] : []),
-      ]);
+      expect(procurement?.fields.map(({ label }) => label)).toEqual(
+        objectType === "deep-processing"
+          ? ["采集对象收购价格", "采购量", "车板价", "运费", "包装形态"]
+          : [
+              "采集对象收购价格",
+              "采集对象销售价格",
+              "采购量",
+              "车板价",
+              "运费",
+              "包装形态",
+              ...(objectType === "trader" ? ["销售量"] : []),
+            ],
+      );
     }
   });
 

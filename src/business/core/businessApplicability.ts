@@ -228,7 +228,18 @@ export function getMarketCapabilityGroups(
     objectTypeId === "rice-mill" ||
     objectTypeId === "feed-mill"
   ) {
-    return [procurement, quality, inventory];
+    return [
+      objectTypeId === "deep-processing"
+        ? {
+            ...procurement,
+            fields: procurement.fields.filter(
+              ({ id }) => id !== "salesPrice" && id !== "salesVolume",
+            ),
+          }
+        : procurement,
+      quality,
+      inventory,
+    ];
   }
   if (objectTypeId === "breeding-farm") {
     return [procurement, quality, inventory];
