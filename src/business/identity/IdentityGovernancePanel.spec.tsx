@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -439,6 +440,142 @@ describe("IdentityGovernancePanel", () => {
         "employee-1",
         expect.objectContaining({ version: 3, accountStatus: "SUSPENDED" }),
       ),
+    );
+  });
+
+  it("shows and assigns formal-sample responsibility from the employee table", async () => {
+    const user = userEvent.setup();
+    const api = {
+      ...repository(),
+      listFormalSamplePoints: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: "sample-1",
+            kindCode: "SURVEY_SITE",
+            canonicalName: "龙沙区玉米样本点",
+            regionCode: "230202001",
+            objectTypeCode: "TRADER",
+            objectTypeName: "贸易商",
+            businessDomain: "MARKET",
+            address: "龙沙区样本地址",
+            maintainerSubjectId: null,
+            maintainerDisplayName: null,
+            approvalState: "APPROVED",
+            locationState: "VALID",
+            longitude: 123.9,
+            latitude: 47.3,
+            effectiveFrom: "2026-01-01",
+            effectiveTo: null,
+            version: 4,
+            annualObservationCount: 0,
+            networkMembershipCount: 0,
+          },
+        ],
+        pageNumber: 0,
+        pageSize: 100,
+        totalElements: 1,
+        totalPages: 1,
+      }),
+      assignFormalSampleMaintainer: vi.fn().mockResolvedValue({
+        id: "sample-1",
+        kindCode: "SURVEY_SITE",
+        canonicalName: "龙沙区玉米样本点",
+        regionCode: "230202001",
+        maintainerSubjectId: "employee-1",
+        maintainerDisplayName: "王洋",
+        version: 5,
+      }),
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    };
+
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("columnheader", { name: "负责样本点" }),
+    ).toBeVisible();
+    const employeeRow = screen.getByRole("row", { name: /张敏/u });
+    await user.click(
+      within(employeeRow).getByRole("button", { name: "调整负责样本点" }),
+    );
+    await user.selectOptions(screen.getByLabelText("选择负责样本点"), [
+      "sample-1",
+    ]);
+    await user.type(screen.getByLabelText("维护责任调整原因"), "正式分工");
+    await user.click(screen.getByRole("button", { name: "保存样本责任" }));
+
+    await waitFor(() =>
+      expect(api.assignFormalSampleMaintainer).toHaveBeenCalledWith(
+        "sample-1",
+        expect.objectContaining({
+          maintainerSubjectId: "employee-1",
+          maintainerChangeReason: "正式分工",
+          expectedVersion: 4,
+        }),
+      ),
+    );
+  });
+
+  it("requeries employee responsibility after a formal-sample event", async () => {
+    let onEvent: Parameters<
+      RealtimeBusinessRepository["subscribeBusinessEvents"]
+    >[1] = () => undefined;
+    const api = {
+      ...repository(),
+      listFormalSamplePoints: vi.fn().mockResolvedValue({
+        items: [],
+        pageNumber: 0,
+        pageSize: 100,
+        totalElements: 0,
+        totalPages: 0,
+      }),
+      subscribeBusinessEvents: vi.fn(
+        (
+          _after: number,
+          listener: Parameters<
+            RealtimeBusinessRepository["subscribeBusinessEvents"]
+          >[1],
+        ) => {
+          onEvent = listener;
+          return vi.fn();
+        },
+      ),
+    };
+
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    await waitFor(() =>
+      expect(api.listFormalSamplePoints).toHaveBeenCalledTimes(1),
+    );
+
+    act(() =>
+      onEvent({
+        id: "event-1",
+        sequence: 1,
+        aggregateType: "FORMAL_SAMPLE_POINT",
+        aggregateId: "sample-1",
+        actionCode: "FORMAL_SAMPLE_MAINTAINER_ASSIGNED",
+        productCode: null,
+        regionCodes: ["230202"],
+        occurredAt: "2026-09-03T08:00:00Z",
+        read: false,
+      }),
+    );
+
+    await waitFor(() =>
+      expect(api.listFormalSamplePoints).toHaveBeenCalledTimes(2),
     );
   });
 

@@ -52,7 +52,6 @@ import {
 import { BusinessImportStatus } from "../importing/BusinessImportStatus";
 import {
   awaitBusinessImport,
-  awaitImportJob,
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
 import { RealtimeRegionFilterSelect } from "../realtime/RealtimeRegionFilterSelect";
@@ -68,7 +67,6 @@ import {
 } from "../realtime/explicitRecordTime";
 import { useRealtimeMasterData } from "../realtime/useRealtimeMasterData";
 import { WorkspacePagination } from "../UnifiedWorkspacePrimitives";
-import { MarketReturnedCorrectionStatus } from "./MarketReturnedCorrectionStatus";
 import { ExistingSampleObservationPanel } from "../formal-sample/ExistingSampleObservationPanel";
 import {
   mergeObservationFields,
@@ -77,14 +75,6 @@ import {
 } from "../formal-sample/formalSampleObservationFields";
 
 const collectionPageSize = 20;
-
-const marketStatusCodeByLabel: Readonly<Record<string, string>> = {
-  填写中: "DRAFT",
-  待审核: "PENDING_REVIEW",
-  已核定: "APPROVED",
-  需补充: "RETURNED",
-  已作废: "VOIDED",
-};
 
 const aggregateRegionByCity = {
   qiqihar: "qiqihar-all",
@@ -95,6 +85,10 @@ const aggregateRegionByCity = {
 interface MarketCollectionRow {
   rowId: string;
   workId: string;
+  samplePointId?: string;
+  sampleVersion?: number;
+  address: string;
+  maintainer: string;
   number: number;
   collectionDate: string;
   submittedAt: string;
@@ -496,7 +490,6 @@ export function ProductMarketCollectionWorkspace({
       value,
     });
   };
-  const [state, setState] = useState("");
   const [lowerRegion, setLowerRegion] = useState<RegionCascadeValue>({});
   const [realtimeRegionCode, setRealtimeRegionCode] = useState("");
   const [surveyYear, setSurveyYear] = useState(currentSurveyYear);
@@ -523,9 +516,6 @@ export function ProductMarketCollectionWorkspace({
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
-  const [correcting, setCorrecting] = useState(false);
-  const [correctionJob, setCorrectionJob] =
-    useState<ProductionImportJob | null>(null);
   const { masterData, masterDataError } =
     useRealtimeMasterData(realtimeRepository);
   const usesFormalObjectTypes =
@@ -662,6 +652,8 @@ export function ProductMarketCollectionWorkspace({
       return {
         rowId: item.workId,
         workId: item.workId,
+        address: "—",
+        maintainer: "—",
         number: index + 1,
         collectionDate: formatSurveyPeriodFromDate(item.deadline.slice(0, 10)),
         submittedAt: submittedAtValue(item.workId),
@@ -714,21 +706,56 @@ export function ProductMarketCollectionWorkspace({
         : context.productId === "soybean"
           ? "SOYBEAN"
           : "RICE";
-    void realtimeRepository
-      .listMarket({
-        productCode,
-        page: pageNumber,
-        pageSize: collectionPageSize,
-        filters: {
-          regionCode: realtimeRegionCode || undefined,
-          surveyYear,
-          surveyMonth: surveyMonth || undefined,
-          objectTypeCode: objectType
-            ? marketObjectTypeCode[objectType]
-            : undefined,
-          status: state ? marketStatusCodeByLabel[state] : undefined,
-        },
-      })
+    const request = realtimeRepository.listEligibleFormalSamples
+      ? realtimeRepository
+          .listEligibleFormalSamples({
+            domain: "MARKET",
+            productCode,
+            regionCode: realtimeRegionCode || undefined,
+            objectTypeCode: objectType
+              ? marketObjectTypeCode[objectType]
+              : undefined,
+            year: Number(surveyYear),
+            observedAt: new Date(
+              `${surveyYear}-${surveyMonth ? surveyMonth.padStart(2, "0") : "12"}-01T00:00:00+08:00`,
+            ).toISOString(),
+          })
+          .then((samples) => ({
+            items: samples.map((sample) => ({
+              id: sample.samplePointId,
+              values: {
+                ...sample.latestValues,
+                __FORMAL_SAMPLE_ID: sample.samplePointId,
+                __FORMAL_SAMPLE_NAME: sample.sampleName,
+                __FORMAL_SAMPLE_ADDRESS: sample.address,
+                __FORMAL_SAMPLE_OBJECT_TYPE_NAME: sample.objectTypeName ?? "",
+                __FORMAL_SAMPLE_REGION: sample.regionName,
+                __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
+                __FORMAL_SAMPLE_LATITUDE: sample.latitude,
+                __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
+              },
+              allowedActions: [],
+              version: sample.version,
+            })),
+            pageNumber: 0,
+            pageSize: samples.length,
+            totalElements: samples.length,
+            totalPages: samples.length > 0 ? 1 : 0,
+          }))
+      : realtimeRepository.listMarket({
+          productCode,
+          page: pageNumber,
+          pageSize: collectionPageSize,
+          filters: {
+            regionCode: realtimeRegionCode || undefined,
+            surveyYear,
+            surveyMonth: surveyMonth || undefined,
+            objectTypeCode: objectType
+              ? marketObjectTypeCode[objectType]
+              : undefined,
+          },
+        });
+    void request
       .then((page) => {
         if (!cancelled) {
           const nextTotalPages = Math.max(1, page.totalPages);
@@ -761,7 +788,6 @@ export function ProductMarketCollectionWorkspace({
     realtimeRegionCode,
     realtimeRepository,
     recordsRevision,
-    state,
     surveyMonth,
     surveyYear,
   ]);
@@ -782,6 +808,10 @@ export function ProductMarketCollectionWorkspace({
       return {
         rowId: record.id,
         workId: record.id,
+        samplePointId: record.values.__FORMAL_SAMPLE_ID,
+        sampleVersion: record.version,
+        address: record.values.__FORMAL_SAMPLE_ADDRESS ?? "—",
+        maintainer: record.values.__FORMAL_SAMPLE_MAINTAINER ?? "—",
         number: pageNumber * collectionPageSize + index + 1,
         collectionDate: formatExplicitSurveyPeriod(
           record.values,
@@ -790,24 +820,35 @@ export function ProductMarketCollectionWorkspace({
         ),
         submittedAt: formatRealFillingTime(record.values, "MKT"),
         subject:
+          record.values.__FORMAL_SAMPLE_NAME ??
           record.values.MKT_SAMPLE_NAME ??
           record.values.MKT_SUBJECT_NAME ??
           record.values.MKT_OBJECT_NAME ??
           rawObjectType,
         objectType:
-          formalObjectType?.label ??
+          record.values.__FORMAL_SAMPLE_OBJECT_TYPE_NAME ||
+          formalObjectType?.label ||
           getMarketObjectTypeOptions(context.productId).find(
             ({ id }) => id === itemObjectTypeId,
-          )?.label ??
+          )?.label ||
           rawObjectType,
         objectTypeId: itemObjectTypeId,
-        county: record.values.MKT_REGION ?? "—",
+        county:
+          record.values.__FORMAL_SAMPLE_REGION ??
+          record.values.MKT_REGION ??
+          "—",
         reporter: record.values.MKT_REPORTER_NAME ?? "—",
         surveyor: record.values.MKT_SURVEYOR_NAME ?? "—",
         surveyorPhone: record.values.MKT_SURVEYOR_PHONE ?? "—",
         sampleContact: record.values.MKT_SAMPLE_CONTACT ?? "—",
-        latitude: record.values.MKT_SAMPLE_LATITUDE ?? "—",
-        longitude: record.values.MKT_SAMPLE_LONGITUDE ?? "—",
+        latitude:
+          record.values.__FORMAL_SAMPLE_LATITUDE ??
+          record.values.MKT_SAMPLE_LATITUDE ??
+          "—",
+        longitude:
+          record.values.__FORMAL_SAMPLE_LONGITUDE ??
+          record.values.MKT_SAMPLE_LONGITUDE ??
+          "—",
         cultivar:
           record.values.MKT_CULTIVAR_NAME ?? record.values.MKT_CULTIVAR ?? "—",
         purchasePrice: persistedMarketValue(record, "purchasePrice"),
@@ -825,12 +866,10 @@ export function ProductMarketCollectionWorkspace({
     },
   );
   const allRows = realtimeRepository ? persistedRows : fixtureRows;
-  const filteredRows = allRows
-    .filter(
-      (row) =>
-        realtimeRepository || !objectType || row.objectTypeId === objectType,
-    )
-    .filter((row) => realtimeRepository || !state || row.state === state);
+  const filteredRows = allRows.filter(
+    (row) =>
+      realtimeRepository || !objectType || row.objectTypeId === objectType,
+  );
   const pageCount = realtimeRepository
     ? serverTotalPages
     : Math.max(1, Math.ceil(filteredRows.length / collectionPageSize));
@@ -1014,87 +1053,6 @@ export function ProductMarketCollectionWorkspace({
     }
   };
 
-  const downloadReturnedCorrectionWorkbook = async () => {
-    if (!realtimeRepository?.downloadMarketReturnedCorrectionWorkbook) return;
-    setRecordsError("");
-    try {
-      const blob =
-        await realtimeRepository.downloadMarketReturnedCorrectionWorkbook(
-          productCode,
-        );
-      const href = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = href;
-      anchor.download = `${context.productLabel}市场退回记录修正表.xlsx`;
-      anchor.click();
-      URL.revokeObjectURL(href);
-    } catch (reason) {
-      setRecordsError(
-        reason instanceof RealtimeApiError && reason.clientMessage
-          ? reason.clientMessage
-          : "退回记录修正表下载失败，请稍后重试。",
-      );
-    }
-  };
-
-  const correctReturnedRecords = async (file: File | undefined) => {
-    if (!file || !realtimeRepository?.importMarketReturnedCorrectionWorkbook)
-      return;
-    setCorrecting(true);
-    setRecordsError("");
-    setCorrectionJob(null);
-    try {
-      const initial =
-        await realtimeRepository.importMarketReturnedCorrectionWorkbook(
-          file,
-          productCode,
-        );
-      const terminal = await awaitImportJob({
-        initial,
-        onUpdate: setCorrectionJob,
-        loadJob: realtimeRepository.getMarketReturnedCorrectionJob
-          ? (importJobId) =>
-              realtimeRepository.getMarketReturnedCorrectionJob!(importJobId)
-          : undefined,
-      });
-      if (terminal.statusCode !== "FAILED") {
-        setPageNumber(0);
-        setRecordsRevision((value) => value + 1);
-      }
-    } catch (reason) {
-      setRecordsError(
-        reason instanceof RealtimeApiError && reason.clientMessage
-          ? reason.clientMessage
-          : "退回记录批量修正失败，请重新核对并下载最新修正表。",
-      );
-    } finally {
-      setCorrecting(false);
-    }
-  };
-
-  const downloadReturnedCorrectionErrors = async () => {
-    if (
-      !realtimeRepository?.downloadMarketReturnedCorrectionErrors ||
-      !correctionJob
-    )
-      return;
-    setRecordsError("");
-    try {
-      const blob =
-        await realtimeRepository.downloadMarketReturnedCorrectionErrors(
-          correctionJob.id,
-        );
-      const href = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = href;
-      anchor.download = `${context.productLabel}市场退回记录修正错误清单.csv`;
-      anchor.click();
-      URL.revokeObjectURL(href);
-    } catch {
-      setRecordsError("修正错误清单下载失败，请稍后重试。");
-    }
-  };
-
   return (
     <div className="enterprise-ledger-workbench">
       <div className="enterprise-ledger-workbench__breadcrumb">
@@ -1214,23 +1172,6 @@ export function ProductMarketCollectionWorkspace({
               ))}
             </select>
           </label>
-          <label>
-            <span>填报状态</span>
-            <select
-              aria-label="填报状态"
-              value={state}
-              onChange={(event) => {
-                setState(event.target.value);
-                setPageNumber(0);
-              }}
-            >
-              <option value="">全部状态</option>
-              <option value="待审核">待审核</option>
-              <option value="已核定">已核定</option>
-              <option value="需补充">需补充</option>
-              <option value="已作废">已作废</option>
-            </select>
-          </label>
           <div className="enterprise-ledger-query__actions">
             <button
               className="is-primary"
@@ -1243,7 +1184,6 @@ export function ProductMarketCollectionWorkspace({
               type="button"
               onClick={() => {
                 setObjectType("");
-                setState("");
                 setSurveyYear(currentSurveyYear);
                 setSurveyMonth("");
                 setLowerRegion({});
@@ -1285,13 +1225,6 @@ export function ProductMarketCollectionWorkspace({
           onDownloadErrors={() => void downloadImportErrors()}
           onRetry={() => void retryImport()}
         />
-        <MarketReturnedCorrectionStatus
-          busy={correcting}
-          className="market-task6-alert"
-          job={correctionJob}
-          onDownloadErrors={() => void downloadReturnedCorrectionErrors()}
-        />
-
         <header className="enterprise-ledger-title enterprise-ledger-title--collection">
           <h1>{context.productLabel}市场采集表</h1>
           <p>当前业务对象 · {businessDate(sourceItem)} · 当前授权地区</p>
@@ -1360,41 +1293,6 @@ export function ProductMarketCollectionWorkspace({
                       />
                     </label>
                   </div>
-                  <div
-                    aria-label="退回修正"
-                    className="enterprise-ledger-action-group"
-                    role="group"
-                  >
-                    <span className="enterprise-ledger-action-group__label">
-                      退回修正
-                    </span>
-                    <button
-                      disabled={
-                        correcting ||
-                        !realtimeRepository.downloadMarketReturnedCorrectionWorkbook
-                      }
-                      type="button"
-                      onClick={() => void downloadReturnedCorrectionWorkbook()}
-                    >
-                      下载退回记录修正表
-                    </button>
-                    <label className="realtime-business-file-action">
-                      {correcting ? "正在修正" : "批量导入修正结果"}
-                      <input
-                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        aria-label="批量导入市场退回修正结果"
-                        disabled={
-                          correcting ||
-                          !realtimeRepository.importMarketReturnedCorrectionWorkbook
-                        }
-                        type="file"
-                        onChange={(event) => {
-                          void correctReturnedRecords(event.target.files?.[0]);
-                          event.target.value = "";
-                        }}
-                      />
-                    </label>
-                  </div>
                 </>
               )}
               <div
@@ -1424,13 +1322,14 @@ export function ProductMarketCollectionWorkspace({
                   <th rowSpan={2}>样本点名称</th>
                   <th rowSpan={2}>样本点类型</th>
                   <th rowSpan={2}>地区</th>
+                  <th rowSpan={2}>详细地址</th>
+                  <th rowSpan={2}>样本点维护人</th>
                   <th colSpan={6}>填报与定位</th>
                   {displayedGroups.map((group) => (
                     <th colSpan={group.fields.length} key={group.id}>
                       {group.label}
                     </th>
                   ))}
-                  <th rowSpan={2}>填报状态</th>
                   <th rowSpan={2}>操作</th>
                 </tr>
                 <tr>
@@ -1460,6 +1359,8 @@ export function ProductMarketCollectionWorkspace({
                     <th scope="row">{row.subject}</th>
                     <td>{row.objectType}</td>
                     <td>{row.county}</td>
+                    <td>{row.address}</td>
+                    <td>{row.maintainer}</td>
                     <td>{row.reporter}</td>
                     <td>{row.surveyor}</td>
                     <td>{row.surveyorPhone}</td>
@@ -1475,17 +1376,17 @@ export function ProductMarketCollectionWorkspace({
                       );
                     })}
                     <td>
-                      <span
-                        className={`enterprise-ledger-state is-${row.state}`}
-                      >
-                        {row.state}
-                      </span>
-                    </td>
-                    <td>
                       <button
                         className="enterprise-ledger-row-action"
                         type="button"
                         onClick={() => {
+                          if (row.samplePointId) {
+                            onSelectionChange({
+                              type: "formal-sample-observation",
+                              id: row.samplePointId,
+                            });
+                            return;
+                          }
                           if (realtimeRepository && onEditRecord) {
                             onEditRecord(productCode, row.workId);
                             return;
@@ -1498,22 +1399,50 @@ export function ProductMarketCollectionWorkspace({
                       >
                         查看记录
                       </button>
-                      <button
-                        className="enterprise-ledger-row-action"
-                        type="button"
-                        onClick={() => {
-                          if (realtimeRepository && onEditRecord) {
-                            onEditRecord(productCode, row.workId);
-                            return;
-                          }
-                          onSelectionChange({
-                            type: "work-item",
-                            id: row.workId,
-                          });
-                        }}
-                      >
-                        查看照片
-                      </button>
+                      {row.samplePointId &&
+                        permissions.includes("FORMAL_SAMPLE_MANAGE") && (
+                          <button
+                            className="enterprise-ledger-row-action"
+                            type="button"
+                            onClick={() =>
+                              onSelectionChange({
+                                type: "formal-sample-edit",
+                                id: row.samplePointId!,
+                              })
+                            }
+                          >
+                            编辑
+                          </button>
+                        )}
+                      {row.samplePointId &&
+                        permissions.includes("FORMAL_SAMPLE_DELETE") && (
+                          <button
+                            className="enterprise-ledger-row-action"
+                            type="button"
+                            onClick={() => {
+                              if (!realtimeRepository?.deleteFormalSamplePoint)
+                                return;
+                              void realtimeRepository
+                                .deleteFormalSamplePoint(
+                                  row.samplePointId!,
+                                  row.sampleVersion ?? 0,
+                                )
+                                .then(() =>
+                                  setRecordsRevision((value) => value + 1),
+                                )
+                                .catch((error: unknown) =>
+                                  setRecordsError(
+                                    error instanceof RealtimeApiError &&
+                                      error.clientMessage
+                                      ? error.clientMessage
+                                      : "该样本已有业务记录或年度样本关系，不能删除。",
+                                  ),
+                                );
+                            }}
+                          >
+                            删除
+                          </button>
+                        )}
                     </td>
                   </tr>
                 ))}
@@ -1521,7 +1450,7 @@ export function ProductMarketCollectionWorkspace({
                   <tr>
                     <td
                       className="enterprise-ledger-table__empty"
-                      colSpan={14 + displayedFields.length}
+                      colSpan={15 + displayedFields.length}
                     >
                       当前范围暂无{context.productLabel}市场采集记录
                     </td>

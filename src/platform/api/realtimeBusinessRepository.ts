@@ -684,6 +684,7 @@ export type FormalSampleObservationDomain =
 export interface EligibleFormalSample {
   samplePointId: string;
   sampleName: string;
+  address: string;
   objectTypeCode: string | null;
   objectTypeName: string | null;
   domain: FormalSampleObservationDomain;
@@ -696,6 +697,9 @@ export interface EligibleFormalSample {
   longitude: string;
   effectiveFrom: string;
   effectiveTo?: string | null;
+  version: number;
+  annualObservationCount: number;
+  networkMembershipCount: number;
   latestObservationId: string;
   latestObservedAt: string;
   latestValues: Record<string, string>;

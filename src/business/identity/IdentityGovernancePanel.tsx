@@ -7,6 +7,7 @@ import type {
   EmployeeAssignmentUpdate,
   EmployeeInvitation,
   EmployeeProfile,
+  FormalSamplePointRow,
   IdentityAssignmentOptions,
   IdentityInvitationReceipt,
   RealtimeBusinessRepository,
@@ -89,6 +90,18 @@ function regionScopeSummary(
   return codes.length > visible.length
     ? `${visible.join("、")} 等 ${codes.length} 个地区`
     : visible.join("、");
+}
+
+function employeeCoversSample(
+  employee: EmployeeProfile,
+  sample: FormalSamplePointRow,
+): boolean {
+  return employee.regionCodes.some(
+    (code) =>
+      code === "*" ||
+      sample.regionCode.startsWith(code) ||
+      code.startsWith(sample.regionCode),
+  );
 }
 
 function auditObjectLabel(value: string): string {
@@ -427,6 +440,9 @@ export function IdentityGovernancePanel({
   const mayReadAudit = session.permissions.includes("AUDIT_READ");
   const [view, setView] = useState<GovernanceView>(initialView);
   const [employees, setEmployees] = useState<readonly EmployeeProfile[]>([]);
+  const [formalSamples, setFormalSamples] = useState<
+    readonly FormalSamplePointRow[]
+  >([]);
   const [options, setOptions] =
     useState<IdentityAssignmentOptions>(emptyOptions);
   const [regionNames, setRegionNames] = useState<ReadonlyMap<string, string>>(
@@ -441,6 +457,11 @@ export function IdentityGovernancePanel({
     receipt: IdentityInvitationReceipt | null;
     deliveryAddress: string;
     idempotencyKey: string;
+  } | null>(null);
+  const [responsibilityEditor, setResponsibilityEditor] = useState<{
+    employee: EmployeeProfile;
+    sampleIds: readonly string[];
+    reason: string;
   } | null>(null);
   const [loadingInvitation, setLoadingInvitation] = useState(false);
   const [reviews, setReviews] = useState<readonly AccessReviewCampaign[]>([]);
@@ -467,6 +488,23 @@ export function IdentityGovernancePanel({
   const [error, setError] = useState<string | null>(null);
   const assignmentOptionsRequest = useRef(0);
   const invitationEditorSubject = useRef<string | null>(null);
+
+  const loadFormalSamples = async () => {
+    if (!repository.listFormalSamplePoints) return [];
+    const rows: FormalSamplePointRow[] = [];
+    let page = 0;
+    let totalPages = 1;
+    while (page < totalPages) {
+      const result = await repository.listFormalSamplePoints({
+        page,
+        pageSize: 100,
+      });
+      rows.push(...result.items);
+      totalPages = result.totalPages;
+      page += 1;
+    }
+    return rows;
+  };
 
   useEffect(() => {
     let active = true;
@@ -509,11 +547,15 @@ export function IdentityGovernancePanel({
     setLoading(true);
     setError(null);
     try {
-      const [nextEmployees, nextOptions] = await Promise.all([
-        repository.listEmployees(),
-        repository.loadAssignmentOptions(session.workUnitCode),
-      ]);
+      const [nextEmployees, nextOptions, nextFormalSamples] = await Promise.all(
+        [
+          repository.listEmployees(),
+          repository.loadAssignmentOptions(session.workUnitCode),
+          loadFormalSamples(),
+        ],
+      );
       setEmployees(nextEmployees);
+      setFormalSamples(nextFormalSamples);
       if (
         assignmentOptionsRequest.current === assignmentOptionsGeneration &&
         !editor
@@ -581,6 +623,34 @@ export function IdentityGovernancePanel({
     repository,
     session.workUnitCode,
   ]);
+
+  useEffect(() => {
+    if (
+      view !== "employees" ||
+      !mayReadEmployees ||
+      typeof repository.subscribeBusinessEvents !== "function"
+    )
+      return;
+    return repository.subscribeBusinessEvents(0, (event) => {
+      if (event.actionCode.startsWith("FORMAL_SAMPLE_")) {
+        void loadEmployees();
+      }
+    });
+    // The authoritative employee/sample query is intentionally restarted by matching events.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mayReadEmployees, repository, view]);
+
+  const samplesByMaintainer = useMemo(() => {
+    const grouped = new Map<string, FormalSamplePointRow[]>();
+    for (const sample of formalSamples) {
+      if (!sample.maintainerSubjectId) continue;
+      grouped.set(sample.maintainerSubjectId, [
+        ...(grouped.get(sample.maintainerSubjectId) ?? []),
+        sample,
+      ]);
+    }
+    return grouped;
+  }, [formalSamples]);
 
   const pendingItems = useMemo(
     () =>
@@ -828,6 +898,40 @@ export function IdentityGovernancePanel({
       setError(
         businessError(caught, "保存失败，请检查账号、角色和责任地区后重试。"),
       );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveSampleResponsibility = async () => {
+    if (
+      !responsibilityEditor ||
+      !repository.assignFormalSampleMaintainer ||
+      !responsibilityEditor.reason.trim()
+    )
+      return;
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const selected = formalSamples.filter(
+        (sample) =>
+          responsibilityEditor.sampleIds.includes(sample.id) &&
+          sample.maintainerSubjectId !==
+            responsibilityEditor.employee.subjectId,
+      );
+      for (const sample of selected) {
+        await repository.assignFormalSampleMaintainer(sample.id, {
+          maintainerSubjectId: responsibilityEditor.employee.subjectId,
+          maintainerChangeReason: responsibilityEditor.reason.trim(),
+          expectedVersion: sample.version,
+        });
+      }
+      setResponsibilityEditor(null);
+      setMessage("样本维护责任已更新，员工与样本列表已重新读取。");
+      await loadEmployees();
+    } catch (caught) {
+      setError(businessError(caught, "样本维护责任保存失败，请刷新后重试。"));
     } finally {
       setSaving(false);
     }
@@ -1181,6 +1285,7 @@ export function IdentityGovernancePanel({
                         <th scope="col">员工</th>
                         <th scope="col">工作单位</th>
                         <th scope="col">角色与责任地区</th>
+                        <th scope="col">负责样本点</th>
                         <th scope="col">账号状态</th>
                         <th scope="col">处理</th>
                       </tr>
@@ -1209,6 +1314,16 @@ export function IdentityGovernancePanel({
                             </small>
                           </td>
                           <td>
+                            <strong>
+                              {(
+                                samplesByMaintainer.get(employee.subjectId) ??
+                                []
+                              )
+                                .map(({ canonicalName }) => canonicalName)
+                                .join("、") || "未分配样本点"}
+                            </strong>
+                          </td>
+                          <td>
                             {employmentLabel(employee.employmentStatus)} ·{" "}
                             {accountLabel(employee.accountStatus)}
                           </td>
@@ -1229,6 +1344,26 @@ export function IdentityGovernancePanel({
                                 >
                                   管理授权
                                 </button>
+                                {employee.employmentStatus === "ACTIVE" &&
+                                  employee.accountStatus === "ACTIVE" &&
+                                  repository.assignFormalSampleMaintainer && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setResponsibilityEditor({
+                                          employee,
+                                          sampleIds: (
+                                            samplesByMaintainer.get(
+                                              employee.subjectId,
+                                            ) ?? []
+                                          ).map(({ id }) => id),
+                                          reason: "",
+                                        })
+                                      }
+                                    >
+                                      调整负责样本点
+                                    </button>
+                                  )}
                                 {employee.accountStatus === "INVITED" && (
                                   <button
                                     aria-label={`管理${employee.displayName}的邀请`}
@@ -1249,7 +1384,7 @@ export function IdentityGovernancePanel({
                       ))}
                       {employees.length === 0 && (
                         <tr>
-                          <td colSpan={5}>当前单位暂无员工账号。</td>
+                          <td colSpan={6}>当前单位暂无员工账号。</td>
                         </tr>
                       )}
                     </tbody>
@@ -1271,6 +1406,90 @@ export function IdentityGovernancePanel({
                   saving={saving}
                   loadingOptions={loadingAssignmentOptions}
                 />
+              )}
+              {responsibilityEditor && (
+                <section
+                  aria-label={`调整${responsibilityEditor.employee.displayName}负责样本点`}
+                  className="identity-governance-editor"
+                >
+                  <header>
+                    <div>
+                      <h3>调整负责样本点</h3>
+                      <p>
+                        仅显示该员工责任地区覆盖的正式样本；保存仍写入正式样本唯一维护人字段。
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setResponsibilityEditor(null)}
+                    >
+                      取消
+                    </button>
+                  </header>
+                  <label>
+                    选择负责样本点
+                    <select
+                      aria-label="选择负责样本点"
+                      multiple
+                      value={[...responsibilityEditor.sampleIds]}
+                      onChange={(event) => {
+                        const sampleIds = Array.from(
+                          event.currentTarget.selectedOptions,
+                          ({ value }) => value,
+                        );
+                        setResponsibilityEditor((current) =>
+                          current
+                            ? {
+                                ...current,
+                                sampleIds,
+                              }
+                            : current,
+                        );
+                      }}
+                    >
+                      {formalSamples
+                        .filter((sample) =>
+                          employeeCoversSample(
+                            responsibilityEditor.employee,
+                            sample,
+                          ),
+                        )
+                        .map((sample) => (
+                          <option key={sample.id} value={sample.id}>
+                            {sample.canonicalName} · {sample.regionCode}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    维护责任调整原因
+                    <textarea
+                      aria-label="维护责任调整原因"
+                      value={responsibilityEditor.reason}
+                      onChange={(event) =>
+                        setResponsibilityEditor((current) =>
+                          current
+                            ? { ...current, reason: event.target.value }
+                            : current,
+                        )
+                      }
+                    />
+                  </label>
+                  <footer>
+                    <button
+                      className="is-primary"
+                      disabled={
+                        saving ||
+                        responsibilityEditor.sampleIds.length === 0 ||
+                        !responsibilityEditor.reason.trim()
+                      }
+                      type="button"
+                      onClick={() => void saveSampleResponsibility()}
+                    >
+                      保存样本责任
+                    </button>
+                  </footer>
+                </section>
               )}
               {invitationEditor && (
                 <section

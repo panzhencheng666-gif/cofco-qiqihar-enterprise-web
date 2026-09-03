@@ -394,6 +394,7 @@ export function writeFormalLocation(location: FormalLocation): string {
   const selection = location.selection;
   if (
     !selection ||
+    selection.type === "formal-sample-list" ||
     !sampleWorkflowSelectionTypes.includes(
       selection.type as SampleWorkflowSelectionType,
     )
@@ -451,7 +452,9 @@ function readSampleWorkflowSelection(
     (candidate) => sampleWorkflowSelectionNames[candidate] === pageName,
   );
   const safeId = safeSessionValue(id);
-  return type && safeId ? { type, id: safeId } : undefined;
+  return type && type !== "formal-sample-list" && safeId
+    ? { type, id: safeId }
+    : undefined;
 }
 
 export function normalizeFormalLocation(
@@ -465,6 +468,7 @@ export function normalizeFormalLocation(
   const selectionId = safeSessionValue(location.selection?.id);
   const selection =
     location.selection &&
+    location.selection.type !== "formal-sample-list" &&
     formalSelectionTypes.includes(location.selection.type) &&
     selectionId
       ? { type: location.selection.type, id: selectionId }

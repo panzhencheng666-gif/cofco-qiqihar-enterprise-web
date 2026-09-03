@@ -240,6 +240,7 @@ const eligibleFormalSamples = () =>
     productCode: "CORN",
     regionCode: point.regionCode,
     regionName: "通齐村",
+    address: point.address,
     maintainerSubjectId: point.maintainerSubjectId,
     maintainerDisplayName: point.maintainerDisplayName,
     latitude: String(point.latitude),
@@ -249,6 +250,7 @@ const eligibleFormalSamples = () =>
     latestObservationId: formalObservationId,
     latestObservedAt: "2026-08-25T10:58:50Z",
     latestValues: { ...formalObservationValues },
+    version: point.version,
   }));
 const marketWorkRecord = {
   id: "E2E-MARKET-WORK-001",

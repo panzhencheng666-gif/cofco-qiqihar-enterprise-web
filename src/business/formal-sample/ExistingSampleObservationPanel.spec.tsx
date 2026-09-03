@@ -1,7 +1,6 @@
 import {
   act,
   cleanup,
-  fireEvent,
   render,
   screen,
   waitFor,
@@ -22,6 +21,7 @@ import { ExistingSampleObservationPanel } from "./ExistingSampleObservationPanel
 const sample: EligibleFormalSample = {
   samplePointId: "sample-1",
   sampleName: "中粮生化能源（龙江）有限公司",
+  address: "龙江县工业园区 1 号",
   objectTypeCode: "DEEP_PROCESSOR",
   objectTypeName: "深加工企业",
   domain: "MARKET",
@@ -33,6 +33,9 @@ const sample: EligibleFormalSample = {
   latitude: "47.5100000",
   longitude: "123.3800000",
   effectiveFrom: "2026-01-01",
+  version: 2,
+  annualObservationCount: 4,
+  networkMembershipCount: 1,
   latestObservationId: "record-1",
   latestObservedAt: "2026-08-25T10:58:50Z",
   latestValues: {
@@ -266,14 +269,16 @@ function renderPanel(
       permissions={permissions}
       productCode="CORN"
       repository={api as unknown as RealtimeBusinessRepository}
+      selection={
+        initialMode === "POINTS"
+          ? { type: "formal-sample-list", id: "list" }
+          : undefined
+      }
       onSaved={onSaved}
     >
       <div>原有采集台账内容</div>
     </ExistingSampleObservationPanel>,
   );
-  if (initialMode === "POINTS") {
-    fireEvent.click(screen.getByRole("button", { name: "维护样本与期间数据" }));
-  }
   return { api, onSaved };
 }
 
@@ -356,6 +361,27 @@ function eligibleSampleFor(point: {
 }
 
 describe("ExistingSampleObservationPanel", () => {
+  it("resolves the retired formal-sample list route to the existing business list", () => {
+    render(
+      <ExistingSampleObservationPanel
+        domain="MARKET"
+        productCode="CORN"
+        repository={repository() as unknown as RealtimeBusinessRepository}
+        selection={{ type: "formal-sample-list", id: "list" }}
+        onSelectionChange={vi.fn()}
+        onSaved={() => undefined}
+      >
+        <div>原有采集台账内容</div>
+      </ExistingSampleObservationPanel>,
+    );
+
+    expect(screen.getByText("原有采集台账内容")).toBeVisible();
+    expect(screen.queryByText("维护样本与期间数据")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "采集台账" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders a routed formal create page without nesting the business ledger", async () => {
     const onSelectionChange = vi.fn();
     render(
@@ -392,7 +418,7 @@ describe("ExistingSampleObservationPanel", () => {
 
   afterEach(cleanup);
 
-  it("uses one collection ledger entry with discoverable row actions", async () => {
+  it("keeps legacy embedded ledger coverage without exposing a second entry", async () => {
     const point = formalPoint({
       id: sample.samplePointId,
       canonicalName: "龙沙区兴农农资店",
@@ -433,14 +459,14 @@ describe("ExistingSampleObservationPanel", () => {
       api,
       vi.fn(),
       ["BUSINESS_CREATE", "FORMAL_SAMPLE_MANAGE", "FORMAL_SAMPLE_DELETE"],
-      "LEDGER",
+      "POINTS",
     );
 
-    expect(screen.getByText("原有采集台账内容")).toBeVisible();
+    expect(screen.queryByText("原有采集台账内容")).not.toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
-    await userEvent.click(
-      screen.getByRole("button", { name: "维护样本与期间数据" }),
-    );
+    expect(
+      screen.queryByRole("button", { name: "维护样本与期间数据" }),
+    ).not.toBeInTheDocument();
     expect(
       await screen.findByRole("heading", { name: "采集台账" }),
     ).toBeVisible();
@@ -1422,7 +1448,7 @@ describe("ExistingSampleObservationPanel", () => {
     expect(withEvents.subscribeBusinessEvents).toHaveBeenCalledTimes(2);
   });
 
-  it("switches the whole page between ledger and update modes", async () => {
+  it("returns from period-data editing to the existing business list", async () => {
     const { api } = renderPanel();
     expect(
       await screen.findByRole("heading", { name: "采集台账" }),
@@ -1444,11 +1470,11 @@ describe("ExistingSampleObservationPanel", () => {
       "DEEP_PROCESSOR",
     );
     await userEvent.type(screen.getByLabelText("搜索样本企业"), "旧筛选");
-    await userEvent.click(screen.getByRole("button", { name: "返回样本台账" }));
-    expect(screen.getByRole("heading", { name: "采集台账" })).toBeVisible();
-    await openCollectionData();
-    expect(screen.getByLabelText("筛选对象类型")).toHaveValue("");
-    expect(screen.getByLabelText("搜索样本企业")).toHaveValue("");
+    await userEvent.click(screen.getByRole("button", { name: "返回业务列表" }));
+    expect(screen.getByText("原有采集台账内容")).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "采集台账" }),
+    ).not.toBeInTheDocument();
   });
 
   it("never lets a late response restore samples from an obsolete filter scope", async () => {

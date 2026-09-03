@@ -27,31 +27,19 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
     0,
   );
 
-  await page.getByRole("button", { name: "维护样本与期间数据" }).click();
-  const ledger = page.getByRole("region", { name: "采集台账工作台" });
   await expect(
-    ledger.getByRole("heading", { name: "采集台账", exact: true }),
+    page.getByRole("button", { name: "维护样本与期间数据" }),
+  ).toHaveCount(0);
+  const ledger = page.getByRole("region", { name: "玉米市场采集表区域" });
+  await expect(
+    ledger.getByRole("table", { name: "玉米市场采集表" }),
   ).toBeVisible();
-  const filters = ledger.getByRole("search");
-  const filterControls = filters.locator("input, select, button");
-  expect(
-    await filterControls.evaluateAll((elements) =>
-      elements.map((element) =>
-        Math.round(element.getBoundingClientRect().height),
-      ),
-    ),
-  ).toEqual([36, 36, 36, 36, 36]);
-  const [ledgerWidth, tableWidth] = await Promise.all([
-    ledger.evaluate((element) => element.getBoundingClientRect().width),
-    ledger
-      .locator(".formal-sample-ledger__table")
-      .evaluate((element) => element.getBoundingClientRect().width),
-  ]);
-  expect(tableWidth / ledgerWidth).toBeGreaterThan(0.95);
 
   const row = page.getByRole("row", { name: /龙江县粮食贸易样本一号/ });
   await expect(row).toContainText("贸易商");
-  await expect(row.getByRole("button", { name: "查看" })).toBeVisible();
+  await expect(row).toContainText("龙江县龙江镇通齐村");
+  await expect(row).toContainText("验收填报员");
+  await expect(row.getByRole("button", { name: "查看记录" })).toBeVisible();
   await expect(row.getByRole("button", { name: "编辑" })).toBeVisible();
   await expect(row.getByRole("button", { name: "删除" })).toBeVisible();
   expect(
@@ -69,26 +57,13 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
-    await ledger.evaluate(
-      (element) => element.scrollWidth <= element.clientWidth,
-    ),
+    await page
+      .locator("html")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
-  expect(
-    await filterControls.evaluateAll((elements) =>
-      elements.map((element) =>
-        Math.round(element.getBoundingClientRect().height),
-      ),
-    ),
-  ).toEqual([36, 36, 36, 36, 36]);
   await page.setViewportSize({ width: 1600, height: 900 });
 
-  await row.getByRole("button", { name: "查看" }).click();
-  await expect(
-    page.getByRole("region", { name: "正式样本详情" }),
-  ).toContainText("龙江县龙江镇通齐村");
-
-  await page.getByRole("button", { name: "返回正式样本台账" }).click();
-  await row.getByRole("button", { name: "更新采集数据" }).click();
+  await row.getByRole("button", { name: "查看记录" }).click();
   await expect(
     page.getByRole("heading", { name: "填写或更新采集数据" }),
   ).toBeVisible();

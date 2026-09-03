@@ -6,6 +6,7 @@ import type {
   ProductionImportJob,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 import {
   RegionCascadeSelector,
@@ -32,10 +33,8 @@ import {
   type MarketDocumentDraft,
 } from "./MarketDocumentWorkbench";
 import { BusinessImportStatus } from "../importing/BusinessImportStatus";
-import { ReturnedCorrectionStatus } from "../importing/ReturnedCorrectionStatus";
 import {
   awaitBusinessImport,
-  awaitImportJob,
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
 import { RealtimeRegionFilterSelect } from "../realtime/RealtimeRegionFilterSelect";
@@ -120,15 +119,6 @@ const logisticsStatusLabels: Readonly<Record<string, string>> = {
   RETURNED: "退回待补充",
   VOIDED: "已作废",
 };
-
-function fixtureLogisticsStatus(item: BusinessWorkItem): string {
-  if (item.reviewStatus === "approved") return "APPROVED";
-  if (item.reviewStatus === "returned" || item.documentStatus === "returned") {
-    return "RETURNED";
-  }
-  if (item.documentStatus === "submitted") return "PENDING_REVIEW";
-  return "DRAFT";
-}
 
 function persistedValue(record: LogisticsRecordRow, code: string): string {
   return record.displayValues[code] ?? record.values[code] ?? "—";
@@ -300,7 +290,6 @@ export function LogisticsMonitoringWorkspace({
   const [realtimeRegionCode, setRealtimeRegionCode] = useState("");
   const [surveyYear, setSurveyYear] = useState(currentSurveyYear);
   const [surveyMonth, setSurveyMonth] = useState("");
-  const [status, setStatus] = useState("");
   const [persistedRecords, setPersistedRecords] = useState<
     readonly LogisticsRecordRow[]
   >([]);
@@ -313,9 +302,6 @@ export function LogisticsMonitoringWorkspace({
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState("");
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
-  const [correcting, setCorrecting] = useState(false);
-  const [correctionJob, setCorrectionJob] =
-    useState<ProductionImportJob | null>(null);
   const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
   const [recordsRevision, setRecordsRevision] = useState(0);
   const [definition, setDefinition] = useState<LogisticsDefinition | null>(
@@ -417,80 +403,6 @@ export function LogisticsMonitoringWorkspace({
     }
   }
 
-  async function downloadReturnedCorrectionWorkbook() {
-    if (!realtimeRepository?.downloadReturnedCorrectionWorkbook) return;
-    setImportMessage("");
-    try {
-      const blob = await realtimeRepository.downloadReturnedCorrectionWorkbook(
-        "logistics",
-        productCode,
-      );
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      const productName =
-        masterData?.products.find((product) => product.code === productCode)
-          ?.name ?? "粮食";
-      anchor.download = `${productName}物流退回记录修正表.xlsx`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setImportMessage("物流退回记录修正表已下载");
-    } catch {
-      setImportMessage("退回记录修正表下载失败，请稍后重试。");
-    }
-  }
-
-  async function correctReturnedRecords(file: File | undefined) {
-    if (!file || !realtimeRepository?.importReturnedCorrectionWorkbook) return;
-    setCorrecting(true);
-    setImportMessage("");
-    setCorrectionJob(null);
-    try {
-      const initial = await realtimeRepository.importReturnedCorrectionWorkbook(
-        "logistics",
-        file,
-        productCode,
-      );
-      const terminal = await awaitImportJob({
-        initial,
-        onUpdate: setCorrectionJob,
-        loadJob: realtimeRepository.getReturnedCorrectionJob
-          ? (importJobId) =>
-              realtimeRepository.getReturnedCorrectionJob!(
-                "logistics",
-                importJobId,
-              )
-          : undefined,
-      });
-      if (terminal.statusCode !== "FAILED") {
-        setPageNumber(0);
-        setRecordsRevision((value) => value + 1);
-      }
-    } catch {
-      setImportMessage("退回记录批量修正失败，请重新核对并下载最新修正表。");
-    } finally {
-      setCorrecting(false);
-    }
-  }
-
-  async function downloadReturnedCorrectionErrors() {
-    if (!realtimeRepository?.downloadReturnedCorrectionErrors || !correctionJob)
-      return;
-    setImportMessage("");
-    try {
-      saveImportErrorFile(
-        await realtimeRepository.downloadReturnedCorrectionErrors(
-          "logistics",
-          correctionJob.id,
-        ),
-        "logistics",
-        correctionJob.id,
-      );
-    } catch {
-      setImportMessage("修正错误清单下载失败，请稍后重试。");
-    }
-  }
-
   useEffect(() => {
     if (!realtimeRepository) return;
     let cancelled = false;
@@ -500,21 +412,60 @@ export function LogisticsMonitoringWorkspace({
       setRecordsError("");
       setSelectedPersistedId(undefined);
     });
-    void realtimeRepository
-      .listLogistics({
-        productCode,
-        page: pageNumber,
-        pageSize: collectionPageSize,
-        filters: {
-          regionCode: realtimeRegionCode || undefined,
-          surveyYear,
-          surveyMonth: surveyMonth || undefined,
-          status: status || undefined,
-          nodeTypeCode: nodeType
-            ? logisticsNodeTypeCodeById[nodeType]
-            : undefined,
-        },
-      })
+    const request = realtimeRepository.listEligibleFormalSamples
+      ? realtimeRepository
+          .listEligibleFormalSamples({
+            domain: "LOGISTICS",
+            productCode,
+            regionCode: realtimeRegionCode || undefined,
+            objectTypeCode: nodeType
+              ? logisticsNodeTypeCodeById[nodeType]
+              : undefined,
+            year: Number(surveyYear),
+            observedAt: new Date(
+              `${surveyYear}-${surveyMonth ? surveyMonth.padStart(2, "0") : "12"}-01T00:00:00+08:00`,
+            ).toISOString(),
+          })
+          .then((samples) => ({
+            items: samples.map((sample) => ({
+              id: sample.samplePointId,
+              productCode,
+              values: {
+                ...sample.latestValues,
+                LOG_SAMPLE_NAME: sample.sampleName,
+                LOG_REGION: sample.regionName,
+                LOG_SAMPLE_LATITUDE: sample.latitude,
+                LOG_SAMPLE_LONGITUDE: sample.longitude,
+                __FORMAL_SAMPLE_ID: sample.samplePointId,
+                __FORMAL_SAMPLE_ADDRESS: sample.address,
+                __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
+                __FORMAL_LATEST_OBSERVATION_ID: sample.latestObservationId,
+              },
+              displayValues: {},
+              status: "DRAFT",
+              returnReason: null,
+              allowedActions: [],
+              version: sample.version,
+            })),
+            pageNumber: 0,
+            pageSize: samples.length,
+            totalElements: samples.length,
+            totalPages: samples.length > 0 ? 1 : 0,
+          }))
+      : realtimeRepository.listLogistics({
+          productCode,
+          page: pageNumber,
+          pageSize: collectionPageSize,
+          filters: {
+            regionCode: realtimeRegionCode || undefined,
+            surveyYear,
+            surveyMonth: surveyMonth || undefined,
+            nodeTypeCode: nodeType
+              ? logisticsNodeTypeCodeById[nodeType]
+              : undefined,
+          },
+        });
+    void request
       .then((page) => {
         if (!cancelled) {
           const nextTotalPages = Math.max(1, page.totalPages);
@@ -547,7 +498,6 @@ export function LogisticsMonitoringWorkspace({
     realtimeRegionCode,
     realtimeRepository,
     recordsRevision,
-    status,
     surveyMonth,
     surveyYear,
   ]);
@@ -595,7 +545,6 @@ export function LogisticsMonitoringWorkspace({
             surveyYear,
             surveyMonth,
           ) &&
-          (!status || fixtureLogisticsStatus(item) === status) &&
           (!nodeType ||
             (item.subject.kind === "monitoring-object" &&
               item.subject.objectTypeId === nodeType)),
@@ -604,7 +553,6 @@ export function LogisticsMonitoringWorkspace({
       nodeType,
       queryAllowed,
       scope.coordinates.regionId,
-      status,
       surveyMonth,
       surveyYear,
       workItems,
@@ -796,23 +744,6 @@ export function LogisticsMonitoringWorkspace({
               <option value="road-node">公路</option>
             </select>
           </label>
-          <label>
-            <span>填报状态</span>
-            <select
-              aria-label="填报状态"
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value);
-                setPageNumber(0);
-              }}
-            >
-              <option value="">全部状态</option>
-              <option value="PENDING_REVIEW">待审核</option>
-              <option value="APPROVED">已核定</option>
-              <option value="RETURNED">退回待补充</option>
-              <option value="VOIDED">已作废</option>
-            </select>
-          </label>
           <div className="enterprise-ledger-query__actions">
             <button
               className="is-primary"
@@ -829,7 +760,6 @@ export function LogisticsMonitoringWorkspace({
                 setRealtimeRegionCode("");
                 setSurveyYear(currentSurveyYear);
                 setSurveyMonth("");
-                setStatus("");
                 setPageNumber(0);
                 onScopeChange({
                   regionId: "qiqihar-all",
@@ -869,12 +799,6 @@ export function LogisticsMonitoringWorkspace({
           job={importJob}
           onDownloadErrors={() => void downloadImportErrors()}
           onRetry={() => void retryImport()}
-        />
-        <ReturnedCorrectionStatus
-          busy={correcting}
-          className="market-task6-alert"
-          job={correctionJob}
-          onDownloadErrors={() => void downloadReturnedCorrectionErrors()}
         />
 
         <header className="enterprise-ledger-title enterprise-ledger-title--collection">
@@ -948,42 +872,6 @@ export function LogisticsMonitoringWorkspace({
                   )}
                 </div>
               )}
-              {(realtimeRepository?.downloadReturnedCorrectionWorkbook ||
-                realtimeRepository?.importReturnedCorrectionWorkbook) && (
-                <div
-                  aria-label="退回修正"
-                  className="enterprise-ledger-action-group"
-                  role="group"
-                >
-                  <span className="enterprise-ledger-action-group__label">
-                    退回修正
-                  </span>
-                  {realtimeRepository.downloadReturnedCorrectionWorkbook && (
-                    <button
-                      disabled={importing || correcting}
-                      type="button"
-                      onClick={() => void downloadReturnedCorrectionWorkbook()}
-                    >
-                      下载退回记录修正表
-                    </button>
-                  )}
-                  {realtimeRepository.importReturnedCorrectionWorkbook && (
-                    <label className="realtime-business-file-action">
-                      {correcting ? "正在修正" : "批量导入修正结果"}
-                      <input
-                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        aria-label="批量导入物流退回修正结果"
-                        disabled={importing || correcting}
-                        type="file"
-                        onChange={(event) => {
-                          void correctReturnedRecords(event.target.files?.[0]);
-                          event.target.value = "";
-                        }}
-                      />
-                    </label>
-                  )}
-                </div>
-              )}
               <div
                 aria-label="单条录入"
                 className="enterprise-ledger-action-group enterprise-ledger-action-group--primary"
@@ -1008,12 +896,13 @@ export function LogisticsMonitoringWorkspace({
                   <th>序号</th>
                   <th>数据时间</th>
                   <th>填报日期</th>
+                  <th>详细地址</th>
+                  <th>样本点维护人</th>
                   {ledgerListFields.map((field) => (
                     <th data-field-code={field.code} key={field.code}>
                       {field.label}
                     </th>
                   ))}
-                  <th>填报状态</th>
                   <th>操作</th>
                 </tr>
               </thead>
@@ -1026,20 +915,27 @@ export function LogisticsMonitoringWorkspace({
                         </td>
                         <td>{persistedSurveyPeriod(record)}</td>
                         <td>{persistedFillingTime(record)}</td>
+                        <td>{record.values.__FORMAL_SAMPLE_ADDRESS ?? "—"}</td>
+                        <td>
+                          {record.values.__FORMAL_SAMPLE_MAINTAINER ?? "—"}
+                        </td>
                         {ledgerListFields.map(({ code }) => (
                           <td className="is-operational" key={code}>
                             {persistedValue(record, code)}
                           </td>
                         ))}
                         <td>
-                          {logisticsStatusLabels[record.status] ??
-                            record.status}
-                        </td>
-                        <td>
                           <button
                             className="enterprise-ledger-row-action"
                             type="button"
                             onClick={() => {
+                              if (record.values.__FORMAL_SAMPLE_ID) {
+                                onSelectionChange({
+                                  type: "formal-sample-observation",
+                                  id: record.values.__FORMAL_SAMPLE_ID,
+                                });
+                                return;
+                              }
                               if (onEditRecord) {
                                 onEditRecord(productCode, record.id);
                                 return;
@@ -1047,8 +943,54 @@ export function LogisticsMonitoringWorkspace({
                               setSelectedPersistedId(record.id);
                             }}
                           >
-                            查看
+                            查看记录
                           </button>
+                          {record.values.__FORMAL_SAMPLE_ID &&
+                            permissions.includes("FORMAL_SAMPLE_MANAGE") && (
+                              <button
+                                className="enterprise-ledger-row-action"
+                                type="button"
+                                onClick={() =>
+                                  onSelectionChange({
+                                    type: "formal-sample-edit",
+                                    id: record.values.__FORMAL_SAMPLE_ID,
+                                  })
+                                }
+                              >
+                                编辑
+                              </button>
+                            )}
+                          {record.values.__FORMAL_SAMPLE_ID &&
+                            permissions.includes("FORMAL_SAMPLE_DELETE") && (
+                              <button
+                                className="enterprise-ledger-row-action"
+                                type="button"
+                                onClick={() => {
+                                  if (
+                                    !realtimeRepository?.deleteFormalSamplePoint
+                                  )
+                                    return;
+                                  void realtimeRepository
+                                    .deleteFormalSamplePoint(
+                                      record.values.__FORMAL_SAMPLE_ID,
+                                      record.version,
+                                    )
+                                    .then(() =>
+                                      setRecordsRevision((value) => value + 1),
+                                    )
+                                    .catch((error: unknown) =>
+                                      setRecordsError(
+                                        error instanceof RealtimeApiError &&
+                                          error.clientMessage
+                                          ? error.clientMessage
+                                          : "该样本已有业务记录或年度样本关系，不能删除。",
+                                      ),
+                                    );
+                                }}
+                              >
+                                删除
+                              </button>
+                            )}
                         </td>
                       </tr>
                     ))
@@ -1057,12 +999,13 @@ export function LogisticsMonitoringWorkspace({
                         <td>{row.number}</td>
                         <td>{row.surveyPeriod}</td>
                         <td>{row.fillingTime}</td>
+                        <td>—</td>
+                        <td>—</td>
                         {ledgerListFields.map(({ code }) => (
                           <td className="is-operational" key={code}>
                             {fixturePublicValue(row, code)}
                           </td>
                         ))}
-                        <td>{row.state}</td>
                         <td>
                           <button
                             className="enterprise-ledger-row-action"
@@ -1082,7 +1025,7 @@ export function LogisticsMonitoringWorkspace({
                               }
                             }}
                           >
-                            查看
+                            查看记录
                           </button>
                         </td>
                       </tr>
@@ -1091,7 +1034,7 @@ export function LogisticsMonitoringWorkspace({
                   <tr>
                     <td
                       className="enterprise-ledger-table__empty"
-                      colSpan={ledgerListFields.length + 5}
+                      colSpan={ledgerListFields.length + 6}
                     >
                       当前范围暂无粮食物流监测记录
                     </td>

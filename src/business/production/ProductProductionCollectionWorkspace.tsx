@@ -44,10 +44,8 @@ import {
   type ProductionDocumentDraft,
 } from "./ProductionDocumentWorkbench";
 import { BusinessImportStatus } from "../importing/BusinessImportStatus";
-import { ReturnedCorrectionStatus } from "../importing/ReturnedCorrectionStatus";
 import {
   awaitBusinessImport,
-  awaitImportJob,
   saveImportErrorFile,
 } from "../importing/businessImportWorkflow";
 import { RealtimeRegionFilterSelect } from "../realtime/RealtimeRegionFilterSelect";
@@ -71,15 +69,6 @@ import {
 
 const collectionPageSize = 20;
 
-const productionStatusCodeByLabel: Readonly<Record<string, string>> = {
-  填写中: "DRAFT",
-  退回待补充: "RETURNED",
-  审核退回: "RETURNED",
-  待审核: "PENDING_REVIEW",
-  已核定: "APPROVED",
-  已作废: "VOIDED",
-};
-
 const aggregateRegionByCity = {
   qiqihar: "qiqihar-all",
   heihe: "heihe-all",
@@ -88,6 +77,10 @@ const aggregateRegionByCity = {
 
 interface ProductionCollectionRow {
   workId: string;
+  samplePointId?: string;
+  sampleVersion?: number;
+  address: string;
+  maintainer: string;
   values: Readonly<Record<string, string>>;
   number: number;
   surveyDate: string;
@@ -373,7 +366,6 @@ export function ProductProductionCollectionWorkspace({
       : context.productId === "soybean"
         ? "SOYBEAN"
         : "RICE";
-  const [status, setStatus] = useState("");
   const [objectType, setObjectType] = useState<
     "" | ProductionBusinessObjectTypeId
   >("");
@@ -425,9 +417,6 @@ export function ProductProductionCollectionWorkspace({
   >([]);
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
-  const [correcting, setCorrecting] = useState(false);
-  const [correctionJob, setCorrectionJob] =
-    useState<ProductionImportJob | null>(null);
   const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
   const { masterData, masterDataError } =
     useRealtimeMasterData(realtimeRepository);
@@ -543,12 +532,13 @@ export function ProductProductionCollectionWorkspace({
         item.periodKey === scope.coordinates.periodKey) &&
       (!scope.coordinates.cultivarId ||
         item.cultivarIds.includes(scope.coordinates.cultivarId)) &&
-      (!objectType || productionObjectTypeId(item) === objectType) &&
-      (!status || collectionStatus(item) === status),
+      (!objectType || productionObjectTypeId(item) === objectType),
   );
   const fixtureRows: readonly ProductionCollectionRow[] = productItems.map(
     (item, index) => ({
       workId: item.workId,
+      address: "—",
+      maintainer: "—",
       values: {},
       number: index + 1,
       surveyDate: formatSurveyPeriodFromDate(item.deadline.slice(0, 10)),
@@ -622,21 +612,58 @@ export function ProductProductionCollectionWorkspace({
         : context.productId === "soybean"
           ? "SOYBEAN"
           : "RICE";
-    void realtimeRepository
-      .listProduction({
-        productCode,
-        page: pageNumber,
-        pageSize: collectionPageSize,
-        filters: {
-          regionCode: realtimeRegionCode || undefined,
-          surveyYear,
-          surveyMonth: surveyMonth || undefined,
-          objectTypeCode: objectType
-            ? productionObjectTypeCode(objectType)
-            : undefined,
-          status: status ? productionStatusCodeByLabel[status] : undefined,
-        },
-      })
+    const request = realtimeRepository.listEligibleFormalSamples
+      ? realtimeRepository
+          .listEligibleFormalSamples({
+            domain: "PRODUCTION",
+            productCode,
+            regionCode: realtimeRegionCode || undefined,
+            objectTypeCode: objectType
+              ? productionObjectTypeCode(objectType)
+              : undefined,
+            year: Number(surveyYear),
+            observedAt: new Date(
+              `${surveyYear}-${surveyMonth ? surveyMonth.padStart(2, "0") : "12"}-01T00:00:00+08:00`,
+            ).toISOString(),
+          })
+          .then((samples) => ({
+            items: samples.map((sample) => ({
+              id: sample.samplePointId,
+              values: {
+                ...sample.latestValues,
+                __FORMAL_SAMPLE_ID: sample.samplePointId,
+                __FORMAL_SAMPLE_NAME: sample.sampleName,
+                __FORMAL_SAMPLE_ADDRESS: sample.address,
+                __FORMAL_SAMPLE_OBJECT_TYPE: sample.objectTypeCode ?? "",
+                __FORMAL_SAMPLE_OBJECT_TYPE_NAME: sample.objectTypeName ?? "",
+                __FORMAL_SAMPLE_REGION: sample.regionName,
+                __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
+                __FORMAL_SAMPLE_LATITUDE: sample.latitude,
+                __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
+                __FORMAL_LATEST_OBSERVATION_ID: sample.latestObservationId,
+              },
+              allowedActions: [],
+              version: sample.version,
+            })),
+            pageNumber: 0,
+            pageSize: samples.length,
+            totalElements: samples.length,
+            totalPages: samples.length > 0 ? 1 : 0,
+          }))
+      : realtimeRepository.listProduction({
+          productCode,
+          page: pageNumber,
+          pageSize: collectionPageSize,
+          filters: {
+            regionCode: realtimeRegionCode || undefined,
+            surveyYear,
+            surveyMonth: surveyMonth || undefined,
+            objectTypeCode: objectType
+              ? productionObjectTypeCode(objectType)
+              : undefined,
+          },
+        });
+    void request
       .then((page) => {
         if (!cancelled) {
           const nextTotalPages = Math.max(1, page.totalPages);
@@ -670,7 +697,6 @@ export function ProductProductionCollectionWorkspace({
     realtimeRegionCode,
     realtimeRepository,
     recordsRevision,
-    status,
     surveyMonth,
     surveyYear,
   ]);
@@ -789,76 +815,6 @@ export function ProductProductionCollectionWorkspace({
     }
   };
 
-  const downloadReturnedCorrectionWorkbook = async () => {
-    if (!realtimeRepository?.downloadReturnedCorrectionWorkbook) return;
-    setRecordsError("");
-    try {
-      const blob = await realtimeRepository.downloadReturnedCorrectionWorkbook(
-        "production",
-        productCode,
-      );
-      const href = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = href;
-      anchor.download = `${context.productLabel}产情退回记录修正表.xlsx`;
-      anchor.click();
-      URL.revokeObjectURL(href);
-    } catch {
-      setRecordsError("退回记录修正表下载失败，请稍后重试。");
-    }
-  };
-
-  const correctReturnedRecords = async (file: File | undefined) => {
-    if (!file || !realtimeRepository?.importReturnedCorrectionWorkbook) return;
-    setCorrecting(true);
-    setRecordsError("");
-    setCorrectionJob(null);
-    try {
-      const initial = await realtimeRepository.importReturnedCorrectionWorkbook(
-        "production",
-        file,
-        productCode,
-      );
-      const terminal = await awaitImportJob({
-        initial,
-        onUpdate: setCorrectionJob,
-        loadJob: realtimeRepository.getReturnedCorrectionJob
-          ? (importJobId) =>
-              realtimeRepository.getReturnedCorrectionJob!(
-                "production",
-                importJobId,
-              )
-          : undefined,
-      });
-      if (terminal.statusCode !== "FAILED") {
-        setPageNumber(0);
-        setRecordsRevision((value) => value + 1);
-      }
-    } catch {
-      setRecordsError("退回记录批量修正失败，请重新核对并下载最新修正表。");
-    } finally {
-      setCorrecting(false);
-    }
-  };
-
-  const downloadReturnedCorrectionErrors = async () => {
-    if (!realtimeRepository?.downloadReturnedCorrectionErrors || !correctionJob)
-      return;
-    setRecordsError("");
-    try {
-      saveImportErrorFile(
-        await realtimeRepository.downloadReturnedCorrectionErrors(
-          "production",
-          correctionJob.id,
-        ),
-        "production",
-        correctionJob.id,
-      );
-    } catch {
-      setRecordsError("修正错误清单下载失败，请稍后重试。");
-    }
-  };
-
   const persistedRows: readonly ProductionCollectionRow[] =
     persistedRecords.map((record, index) => {
       const rawObjectType = persistedValue(record, "PROD_OBJECT_TYPE");
@@ -871,6 +827,10 @@ export function ProductProductionCollectionWorkspace({
         formalObjectType?.id ?? normalizeProductionObjectType(rawObjectType);
       return {
         workId: record.id,
+        samplePointId: record.values.__FORMAL_SAMPLE_ID,
+        sampleVersion: record.version,
+        address: record.values.__FORMAL_SAMPLE_ADDRESS ?? "—",
+        maintainer: record.values.__FORMAL_SAMPLE_MAINTAINER ?? "—",
         values: record.values,
         number: pageNumber * collectionPageSize + index + 1,
         surveyDate: formatExplicitSurveyPeriod(
@@ -880,26 +840,36 @@ export function ProductProductionCollectionWorkspace({
         ),
         subject: persistedValue(
           record,
+          "__FORMAL_SAMPLE_NAME",
           "PROD_SAMPLE_NAME",
           "PROD_SUBJECT_NAME",
           "PROD_OBJECT_NAME",
           "PROD_OBJECT_TYPE",
         ),
         objectType:
-          formalObjectType?.label ??
+          record.values.__FORMAL_SAMPLE_OBJECT_TYPE_NAME ||
+          formalObjectType?.label ||
           getProductionObjectTypeOptions().find(
             ({ id }) => id === normalizedObjectType,
-          )?.label ??
+          )?.label ||
           rawObjectType,
         objectTypeId: normalizedObjectType,
-        region: persistedValue(record, "PROD_REGION"),
+        region: persistedValue(record, "__FORMAL_SAMPLE_REGION", "PROD_REGION"),
         cultivar: persistedValue(record, "PROD_CULTIVAR_NAME", "PROD_CULTIVAR"),
         surveyor: persistedValue(record, "PROD_SURVEYOR_NAME"),
         reporter: persistedValue(record, "PROD_REPORTER_NAME"),
         surveyorPhone: persistedValue(record, "PROD_SURVEYOR_PHONE"),
         subjectContact: persistedValue(record, "PROD_SAMPLE_CONTACT"),
-        latitude: persistedValue(record, "PROD_SAMPLE_LATITUDE"),
-        longitude: persistedValue(record, "PROD_SAMPLE_LONGITUDE"),
+        latitude: persistedValue(
+          record,
+          "__FORMAL_SAMPLE_LATITUDE",
+          "PROD_SAMPLE_LATITUDE",
+        ),
+        longitude: persistedValue(
+          record,
+          "__FORMAL_SAMPLE_LONGITUDE",
+          "PROD_SAMPLE_LONGITUDE",
+        ),
         plantingArea: persistedValue(record, "PROD_AREA_MU"),
         harvestArea: persistedValue(
           record,
@@ -967,12 +937,12 @@ export function ProductProductionCollectionWorkspace({
         status: persistedProductionStatus(record.values.PROD_STATUS),
       };
     });
-  const filteredRows = (realtimeRepository ? persistedRows : fixtureRows)
-    .filter(
-      (row) =>
-        realtimeRepository || !objectType || row.objectTypeId === objectType,
-    )
-    .filter((row) => realtimeRepository || !status || row.status === status);
+  const filteredRows = (
+    realtimeRepository ? persistedRows : fixtureRows
+  ).filter(
+    (row) =>
+      realtimeRepository || !objectType || row.objectTypeId === objectType,
+  );
   const formalLedgerFields = mergeObservationFields(
     ledgerDefinitions.map((definition) =>
       observationFields("PRODUCTION", definition),
@@ -1173,26 +1143,6 @@ export function ProductProductionCollectionWorkspace({
                 </select>
               </label>
             )}
-          <label>
-            <span>填报状态</span>
-            <select
-              aria-label="填报状态"
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value);
-                setPageNumber(0);
-              }}
-            >
-              <option value="">全部状态</option>
-              {["退回待补充", "审核退回", "待审核", "已核定", "已作废"].map(
-                (label) => (
-                  <option key={label} value={label}>
-                    {label}
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
           <div className="enterprise-ledger-query__actions">
             <button
               className="is-primary"
@@ -1204,7 +1154,6 @@ export function ProductProductionCollectionWorkspace({
             <button
               type="button"
               onClick={() => {
-                setStatus("");
                 setObjectType("");
                 setSurveyYear(currentSurveyYear);
                 setSurveyMonth("");
@@ -1247,13 +1196,6 @@ export function ProductProductionCollectionWorkspace({
           onDownloadErrors={() => void downloadImportErrors()}
           onRetry={() => void retryImport()}
         />
-        <ReturnedCorrectionStatus
-          busy={correcting}
-          className="production-task5-alert"
-          job={correctionJob}
-          onDownloadErrors={() => void downloadReturnedCorrectionErrors()}
-        />
-
         <header className="enterprise-ledger-title enterprise-ledger-title--collection">
           <h1>{context.productLabel}产情调查表</h1>
           <p>{businessDate(sourceItem)} · 当前授权地区 · 当前样本点</p>
@@ -1321,43 +1263,6 @@ export function ProductProductionCollectionWorkspace({
                       />
                     </label>
                   </div>
-                  <div
-                    aria-label="退回修正"
-                    className="enterprise-ledger-action-group"
-                    role="group"
-                  >
-                    <span className="enterprise-ledger-action-group__label">
-                      退回修正
-                    </span>
-                    <button
-                      disabled={
-                        importing ||
-                        correcting ||
-                        !realtimeRepository.downloadReturnedCorrectionWorkbook
-                      }
-                      type="button"
-                      onClick={() => void downloadReturnedCorrectionWorkbook()}
-                    >
-                      下载退回记录修正表
-                    </button>
-                    <label className="realtime-business-file-action">
-                      {correcting ? "正在修正" : "批量导入修正结果"}
-                      <input
-                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        aria-label="批量导入产情退回修正结果"
-                        disabled={
-                          importing ||
-                          correcting ||
-                          !realtimeRepository.importReturnedCorrectionWorkbook
-                        }
-                        type="file"
-                        onChange={(event) => {
-                          void correctReturnedRecords(event.target.files?.[0]);
-                          event.target.value = "";
-                        }}
-                      />
-                    </label>
-                  </div>
                 </>
               )}
               <div
@@ -1388,6 +1293,8 @@ export function ProductProductionCollectionWorkspace({
                     <th rowSpan={2}>样本点名称</th>
                     <th rowSpan={2}>样本点类型</th>
                     <th rowSpan={2}>地区</th>
+                    <th rowSpan={2}>详细地址</th>
+                    <th rowSpan={2}>样本点维护人</th>
                     <th rowSpan={2}>调研人</th>
                     <th colSpan={5}>填报与定位</th>
                     {realtimeRepository ? (
@@ -1417,7 +1324,6 @@ export function ProductProductionCollectionWorkspace({
                         <th colSpan={2}>来源校验</th>
                       </>
                     )}
-                    <th rowSpan={2}>填报状态</th>
                     <th rowSpan={2}>操作</th>
                   </tr>
                   <tr>
@@ -1477,6 +1383,8 @@ export function ProductProductionCollectionWorkspace({
                       <th scope="row">{row.subject}</th>
                       <td>{row.objectType}</td>
                       <td>{row.region}</td>
+                      <td>{row.address}</td>
+                      <td>{row.maintainer}</td>
                       <td>{row.surveyor}</td>
                       <td>{row.reporter}</td>
                       <td>{row.surveyorPhone}</td>
@@ -1537,17 +1445,17 @@ export function ProductProductionCollectionWorkspace({
                         </>
                       )}
                       <td>
-                        <span
-                          className={`enterprise-ledger-state is-${row.status}`}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                      <td>
                         <button
                           className="enterprise-ledger-row-action"
                           type="button"
                           onClick={() => {
+                            if (row.samplePointId) {
+                              onSelectionChange({
+                                type: "formal-sample-observation",
+                                id: row.samplePointId,
+                              });
+                              return;
+                            }
                             if (realtimeRepository && onEditRecord) {
                               onEditRecord(productCode, row.workId);
                               return;
@@ -1560,22 +1468,52 @@ export function ProductProductionCollectionWorkspace({
                         >
                           查看记录
                         </button>
-                        <button
-                          className="enterprise-ledger-row-action"
-                          type="button"
-                          onClick={() => {
-                            if (realtimeRepository && onEditRecord) {
-                              onEditRecord(productCode, row.workId);
-                              return;
-                            }
-                            onSelectionChange({
-                              type: "work-item",
-                              id: row.workId,
-                            });
-                          }}
-                        >
-                          查看照片
-                        </button>
+                        {row.samplePointId &&
+                          permissions.includes("FORMAL_SAMPLE_MANAGE") && (
+                            <button
+                              className="enterprise-ledger-row-action"
+                              type="button"
+                              onClick={() =>
+                                onSelectionChange({
+                                  type: "formal-sample-edit",
+                                  id: row.samplePointId!,
+                                })
+                              }
+                            >
+                              编辑
+                            </button>
+                          )}
+                        {row.samplePointId &&
+                          permissions.includes("FORMAL_SAMPLE_DELETE") && (
+                            <button
+                              className="enterprise-ledger-row-action"
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  !realtimeRepository?.deleteFormalSamplePoint
+                                )
+                                  return;
+                                void realtimeRepository
+                                  .deleteFormalSamplePoint(
+                                    row.samplePointId!,
+                                    row.sampleVersion ?? 0,
+                                  )
+                                  .then(() =>
+                                    setRecordsRevision((value) => value + 1),
+                                  )
+                                  .catch((error: unknown) =>
+                                    setRecordsError(
+                                      error instanceof RealtimeApiError &&
+                                        error.clientMessage
+                                        ? error.clientMessage
+                                        : "该样本已有业务记录或年度样本关系，不能删除。",
+                                    ),
+                                  );
+                              }}
+                            >
+                              删除
+                            </button>
+                          )}
                       </td>
                     </tr>
                   ))}
@@ -1585,8 +1523,8 @@ export function ProductProductionCollectionWorkspace({
                         className="enterprise-ledger-table__empty"
                         colSpan={
                           realtimeRepository
-                            ? 14 + formalLedgerFields.length
-                            : 40 + qualityFields.length
+                            ? 15 + formalLedgerFields.length
+                            : 41 + qualityFields.length
                         }
                       >
                         当前范围暂无{context.productLabel}产情调查记录
