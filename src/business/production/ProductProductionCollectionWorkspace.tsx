@@ -1486,6 +1486,12 @@ export function ProductProductionCollectionWorkspace({
                                   !realtimeRepository?.deleteFormalSamplePoint
                                 )
                                   return;
+                                if (
+                                  !window.confirm(
+                                    `确认删除“${row.subject}”？删除后将从当前台账和分析中移除，历史审计仍保留。`,
+                                  )
+                                )
+                                  return;
                                 void realtimeRepository
                                   .deleteFormalSamplePoint(
                                     row.samplePointId!,

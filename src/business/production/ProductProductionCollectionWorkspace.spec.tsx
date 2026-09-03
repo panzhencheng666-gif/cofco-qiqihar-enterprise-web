@@ -189,6 +189,7 @@ function contractField(
 
 describe("product production collection workspace", () => {
   it("keeps the production table shell while exposing formal-sample maintenance rows", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const onEditRecord = vi.fn();
     const onSelectionChange = vi.fn();
     const deleteFormalSamplePoint = vi.fn().mockResolvedValue(undefined);
@@ -285,6 +286,9 @@ describe("product production collection workspace", () => {
       id: "sample-production-1",
     });
     await userEvent.click(within(row).getByRole("button", { name: "删除" }));
+    expect(confirm).toHaveBeenCalledWith(
+      "确认删除“龙沙区玉米产情样本”？删除后将从当前台账和分析中移除，历史审计仍保留。",
+    );
     await waitFor(() =>
       expect(deleteFormalSamplePoint).toHaveBeenCalledWith(
         "sample-production-1",

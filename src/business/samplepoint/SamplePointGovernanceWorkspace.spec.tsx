@@ -406,7 +406,9 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(
       within(main).queryByRole("status", { name: "设计参考点概况" }),
     ).not.toBeInTheDocument();
-    expect(table.closest(".enterprise-ledger-table")).not.toBeNull();
+    expect(table.closest(".enterprise-ledger-table")).toHaveClass(
+      "enterprise-ledger-table--compact",
+    );
 
     const operations = within(main).getByRole("toolbar", {
       name: "设计参考点批量操作",

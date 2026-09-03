@@ -410,7 +410,7 @@ export function DesignSamplePointTable({
             <>
               <SamplePointLedgerTable
                 ariaLabel="设计参考点清单"
-                className="formal-sample-ledger__table enterprise-ledger-table"
+                className="formal-sample-ledger__table enterprise-ledger-table enterprise-ledger-table--compact"
                 headers={["点位名称", "行政区", "详细地址", "坐标", "操作"]}
                 scrollClassName="sample-point-governance-workspace__table-scroll--bounded enterprise-ledger-table__scroll"
                 scrollAriaLabel="设计参考点滚动清单"
