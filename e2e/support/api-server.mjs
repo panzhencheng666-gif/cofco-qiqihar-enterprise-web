@@ -86,12 +86,12 @@ const formalSamplePoints = [
 ];
 const initialDesignSamplePoint = {
   id: "E2E-DESIGN-SAMPLE-001",
-  contractVersion: "design-sample-fields-v2",
+  contractVersion: "design-sample-fields-v3",
   contractDigest: `sha256:${"a".repeat(64)}`,
   context: {
-    domainCode: "REFERENCE",
-    productCode: "GENERAL",
-    objectTypeCode: "REFERENCE_POINT",
+    domainCode: "PRODUCTION",
+    productCode: "CORN",
+    objectTypeCode: "FARMER",
   },
   values: {
     DSP_NAME: "受控设计参考点",
@@ -178,7 +178,7 @@ const supportedDesignContexts = designObjectTypes
     objectTypeCode: "REFERENCE_POINT",
     sortOrder: 28,
   });
-function designField(code, label, valueType, sortOrder) {
+function designField(code, label, valueType, sortOrder, required = true) {
   return {
     code,
     sectionCode: "IDENTITY",
@@ -190,8 +190,8 @@ function designField(code, label, valueType, sortOrder) {
     maxLength: valueType === "STRING" ? 200 : null,
     unit: null,
     enumOptions: [],
-    required: true,
-    nullable: false,
+    required,
+    nullable: !required,
     defaultValue: null,
     editable: true,
     minimumValue: null,
@@ -203,7 +203,7 @@ function designField(code, label, valueType, sortOrder) {
 }
 function designFieldContract(context) {
   return {
-    contractVersion: "design-sample-fields-v2",
+    contractVersion: "design-sample-fields-v3",
     contractDigest: `sha256:${"a".repeat(64)}`,
     context,
     domains: designDomains,
@@ -211,11 +211,16 @@ function designFieldContract(context) {
     objectTypes: designObjectTypes,
     supportedContexts: supportedDesignContexts,
     identityFields: [
-      designField("DSP_NAME", "点位名称", "STRING", 10),
-      designField("DSP_REGION_CODE", "行政区", "STRING", 20),
-      designField("DSP_ADDRESS", "详细地址", "STRING", 30),
-      designField("DSP_LONGITUDE", "经度", "DECIMAL", 40),
-      designField("DSP_LATITUDE", "纬度", "DECIMAL", 50),
+      designField("DOMAIN_CODE", "业务分类", "STRING", 10),
+      designField("PRODUCT_CODE", "品种", "STRING", 20),
+      designField("OBJECT_TYPE_CODE", "参考对象类型", "STRING", 30),
+      designField("DSP_NAME", "点位名称", "STRING", 40),
+      designField("DSP_REGION_CODE", "行政区", "STRING", 50),
+      designField("DSP_ADDRESS", "详细地址", "STRING", 60),
+      designField("DSP_LONGITUDE", "经度", "DECIMAL", 70),
+      designField("DSP_LATITUDE", "纬度", "DECIMAL", 80),
+      designField("DSP_MAINTAINER_NAME", "维护人", "STRING", 90, false),
+      designField("DSP_MAINTAINER_UNIT", "维护单位", "STRING", 100, false),
     ],
     observationFields: [],
   };

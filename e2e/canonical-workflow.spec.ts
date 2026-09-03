@@ -155,7 +155,27 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([36, 36, 36, 36]);
+  ).toEqual([36, 36, 36, 36, 36, 36, 36]);
+  const designTable = page.getByRole("table", { name: "设计参考点清单" });
+  const designScroll = page.getByRole("region", {
+    name: "设计参考点滚动清单",
+  });
+  for (const width of [1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(designTable).toBeVisible();
+    expect(
+      await designScroll.evaluate(
+        (element) => element.clientWidth <= element.scrollWidth,
+      ),
+    ).toBe(true);
+    expect(
+      await designTable
+        .getByRole("row")
+        .first()
+        .evaluate((element) => element.getBoundingClientRect().height >= 36),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   await filters
     .getByRole("searchbox", { name: "搜索点位或行政区" })
@@ -203,7 +223,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
         Math.round(element.getBoundingClientRect().height),
       ),
     ),
-  ).toEqual([36, 36, 36, 36]);
+  ).toEqual([36, 36, 36, 36, 36, 36, 36]);
 
   const beforeEventResponse = await request.get(
     `${controlledApiBaseUrl}/__e2e/state`,

@@ -109,7 +109,7 @@ function designPoint(
 ): DesignSamplePointRow {
   return {
     id: "point-1",
-    contractVersion: "design-sample-fields-v2",
+    contractVersion: "design-sample-fields-v3",
     contractDigest: `sha256:${"a".repeat(64)}`,
     context: {
       domainCode: "REFERENCE",
@@ -171,7 +171,7 @@ function contractField(
 
 function designFieldContract(): DesignSampleFieldContract {
   return {
-    contractVersion: "design-sample-fields-v2",
+    contractVersion: "design-sample-fields-v3",
     contractDigest: `sha256:${"a".repeat(64)}`,
     context: {
       domainCode: "REFERENCE",
@@ -414,7 +414,10 @@ describe("SamplePointGovernanceWorkspace", () => {
       name: "设计参考点批量操作",
     });
     expect(
-      within(operations).getByRole("button", { name: "下载 XLSX 模板" }),
+      within(operations).getByRole("button", { name: "下载产情类模板" }),
+    ).toBeVisible();
+    expect(
+      within(operations).getByRole("button", { name: "下载市场类模板" }),
     ).toBeVisible();
     expect(
       within(operations).getByLabelText("选择 XLSX 文件").closest("label"),
@@ -517,7 +520,7 @@ describe("SamplePointGovernanceWorkspace", () => {
 
     await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
     expect(await screen.findByText("众兴村")).toBeVisible();
-    expect(screen.getByText("未填写")).toBeVisible();
+    expect(screen.getAllByText("未填写").length).toBeGreaterThan(0);
     expect(listDesignSamplePoints).toHaveBeenCalledWith({
       page: 0,
       pageSize: 20,
@@ -528,6 +531,87 @@ describe("SamplePointGovernanceWorkspace", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("point-1")).not.toBeInTheDocument();
     expect(screen.queryByText("PRODUCTION")).not.toBeInTheDocument();
+  });
+
+  it("keeps one unified design ledger with reference-category filters and planning-only columns", async () => {
+    const point = designPoint({
+      name: "产情参考点",
+      contractVersion: "design-sample-fields-v3",
+      context: {
+        domainCode: "PRODUCTION",
+        productCode: "CORN",
+        objectTypeCode: "FARMER",
+      },
+      values: {
+        DSP_NAME: "产情参考点",
+        DSP_REGION_CODE: "230231100201",
+        DSP_ADDRESS: "兴农镇众兴村一组",
+        DSP_LONGITUDE: "126.1",
+        DSP_LATITUDE: "47.62",
+        DSP_MAINTAINER_NAME: "张三",
+        DSP_MAINTAINER_UNIT: "兴农镇农业中心",
+      },
+    });
+    const listDesignSamplePoints = vi.fn().mockResolvedValue({
+      items: [point],
+      pageNumber: 0,
+      pageSize: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
+    const data = {
+      ...repository(),
+      listDesignSamplePoints,
+      loadDesignSamplePointFields: vi
+        .fn()
+        .mockResolvedValue(designFieldContract()),
+    } as RealtimeBusinessRepository;
+
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        repository={data}
+        session={session}
+      />,
+    );
+    await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
+
+    const filters = await screen.findByRole("search", {
+      name: "设计参考点筛选",
+    });
+    expect(
+      within(filters).getByRole("combobox", { name: "筛选参考类别" }),
+    ).toBeVisible();
+    expect(
+      within(filters).getByRole("combobox", { name: "筛选品种" }),
+    ).toBeVisible();
+    expect(
+      within(filters).getByRole("combobox", { name: "筛选参考对象类型" }),
+    ).toBeVisible();
+
+    const table = await screen.findByRole("table", { name: "设计参考点清单" });
+    for (const heading of [
+      "参考类别",
+      "点位名称",
+      "行政区",
+      "详细地址",
+      "坐标",
+      "品种",
+      "参考对象类型",
+      "维护人/维护单位",
+    ]) {
+      expect(
+        within(table).getByRole("columnheader", { name: heading }),
+      ).toBeVisible();
+    }
+    for (const forbidden of ["面积", "产量", "价格", "销量", "库存"]) {
+      expect(within(table).queryByText(forbidden)).not.toBeInTheDocument();
+    }
+    expect(within(table).getByText("产情参考点")).toBeVisible();
+    expect(within(table).getByText("张三 / 兴农镇农业中心")).toBeVisible();
+    expect(
+      screen.getAllByRole("table", { name: "设计参考点清单" }),
+    ).toHaveLength(1);
   });
 
   it("creates, edits and deletes with metadata fields, versions and authoritative requeries", async () => {
@@ -1314,6 +1398,18 @@ describe("SamplePointGovernanceWorkspace", () => {
       within(filters).getByRole("combobox", { name: "筛选行政区" }),
       "目标县",
     );
+    await userEvent.selectOptions(
+      within(filters).getByRole("combobox", { name: "筛选参考类别" }),
+      "PRODUCTION",
+    );
+    await userEvent.selectOptions(
+      within(filters).getByRole("combobox", { name: "筛选品种" }),
+      "CORN",
+    );
+    await userEvent.selectOptions(
+      within(filters).getByRole("combobox", { name: "筛选参考对象类型" }),
+      "FARMER",
+    );
     await userEvent.type(
       within(filters).getByRole("searchbox", {
         name: "搜索点位或行政区",
@@ -1325,7 +1421,10 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
     await vi.waitFor(() =>
       expect(listDesignSamplePoints).toHaveBeenLastCalledWith({
+        domainCode: "PRODUCTION",
         keyword: "参考点55",
+        objectTypeCode: "FARMER",
+        productCode: "CORN",
         regionCode: "230232",
         page: 0,
         pageSize: 20,

@@ -307,22 +307,26 @@ describe("realtime business repository", () => {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
-    await repository.downloadDesignSamplePointTemplate!();
-    await repository.importDesignSamplePoints!(file, "design-import-key");
+    await repository.downloadDesignSamplePointTemplate!("MARKET");
+    await repository.importDesignSamplePoints!(
+      file,
+      "MARKET",
+      "design-import-key",
+    );
     await repository.downloadDesignSamplePointImportErrors!("import/1");
     await repository.downloadFormalSamplePointTemplate!();
     await repository.importFormalSamplePoints!(file, "formal-import-key");
     await repository.downloadFormalSamplePointImportErrors!("import/2");
 
     expect(download.mock.calls).toEqual([
-      ["/api/v1/design-sample-points/import-template"],
+      ["/api/v1/design-sample-points/import-template?domain=MARKET"],
       ["/api/v1/design-sample-points/imports/import%2F1/errors"],
       ["/api/v1/formal-sample-points/import-template"],
       ["/api/v1/formal-sample-points/imports/import%2F2/errors"],
     ]);
     expect(upload).toHaveBeenNthCalledWith(
       1,
-      "/api/v1/design-sample-points/imports",
+      "/api/v1/design-sample-points/imports?domain=MARKET",
       expect.any(FormData),
       { "Idempotency-Key": "design-import-key" },
     );

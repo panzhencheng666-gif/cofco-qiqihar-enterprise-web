@@ -65,6 +65,10 @@ import {
   resolveRuntimeDataMode,
   type RuntimeDataMode,
 } from "./runtimeDataMode";
+
+export function shouldRefreshBusinessData(event: BusinessNotificationRow) {
+  return event.aggregateType !== "DESIGN_SAMPLE_POINT";
+}
 import {
   apiPendingOperationalIdentity,
   apiPendingShellIdentity,
@@ -757,7 +761,7 @@ export function EnterpriseBusinessApplication({
             typeof event.surveyYear === "number"
           ) {
             pendingSampleNetworkYears.add(event.surveyYear);
-          } else {
+          } else if (shouldRefreshBusinessData(event)) {
             pendingBusinessRefresh = true;
           }
           if (refreshTimer !== undefined) clearTimeout(refreshTimer);
