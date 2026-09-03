@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -56,6 +56,69 @@ const loadMasterData = vi.fn().mockResolvedValue({
 });
 
 describe("product market collection workspace", () => {
+  it("keeps the market table shell while exposing formal-sample maintenance rows", async () => {
+    const repository = {
+      listMarket: vi.fn().mockResolvedValue({
+        items: [], pageNumber: 0, pageSize: 20, totalElements: 0, totalPages: 0,
+      }),
+      listEligibleFormalSamples: vi.fn().mockResolvedValue([{
+        samplePointId: "sample-market-1",
+        sampleName: "龙沙区兴农农资店",
+        address: "龙沙区农资街 8 号",
+        objectTypeCode: "AGRICULTURAL_INPUT_STORE",
+        objectTypeName: "农资店",
+        domain: "MARKET",
+        productCode: "CORN",
+        regionCode: "230202",
+        regionName: "龙沙区",
+        maintainerSubjectId: "maintainer-1",
+        maintainerDisplayName: "样本维护员",
+        latitude: "47.3000000",
+        longitude: "123.9000000",
+        effectiveFrom: "2026-01-01",
+        effectiveTo: null,
+        version: 3,
+        annualObservationCount: 1,
+        networkMembershipCount: 0,
+        latestObservationId: "MKT-DB-001",
+        latestObservedAt: "2026-08-08T00:00:00Z",
+        latestValues: {
+          MKT_TRADE_DATE: "2026-08-08",
+          MKT_OBJECT_TYPE: "AGRICULTURAL_INPUT_STORE",
+          MKT_REGION: "龙沙区",
+        },
+      }]),
+      deleteFormalSamplePoint: vi.fn().mockResolvedValue(undefined),
+      loadMarketDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN", objectTypeCode: "AGRICULTURAL_INPUT_STORE", coreFields: [], groups: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductMarketCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        permissions={["BUSINESS_UPDATE", "FORMAL_SAMPLE_MANAGE", "FORMAL_SAMPLE_DELETE"]}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    const table = screen.getByRole("table", { name: "玉米市场采集表" });
+    expect(table.closest("section")).toHaveClass("enterprise-ledger-table--market");
+    const row = await screen.findByRole("row", { name: /龙沙区兴农农资店/u });
+    expect(screen.getByRole("columnheader", { name: "详细地址" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "样本点维护人" })).toBeVisible();
+    expect(within(row).getByText("龙沙区农资街 8 号")).toBeVisible();
+    expect(within(row).getByText("样本维护员")).toBeVisible();
+    expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: "查看照片" })).toBeNull();
+    expect(within(row).getByRole("button", { name: "查看记录" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "删除" })).toBeVisible();
+  });
   it("resolves persisted Chinese object-type labels to formal definition codes", async () => {
     const loadMarketDefinition = vi.fn().mockResolvedValue({
       productCode: "CORN",
@@ -221,7 +284,7 @@ describe("product market collection workspace", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("queries by mandatory survey year, optional month and status without filling-date filters", async () => {
+  it("queries by mandatory survey year and optional month without workflow-state filters", async () => {
     const user = userEvent.setup();
     const listMarket = vi
       .fn<RealtimeBusinessRepository["listMarket"]>()
@@ -266,18 +329,15 @@ describe("product market collection workspace", () => {
       screen.getByRole("combobox", { name: "数据月份" }),
       "8",
     );
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "填报状态" }),
-      "待审核",
-    );
+    expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
 
     await waitFor(() => {
       const filters = listMarket.mock.lastCall?.[0].filters;
       expect(filters).toMatchObject({
         surveyYear: "2026",
         surveyMonth: "8",
-        status: "PENDING_REVIEW",
       });
+      expect(filters).not.toHaveProperty("status");
       expect(filters).not.toHaveProperty("fillingDateFrom");
       expect(filters).not.toHaveProperty("fillingDateTo");
     });
@@ -518,7 +578,9 @@ describe("product market collection workspace", () => {
       await screen.findByRole("button", { name: "下载 XLSX 模板" }),
     ).toBeEnabled();
     expect(screen.getByRole("group", { name: "批量导入" })).toBeVisible();
-    expect(screen.getByRole("group", { name: "退回修正" })).toBeVisible();
+    expect(
+      screen.queryByRole("group", { name: "退回修正" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("group", { name: "单条录入" })).toBeVisible();
     expect(screen.getAllByRole("columnheader")[0]).toHaveTextContent("序号");
     expect(
@@ -603,7 +665,7 @@ describe("product market collection workspace", () => {
     expect(
       screen.queryByRole("combobox", { name: "具体品种" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("cell", { name: "需补充" })).toBeVisible();
+    expect(screen.queryByRole("cell", { name: "需补充" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "查询" }));
     await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(2));
     await user.click(screen.getByRole("button", { name: "下载 XLSX 模板" }));
@@ -634,8 +696,10 @@ describe("product market collection workspace", () => {
     expect(onCreateRecord).toHaveBeenCalledWith("CORN");
     await user.click(screen.getByRole("button", { name: "查看记录" }));
     expect(onEditRecord).toHaveBeenCalledWith("CORN", "MKT-DB-001");
-    await user.click(screen.getByRole("button", { name: "查看照片" }));
-    expect(onEditRecord).toHaveBeenCalledTimes(2);
+    expect(
+      screen.queryByRole("button", { name: "查看照片" }),
+    ).not.toBeInTheDocument();
+    expect(onEditRecord).toHaveBeenCalledTimes(1);
   });
 
   it("shows an actionable business reason when market XLSX import is rejected", async () => {
@@ -688,8 +752,7 @@ describe("product market collection workspace", () => {
     ).toHaveAttribute("role", "alert");
   });
 
-  it("keeps ordinary creation and returned-record correction clearly separated", async () => {
-    const user = userEvent.setup();
+  it("keeps ordinary creation while removing returned-record correction controls", async () => {
     const listMarket = vi.fn().mockResolvedValue({
       items: [],
       pageNumber: 0,
@@ -746,37 +809,16 @@ describe("product market collection workspace", () => {
       ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     expect(
-      screen.getByRole("button", { name: "下载退回记录修正表" }),
-    ).toBeEnabled();
-    expect(screen.getByText("批量导入修正结果")).toBeVisible();
-    const correctionInput = screen.getByLabelText("批量导入市场退回修正结果");
-    expect(correctionInput).toHaveAttribute(
-      "accept",
-      ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    );
-
-    const file = new File(["correction"], "玉米市场退回记录修正表.xlsx", {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    await user.upload(correctionInput, file);
-
-    await waitFor(() =>
-      expect(importMarketReturnedCorrectionWorkbook).toHaveBeenCalledWith(
-        file,
-        "CORN",
-      ),
-    );
-    expect(importMarketWorkbook).not.toHaveBeenCalled();
+      screen.queryByRole("button", { name: "下载退回记录修正表" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("批量导入修正结果")).not.toBeInTheDocument();
     expect(
-      await screen.findByText(
-        "批量修正完成：2 条原单已重新进入待审核，失败 1 条。",
-      ),
-    ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "下载修正错误清单" }));
-    expect(downloadMarketReturnedCorrectionErrors).toHaveBeenCalledWith(
-      "correction-1",
-    );
-    await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(2));
+      screen.queryByLabelText("批量导入市场退回修正结果"),
+    ).not.toBeInTheDocument();
+    expect(importMarketReturnedCorrectionWorkbook).not.toHaveBeenCalled();
+    expect(importMarketWorkbook).not.toHaveBeenCalled();
+    expect(downloadMarketReturnedCorrectionErrors).not.toHaveBeenCalled();
+    await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(1));
     expect(screen.queryByText(/草稿/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/新建导入/u)).not.toBeInTheDocument();
   });
@@ -831,9 +873,8 @@ describe("product market collection workspace", () => {
     ["soybean-collection", "SOYBEAN", "大豆市场退回记录修正表.xlsx"],
     ["paddy-collection", "RICE", "稻谷市场退回记录修正表.xlsx"],
   ] as const)(
-    "binds %s correction downloads to %s",
+    "removes %s correction downloads for %s",
     async (section, productCode, filename) => {
-      const user = userEvent.setup();
       const downloaded: string[] = [];
       vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
         function captureDownload(this: HTMLAnchorElement) {
@@ -872,15 +913,12 @@ describe("product market collection workspace", () => {
         />,
       );
 
-      await user.click(
-        await screen.findByRole("button", {
-          name: "下载退回记录修正表",
-        }),
-      );
-      expect(downloadMarketReturnedCorrectionWorkbook).toHaveBeenCalledWith(
-        productCode,
-      );
-      expect(downloaded).toContain(filename);
+      await screen.findByRole("heading", { name: /市场采集表$/u });
+      expect(
+        screen.queryByRole("button", { name: "下载退回记录修正表" }),
+      ).not.toBeInTheDocument();
+      expect(downloadMarketReturnedCorrectionWorkbook).not.toHaveBeenCalled();
+      expect(downloaded).not.toContain(filename);
     },
   );
 

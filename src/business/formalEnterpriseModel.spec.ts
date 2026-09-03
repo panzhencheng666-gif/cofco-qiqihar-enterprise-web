@@ -299,6 +299,22 @@ describe("formal location", () => {
       ).location.selection,
     ).toBeUndefined();
   });
+
+  it("resolves retired formal-sample list links to the existing business list", () => {
+    const location: FormalLocation = {
+      route: createFormalRoute("market", "corn-collection"),
+      coordinates: { regionId: "authorized-all" },
+      selection: { type: "formal-sample-list", id: "list" },
+    };
+
+    expect(writeFormalLocation(location)).toBe("#/市场监测/玉米市场采集");
+    expect(
+      readFormalLocation(
+        "#/市场监测/玉米市场采集/正式样本/list",
+        authorization,
+      ).location.selection,
+    ).toBeUndefined();
+  });
 });
 
 describe("weekly responsibility control", () => {

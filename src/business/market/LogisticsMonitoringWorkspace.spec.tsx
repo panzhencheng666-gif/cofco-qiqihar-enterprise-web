@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -49,6 +49,66 @@ const loadMasterData = vi.fn().mockResolvedValue({
 });
 
 describe("logistics monitoring workspace", () => {
+  it("keeps the logistics table shell while exposing formal-sample maintenance rows", async () => {
+    const repository = {
+      listLogistics: vi.fn().mockResolvedValue({
+        items: [], pageNumber: 0, pageSize: 20, totalElements: 0, totalPages: 0,
+      }),
+      listEligibleFormalSamples: vi.fn().mockResolvedValue([{
+        samplePointId: "sample-logistics-1",
+        sampleName: "龙沙区铁路物流站",
+        address: "龙沙区站前街 18 号",
+        objectTypeCode: "RAIL_NODE",
+        objectTypeName: "铁路站点",
+        domain: "LOGISTICS",
+        productCode: "CORN",
+        regionCode: "230202",
+        regionName: "龙沙区",
+        maintainerSubjectId: "maintainer-1",
+        maintainerDisplayName: "物流维护员",
+        latitude: "47.3100000",
+        longitude: "123.9100000",
+        effectiveFrom: "2026-01-01",
+        effectiveTo: null,
+        version: 2,
+        annualObservationCount: 1,
+        networkMembershipCount: 0,
+        latestObservationId: "LOG-DB-001",
+        latestObservedAt: "2026-08-08T00:00:00Z",
+        latestValues: {},
+      }]),
+      deleteFormalSamplePoint: vi.fn().mockResolvedValue(undefined),
+      loadLogisticsDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN", fields: [], actions: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <LogisticsMonitoringWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        permissions={["FORMAL_SAMPLE_MANAGE", "FORMAL_SAMPLE_DELETE"]}
+        productCode="CORN"
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+      />,
+    );
+
+    const table = screen.getByRole("table", { name: "粮食物流监测表" });
+    expect(table.closest("section")).toHaveClass("enterprise-ledger-table");
+    const row = await screen.findByRole("row", { name: /龙沙区铁路物流站/u });
+    expect(screen.getByRole("columnheader", { name: "详细地址" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "样本点维护人" })).toBeVisible();
+    expect(within(row).getByText("龙沙区站前街 18 号")).toBeVisible();
+    expect(within(row).getByText("物流维护员")).toBeVisible();
+    expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "退回修正" })).not.toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: "查看记录" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "删除" })).toBeVisible();
+  });
+
   it("keeps the fallback business table on the same public contract", () => {
     render(
       <LogisticsMonitoringWorkspace
@@ -210,7 +270,7 @@ describe("logistics monitoring workspace", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("queries by survey year, month and logistics status without filling-date filters", async () => {
+  it("queries by survey year and month without workflow-state or filling-date filters", async () => {
     const user = userEvent.setup();
     const listLogistics = vi
       .fn<RealtimeBusinessRepository["listLogistics"]>()
@@ -249,18 +309,15 @@ describe("logistics monitoring workspace", () => {
       screen.getByRole("combobox", { name: "调查月份" }),
       "8",
     );
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "填报状态" }),
-      "PENDING_REVIEW",
-    );
+    expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
 
     await waitFor(() => {
       const filters = listLogistics.mock.lastCall?.[0].filters;
       expect(filters).toMatchObject({
         surveyYear: "2026",
         surveyMonth: "8",
-        status: "PENDING_REVIEW",
       });
+      expect(filters).not.toHaveProperty("status");
       expect(filters).not.toHaveProperty("fillingDateFrom");
       expect(filters).not.toHaveProperty("fillingDateTo");
     });
@@ -370,8 +427,7 @@ describe("logistics monitoring workspace", () => {
     });
   });
 
-  it("keeps ordinary logistics import separate from real returned-record correction", async () => {
-    const user = userEvent.setup();
+  it("keeps ordinary logistics import while removing returned-record correction", async () => {
     const listLogistics = vi.fn().mockResolvedValue({
       items: [],
       pageNumber: 0,
@@ -417,29 +473,20 @@ describe("logistics monitoring workspace", () => {
       />,
     );
 
-    expect(
-      await screen.findByRole("button", { name: "下载退回记录修正表" }),
-    ).toBeEnabled();
+    expect(await screen.findByRole("group", { name: "批量导入" })).toBeVisible();
     expect(screen.getByRole("group", { name: "批量导入" })).toBeVisible();
-    expect(screen.getByRole("group", { name: "退回修正" })).toBeVisible();
     expect(screen.getByRole("group", { name: "单条录入" })).toBeVisible();
-    const file = new File(["correction"], "玉米物流退回记录修正表.xlsx", {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    await user.upload(screen.getByLabelText("批量导入物流退回修正结果"), file);
-    await waitFor(() =>
-      expect(importReturnedCorrectionWorkbook).toHaveBeenCalledWith(
-        "logistics",
-        file,
-        "CORN",
-      ),
-    );
     expect(
-      await screen.findByText(
-        "批量修正完成：1 条原单已重新进入待审核，失败 0 条。",
-      ),
-    ).toBeVisible();
-    await waitFor(() => expect(listLogistics).toHaveBeenCalledTimes(2));
+      screen.queryByRole("group", { name: "退回修正" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "下载退回记录修正表" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("批量导入物流退回修正结果"),
+    ).not.toBeInTheDocument();
+    expect(importReturnedCorrectionWorkbook).not.toHaveBeenCalled();
+    await waitFor(() => expect(listLogistics).toHaveBeenCalledTimes(1));
   });
 
   it("keeps durable logistics import history out of the monitoring ledger", async () => {

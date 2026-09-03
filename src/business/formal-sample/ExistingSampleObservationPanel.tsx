@@ -225,11 +225,18 @@ export function ExistingSampleObservationPanel({
   onSelectionClear?: () => void;
   children?: ReactNode;
 }) {
-  const [localSelection, setLocalSelection] = useState<FormalSelection>();
-  const activeSelection = selection ?? localSelection;
-  const isFormalSamplePage = activeSelection?.type.startsWith("formal-sample-");
+  const [localSelection, setLocalSelection] =
+    useState<FormalSelection | undefined>(selection);
+  const activeSelection = onSelectionChange ? selection : localSelection;
   const isObservationPage =
     activeSelection?.type === "formal-sample-observation";
+  const isFormalSampleEditor =
+    activeSelection?.type === "formal-sample-create" ||
+    activeSelection?.type === "formal-sample-edit";
+  const isEmbeddedLegacyList =
+    activeSelection?.type === "formal-sample-list" && !onSelectionChange;
+  const isFormalSamplePage =
+    isObservationPage || isFormalSampleEditor || isEmbeddedLegacyList;
   const requestedSamplePointId = isObservationPage ? activeSelection.id : "";
   const navigate = (next: FormalSelection) => {
     setLocalSelection(next);
@@ -613,23 +620,9 @@ export function ExistingSampleObservationPanel({
   return (
     <div className="existing-observation">
       {!isFormalSamplePage ? (
-        <>
-          <div className="existing-observation__entry enterprise-ledger-table__toolbar">
-            <strong>正式样本</strong>
-            <button
-              type="button"
-              onClick={() =>
-                navigate({ type: "formal-sample-list", id: "list" })
-              }
-            >
-              维护样本与期间数据
-            </button>
-          </div>
-          {children}
-        </>
+        <>{children}</>
       ) : null}
-      {isFormalSamplePage &&
-      !isObservationPage &&
+      {(isFormalSampleEditor || isEmbeddedLegacyList) &&
       repository.listFormalSamplePoints ? (
         <section
           className="existing-observation__page"
@@ -671,10 +664,10 @@ export function ExistingSampleObservationPanel({
               onClick={() => {
                 resetUpdateFilters();
                 resetSelection();
-                navigate({ type: "formal-sample-list", id: "list" });
+                closeWorkflow();
               }}
             >
-              返回样本台账
+              返回业务列表
             </button>
           </header>
 
