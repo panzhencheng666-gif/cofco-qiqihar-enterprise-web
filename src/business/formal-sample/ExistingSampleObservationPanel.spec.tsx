@@ -15,6 +15,7 @@ import type {
   EligibleFormalSample,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
+import { parseProductionDefinition } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { ExistingSampleObservationPanel } from "./ExistingSampleObservationPanel";
 
@@ -1746,6 +1747,61 @@ describe("ExistingSampleObservationPanel", () => {
     expect(screen.getByRole("status")).not.toHaveTextContent("报表");
   });
 
+  it("renders the v5 agricultural tech station fields when yield inputs are optional", async () => {
+    const productionSample: EligibleFormalSample = {
+      ...sample,
+      domain: "PRODUCTION",
+      objectTypeCode: "AGRICULTURAL_TECH_STATION",
+      objectTypeName: "农业技术推广站",
+      latestValues: {
+        cultivatedAreaMu: "177.7000",
+        yieldPerMuKilograms: "650.0000",
+      },
+    };
+    const api = {
+      ...repository(),
+      listObjectTypes: vi.fn().mockResolvedValue([
+        {
+          code: "AGRICULTURAL_TECH_STATION",
+          name: "农业技术推广站",
+          domain: "PRODUCTION",
+        },
+      ]),
+      listEligibleFormalSamples: vi.fn().mockResolvedValue([productionSample]),
+      loadProductionDefinition: vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          parseProductionDefinition(productionAgriculturalTechDefinition(), {
+            productCode: "CORN",
+            objectTypeCode: "AGRICULTURAL_TECH_STATION",
+          }),
+        ),
+      ),
+    };
+    const { container } = render(
+      <ExistingSampleObservationPanel
+        domain="PRODUCTION"
+        permissions={["BUSINESS_CREATE"]}
+        productCode="CORN"
+        repository={api as unknown as RealtimeBusinessRepository}
+        selection={{ type: "formal-sample-observation", id: "sample-1" }}
+        onSelectionChange={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        container.querySelectorAll("[data-field-code]").length,
+      ).toBeGreaterThan(0),
+    );
+    expect(
+      screen.queryByText(
+        "产情字段契约与当前页面版本不一致，请刷新页面或联系管理员",
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("播种面积（亩）")).toHaveValue(177.7);
+  });
+
   it("uses full-page sample workflows without the retired drawer structure", () => {
     const panelSource = readFileSync(
       "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
@@ -1811,5 +1867,111 @@ function agriField(
     scale: 4,
     sortOrder: 130,
     options,
+  };
+}
+
+function productionField(
+  code: string,
+  sortOrder: number,
+  overrides: Partial<{
+    label: string;
+    valueType: string;
+    controlType: string;
+    unit: string | null;
+    required: boolean;
+    readOnly: boolean;
+    calculated: boolean;
+    importable: boolean;
+  }> = {},
+) {
+  return {
+    code,
+    label: code,
+    groupCode: "CONTEXT",
+    groupLabel: "基础信息",
+    groupOrder: 10,
+    sortOrder,
+    valueType: "TEXT",
+    controlType: "TEXT",
+    unit: null,
+    required: false,
+    options: [],
+    readOnly: false,
+    calculated: false,
+    importable: true,
+    displayed: true,
+    description: null,
+    precision: 18,
+    scale: 4,
+    ...overrides,
+  };
+}
+
+function productionAgriculturalTechDefinition() {
+  return {
+    productCode: "CORN",
+    objectTypeCode: "AGRICULTURAL_TECH_STATION",
+    contractVersion: "production-survey-fields-v5",
+    contractDigest:
+      "sha256:b18e705dbf3da916aeb03df93d7e2ab4ea54c0ef23786de8bbe204a3cdca2031",
+    fields: [
+      productionField("objectTypeCode", 10, {
+        controlType: "SELECT",
+        required: true,
+      }),
+      productionField("regionCode", 20, {
+        controlType: "REGION",
+        required: true,
+      }),
+      productionField("surveyYear", 30, {
+        controlType: "SELECT",
+        required: true,
+      }),
+      productionField("surveyMonth", 40, { controlType: "SELECT" }),
+      productionField("PROD_SAMPLE_NAME", 50),
+      productionField("PROD_REPORTER_NAME", 60, {
+        controlType: "READONLY_TEXT",
+        required: true,
+        readOnly: true,
+        importable: false,
+      }),
+      ...["PROD_SURVEYOR_NAME", "PROD_SURVEYOR_PHONE"].map((code, index) =>
+        productionField(code, 70 + index * 10),
+      ),
+      productionField("PROD_SAMPLE_CONTACT", 90, {
+        required: true,
+      }),
+      ...["PROD_SAMPLE_LATITUDE", "PROD_SAMPLE_LONGITUDE"].map((code, index) =>
+        productionField(code, 100 + index * 10, {
+          valueType: "DECIMAL",
+          controlType: "DECIMAL",
+          required: true,
+        }),
+      ),
+      productionField("cultivatedAreaMu", 120, {
+        label: "播种面积",
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+        unit: "亩",
+      }),
+      productionField("yieldPerMuKilograms", 130, {
+        valueType: "DECIMAL",
+        controlType: "DECIMAL",
+      }),
+      productionField("estimatedOutputKilograms", 140, {
+        valueType: "DECIMAL",
+        controlType: "READONLY_DECIMAL",
+        readOnly: true,
+        calculated: true,
+        importable: false,
+      }),
+      productionField("yearOnYear", 150, {
+        controlType: "READONLY_TEXT",
+        readOnly: true,
+        calculated: true,
+        importable: false,
+      }),
+    ],
+    groups: [],
   };
 }

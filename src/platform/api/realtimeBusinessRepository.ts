@@ -1310,8 +1310,8 @@ export function parseProductionDefinition(
     ["PROD_SAMPLE_CONTACT", { required: true, readOnly: false }],
     ["PROD_SAMPLE_LATITUDE", { controlType: "DECIMAL", required: true }],
     ["PROD_SAMPLE_LONGITUDE", { controlType: "DECIMAL", required: true }],
-    ["cultivatedAreaMu", { controlType: "DECIMAL", required: true }],
-    ["yieldPerMuKilograms", { controlType: "DECIMAL", required: true }],
+    ["cultivatedAreaMu", { controlType: "DECIMAL", required: false }],
+    ["yieldPerMuKilograms", { controlType: "DECIMAL", required: false }],
     [
       "estimatedOutputKilograms",
       { readOnly: true, calculated: true, importable: false },

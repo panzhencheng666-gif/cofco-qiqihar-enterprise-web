@@ -719,6 +719,27 @@ describe("realtime business repository", () => {
     );
   });
 
+  it.each([
+    ["CORN", "FARMER"],
+    ["CORN", "VILLAGE_COMMITTEE"],
+    ["CORN", "AGRICULTURAL_TECH_STATION"],
+    ["SOYBEAN", "FARMER"],
+    ["SOYBEAN", "VILLAGE_COMMITTEE"],
+    ["SOYBEAN", "AGRICULTURAL_TECH_STATION"],
+    ["RICE", "FARMER"],
+    ["RICE", "VILLAGE_COMMITTEE"],
+    ["RICE", "AGRICULTURAL_TECH_STATION"],
+  ] as const)(
+    "accepts the authoritative optional yield boundaries for %s/%s",
+    (productCode, objectTypeCode) => {
+      const definition = productionDefinition(productCode, objectTypeCode);
+
+      expect(
+        parseProductionDefinition(definition, { productCode, objectTypeCode }),
+      ).toEqual(definition);
+    },
+  );
+
   it("binds the parsed public contract to its digest and rejects unapproved fields", () => {
     const definition = {
       ...productionDefinition(),
@@ -1901,7 +1922,8 @@ function field(
 
 function productionDefinition(
   productCode: "CORN" | "SOYBEAN" | "RICE" = "CORN",
-  objectTypeCode: "FARMER" | "VILLAGE_COMMITTEE" = "FARMER",
+  objectTypeCode:
+    "FARMER" | "VILLAGE_COMMITTEE" | "AGRICULTURAL_TECH_STATION" = "FARMER",
   qualityCodes: readonly string[] = [],
 ) {
   return {
@@ -1971,7 +1993,7 @@ function productionDefinition(
         groupOrder: 30,
         valueType: "DECIMAL",
         controlType: "DECIMAL",
-        required: true,
+        required: false,
       }),
       field("yieldPerMuKilograms", {
         groupCode: "OUTPUT",
@@ -1980,7 +2002,7 @@ function productionDefinition(
         sortOrder: 20,
         valueType: "DECIMAL",
         controlType: "DECIMAL",
-        required: true,
+        required: false,
       }),
       field("estimatedOutputKilograms", {
         groupCode: "OUTPUT",
