@@ -56,6 +56,9 @@ const loadMasterData = vi.fn().mockResolvedValue({
 
 describe("logistics monitoring workspace", () => {
   it("keeps the logistics table shell while exposing formal-sample maintenance rows", async () => {
+    const onEditRecord = vi.fn();
+    const onSelectionChange = vi.fn();
+    const deleteFormalSamplePoint = vi.fn().mockResolvedValue(undefined);
     const repository = {
       listLogistics: vi.fn().mockResolvedValue({
         items: [],
@@ -86,21 +89,35 @@ describe("logistics monitoring workspace", () => {
           networkMembershipCount: 0,
           latestObservationId: "LOG-DB-001",
           latestObservedAt: "2026-08-08T00:00:00Z",
-          latestValues: {},
+          latestValues: { LOG_FREIGHT_RATE: "80.2500" },
         },
       ]),
-      deleteFormalSamplePoint: vi.fn().mockResolvedValue(undefined),
+      deleteFormalSamplePoint,
       loadLogisticsDefinition: vi.fn().mockResolvedValue({
         productCode: "CORN",
-        fields: [],
+        fields: [
+          {
+            code: "LOG_FREIGHT_RATE",
+            label: "物流运价（不含车板价）",
+            controlType: "DECIMAL",
+            unit: "元/吨",
+            precision: 18,
+            scale: 4,
+            required: true,
+            readOnly: false,
+            sortOrder: 10,
+            options: [],
+          },
+        ],
         actions: [],
       }),
     } as unknown as RealtimeBusinessRepository;
 
     render(
       <LogisticsMonitoringWorkspace
+        onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
-        onSelectionChange={vi.fn()}
+        onSelectionChange={onSelectionChange}
         permissions={["FORMAL_SAMPLE_MANAGE", "FORMAL_SAMPLE_DELETE"]}
         productCode="CORN"
         queryAllowed
@@ -120,6 +137,12 @@ describe("logistics monitoring workspace", () => {
     ).toBeVisible();
     expect(within(row).getByText("龙沙区站前街 18 号")).toBeVisible();
     expect(within(row).getByText("物流维护员")).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", {
+        name: "物流运价（不含车板价）（元/吨）",
+      }),
+    ).toBeVisible();
+    expect(within(row).getByText("80.2500")).toBeVisible();
     expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("group", { name: "退回修正" }),
@@ -127,6 +150,22 @@ describe("logistics monitoring workspace", () => {
     expect(within(row).getByRole("button", { name: "查看记录" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "删除" })).toBeVisible();
+    await userEvent.click(
+      within(row).getByRole("button", { name: "查看记录" }),
+    );
+    expect(onEditRecord).toHaveBeenCalledWith("CORN", "LOG-DB-001");
+    await userEvent.click(within(row).getByRole("button", { name: "编辑" }));
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      type: "formal-sample-observation",
+      id: "sample-logistics-1",
+    });
+    await userEvent.click(within(row).getByRole("button", { name: "删除" }));
+    await waitFor(() =>
+      expect(deleteFormalSamplePoint).toHaveBeenCalledWith(
+        "sample-logistics-1",
+        2,
+      ),
+    );
   });
 
   it("keeps the fallback business table on the same public contract", () => {

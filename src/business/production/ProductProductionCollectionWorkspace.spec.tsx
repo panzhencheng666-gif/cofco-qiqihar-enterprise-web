@@ -189,6 +189,9 @@ function contractField(
 
 describe("product production collection workspace", () => {
   it("keeps the production table shell while exposing formal-sample maintenance rows", async () => {
+    const onEditRecord = vi.fn();
+    const onSelectionChange = vi.fn();
+    const deleteFormalSamplePoint = vi.fn().mockResolvedValue(undefined);
     const repository = {
       listProduction: vi.fn().mockResolvedValue({
         items: [],
@@ -225,17 +228,19 @@ describe("product production collection workspace", () => {
             PROD_SURVEY_DATE: "2026-08-08",
             PROD_OBJECT_TYPE: "FARMER",
             PROD_REGION: "龙沙区",
+            cultivatedAreaMu: "320.0000",
           },
         },
       ]),
-      deleteFormalSamplePoint: vi.fn().mockResolvedValue(undefined),
+      deleteFormalSamplePoint,
       loadProductionDefinition: productionDefinition,
     } as unknown as RealtimeBusinessRepository;
 
     render(
       <ProductProductionCollectionWorkspace
+        onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
-        onSelectionChange={vi.fn()}
+        onSelectionChange={onSelectionChange}
         permissions={[
           "BUSINESS_UPDATE",
           "FORMAL_SAMPLE_MANAGE",
@@ -261,11 +266,31 @@ describe("product production collection workspace", () => {
     ).toBeVisible();
     expect(within(row).getByText("龙沙区详细地址")).toBeVisible();
     expect(within(row).getByText("样本维护员")).toBeVisible();
+    expect(
+      await screen.findByRole("columnheader", { name: "种植面积（亩）" }),
+    ).toBeVisible();
+    expect(within(row).getByText("320.0000")).toBeVisible();
     expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: "查看照片" })).toBeNull();
     expect(within(row).getByRole("button", { name: "查看记录" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "删除" })).toBeVisible();
+    await userEvent.click(
+      within(row).getByRole("button", { name: "查看记录" }),
+    );
+    expect(onEditRecord).toHaveBeenCalledWith("CORN", "PROD-DB-001");
+    await userEvent.click(within(row).getByRole("button", { name: "编辑" }));
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      type: "formal-sample-observation",
+      id: "sample-production-1",
+    });
+    await userEvent.click(within(row).getByRole("button", { name: "删除" }));
+    await waitFor(() =>
+      expect(deleteFormalSamplePoint).toHaveBeenCalledWith(
+        "sample-production-1",
+        3,
+      ),
+    );
   });
   it("resolves persisted Chinese production object-type labels through formal master data", async () => {
     const loadProductionDefinition = vi
@@ -285,10 +310,21 @@ describe("product production collection workspace", () => {
               PROD_STATUS: "APPROVED",
             },
           },
+          {
+            id: "PROD-FARMER-001",
+            values: {
+              PROD_OBJECT_TYPE: "农户",
+              PROD_SAMPLE_NAME: "正式农户样本",
+              PROD_SURVEY_YEAR: "2026",
+              PROD_SURVEY_MONTH: "8",
+              PROD_REGION: "龙江县",
+              PROD_STATUS: "APPROVED",
+            },
+          },
         ],
         pageNumber: 0,
         pageSize: 20,
-        totalElements: 1,
+        totalElements: 2,
         totalPages: 1,
       }),
       listObjectTypes: vi.fn().mockResolvedValue([
@@ -320,6 +356,8 @@ describe("product production collection workspace", () => {
         "VILLAGE_COMMITTEE",
       ),
     );
+    expect(loadProductionDefinition).toHaveBeenCalledTimes(1);
+    expect(loadProductionDefinition).not.toHaveBeenCalledWith("CORN", "FARMER");
     expect(screen.getAllByText("村委会")).toHaveLength(2);
   });
 

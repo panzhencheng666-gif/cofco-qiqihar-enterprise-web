@@ -55,6 +55,39 @@ describe("市场列表字段契约", () => {
       "ENDING_INVENTORY",
     ]);
   });
+
+  it("keeps trader sale fields out of the deep-processor contract", () => {
+    const trader = marketDefinitionListGroups({
+      productCode: "CORN",
+      objectTypeCode: "TRADER",
+      coreFields: [
+        core("MKT_PURCHASE_BASE_PRICE", "对象采购价格", "元/吨"),
+        core("MKT_SALE_BASE_PRICE", "对象销售价格", "元/吨"),
+      ],
+      groups: [],
+    });
+    const processor = marketDefinitionListGroups({
+      productCode: "CORN",
+      objectTypeCode: "DEEP_PROCESSOR",
+      coreFields: [core("MKT_PURCHASE_BASE_PRICE", "对象采购价格", "元/吨")],
+      groups: [
+        {
+          category: "PROCESSING",
+          label: "加工",
+          sortOrder: 10,
+          fields: [fact("PROCESSING_INPUT", "加工投入", "吨")],
+        },
+      ],
+    });
+
+    expect(trader.flatMap(({ fields }) => fields.map(({ id }) => id))).toEqual([
+      "MKT_PURCHASE_BASE_PRICE",
+      "MKT_SALE_BASE_PRICE",
+    ]);
+    expect(
+      processor.flatMap(({ fields }) => fields.map(({ id }) => id)),
+    ).toEqual(["MKT_PURCHASE_BASE_PRICE", "PROCESSING_INPUT"]);
+  });
 });
 
 function core(code: string, label: string, unit: string | null = null) {
