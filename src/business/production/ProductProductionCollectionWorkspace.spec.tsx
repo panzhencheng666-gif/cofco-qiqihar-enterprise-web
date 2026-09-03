@@ -191,37 +191,43 @@ describe("product production collection workspace", () => {
   it("keeps the production table shell while exposing formal-sample maintenance rows", async () => {
     const repository = {
       listProduction: vi.fn().mockResolvedValue({
-        items: [], pageNumber: 0, pageSize: 20, totalElements: 0, totalPages: 0,
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
       }),
-      listEligibleFormalSamples: vi.fn().mockResolvedValue([{
-        samplePointId: "sample-production-1",
-        sampleName: "龙沙区玉米产情样本",
-        address: "龙沙区详细地址",
-        objectTypeCode: "FARMER",
-        objectTypeName: "农户",
-        domain: "PRODUCTION",
-        productCode: "CORN",
-        regionCode: "230202",
-        regionName: "龙沙区",
-        maintainerSubjectId: "maintainer-1",
-        maintainerDisplayName: "样本维护员",
-        latitude: "47.3000000",
-        longitude: "123.9000000",
-        effectiveFrom: "2026-01-01",
-        effectiveTo: null,
-        version: 3,
-        annualObservationCount: 1,
-        networkMembershipCount: 0,
-        latestObservationId: "PROD-DB-001",
-        latestObservedAt: "2026-08-08T00:00:00Z",
-        latestValues: {
-          PROD_SURVEY_YEAR: "2026",
-          PROD_SURVEY_MONTH: "8",
-          PROD_SURVEY_DATE: "2026-08-08",
-          PROD_OBJECT_TYPE: "FARMER",
-          PROD_REGION: "龙沙区",
+      listEligibleFormalSamples: vi.fn().mockResolvedValue([
+        {
+          samplePointId: "sample-production-1",
+          sampleName: "龙沙区玉米产情样本",
+          address: "龙沙区详细地址",
+          objectTypeCode: "FARMER",
+          objectTypeName: "农户",
+          domain: "PRODUCTION",
+          productCode: "CORN",
+          regionCode: "230202",
+          regionName: "龙沙区",
+          maintainerSubjectId: "maintainer-1",
+          maintainerDisplayName: "样本维护员",
+          latitude: "47.3000000",
+          longitude: "123.9000000",
+          effectiveFrom: "2026-01-01",
+          effectiveTo: null,
+          version: 3,
+          annualObservationCount: 1,
+          networkMembershipCount: 0,
+          latestObservationId: "PROD-DB-001",
+          latestObservedAt: "2026-08-08T00:00:00Z",
+          latestValues: {
+            PROD_SURVEY_YEAR: "2026",
+            PROD_SURVEY_MONTH: "8",
+            PROD_SURVEY_DATE: "2026-08-08",
+            PROD_OBJECT_TYPE: "FARMER",
+            PROD_REGION: "龙沙区",
+          },
         },
-      }]),
+      ]),
       deleteFormalSamplePoint: vi.fn().mockResolvedValue(undefined),
       loadProductionDefinition: productionDefinition,
     } as unknown as RealtimeBusinessRepository;
@@ -230,7 +236,11 @@ describe("product production collection workspace", () => {
       <ProductProductionCollectionWorkspace
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
-        permissions={["BUSINESS_UPDATE", "FORMAL_SAMPLE_MANAGE", "FORMAL_SAMPLE_DELETE"]}
+        permissions={[
+          "BUSINESS_UPDATE",
+          "FORMAL_SAMPLE_MANAGE",
+          "FORMAL_SAMPLE_DELETE",
+        ]}
         queryAllowed
         realtimeRepository={repository}
         scope={realtimeScope}
@@ -239,10 +249,16 @@ describe("product production collection workspace", () => {
     );
 
     const table = screen.getByRole("table", { name: "玉米产情调查表" });
-    expect(table.closest("section")).toHaveClass("enterprise-ledger-table--production");
+    expect(table.closest("section")).toHaveClass(
+      "enterprise-ledger-table--production",
+    );
     const row = await screen.findByRole("row", { name: /龙沙区玉米产情样本/u });
-    expect(screen.getByRole("columnheader", { name: "详细地址" })).toBeVisible();
-    expect(screen.getByRole("columnheader", { name: "样本点维护人" })).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "详细地址" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "样本点维护人" }),
+    ).toBeVisible();
     expect(within(row).getByText("龙沙区详细地址")).toBeVisible();
     expect(within(row).getByText("样本维护员")).toBeVisible();
     expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
@@ -835,7 +851,9 @@ describe("product production collection workspace", () => {
     );
 
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole("button", { name: "下载退回记录修正表" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "下载退回记录修正表" }),
+    ).toBeNull();
     expect(screen.queryByText("批量导入修正结果")).toBeNull();
     expect(importReturnedCorrectionWorkbook).not.toHaveBeenCalled();
   });

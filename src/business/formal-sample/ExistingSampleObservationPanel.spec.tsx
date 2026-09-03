@@ -377,7 +377,9 @@ describe("ExistingSampleObservationPanel", () => {
 
     expect(screen.getByText("原有采集台账内容")).toBeVisible();
     expect(screen.queryByText("维护样本与期间数据")).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "采集台账" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "采集台账" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders a routed formal create page without nesting the business ledger", async () => {

@@ -225,8 +225,9 @@ export function ExistingSampleObservationPanel({
   onSelectionClear?: () => void;
   children?: ReactNode;
 }) {
-  const [localSelection, setLocalSelection] =
-    useState<FormalSelection | undefined>(selection);
+  const [localSelection, setLocalSelection] = useState<
+    FormalSelection | undefined
+  >(selection);
   const activeSelection = onSelectionChange ? selection : localSelection;
   const isObservationPage =
     activeSelection?.type === "formal-sample-observation";
@@ -619,9 +620,7 @@ export function ExistingSampleObservationPanel({
 
   return (
     <div className="existing-observation">
-      {!isFormalSamplePage ? (
-        <>{children}</>
-      ) : null}
+      {!isFormalSamplePage ? <>{children}</> : null}
       {(isFormalSampleEditor || isEmbeddedLegacyList) &&
       repository.listFormalSamplePoints ? (
         <section

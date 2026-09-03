@@ -25,6 +25,7 @@
 ### Task 1: Lock the Backend sample-centric list and responsibility contract
 
 **Files:**
+
 - Modify: `cofco-qiqihar-enterprise-backend/src/main/java/com/cofco/qiqihar/graintrade/formalsampleobservation/application/EligibleFormalSample.java`
 - Modify: `cofco-qiqihar-enterprise-backend/src/main/java/com/cofco/qiqihar/graintrade/formalsampleobservation/infrastructure/JdbcFormalSampleObservationRepository.java`
 - Modify only if the existing contract lacks a required filter: `cofco-qiqihar-enterprise-backend/src/main/java/com/cofco/qiqihar/graintrade/formalsampleobservation/interfaceadapter/FormalSampleObservationController.java`
@@ -32,6 +33,7 @@
 - Test: `cofco-qiqihar-enterprise-backend/src/test/java/com/cofco/qiqihar/graintrade/formalsamplepoint/interfaceadapter/FormalSamplePointRestIntegrationTest.java`
 
 **Interfaces:**
+
 - Consumes: `registry.sample_point`, `registry.formal_sample_point_profile`, current employee authorization, latest `platform.formal_sample_observation`.
 - Produces: `EligibleFormalSample` rows containing `samplePointId`, stable `address`, current maintainer identity, latest observation id/time/values, and delete-blocking counts.
 
@@ -101,6 +103,7 @@ git commit -m "feat: enrich formal sample business list contract"
 ### Task 2: Replace the separate collection ledger with existing-list row actions
 
 **Files:**
+
 - Modify: `cofco-qiqihar-enterprise-web/src/platform/api/realtimeBusinessRepository.ts`
 - Modify: `cofco-qiqihar-enterprise-web/src/business/formal-sample/ExistingSampleObservationPanel.tsx`
 - Modify: `cofco-qiqihar-enterprise-web/src/business/production/ProductProductionCollectionWorkspace.tsx`
@@ -110,6 +113,7 @@ git commit -m "feat: enrich formal sample business list contract"
 - Test: matching `*.spec.tsx` files for the four components above.
 
 **Interfaces:**
+
 - Consumes: enriched `EligibleFormalSample`, `saveFormalSampleObservation`, `listFormalSampleObservationHistory`, `updateFormalSamplePoint`, `deleteFormalSamplePoint`.
 - Produces: existing business lists with stable sample columns plus current-period business values and authorized row mutations.
 
@@ -118,7 +122,9 @@ git commit -m "feat: enrich formal sample business list contract"
 ```tsx
 expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
 expect(screen.getByRole("columnheader", { name: "详细地址" })).toBeVisible();
-expect(screen.getByRole("columnheader", { name: "样本点维护人" })).toBeVisible();
+expect(
+  screen.getByRole("columnheader", { name: "样本点维护人" }),
+).toBeVisible();
 expect(within(row).getByText("龙沙区详细地址")).toBeVisible();
 expect(within(row).getByText("样本维护员")).toBeVisible();
 expect(within(row).queryByRole("button", { name: "查看照片" })).toBeNull();
@@ -188,12 +194,14 @@ git commit -m "feat: maintain formal samples in existing business lists"
 ### Task 3: Remove obsolete status, photo, and returned-correction controls
 
 **Files:**
+
 - Modify: `cofco-qiqihar-enterprise-web/src/business/production/ProductProductionCollectionWorkspace.tsx`
 - Modify: `cofco-qiqihar-enterprise-web/src/business/market/ProductMarketCollectionWorkspace.tsx`
 - Modify: `cofco-qiqihar-enterprise-web/src/business/market/LogisticsMonitoringWorkspace.tsx`
 - Test: matching three workspace specs.
 
 **Interfaces:**
+
 - Consumes: normal import and ordinary record history remain unchanged.
 - Produces: no fill-status filter, no photo row action, and no returned-record correction workflow in any of the three pages.
 
@@ -224,6 +232,7 @@ git commit -m "refactor: simplify existing sample list controls"
 ### Task 4: Align account authorization with sample responsibility
 
 **Files:**
+
 - Modify: `cofco-qiqihar-enterprise-web/src/business/identity/IdentityGovernancePanel.tsx`
 - Modify: `cofco-qiqihar-enterprise-web/src/platform/api/realtimeBusinessRepository.ts`
 - Test: `cofco-qiqihar-enterprise-web/src/business/identity/IdentityGovernancePanel.spec.tsx`
@@ -231,6 +240,7 @@ git commit -m "refactor: simplify existing sample list controls"
 - Modify Backend only if the existing paged query cannot efficiently supply assignments: `FormalSamplePointController.java`, `JdbcFormalSamplePointRepository.java`, and their existing integration tests.
 
 **Interfaces:**
+
 - Consumes: employee directory, formal sample list, `assignFormalSampleMaintainer`.
 - Produces: one authoritative assignment displayed both by employee and by sample.
 
@@ -238,7 +248,9 @@ git commit -m "refactor: simplify existing sample list controls"
 
 ```tsx
 expect(screen.getByRole("columnheader", { name: "负责样本点" })).toBeVisible();
-await user.click(within(employeeRow).getByRole("button", { name: "调整负责样本点" }));
+await user.click(
+  within(employeeRow).getByRole("button", { name: "调整负责样本点" }),
+);
 await user.selectOptions(screen.getByLabelText("选择负责样本点"), ["sample-1"]);
 await user.type(screen.getByLabelText("维护责任调整原因"), "正式分工");
 await user.click(screen.getByRole("button", { name: "保存样本责任" }));
@@ -270,6 +282,7 @@ git commit -m "feat: align accounts with sample responsibility"
 ### Task 5: Prove overview and design-sample synchronization boundaries
 
 **Files:**
+
 - Test first: `cofco-qiqihar-enterprise-backend/src/test/java/com/cofco/qiqihar/graintrade/overview/interfaceadapter/OverviewSamplePointRestIntegrationTest.java`
 - Test first: the existing Backend formal-observation integration test covering synchronized modules.
 - Modify only if the RED test exposes a gap: current overview repository/projection or business-event publication file identified by the failing test.
@@ -277,6 +290,7 @@ git commit -m "feat: align accounts with sample responsibility"
 - Modify only if needed: current Frontend overview event invalidation hook/component identified by those tests.
 
 **Interfaces:**
+
 - Consumes: approved/current-effective formal business facts and business events.
 - Produces: one authoritative overview result across map, count, sidebar/list, detail, category filters, and reload; design references have no fabricated business values.
 
@@ -316,10 +330,12 @@ Commit Backend and Frontend separately with focused messages. Keep each worktree
 ### Task 6: CI, local runtime, browser closure, and deployment preflight
 
 **Files:**
+
 - Update only generated release evidence required by existing repository scripts.
 - Save user-facing reports/screenshots under the supervisor task's `outputs/` directory.
 
 **Interfaces:**
+
 - Consumes: clean Backend, Frontend, and Web branches plus their required CI workflows.
 - Produces: merged main SHAs, verified local runtime, real-browser evidence, cleanup evidence, and a production-deployment go/no-go report.
 

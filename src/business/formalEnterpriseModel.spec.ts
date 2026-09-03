@@ -309,10 +309,8 @@ describe("formal location", () => {
 
     expect(writeFormalLocation(location)).toBe("#/市场监测/玉米市场采集");
     expect(
-      readFormalLocation(
-        "#/市场监测/玉米市场采集/正式样本/list",
-        authorization,
-      ).location.selection,
+      readFormalLocation("#/市场监测/玉米市场采集/正式样本/list", authorization)
+        .location.selection,
     ).toBeUndefined();
   });
 });

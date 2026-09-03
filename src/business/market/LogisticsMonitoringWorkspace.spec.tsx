@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -52,34 +58,42 @@ describe("logistics monitoring workspace", () => {
   it("keeps the logistics table shell while exposing formal-sample maintenance rows", async () => {
     const repository = {
       listLogistics: vi.fn().mockResolvedValue({
-        items: [], pageNumber: 0, pageSize: 20, totalElements: 0, totalPages: 0,
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
       }),
-      listEligibleFormalSamples: vi.fn().mockResolvedValue([{
-        samplePointId: "sample-logistics-1",
-        sampleName: "龙沙区铁路物流站",
-        address: "龙沙区站前街 18 号",
-        objectTypeCode: "RAIL_NODE",
-        objectTypeName: "铁路站点",
-        domain: "LOGISTICS",
-        productCode: "CORN",
-        regionCode: "230202",
-        regionName: "龙沙区",
-        maintainerSubjectId: "maintainer-1",
-        maintainerDisplayName: "物流维护员",
-        latitude: "47.3100000",
-        longitude: "123.9100000",
-        effectiveFrom: "2026-01-01",
-        effectiveTo: null,
-        version: 2,
-        annualObservationCount: 1,
-        networkMembershipCount: 0,
-        latestObservationId: "LOG-DB-001",
-        latestObservedAt: "2026-08-08T00:00:00Z",
-        latestValues: {},
-      }]),
+      listEligibleFormalSamples: vi.fn().mockResolvedValue([
+        {
+          samplePointId: "sample-logistics-1",
+          sampleName: "龙沙区铁路物流站",
+          address: "龙沙区站前街 18 号",
+          objectTypeCode: "RAIL_NODE",
+          objectTypeName: "铁路站点",
+          domain: "LOGISTICS",
+          productCode: "CORN",
+          regionCode: "230202",
+          regionName: "龙沙区",
+          maintainerSubjectId: "maintainer-1",
+          maintainerDisplayName: "物流维护员",
+          latitude: "47.3100000",
+          longitude: "123.9100000",
+          effectiveFrom: "2026-01-01",
+          effectiveTo: null,
+          version: 2,
+          annualObservationCount: 1,
+          networkMembershipCount: 0,
+          latestObservationId: "LOG-DB-001",
+          latestObservedAt: "2026-08-08T00:00:00Z",
+          latestValues: {},
+        },
+      ]),
       deleteFormalSamplePoint: vi.fn().mockResolvedValue(undefined),
       loadLogisticsDefinition: vi.fn().mockResolvedValue({
-        productCode: "CORN", fields: [], actions: [],
+        productCode: "CORN",
+        fields: [],
+        actions: [],
       }),
     } as unknown as RealtimeBusinessRepository;
 
@@ -98,12 +112,18 @@ describe("logistics monitoring workspace", () => {
     const table = screen.getByRole("table", { name: "粮食物流监测表" });
     expect(table.closest("section")).toHaveClass("enterprise-ledger-table");
     const row = await screen.findByRole("row", { name: /龙沙区铁路物流站/u });
-    expect(screen.getByRole("columnheader", { name: "详细地址" })).toBeVisible();
-    expect(screen.getByRole("columnheader", { name: "样本点维护人" })).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "详细地址" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "样本点维护人" }),
+    ).toBeVisible();
     expect(within(row).getByText("龙沙区站前街 18 号")).toBeVisible();
     expect(within(row).getByText("物流维护员")).toBeVisible();
     expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: "退回修正" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "退回修正" }),
+    ).not.toBeInTheDocument();
     expect(within(row).getByRole("button", { name: "查看记录" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "删除" })).toBeVisible();
@@ -473,7 +493,9 @@ describe("logistics monitoring workspace", () => {
       />,
     );
 
-    expect(await screen.findByRole("group", { name: "批量导入" })).toBeVisible();
+    expect(
+      await screen.findByRole("group", { name: "批量导入" }),
+    ).toBeVisible();
     expect(screen.getByRole("group", { name: "批量导入" })).toBeVisible();
     expect(screen.getByRole("group", { name: "单条录入" })).toBeVisible();
     expect(

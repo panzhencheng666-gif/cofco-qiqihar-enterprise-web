@@ -413,56 +413,58 @@ export function LogisticsMonitoringWorkspace({
       setSelectedPersistedId(undefined);
     });
     const request = realtimeRepository.listEligibleFormalSamples
-      ? realtimeRepository.listEligibleFormalSamples({
-          domain: "LOGISTICS",
-          productCode,
-          regionCode: realtimeRegionCode || undefined,
-          objectTypeCode: nodeType
-            ? logisticsNodeTypeCodeById[nodeType]
-            : undefined,
-          year: Number(surveyYear),
-          observedAt: new Date(
-            `${surveyYear}-${surveyMonth ? surveyMonth.padStart(2, "0") : "12"}-01T00:00:00+08:00`,
-          ).toISOString(),
-        }).then((samples) => ({
-          items: samples.map((sample) => ({
-            id: sample.samplePointId,
+      ? realtimeRepository
+          .listEligibleFormalSamples({
+            domain: "LOGISTICS",
             productCode,
-            values: {
-              ...sample.latestValues,
-              LOG_SAMPLE_NAME: sample.sampleName,
-              LOG_REGION: sample.regionName,
-              LOG_SAMPLE_LATITUDE: sample.latitude,
-              LOG_SAMPLE_LONGITUDE: sample.longitude,
-              __FORMAL_SAMPLE_ID: sample.samplePointId,
-              __FORMAL_SAMPLE_ADDRESS: sample.address,
-              __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
-              __FORMAL_LATEST_OBSERVATION_ID: sample.latestObservationId,
-            },
-            displayValues: {},
-            status: "DRAFT",
-            returnReason: null,
-            allowedActions: [],
-            version: sample.version,
-          })),
-          pageNumber: 0,
-          pageSize: samples.length,
-          totalElements: samples.length,
-          totalPages: samples.length > 0 ? 1 : 0,
-        }))
+            regionCode: realtimeRegionCode || undefined,
+            objectTypeCode: nodeType
+              ? logisticsNodeTypeCodeById[nodeType]
+              : undefined,
+            year: Number(surveyYear),
+            observedAt: new Date(
+              `${surveyYear}-${surveyMonth ? surveyMonth.padStart(2, "0") : "12"}-01T00:00:00+08:00`,
+            ).toISOString(),
+          })
+          .then((samples) => ({
+            items: samples.map((sample) => ({
+              id: sample.samplePointId,
+              productCode,
+              values: {
+                ...sample.latestValues,
+                LOG_SAMPLE_NAME: sample.sampleName,
+                LOG_REGION: sample.regionName,
+                LOG_SAMPLE_LATITUDE: sample.latitude,
+                LOG_SAMPLE_LONGITUDE: sample.longitude,
+                __FORMAL_SAMPLE_ID: sample.samplePointId,
+                __FORMAL_SAMPLE_ADDRESS: sample.address,
+                __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
+                __FORMAL_LATEST_OBSERVATION_ID: sample.latestObservationId,
+              },
+              displayValues: {},
+              status: "DRAFT",
+              returnReason: null,
+              allowedActions: [],
+              version: sample.version,
+            })),
+            pageNumber: 0,
+            pageSize: samples.length,
+            totalElements: samples.length,
+            totalPages: samples.length > 0 ? 1 : 0,
+          }))
       : realtimeRepository.listLogistics({
-        productCode,
-        page: pageNumber,
-        pageSize: collectionPageSize,
-        filters: {
-          regionCode: realtimeRegionCode || undefined,
-          surveyYear,
-          surveyMonth: surveyMonth || undefined,
-          nodeTypeCode: nodeType
-            ? logisticsNodeTypeCodeById[nodeType]
-            : undefined,
-        },
-      });
+          productCode,
+          page: pageNumber,
+          pageSize: collectionPageSize,
+          filters: {
+            regionCode: realtimeRegionCode || undefined,
+            surveyYear,
+            surveyMonth: surveyMonth || undefined,
+            nodeTypeCode: nodeType
+              ? logisticsNodeTypeCodeById[nodeType]
+              : undefined,
+          },
+        });
     void request
       .then((page) => {
         if (!cancelled) {
@@ -914,7 +916,9 @@ export function LogisticsMonitoringWorkspace({
                         <td>{persistedSurveyPeriod(record)}</td>
                         <td>{persistedFillingTime(record)}</td>
                         <td>{record.values.__FORMAL_SAMPLE_ADDRESS ?? "—"}</td>
-                        <td>{record.values.__FORMAL_SAMPLE_MAINTAINER ?? "—"}</td>
+                        <td>
+                          {record.values.__FORMAL_SAMPLE_MAINTAINER ?? "—"}
+                        </td>
                         {ledgerListFields.map(({ code }) => (
                           <td className="is-operational" key={code}>
                             {persistedValue(record, code)}
@@ -962,7 +966,9 @@ export function LogisticsMonitoringWorkspace({
                                 className="enterprise-ledger-row-action"
                                 type="button"
                                 onClick={() => {
-                                  if (!realtimeRepository?.deleteFormalSamplePoint)
+                                  if (
+                                    !realtimeRepository?.deleteFormalSamplePoint
+                                  )
                                     return;
                                   void realtimeRepository
                                     .deleteFormalSamplePoint(

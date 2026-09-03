@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -59,38 +65,47 @@ describe("product market collection workspace", () => {
   it("keeps the market table shell while exposing formal-sample maintenance rows", async () => {
     const repository = {
       listMarket: vi.fn().mockResolvedValue({
-        items: [], pageNumber: 0, pageSize: 20, totalElements: 0, totalPages: 0,
+        items: [],
+        pageNumber: 0,
+        pageSize: 20,
+        totalElements: 0,
+        totalPages: 0,
       }),
-      listEligibleFormalSamples: vi.fn().mockResolvedValue([{
-        samplePointId: "sample-market-1",
-        sampleName: "龙沙区兴农农资店",
-        address: "龙沙区农资街 8 号",
-        objectTypeCode: "AGRICULTURAL_INPUT_STORE",
-        objectTypeName: "农资店",
-        domain: "MARKET",
-        productCode: "CORN",
-        regionCode: "230202",
-        regionName: "龙沙区",
-        maintainerSubjectId: "maintainer-1",
-        maintainerDisplayName: "样本维护员",
-        latitude: "47.3000000",
-        longitude: "123.9000000",
-        effectiveFrom: "2026-01-01",
-        effectiveTo: null,
-        version: 3,
-        annualObservationCount: 1,
-        networkMembershipCount: 0,
-        latestObservationId: "MKT-DB-001",
-        latestObservedAt: "2026-08-08T00:00:00Z",
-        latestValues: {
-          MKT_TRADE_DATE: "2026-08-08",
-          MKT_OBJECT_TYPE: "AGRICULTURAL_INPUT_STORE",
-          MKT_REGION: "龙沙区",
+      listEligibleFormalSamples: vi.fn().mockResolvedValue([
+        {
+          samplePointId: "sample-market-1",
+          sampleName: "龙沙区兴农农资店",
+          address: "龙沙区农资街 8 号",
+          objectTypeCode: "AGRICULTURAL_INPUT_STORE",
+          objectTypeName: "农资店",
+          domain: "MARKET",
+          productCode: "CORN",
+          regionCode: "230202",
+          regionName: "龙沙区",
+          maintainerSubjectId: "maintainer-1",
+          maintainerDisplayName: "样本维护员",
+          latitude: "47.3000000",
+          longitude: "123.9000000",
+          effectiveFrom: "2026-01-01",
+          effectiveTo: null,
+          version: 3,
+          annualObservationCount: 1,
+          networkMembershipCount: 0,
+          latestObservationId: "MKT-DB-001",
+          latestObservedAt: "2026-08-08T00:00:00Z",
+          latestValues: {
+            MKT_TRADE_DATE: "2026-08-08",
+            MKT_OBJECT_TYPE: "AGRICULTURAL_INPUT_STORE",
+            MKT_REGION: "龙沙区",
+          },
         },
-      }]),
+      ]),
       deleteFormalSamplePoint: vi.fn().mockResolvedValue(undefined),
       loadMarketDefinition: vi.fn().mockResolvedValue({
-        productCode: "CORN", objectTypeCode: "AGRICULTURAL_INPUT_STORE", coreFields: [], groups: [],
+        productCode: "CORN",
+        objectTypeCode: "AGRICULTURAL_INPUT_STORE",
+        coreFields: [],
+        groups: [],
       }),
     } as unknown as RealtimeBusinessRepository;
 
@@ -98,7 +113,11 @@ describe("product market collection workspace", () => {
       <ProductMarketCollectionWorkspace
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
-        permissions={["BUSINESS_UPDATE", "FORMAL_SAMPLE_MANAGE", "FORMAL_SAMPLE_DELETE"]}
+        permissions={[
+          "BUSINESS_UPDATE",
+          "FORMAL_SAMPLE_MANAGE",
+          "FORMAL_SAMPLE_DELETE",
+        ]}
         queryAllowed
         realtimeRepository={repository}
         scope={realtimeScope}
@@ -107,10 +126,16 @@ describe("product market collection workspace", () => {
     );
 
     const table = screen.getByRole("table", { name: "玉米市场采集表" });
-    expect(table.closest("section")).toHaveClass("enterprise-ledger-table--market");
+    expect(table.closest("section")).toHaveClass(
+      "enterprise-ledger-table--market",
+    );
     const row = await screen.findByRole("row", { name: /龙沙区兴农农资店/u });
-    expect(screen.getByRole("columnheader", { name: "详细地址" })).toBeVisible();
-    expect(screen.getByRole("columnheader", { name: "样本点维护人" })).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "详细地址" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "样本点维护人" }),
+    ).toBeVisible();
     expect(within(row).getByText("龙沙区农资街 8 号")).toBeVisible();
     expect(within(row).getByText("样本维护员")).toBeVisible();
     expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
@@ -665,7 +690,9 @@ describe("product market collection workspace", () => {
     expect(
       screen.queryByRole("combobox", { name: "具体品种" }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("cell", { name: "需补充" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("cell", { name: "需补充" }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "查询" }));
     await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(2));
     await user.click(screen.getByRole("button", { name: "下载 XLSX 模板" }));

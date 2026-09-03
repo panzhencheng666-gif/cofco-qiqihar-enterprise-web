@@ -707,50 +707,54 @@ export function ProductMarketCollectionWorkspace({
           ? "SOYBEAN"
           : "RICE";
     const request = realtimeRepository.listEligibleFormalSamples
-      ? realtimeRepository.listEligibleFormalSamples({
-          domain: "MARKET",
-          productCode,
-          regionCode: realtimeRegionCode || undefined,
-          objectTypeCode: objectType ? marketObjectTypeCode[objectType] : undefined,
-          year: Number(surveyYear),
-          observedAt: new Date(
-            `${surveyYear}-${surveyMonth ? surveyMonth.padStart(2, "0") : "12"}-01T00:00:00+08:00`,
-          ).toISOString(),
-        }).then((samples) => ({
-          items: samples.map((sample) => ({
-            id: sample.samplePointId,
-            values: {
-              ...sample.latestValues,
-              __FORMAL_SAMPLE_ID: sample.samplePointId,
-              __FORMAL_SAMPLE_NAME: sample.sampleName,
-              __FORMAL_SAMPLE_ADDRESS: sample.address,
-              __FORMAL_SAMPLE_OBJECT_TYPE_NAME: sample.objectTypeName ?? "",
-              __FORMAL_SAMPLE_REGION: sample.regionName,
-              __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
-              __FORMAL_SAMPLE_LATITUDE: sample.latitude,
-              __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
-            },
-            allowedActions: [],
-            version: sample.version,
-          })),
-          pageNumber: 0,
-          pageSize: samples.length,
-          totalElements: samples.length,
-          totalPages: samples.length > 0 ? 1 : 0,
-        }))
+      ? realtimeRepository
+          .listEligibleFormalSamples({
+            domain: "MARKET",
+            productCode,
+            regionCode: realtimeRegionCode || undefined,
+            objectTypeCode: objectType
+              ? marketObjectTypeCode[objectType]
+              : undefined,
+            year: Number(surveyYear),
+            observedAt: new Date(
+              `${surveyYear}-${surveyMonth ? surveyMonth.padStart(2, "0") : "12"}-01T00:00:00+08:00`,
+            ).toISOString(),
+          })
+          .then((samples) => ({
+            items: samples.map((sample) => ({
+              id: sample.samplePointId,
+              values: {
+                ...sample.latestValues,
+                __FORMAL_SAMPLE_ID: sample.samplePointId,
+                __FORMAL_SAMPLE_NAME: sample.sampleName,
+                __FORMAL_SAMPLE_ADDRESS: sample.address,
+                __FORMAL_SAMPLE_OBJECT_TYPE_NAME: sample.objectTypeName ?? "",
+                __FORMAL_SAMPLE_REGION: sample.regionName,
+                __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
+                __FORMAL_SAMPLE_LATITUDE: sample.latitude,
+                __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
+              },
+              allowedActions: [],
+              version: sample.version,
+            })),
+            pageNumber: 0,
+            pageSize: samples.length,
+            totalElements: samples.length,
+            totalPages: samples.length > 0 ? 1 : 0,
+          }))
       : realtimeRepository.listMarket({
-        productCode,
-        page: pageNumber,
-        pageSize: collectionPageSize,
-        filters: {
-          regionCode: realtimeRegionCode || undefined,
-          surveyYear,
-          surveyMonth: surveyMonth || undefined,
-          objectTypeCode: objectType
-            ? marketObjectTypeCode[objectType]
-            : undefined,
-        },
-      });
+          productCode,
+          page: pageNumber,
+          pageSize: collectionPageSize,
+          filters: {
+            regionCode: realtimeRegionCode || undefined,
+            surveyYear,
+            surveyMonth: surveyMonth || undefined,
+            objectTypeCode: objectType
+              ? marketObjectTypeCode[objectType]
+              : undefined,
+          },
+        });
     void request
       .then((page) => {
         if (!cancelled) {
@@ -829,13 +833,22 @@ export function ProductMarketCollectionWorkspace({
           )?.label ||
           rawObjectType,
         objectTypeId: itemObjectTypeId,
-        county: record.values.__FORMAL_SAMPLE_REGION ?? record.values.MKT_REGION ?? "—",
+        county:
+          record.values.__FORMAL_SAMPLE_REGION ??
+          record.values.MKT_REGION ??
+          "—",
         reporter: record.values.MKT_REPORTER_NAME ?? "—",
         surveyor: record.values.MKT_SURVEYOR_NAME ?? "—",
         surveyorPhone: record.values.MKT_SURVEYOR_PHONE ?? "—",
         sampleContact: record.values.MKT_SAMPLE_CONTACT ?? "—",
-        latitude: record.values.__FORMAL_SAMPLE_LATITUDE ?? record.values.MKT_SAMPLE_LATITUDE ?? "—",
-        longitude: record.values.__FORMAL_SAMPLE_LONGITUDE ?? record.values.MKT_SAMPLE_LONGITUDE ?? "—",
+        latitude:
+          record.values.__FORMAL_SAMPLE_LATITUDE ??
+          record.values.MKT_SAMPLE_LATITUDE ??
+          "—",
+        longitude:
+          record.values.__FORMAL_SAMPLE_LONGITUDE ??
+          record.values.MKT_SAMPLE_LONGITUDE ??
+          "—",
         cultivar:
           record.values.MKT_CULTIVAR_NAME ?? record.values.MKT_CULTIVAR ?? "—",
         purchasePrice: persistedMarketValue(record, "purchasePrice"),
@@ -854,7 +867,8 @@ export function ProductMarketCollectionWorkspace({
   );
   const allRows = realtimeRepository ? persistedRows : fixtureRows;
   const filteredRows = allRows.filter(
-    (row) => realtimeRepository || !objectType || row.objectTypeId === objectType,
+    (row) =>
+      realtimeRepository || !objectType || row.objectTypeId === objectType,
   );
   const pageCount = realtimeRepository
     ? serverTotalPages
@@ -1385,37 +1399,50 @@ export function ProductMarketCollectionWorkspace({
                       >
                         查看记录
                       </button>
-                      {row.samplePointId && permissions.includes("FORMAL_SAMPLE_MANAGE") && (
-                        <button
-                          className="enterprise-ledger-row-action"
-                          type="button"
-                          onClick={() => onSelectionChange({
-                            type: "formal-sample-edit",
-                            id: row.samplePointId!,
-                          })}
-                        >
-                          编辑
-                        </button>
-                      )}
-                      {row.samplePointId && permissions.includes("FORMAL_SAMPLE_DELETE") && (
-                        <button
-                          className="enterprise-ledger-row-action"
-                          type="button"
-                          onClick={() => {
-                            if (!realtimeRepository?.deleteFormalSamplePoint) return;
-                            void realtimeRepository
-                              .deleteFormalSamplePoint(row.samplePointId!, row.sampleVersion ?? 0)
-                              .then(() => setRecordsRevision((value) => value + 1))
-                              .catch((error: unknown) => setRecordsError(
-                                error instanceof RealtimeApiError && error.clientMessage
-                                  ? error.clientMessage
-                                  : "该样本已有业务记录或年度样本关系，不能删除。",
-                              ));
-                          }}
-                        >
-                          删除
-                        </button>
-                      )}
+                      {row.samplePointId &&
+                        permissions.includes("FORMAL_SAMPLE_MANAGE") && (
+                          <button
+                            className="enterprise-ledger-row-action"
+                            type="button"
+                            onClick={() =>
+                              onSelectionChange({
+                                type: "formal-sample-edit",
+                                id: row.samplePointId!,
+                              })
+                            }
+                          >
+                            编辑
+                          </button>
+                        )}
+                      {row.samplePointId &&
+                        permissions.includes("FORMAL_SAMPLE_DELETE") && (
+                          <button
+                            className="enterprise-ledger-row-action"
+                            type="button"
+                            onClick={() => {
+                              if (!realtimeRepository?.deleteFormalSamplePoint)
+                                return;
+                              void realtimeRepository
+                                .deleteFormalSamplePoint(
+                                  row.samplePointId!,
+                                  row.sampleVersion ?? 0,
+                                )
+                                .then(() =>
+                                  setRecordsRevision((value) => value + 1),
+                                )
+                                .catch((error: unknown) =>
+                                  setRecordsError(
+                                    error instanceof RealtimeApiError &&
+                                      error.clientMessage
+                                      ? error.clientMessage
+                                      : "该样本已有业务记录或年度样本关系，不能删除。",
+                                  ),
+                                );
+                            }}
+                          >
+                            删除
+                          </button>
+                        )}
                     </td>
                   </tr>
                 ))}
