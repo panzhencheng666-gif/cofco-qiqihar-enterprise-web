@@ -662,8 +662,9 @@ describe("realtime business repository", () => {
     expect(get).toHaveBeenCalledWith("/api/v1/production-record-definitions", {
       productCode: "RICE",
       objectTypeCode: "VILLAGE_COMMITTEE",
-      contractVersion: PRODUCTION_SURVEY_CONTRACT_VERSION,
-      contractDigest: PRODUCTION_SURVEY_CONTRACT_DIGEST,
+      contractVersion: "production-survey-fields-v5",
+      contractDigest:
+        "sha256:b18e705dbf3da916aeb03df93d7e2ab4ea54c0ef23786de8bbe204a3cdca2031",
     });
   });
 

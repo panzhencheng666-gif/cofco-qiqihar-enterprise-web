@@ -1,8 +1,8 @@
 export const PRODUCTION_SURVEY_CONTRACT_VERSION =
-  "production-survey-fields-v4" as const;
+  "production-survey-fields-v5" as const;
 
 export const PRODUCTION_SURVEY_CONTRACT_DIGEST =
-  "sha256:07806fbda70354ee29b243020cd5508db52271f8d7c88ac540379a7c1c3297fe" as const;
+  "sha256:b18e705dbf3da916aeb03df93d7e2ab4ea54c0ef23786de8bbe204a3cdca2031" as const;
 
 /** Public fields accepted by the production survey boundary. */
 export const PRODUCTION_PUBLIC_FIELD_ORDER = [
