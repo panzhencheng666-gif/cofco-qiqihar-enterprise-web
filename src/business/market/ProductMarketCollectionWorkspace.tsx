@@ -716,29 +716,35 @@ export function ProductMarketCollectionWorkspace({
             ).toISOString(),
           })
           .then((samples) => ({
-            items: samples.map((sample) => ({
-              id: sample.latestObservationId ?? sample.samplePointId,
-              values: {
-                ...sample.latestValues,
-                MKT_OBJECT_TYPE: sample.objectTypeCode ?? "",
-                __FORMAL_SAMPLE_ID: sample.samplePointId,
-                __FORMAL_SAMPLE_NAME: sample.sampleName,
-                __FORMAL_SAMPLE_ADDRESS: sample.address,
-                __FORMAL_SAMPLE_OBJECT_TYPE_NAME: sample.objectTypeName ?? "",
-                __FORMAL_SAMPLE_REGION: sample.regionName,
-                __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
-                __FORMAL_SAMPLE_LATITUDE: sample.latitude,
-                __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
-                __FORMAL_LATEST_OBSERVATION_ID:
-                  sample.latestObservationId ?? "",
-              },
-              allowedActions: [],
-              version: sample.version,
-            })),
-            pageNumber: 0,
-            pageSize: samples.length,
+            items: samples
+              .slice(
+                pageNumber * collectionPageSize,
+                (pageNumber + 1) * collectionPageSize,
+              )
+              .map((sample) => ({
+                id: sample.latestObservationId ?? sample.samplePointId,
+                values: {
+                  ...sample.latestValues,
+                  MKT_OBJECT_TYPE: sample.objectTypeCode ?? "",
+                  __FORMAL_SAMPLE_ID: sample.samplePointId,
+                  __FORMAL_SAMPLE_NAME: sample.sampleName,
+                  __FORMAL_SAMPLE_ADDRESS: sample.address,
+                  __FORMAL_SAMPLE_OBJECT_TYPE_NAME: sample.objectTypeName ?? "",
+                  __FORMAL_SAMPLE_REGION: sample.regionName,
+                  __FORMAL_SAMPLE_MAINTAINER:
+                    sample.maintainerDisplayName ?? "—",
+                  __FORMAL_SAMPLE_LATITUDE: sample.latitude,
+                  __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
+                  __FORMAL_LATEST_OBSERVATION_ID:
+                    sample.latestObservationId ?? "",
+                },
+                allowedActions: [],
+                version: sample.version,
+              })),
+            pageNumber,
+            pageSize: collectionPageSize,
             totalElements: samples.length,
-            totalPages: samples.length > 0 ? 1 : 0,
+            totalPages: Math.ceil(samples.length / collectionPageSize),
           }))
       : realtimeRepository.listMarket({
           productCode,
@@ -1234,7 +1240,7 @@ export function ProductMarketCollectionWorkspace({
             <strong>
               {recordsLoading
                 ? "正在读取市场采集记录"
-                : `共 ${rows.length} 个样本点，当前显示 ${rows.length > 0 ? 1 : 0}–${rows.length}`}
+                : `共 ${rowTotal} 个样本点，当前显示 ${rowStart}–${rowEnd}`}
             </strong>
             <div className="enterprise-ledger-table__actions">
               {realtimeRepository && (

@@ -427,31 +427,37 @@ export function LogisticsMonitoringWorkspace({
             ).toISOString(),
           })
           .then((samples) => ({
-            items: samples.map((sample) => ({
-              id: sample.latestObservationId ?? sample.samplePointId,
-              productCode,
-              values: {
-                ...sample.latestValues,
-                LOG_SAMPLE_NAME: sample.sampleName,
-                LOG_REGION: sample.regionName,
-                LOG_SAMPLE_LATITUDE: sample.latitude,
-                LOG_SAMPLE_LONGITUDE: sample.longitude,
-                __FORMAL_SAMPLE_ID: sample.samplePointId,
-                __FORMAL_SAMPLE_ADDRESS: sample.address,
-                __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
-                __FORMAL_LATEST_OBSERVATION_ID:
-                  sample.latestObservationId ?? "",
-              },
-              displayValues: {},
-              status: "DRAFT",
-              returnReason: null,
-              allowedActions: [],
-              version: sample.version,
-            })),
-            pageNumber: 0,
-            pageSize: samples.length,
+            items: samples
+              .slice(
+                pageNumber * collectionPageSize,
+                (pageNumber + 1) * collectionPageSize,
+              )
+              .map((sample) => ({
+                id: sample.latestObservationId ?? sample.samplePointId,
+                productCode,
+                values: {
+                  ...sample.latestValues,
+                  LOG_SAMPLE_NAME: sample.sampleName,
+                  LOG_REGION: sample.regionName,
+                  LOG_SAMPLE_LATITUDE: sample.latitude,
+                  LOG_SAMPLE_LONGITUDE: sample.longitude,
+                  __FORMAL_SAMPLE_ID: sample.samplePointId,
+                  __FORMAL_SAMPLE_ADDRESS: sample.address,
+                  __FORMAL_SAMPLE_MAINTAINER:
+                    sample.maintainerDisplayName ?? "—",
+                  __FORMAL_LATEST_OBSERVATION_ID:
+                    sample.latestObservationId ?? "",
+                },
+                displayValues: {},
+                status: "DRAFT",
+                returnReason: null,
+                allowedActions: [],
+                version: sample.version,
+              })),
+            pageNumber,
+            pageSize: collectionPageSize,
             totalElements: samples.length,
-            totalPages: samples.length > 0 ? 1 : 0,
+            totalPages: Math.ceil(samples.length / collectionPageSize),
           }))
       : realtimeRepository.listLogistics({
           productCode,
@@ -818,7 +824,7 @@ export function LogisticsMonitoringWorkspace({
             <strong>
               {recordsLoading
                 ? "正在读取物流监测记录"
-                : `共 ${displayedRows.length} 条物流记录，当前显示 ${displayedRows.length > 0 ? 1 : 0}–${displayedRows.length}`}
+                : `共 ${rowTotal} 条物流记录，当前显示 ${rowStart}–${rowEnd}`}
             </strong>
             <div className="enterprise-ledger-table__actions">
               {(realtimeRepository?.downloadLogisticsXlsxTemplate ||

@@ -695,7 +695,20 @@ export function ExistingSampleObservationPanel({
             </button>
           </header>
 
-          {sample ? <LockedSampleIdentity sample={sample} /> : null}
+          {sample ? (
+            <LockedSampleIdentity
+              sample={sample}
+              onEdit={
+                permissions.includes("FORMAL_SAMPLE_MANAGE")
+                  ? () =>
+                      navigate({
+                        type: "formal-sample-edit",
+                        id: sample.samplePointId,
+                      })
+                  : undefined
+              }
+            />
+          ) : null}
 
           <section
             className="existing-observation__filters enterprise-ledger-query enterprise-ledger-query--design"
@@ -1056,7 +1069,13 @@ export function ExistingSampleObservationPanel({
   );
 }
 
-function LockedSampleIdentity({ sample }: { sample: EligibleFormalSample }) {
+function LockedSampleIdentity({
+  sample,
+  onEdit,
+}: {
+  sample: EligibleFormalSample;
+  onEdit?: () => void;
+}) {
   return (
     <div
       className="existing-observation__identity"
@@ -1080,7 +1099,16 @@ function LockedSampleIdentity({ sample }: { sample: EligibleFormalSample }) {
         <strong>
           {sample.longitude}，{sample.latitude}
         </strong>
-        <small>坐标由样本档案管理</small>
+        <small>业务地区与坐标由样本档案统一管理</small>
+        {onEdit && (
+          <button
+            className="enterprise-ledger-row-action"
+            type="button"
+            onClick={onEdit}
+          >
+            编辑业务地区与定位坐标
+          </button>
+        )}
       </div>
     </div>
   );

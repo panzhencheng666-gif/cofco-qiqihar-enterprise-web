@@ -147,6 +147,72 @@ describe("product market collection workspace", () => {
     );
   });
 
+  it("shows at most twenty formal samples per page", async () => {
+    const samples = Array.from({ length: 21 }, (_, index) => ({
+      samplePointId: `sample-market-page-${index + 1}`,
+      sampleName: `分页市场样本${index + 1}`,
+      address: `分页地址${index + 1}`,
+      objectTypeCode: "TRADER",
+      objectTypeName: "贸易商",
+      domain: "MARKET" as const,
+      productCode: "CORN",
+      regionCode: "230202",
+      regionName: "龙沙区",
+      maintainerSubjectId: "maintainer-1",
+      maintainerDisplayName: "样本维护员",
+      latitude: "47.3000000",
+      longitude: "123.9000000",
+      effectiveFrom: "2026-01-01",
+      effectiveTo: null,
+      version: 1,
+      annualObservationCount: 0,
+      networkMembershipCount: 0,
+      latestObservationId: null,
+      latestObservedAt: null,
+      latestValues: {},
+    }));
+    const repository = {
+      listEligibleFormalSamples: vi.fn().mockResolvedValue(samples),
+      loadMasterData,
+      loadMarketDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        objectTypeCode: "TRADER",
+        coreFields: [],
+        groups: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <ProductMarketCollectionWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+        section="corn-collection"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole("row", { name: /分页市场样本/u }),
+      ).toHaveLength(20),
+    );
+    expect(screen.getByText("共 21 个样本点，当前显示 1–20")).toBeVisible();
+    expect(screen.getByText("共 21 条 · 当前 1–20")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "下一页" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole("row", { name: /分页市场样本/u }),
+      ).toHaveLength(1),
+    );
+    expect(screen.getByText("分页市场样本21")).toBeVisible();
+    expect(screen.getByText("共 21 个样本点，当前显示 21–21")).toBeVisible();
+    expect(screen.getByText("共 21 条 · 当前 21–21")).toBeVisible();
+  });
+
   it("keeps the market table shell while exposing formal-sample maintenance rows", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const onEditRecord = vi.fn();

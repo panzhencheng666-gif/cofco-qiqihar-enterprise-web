@@ -55,6 +55,79 @@ const loadMasterData = vi.fn().mockResolvedValue({
 });
 
 describe("logistics monitoring workspace", () => {
+  it("shows at most twenty formal samples per page", async () => {
+    const samples = Array.from({ length: 21 }, (_, index) => ({
+      samplePointId: `sample-logistics-page-${index + 1}`,
+      sampleName: `分页物流样本${index + 1}`,
+      address: `分页地址${index + 1}`,
+      objectTypeCode: "RAIL_NODE",
+      objectTypeName: "铁路站点",
+      domain: "LOGISTICS" as const,
+      productCode: "CORN",
+      regionCode: "230202",
+      regionName: "龙沙区",
+      maintainerSubjectId: "maintainer-1",
+      maintainerDisplayName: "物流维护员",
+      latitude: "47.3100000",
+      longitude: "123.9100000",
+      effectiveFrom: "2026-01-01",
+      effectiveTo: null,
+      version: 1,
+      annualObservationCount: 0,
+      networkMembershipCount: 0,
+      latestObservationId: null,
+      latestObservedAt: null,
+      latestValues: { LOG_FREIGHT_RATE: String(index + 1) },
+    }));
+    const repository = {
+      listEligibleFormalSamples: vi.fn().mockResolvedValue(samples),
+      loadLogisticsDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        fields: [
+          {
+            code: "LOG_FREIGHT_RATE",
+            label: "物流运价",
+            controlType: "DECIMAL",
+            unit: "元/吨",
+            precision: 18,
+            scale: 4,
+            required: true,
+            readOnly: false,
+            sortOrder: 10,
+            options: [],
+          },
+        ],
+        actions: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <LogisticsMonitoringWorkspace
+        onScopeChange={vi.fn()}
+        onSelectionChange={vi.fn()}
+        productCode="CORN"
+        queryAllowed
+        realtimeRepository={repository}
+        scope={realtimeScope}
+      />,
+    );
+
+    const table = screen.getByRole("table", { name: "粮食物流监测表" });
+    await waitFor(() =>
+      expect(within(table).getAllByRole("row")).toHaveLength(21),
+    );
+    expect(screen.getByText("共 21 条物流记录，当前显示 1–20")).toBeVisible();
+    expect(screen.getByText("共 21 条 · 当前 1–20")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "下一页" }));
+
+    await waitFor(() =>
+      expect(within(table).getAllByRole("row")).toHaveLength(2),
+    );
+    expect(screen.getByText("共 21 条物流记录，当前显示 21–21")).toBeVisible();
+    expect(screen.getByText("共 21 条 · 当前 21–21")).toBeVisible();
+  });
+
   it("keeps the logistics table shell while exposing formal-sample maintenance rows", async () => {
     const onEditRecord = vi.fn();
     const onSelectionChange = vi.fn();
