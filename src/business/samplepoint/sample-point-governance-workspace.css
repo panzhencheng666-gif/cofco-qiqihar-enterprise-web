@@ -128,6 +128,66 @@
   background: #fff;
 }
 
+.design-sample-ledger.formal-sample-ledger {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.design-sample-ledger .enterprise-ledger-title--collection {
+  margin-top: 0;
+  padding-block: 12px 10px;
+}
+
+.design-sample-ledger .enterprise-ledger-query--design {
+  border-bottom: 0;
+}
+
+.design-sample-ledger .enterprise-ledger-table__toolbar--collection {
+  min-height: 54px;
+  padding-block: 7px;
+}
+
+.design-sample-ledger .enterprise-ledger-action-group__label {
+  flex-basis: auto;
+  margin-right: 3px;
+}
+
+.design-sample-ledger
+  .sample-point-import--ledger-toolbar
+  > label:not(.realtime-business-file-action) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #526f83;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.design-sample-ledger
+  .sample-point-import--ledger-toolbar
+  > label:not(.realtime-business-file-action)
+  select {
+  box-sizing: border-box;
+  height: 32px;
+  min-width: 142px;
+  border: 1px solid #a8bfce;
+  border-radius: 1px;
+  background: #fff;
+  color: #23465f;
+}
+
+.design-sample-ledger .enterprise-ledger-table--compact table {
+  width: 100%;
+  min-width: 1460px;
+}
+
+.design-sample-ledger .enterprise-ledger-table--compact :is(th, td) {
+  height: 38px;
+  padding: 6px 8px;
+}
+
 .sample-point-governance-workspace__review-switch {
   display: flex;
   gap: 0;

@@ -673,15 +673,13 @@ export function ExistingSampleObservationPanel({
             </button>
           </header>
 
+          {sample ? <LockedSampleIdentity sample={sample} /> : null}
+
           <section
             className="existing-observation__filters enterprise-ledger-query enterprise-ledger-query--design"
             role="region"
             aria-label="已有正式样本查询"
           >
-            <div className="existing-observation__filter-heading">
-              <h3>查询与定位</h3>
-              <p>先找到正式样本，再填写本次实际观测数据。</p>
-            </div>
             <label>
               <span>实际观测时间</span>
               <input
@@ -823,31 +821,6 @@ export function ExistingSampleObservationPanel({
                     </div>
                     <span>保存后立即生效</span>
                   </div>
-                  <div
-                    className="existing-observation__identity"
-                    role="group"
-                    aria-label="正式样本锁定信息"
-                  >
-                    <div>
-                      <span>正式样本</span>
-                      <strong>{sample.sampleName}</strong>
-                    </div>
-                    <div>
-                      <span>对象类型</span>
-                      <strong>{sample.objectTypeName ?? "物流样本"}</strong>
-                    </div>
-                    <div>
-                      <span>业务地区</span>
-                      <strong>{sample.regionName}</strong>
-                    </div>
-                    <div>
-                      <span>定位坐标</span>
-                      <strong>
-                        {sample.longitude}，{sample.latitude}
-                      </strong>
-                      <small>坐标由样本档案管理</small>
-                    </div>
-                  </div>
                   {definition && (
                     <form
                       className="existing-observation__form"
@@ -895,13 +868,26 @@ export function ExistingSampleObservationPanel({
                             写入正式历史，并联动总揽、对应分析和报表。
                           </span>
                         </div>
-                        <button
-                          className="is-primary"
-                          type="submit"
-                          disabled={busy}
-                        >
-                          {busy ? "正在保存" : "保存并正式入库"}
-                        </button>
+                        <div className="existing-observation__action-buttons">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => {
+                              resetUpdateFilters();
+                              resetSelection();
+                              closeWorkflow();
+                            }}
+                          >
+                            取消
+                          </button>
+                          <button
+                            className="is-primary"
+                            type="submit"
+                            disabled={busy}
+                          >
+                            {busy ? "正在保存" : "保存并正式入库"}
+                          </button>
+                        </div>
                       </div>
                     </form>
                   )}
@@ -1046,6 +1032,36 @@ export function ExistingSampleObservationPanel({
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+function LockedSampleIdentity({ sample }: { sample: EligibleFormalSample }) {
+  return (
+    <div
+      className="existing-observation__identity"
+      role="group"
+      aria-label="正式样本锁定信息"
+    >
+      <div>
+        <span>正式样本</span>
+        <strong>{sample.sampleName}</strong>
+      </div>
+      <div>
+        <span>对象类型</span>
+        <strong>{sample.objectTypeName ?? "物流样本"}</strong>
+      </div>
+      <div>
+        <span>业务地区</span>
+        <strong>{sample.regionName}</strong>
+      </div>
+      <div>
+        <span>定位坐标</span>
+        <strong>
+          {sample.longitude}，{sample.latitude}
+        </strong>
+        <small>坐标由样本档案管理</small>
+      </div>
     </div>
   );
 }

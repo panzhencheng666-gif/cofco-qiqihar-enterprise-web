@@ -108,12 +108,6 @@ export function SamplePointImportPanel({
   const templateActions =
     kind === "design" ? (
       <>
-        <button type="button" onClick={() => void handleTemplate("PRODUCTION")}>
-          下载产情类模板
-        </button>
-        <button type="button" onClick={() => void handleTemplate("MARKET")}>
-          下载市场类模板
-        </button>
         <label>
           <span>导入分类</span>
           <select
@@ -127,6 +121,9 @@ export function SamplePointImportPanel({
             <option value="MARKET">市场类设计参考点</option>
           </select>
         </label>
+        <button type="button" onClick={() => void handleTemplate()}>
+          下载 XLSX 模板
+        </button>
       </>
     ) : (
       <button type="button" onClick={() => void handleTemplate()}>

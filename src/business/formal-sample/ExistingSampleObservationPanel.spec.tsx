@@ -1682,6 +1682,12 @@ describe("ExistingSampleObservationPanel", () => {
     const identity = await screen.findByRole("group", {
       name: "正式样本锁定信息",
     });
+    const page = screen.getByRole("region", { name: "采集数据填写工作台" });
+    const filters = screen.getByRole("region", { name: "已有正式样本查询" });
+    expect(
+      identity.compareDocumentPosition(filters) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(within(identity).getByText(/深加工企业/u)).toBeVisible();
     expect(within(identity).getByText(/龙江县/u)).toBeVisible();
     expect(screen.getByLabelText("采购基础价（元/吨）")).toHaveValue(2097);
@@ -1693,6 +1699,7 @@ describe("ExistingSampleObservationPanel", () => {
       "-99999999999999.9999",
     );
     expect(screen.queryByLabelText(/销售基础价/u)).not.toBeInTheDocument();
+    expect(within(page).getByRole("button", { name: "取消" })).toBeVisible();
     expect(
       screen.getByRole("region", { name: "历史观测记录" }),
     ).toHaveTextContent("共 2 条");

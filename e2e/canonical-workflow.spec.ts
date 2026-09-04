@@ -124,7 +124,7 @@ test("retires review and report routes while keeping design samples reachable", 
   await page.goto("/#/我的工作/样本点管理");
   await expect(page.getByRole("tablist")).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "设计参考点清单" }),
+    page.getByRole("heading", { name: "设计样本点台账" }),
   ).toBeVisible();
 
   for (const retiredHash of [
@@ -184,10 +184,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
     name: "设计样本点批量导入",
   });
   await expect(
-    importPanel.getByRole("button", { name: "下载产情类模板" }),
-  ).toBeVisible();
-  await expect(
-    importPanel.getByRole("button", { name: "下载市场类模板" }),
+    importPanel.getByRole("button", { name: "下载 XLSX 模板" }),
   ).toBeVisible();
   await importPanel
     .getByRole("combobox", { name: "设计参考点导入分类" })

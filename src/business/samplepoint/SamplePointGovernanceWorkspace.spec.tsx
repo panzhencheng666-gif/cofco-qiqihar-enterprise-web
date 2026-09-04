@@ -401,7 +401,9 @@ describe("SamplePointGovernanceWorkspace", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "设计样本点" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "设计样本点台账" }),
+    ).toBeVisible();
     expect(
       screen.queryByRole("tablist", { name: "样本点治理模块" }),
     ).not.toBeInTheDocument();
@@ -442,7 +444,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     });
     expect(within(main).getAllByRole("heading")).toHaveLength(1);
     expect(
-      within(main).getByRole("heading", { name: "设计样本点" }),
+      within(main).getByRole("heading", { name: "设计样本点台账" }),
     ).toBeVisible();
     expect(
       within(main).queryByRole("status", { name: "设计参考点概况" }),
@@ -455,17 +457,36 @@ describe("SamplePointGovernanceWorkspace", () => {
       name: "设计参考点批量操作",
     });
     expect(
-      within(operations).getByRole("button", { name: "下载产情类模板" }),
+      within(operations).getByRole("button", { name: "下载 XLSX 模板" }),
     ).toBeVisible();
     expect(
-      within(operations).getByRole("button", { name: "下载市场类模板" }),
-    ).toBeVisible();
+      within(operations).queryByRole("button", {
+        name: /产情类模板|市场类模板/u,
+      }),
+    ).not.toBeInTheDocument();
     expect(
       within(operations).getByLabelText("选择 XLSX 文件").closest("label"),
     ).toHaveClass("realtime-business-file-action");
     expect(
       within(operations).getByRole("button", { name: "新建设计参考点" }),
     ).toBeVisible();
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual([
+      "序号",
+      "业务分类",
+      "品种",
+      "对象类型",
+      "点位名称",
+      "业务地区",
+      "详细地址",
+      "经度",
+      "纬度",
+      "维护人/维护单位",
+      "操作",
+    ]);
     await userEvent.click(
       within(operations).getByRole("button", { name: "新建设计参考点" }),
     );
@@ -631,13 +652,15 @@ describe("SamplePointGovernanceWorkspace", () => {
 
     const table = await screen.findByRole("table", { name: "设计参考点清单" });
     for (const heading of [
-      "参考类别",
-      "点位名称",
-      "行政区",
-      "详细地址",
-      "坐标",
+      "序号",
+      "业务分类",
       "品种",
-      "参考对象类型",
+      "对象类型",
+      "点位名称",
+      "业务地区",
+      "详细地址",
+      "经度",
+      "纬度",
       "维护人/维护单位",
     ]) {
       expect(
