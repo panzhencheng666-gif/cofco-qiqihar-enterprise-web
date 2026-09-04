@@ -773,7 +773,9 @@ export function ExistingSampleObservationPanel({
                 className="is-primary"
                 type="button"
                 disabled={busy}
-                onClick={() => void querySamples()}
+                onClick={() =>
+                  void querySamples(sample?.samplePointId, Boolean(sample))
+                }
               >
                 查询正式样本
               </button>

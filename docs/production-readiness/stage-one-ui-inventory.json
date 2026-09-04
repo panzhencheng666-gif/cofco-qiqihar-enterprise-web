@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 58,
-  "sourceDigest": "19bd0dbf04778154206069de836f3025bbe5b43390d047cedb6b8c5c2bc54628",
+  "sourceDigest": "9de84499a4b1d5c057fb8b48e06b15f7f66a130d95137ae37bb658bb065d99ac",
   "itemCount": 468,
   "countsByKind": {
     "BUTTON": 259,
@@ -966,10 +966,10 @@
       "sourceExcerpt": "<select aria-label=\"业务分类\" value={ classificationInvalid ? \"__invalid-classification__\" : (query.businessSubtype ?? \"\") } onChange={(event) => onScopeChange({ businessSubtypeId: event.target.value || undefined, selectedMetricId: undefined..."
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1006:23:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1008:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1006,
+      "line": 1008,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1117,13 +1117,13 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" disabled={busy} onClick={() => void querySamples()} >"
+      "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" disabled={busy} onClick={() => void querySamples(sample?.samplePointId, Boolean(sample)) } >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:806:21:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:808:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 806,
+      "line": 808,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1134,10 +1134,10 @@
       "sourceExcerpt": "<button type=\"button\" key={item.samplePointId} className={ sampleId === item.samplePointId ? \"is-selected\" : \"\" } onClick={() => { if (sampleId !== item.samplePointId) void chooseSample(item); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:894:27:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:896:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 894,
+      "line": 896,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1148,10 +1148,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={busy} onClick={closeObservation} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:901:27:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:903:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 901,
+      "line": 903,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1162,10 +1162,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"submit\" disabled={busy} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:930:21:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:932:21:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 930,
+      "line": 932,
       "column": 21,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"历史数据年份\"",
@@ -1176,10 +1176,10 @@
       "sourceExcerpt": "<select aria-label=\"历史数据年份\" value={historyYear} onChange={(event) => { const year = Number(event.target.value); setHistoryYear(year); void loadHistory(sample, 0, year); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:978:29:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:980:29:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 978,
+      "line": 980,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1190,10 +1190,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => setHistoryDetail(item)} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:996:23:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:998:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 996,
+      "line": 998,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
