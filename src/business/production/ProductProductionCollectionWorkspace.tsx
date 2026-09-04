@@ -73,6 +73,7 @@ const aggregateRegionByCity = {
 } as const;
 
 interface ProductionCollectionRow {
+  rowId: string;
   workId: string;
   samplePointId?: string;
   sampleVersion?: number;
@@ -527,6 +528,7 @@ export function ProductProductionCollectionWorkspace({
   );
   const fixtureRows: readonly ProductionCollectionRow[] = productItems.map(
     (item, index) => ({
+      rowId: item.workId,
       workId: item.workId,
       address: "—",
       maintainer: "—",
@@ -818,6 +820,7 @@ export function ProductProductionCollectionWorkspace({
       const normalizedObjectType =
         formalObjectType?.id ?? normalizeProductionObjectType(rawObjectType);
       return {
+        rowId: record.values.__FORMAL_SAMPLE_ID ?? record.id,
         workId: record.id,
         samplePointId: record.values.__FORMAL_SAMPLE_ID,
         sampleVersion: record.version,
@@ -1365,7 +1368,7 @@ export function ProductProductionCollectionWorkspace({
                 </thead>
                 <tbody>
                   {rows.map((row) => (
-                    <tr key={row.workId}>
+                    <tr key={row.rowId}>
                       <td>{row.number}</td>
                       <td>{row.surveyDate}</td>
                       <td>{row.lastSaved}</td>

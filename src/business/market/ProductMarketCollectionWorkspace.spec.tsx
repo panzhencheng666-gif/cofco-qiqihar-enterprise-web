@@ -62,6 +62,91 @@ const loadMasterData = vi.fn().mockResolvedValue({
 });
 
 describe("product market collection workspace", () => {
+  it("keeps the same sample row mounted when realtime data replaces its latest observation", async () => {
+    const sample = {
+      samplePointId: "sample-market-stable",
+      sampleName: "稳定身份市场样本",
+      address: "更新前地址",
+      objectTypeCode: "TRADER",
+      objectTypeName: "贸易商",
+      domain: "MARKET" as const,
+      productCode: "CORN",
+      regionCode: "230202",
+      regionName: "龙沙区",
+      maintainerSubjectId: "maintainer-1",
+      maintainerDisplayName: "样本维护员",
+      latitude: "47.3000000",
+      longitude: "123.9000000",
+      effectiveFrom: "2026-01-01",
+      effectiveTo: null,
+      version: 3,
+      annualObservationCount: 1,
+      networkMembershipCount: 0,
+      latestObservationId: "observation-before",
+      latestObservedAt: "2026-08-08T00:00:00Z",
+      latestValues: {
+        MKT_TRADE_DATE: "2026-08-08",
+        MKT_OBJECT_TYPE: "TRADER",
+        MKT_PURCHASE_BASE_PRICE: "2100.0000",
+      },
+    };
+    const listEligibleFormalSamples = vi
+      .fn()
+      .mockResolvedValueOnce([sample])
+      .mockResolvedValueOnce([
+        {
+          ...sample,
+          address: "更新后地址",
+          latestObservationId: "observation-after",
+          latestObservedAt: "2026-09-04T00:00:00Z",
+          latestValues: {
+            ...sample.latestValues,
+            MKT_TRADE_DATE: "2026-09-04",
+            MKT_PURCHASE_BASE_PRICE: "2200.0000",
+          },
+        },
+      ]);
+    const repository = {
+      listEligibleFormalSamples,
+      loadMasterData,
+      loadMarketDefinition: vi.fn().mockResolvedValue({
+        productCode: "CORN",
+        objectTypeCode: "TRADER",
+        coreFields: [],
+        groups: [],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+    const props = {
+      onScopeChange: vi.fn(),
+      onSelectionChange: vi.fn(),
+      queryAllowed: true,
+      realtimeRepository: repository,
+      scope: realtimeScope,
+      section: "corn-collection" as const,
+    };
+    const { rerender } = render(
+      <ProductMarketCollectionWorkspace {...props} realtimeRefreshToken={0} />,
+    );
+
+    const originalRow = await screen.findByRole("row", {
+      name: /稳定身份市场样本/u,
+    });
+    expect(within(originalRow).getByText("更新前地址")).toBeVisible();
+
+    rerender(
+      <ProductMarketCollectionWorkspace {...props} realtimeRefreshToken={1} />,
+    );
+    await waitFor(() =>
+      expect(within(originalRow).getByText("更新后地址")).toBeVisible(),
+    );
+    expect(
+      screen.getAllByRole("row", { name: /稳定身份市场样本/u }),
+    ).toHaveLength(1);
+    expect(screen.getByRole("row", { name: /稳定身份市场样本/u })).toBe(
+      originalRow,
+    );
+  });
+
   it("keeps the market table shell while exposing formal-sample maintenance rows", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const onEditRecord = vi.fn();

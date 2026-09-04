@@ -910,7 +910,7 @@ export function LogisticsMonitoringWorkspace({
               <tbody>
                 {realtimeRepository
                   ? persistedRecords.map((record, index) => (
-                      <tr key={record.id}>
+                      <tr key={record.values.__FORMAL_SAMPLE_ID ?? record.id}>
                         <td>
                           {currentPageNumber * collectionPageSize + index + 1}
                         </td>
