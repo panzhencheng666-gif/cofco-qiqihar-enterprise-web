@@ -124,7 +124,7 @@ test("retires review and report routes while keeping design samples reachable", 
   await page.goto("/#/我的工作/样本点管理");
   await expect(page.getByRole("tablist")).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "设计参考点清单" }),
+    page.getByRole("heading", { name: "设计样本点台账" }),
   ).toBeVisible();
 
   for (const retiredHash of [
@@ -184,10 +184,7 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
     name: "设计样本点批量导入",
   });
   await expect(
-    importPanel.getByRole("button", { name: "下载产情类模板" }),
-  ).toBeVisible();
-  await expect(
-    importPanel.getByRole("button", { name: "下载市场类模板" }),
+    importPanel.getByRole("button", { name: "下载 XLSX 模板" }),
   ).toBeVisible();
   await importPanel
     .getByRole("combobox", { name: "设计参考点导入分类" })
@@ -204,15 +201,15 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
   ).toBeVisible();
 
   await filters
-    .getByRole("searchbox", { name: "搜索点位或行政区" })
+    .getByRole("searchbox", { name: "搜索点位名称" })
     .fill("受控设计参考点");
   await filters.getByRole("button", { name: "查询" }).click();
   await expect(page.getByText("共 1 个参考点，当前显示 1 个")).toBeVisible();
   await expect(page.getByText("第 1 页")).toBeVisible();
-  await filters.getByRole("button", { name: "清除筛选" }).click();
+  await filters.getByRole("button", { name: "重置" }).click();
 
-  await page.getByRole("button", { name: "新建设计参考点" }).click();
-  const editor = page.getByRole("form", { name: "新建设计参考点" });
+  await page.getByRole("button", { name: "新建设计样本" }).click();
+  const editor = page.getByRole("form", { name: "新建设计样本" });
   await editor.getByLabel("点位名称").fill("受控新增设计点");
   await editor.getByLabel("行政区").selectOption("230221101001");
   await editor.getByLabel("详细地址").fill("龙江镇通齐村兴农路2号");

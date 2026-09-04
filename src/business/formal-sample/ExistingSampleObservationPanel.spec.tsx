@@ -384,6 +384,33 @@ describe("ExistingSampleObservationPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("blocks a direct observation route without collection permission", async () => {
+    const api = repository();
+    render(
+      <ExistingSampleObservationPanel
+        domain="MARKET"
+        permissions={[]}
+        productCode="CORN"
+        repository={api as unknown as RealtimeBusinessRepository}
+        selection={{ type: "formal-sample-observation", id: "sample-1" }}
+        onSelectionChange={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("region", { name: "采集数据填写权限不足" }),
+    ).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "当前账号没有填写正式采集数据的权限。",
+    );
+    expect(
+      screen.queryByRole("button", { name: "保存并正式入库" }),
+    ).not.toBeInTheDocument();
+    expect(api.listEligibleFormalSamples).not.toHaveBeenCalled();
+    expect(api.saveFormalSampleObservation).not.toHaveBeenCalled();
+  });
+
   it("keeps the mature business ledger visible behind the routed formal editor drawer", async () => {
     const onSelectionChange = vi.fn();
     render(
@@ -1682,6 +1709,12 @@ describe("ExistingSampleObservationPanel", () => {
     const identity = await screen.findByRole("group", {
       name: "正式样本锁定信息",
     });
+    const page = screen.getByRole("region", { name: "采集数据填写工作台" });
+    const filters = screen.getByRole("region", { name: "已有正式样本查询" });
+    expect(
+      identity.compareDocumentPosition(filters) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(within(identity).getByText(/深加工企业/u)).toBeVisible();
     expect(within(identity).getByText(/龙江县/u)).toBeVisible();
     expect(screen.getByLabelText("采购基础价（元/吨）")).toHaveValue(2097);
@@ -1693,6 +1726,7 @@ describe("ExistingSampleObservationPanel", () => {
       "-99999999999999.9999",
     );
     expect(screen.queryByLabelText(/销售基础价/u)).not.toBeInTheDocument();
+    expect(within(page).getByRole("button", { name: "取消" })).toBeVisible();
     expect(
       screen.getByRole("region", { name: "历史观测记录" }),
     ).toHaveTextContent("共 2 条");

@@ -393,12 +393,16 @@ export function DesignSamplePointTable({
         <>
           <SamplePointLedgerTitle
             description="维护长期参考点。行政区覆盖、坐标范围和适用字段由系统校验。"
-            title={standalone ? "设计样本点" : "设计参考点清单"}
+            title={
+              standalone || onSelectionClear
+                ? "设计样本点台账"
+                : "设计参考点清单"
+            }
           />
 
           <SamplePointLedgerFilters ariaLabel="设计参考点筛选">
             <label>
-              <span>参考类别</span>
+              <span>业务分类</span>
               <select
                 aria-label="筛选参考类别"
                 onChange={(event) =>
@@ -418,41 +422,6 @@ export function DesignSamplePointTable({
                       {option.label}类
                     </option>
                   ))}
-              </select>
-            </label>
-            <label className="sample-point-governance-workspace__filter-query">
-              <span>关键词</span>
-              <input
-                aria-label="搜索点位或行政区"
-                onChange={(event) =>
-                  setFilterDraft((current) => ({
-                    ...current,
-                    keyword: event.target.value,
-                  }))
-                }
-                placeholder="搜索点位或行政区"
-                type="search"
-                value={filterDraft.keyword}
-              />
-            </label>
-            <label>
-              <span>行政区</span>
-              <select
-                aria-label="筛选行政区"
-                onChange={(event) =>
-                  setFilterDraft((current) => ({
-                    ...current,
-                    regionCode: event.target.value,
-                  }))
-                }
-                value={filterDraft.regionCode}
-              >
-                <option value="">全部行政区</option>
-                {regions.map((region) => (
-                  <option key={region.code} value={region.code}>
-                    {region.name}
-                  </option>
-                ))}
               </select>
             </label>
             <label>
@@ -478,7 +447,7 @@ export function DesignSamplePointTable({
               </select>
             </label>
             <label>
-              <span>参考对象类型</span>
+              <span>对象类型</span>
               <select
                 aria-label="筛选参考对象类型"
                 onChange={(event) =>
@@ -507,6 +476,41 @@ export function DesignSamplePointTable({
                   ))}
               </select>
             </label>
+            <label>
+              <span>业务地区</span>
+              <select
+                aria-label="筛选行政区"
+                onChange={(event) =>
+                  setFilterDraft((current) => ({
+                    ...current,
+                    regionCode: event.target.value,
+                  }))
+                }
+                value={filterDraft.regionCode}
+              >
+                <option value="">全部行政区</option>
+                {regions.map((region) => (
+                  <option key={region.code} value={region.code}>
+                    {region.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="sample-point-governance-workspace__filter-query">
+              <span>点位名称</span>
+              <input
+                aria-label="搜索点位名称"
+                onChange={(event) =>
+                  setFilterDraft((current) => ({
+                    ...current,
+                    keyword: event.target.value,
+                  }))
+                }
+                placeholder="输入点位名称"
+                type="search"
+                value={filterDraft.keyword}
+              />
+            </label>
             <div className="enterprise-ledger-query__actions">
               <button
                 className="is-primary"
@@ -534,7 +538,7 @@ export function DesignSamplePointTable({
                 }}
                 type="button"
               >
-                清除筛选
+                重置
               </button>
             </div>
           </SamplePointLedgerFilters>
@@ -552,13 +556,15 @@ export function DesignSamplePointTable({
                 ariaLabel="设计参考点清单"
                 className="formal-sample-ledger__table enterprise-ledger-table enterprise-ledger-table--compact"
                 headers={[
-                  "参考类别",
-                  "点位名称",
-                  "行政区",
-                  "详细地址",
-                  "坐标",
+                  "序号",
+                  "业务分类",
                   "品种",
-                  "参考对象类型",
+                  "对象类型",
+                  "点位名称",
+                  "业务地区",
+                  "详细地址",
+                  "经度",
+                  "纬度",
                   "维护人/维护单位",
                   "操作",
                 ]}
@@ -594,7 +600,7 @@ export function DesignSamplePointTable({
                           }}
                           type="button"
                         >
-                          新建设计参考点
+                          新建设计样本
                         </button>
                       </div>
                     ) : null}
@@ -616,20 +622,15 @@ export function DesignSamplePointTable({
                   />
                 }
               >
-                {pageData.items.map((point) => (
+                {pageData.items.map((point, index) => (
                   <tr key={point.id}>
+                    <td>{pageData.pageNumber * PAGE_SIZE + index + 1}</td>
                     <td>
                       {optionLabel(
                         catalog?.domains,
                         point.context.domainCode,
                         "类",
                       )}
-                    </td>
-                    <td>{point.name}</td>
-                    <td>{point.regionPath}</td>
-                    <td>{displayValue(point.values.DSP_ADDRESS)}</td>
-                    <td>
-                      {point.longitude}, {point.latitude}
                     </td>
                     <td>
                       {optionLabel(
@@ -638,6 +639,11 @@ export function DesignSamplePointTable({
                       )}
                     </td>
                     <td>{objectTypeLabel(catalog, point.context)}</td>
+                    <td>{point.name}</td>
+                    <td>{point.regionPath}</td>
+                    <td>{displayValue(point.values.DSP_ADDRESS)}</td>
+                    <td>{point.longitude}</td>
+                    <td>{point.latitude}</td>
                     <td>{maintainerLabel(point)}</td>
                     <td>
                       <SamplePointLedgerRowActions>
@@ -810,8 +816,8 @@ function DesignSamplePointEditor({
     : [];
   return (
     <SamplePointEditorForm
-      ariaLabel={mode === "create" ? "新建设计参考点" : "编辑设计参考点"}
-      title={mode === "create" ? "新建设计参考点" : "编辑设计参考点"}
+      ariaLabel={mode === "create" ? "新建设计样本" : "编辑设计参考点"}
+      title={mode === "create" ? "新建设计样本" : "编辑设计参考点"}
       description="填写点位名称、行政区、详细地址和经纬度。"
       role="form"
       notice={error ? <p role="alert">{error}</p> : null}

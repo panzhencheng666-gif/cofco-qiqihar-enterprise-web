@@ -238,6 +238,7 @@ export function ExistingSampleObservationPanel({
   const isEmbeddedLegacyList =
     activeSelection?.type === "formal-sample-list" && !onSelectionChange;
   const requestedSamplePointId = isObservationPage ? activeSelection.id : "";
+  const canCollect = permissions.includes("BUSINESS_CREATE");
   const navigate = (next: FormalSelection) => {
     setLocalSelection(next);
     onSelectionChange?.(next);
@@ -328,6 +329,12 @@ export function ExistingSampleObservationPanel({
     setRegionCode("");
     setKeyword("");
   }, []);
+
+  const closeObservation = () => {
+    resetUpdateFilters();
+    resetSelection();
+    closeWorkflow();
+  };
 
   const invalidateQuery = useCallback(() => {
     sampleRequestVersion.current += 1;
@@ -468,7 +475,11 @@ export function ExistingSampleObservationPanel({
   }, [historyYear, loadHistory, productCode, sample]);
 
   useEffect(() => {
-    if (!isObservationPage || !repository?.subscribeBusinessEvents) {
+    if (
+      !isObservationPage ||
+      !canCollect ||
+      !repository?.subscribeBusinessEvents
+    ) {
       return undefined;
     }
     return repository.subscribeBusinessEvents(
@@ -493,10 +504,10 @@ export function ExistingSampleObservationPanel({
           });
       },
     );
-  }, [isObservationPage, repository]);
+  }, [canCollect, isObservationPage, repository]);
 
   useEffect(() => {
-    if (!isObservationPage || !repository) return;
+    if (!isObservationPage || !canCollect || !repository) return;
     let active = true;
     if (domain !== "LOGISTICS") {
       repository
@@ -527,6 +538,7 @@ export function ExistingSampleObservationPanel({
     };
   }, [
     domain,
+    canCollect,
     isObservationPage,
     observedAt,
     productCode,
@@ -566,6 +578,7 @@ export function ExistingSampleObservationPanel({
   const save = async () => {
     if (
       !repository?.saveFormalSampleObservation ||
+      !canCollect ||
       !sample ||
       !definition ||
       !Number.isFinite(Date.parse(observedAt))
@@ -651,7 +664,23 @@ export function ExistingSampleObservationPanel({
           </Suspense>
         </section>
       ) : null}
-      {isObservationPage && (
+      {isObservationPage && !canCollect && (
+        <section
+          className="existing-observation__page"
+          aria-label="采集数据填写权限不足"
+        >
+          <header className="existing-observation__header">
+            <div className="existing-observation__header-copy">
+              <h2>无法填写采集数据</h2>
+              <p role="alert">当前账号没有填写正式采集数据的权限。</p>
+            </div>
+            <button type="button" onClick={closeWorkflow}>
+              返回业务列表
+            </button>
+          </header>
+        </section>
+      )}
+      {isObservationPage && canCollect && (
         <section
           className="existing-observation__page"
           aria-label="采集数据填写工作台"
@@ -661,27 +690,18 @@ export function ExistingSampleObservationPanel({
               <h2>填写或更新采集数据</h2>
               <p>当前样本身份保持锁定，本页只填写本次期间观测。</p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                resetUpdateFilters();
-                resetSelection();
-                closeWorkflow();
-              }}
-            >
+            <button type="button" onClick={closeObservation}>
               返回业务列表
             </button>
           </header>
+
+          {sample ? <LockedSampleIdentity sample={sample} /> : null}
 
           <section
             className="existing-observation__filters enterprise-ledger-query enterprise-ledger-query--design"
             role="region"
             aria-label="已有正式样本查询"
           >
-            <div className="existing-observation__filter-heading">
-              <h3>查询与定位</h3>
-              <p>先找到正式样本，再填写本次实际观测数据。</p>
-            </div>
             <label>
               <span>实际观测时间</span>
               <input
@@ -823,31 +843,6 @@ export function ExistingSampleObservationPanel({
                     </div>
                     <span>保存后立即生效</span>
                   </div>
-                  <div
-                    className="existing-observation__identity"
-                    role="group"
-                    aria-label="正式样本锁定信息"
-                  >
-                    <div>
-                      <span>正式样本</span>
-                      <strong>{sample.sampleName}</strong>
-                    </div>
-                    <div>
-                      <span>对象类型</span>
-                      <strong>{sample.objectTypeName ?? "物流样本"}</strong>
-                    </div>
-                    <div>
-                      <span>业务地区</span>
-                      <strong>{sample.regionName}</strong>
-                    </div>
-                    <div>
-                      <span>定位坐标</span>
-                      <strong>
-                        {sample.longitude}，{sample.latitude}
-                      </strong>
-                      <small>坐标由样本档案管理</small>
-                    </div>
-                  </div>
                   {definition && (
                     <form
                       className="existing-observation__form"
@@ -895,13 +890,22 @@ export function ExistingSampleObservationPanel({
                             写入正式历史，并联动总揽、对应分析和报表。
                           </span>
                         </div>
-                        <button
-                          className="is-primary"
-                          type="submit"
-                          disabled={busy}
-                        >
-                          {busy ? "正在保存" : "保存并正式入库"}
-                        </button>
+                        <div className="existing-observation__action-buttons">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={closeObservation}
+                          >
+                            取消
+                          </button>
+                          <button
+                            className="is-primary"
+                            type="submit"
+                            disabled={busy}
+                          >
+                            {busy ? "正在保存" : "保存并正式入库"}
+                          </button>
+                        </div>
                       </div>
                     </form>
                   )}
@@ -1046,6 +1050,36 @@ export function ExistingSampleObservationPanel({
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+function LockedSampleIdentity({ sample }: { sample: EligibleFormalSample }) {
+  return (
+    <div
+      className="existing-observation__identity"
+      role="group"
+      aria-label="正式样本锁定信息"
+    >
+      <div>
+        <span>正式样本</span>
+        <strong>{sample.sampleName}</strong>
+      </div>
+      <div>
+        <span>对象类型</span>
+        <strong>{sample.objectTypeName ?? "物流样本"}</strong>
+      </div>
+      <div>
+        <span>业务地区</span>
+        <strong>{sample.regionName}</strong>
+      </div>
+      <div>
+        <span>定位坐标</span>
+        <strong>
+          {sample.longitude}，{sample.latitude}
+        </strong>
+        <small>坐标由样本档案管理</small>
+      </div>
     </div>
   );
 }

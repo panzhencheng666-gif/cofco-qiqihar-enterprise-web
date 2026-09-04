@@ -401,7 +401,9 @@ describe("SamplePointGovernanceWorkspace", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "设计样本点" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "设计样本点台账" }),
+    ).toBeVisible();
     expect(
       screen.queryByRole("tablist", { name: "样本点治理模块" }),
     ).not.toBeInTheDocument();
@@ -442,7 +444,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     });
     expect(within(main).getAllByRole("heading")).toHaveLength(1);
     expect(
-      within(main).getByRole("heading", { name: "设计样本点" }),
+      within(main).getByRole("heading", { name: "设计样本点台账" }),
     ).toBeVisible();
     expect(
       within(main).queryByRole("status", { name: "设计参考点概况" }),
@@ -455,22 +457,41 @@ describe("SamplePointGovernanceWorkspace", () => {
       name: "设计参考点批量操作",
     });
     expect(
-      within(operations).getByRole("button", { name: "下载产情类模板" }),
+      within(operations).getByRole("button", { name: "下载 XLSX 模板" }),
     ).toBeVisible();
     expect(
-      within(operations).getByRole("button", { name: "下载市场类模板" }),
-    ).toBeVisible();
+      within(operations).queryByRole("button", {
+        name: /产情类模板|市场类模板/u,
+      }),
+    ).not.toBeInTheDocument();
     expect(
       within(operations).getByLabelText("选择 XLSX 文件").closest("label"),
     ).toHaveClass("realtime-business-file-action");
     expect(
-      within(operations).getByRole("button", { name: "新建设计参考点" }),
+      within(operations).getByRole("button", { name: "新建设计样本" }),
     ).toBeVisible();
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual([
+      "序号",
+      "业务分类",
+      "品种",
+      "对象类型",
+      "点位名称",
+      "业务地区",
+      "详细地址",
+      "经度",
+      "纬度",
+      "维护人/维护单位",
+      "操作",
+    ]);
     await userEvent.click(
-      within(operations).getByRole("button", { name: "新建设计参考点" }),
+      within(operations).getByRole("button", { name: "新建设计样本" }),
     );
     const editor = await screen.findByRole("form", {
-      name: "新建设计参考点",
+      name: "新建设计样本",
     });
     expect(editor).toHaveClass(
       "formal-sample-page",
@@ -528,7 +549,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
 
     expect(
-      await screen.findByRole("form", { name: "新建设计参考点" }),
+      await screen.findByRole("form", { name: "新建设计样本" }),
     ).toHaveClass("enterprise-ledger-drawer");
     expect(screen.getByRole("table", { name: "设计参考点清单" })).toBeVisible();
     expect(document.querySelector(".design-sample-point-editor")).toBeNull();
@@ -567,7 +588,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     });
     expect(screen.getByText("第 1 页")).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "新建设计参考点" }),
+      screen.queryByRole("button", { name: "新建设计样本" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("point-1")).not.toBeInTheDocument();
     expect(screen.queryByText("PRODUCTION")).not.toBeInTheDocument();
@@ -631,13 +652,15 @@ describe("SamplePointGovernanceWorkspace", () => {
 
     const table = await screen.findByRole("table", { name: "设计参考点清单" });
     for (const heading of [
-      "参考类别",
-      "点位名称",
-      "行政区",
-      "详细地址",
-      "坐标",
+      "序号",
+      "业务分类",
       "品种",
-      "参考对象类型",
+      "对象类型",
+      "点位名称",
+      "业务地区",
+      "详细地址",
+      "经度",
+      "纬度",
       "维护人/维护单位",
     ]) {
       expect(
@@ -746,11 +769,9 @@ describe("SamplePointGovernanceWorkspace", () => {
       await screen.findByRole("table", { name: "设计参考点清单" }),
     ).findByText("众兴村");
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "新建设计参考点" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "新建设计样本" }));
     const createForm = await screen.findByRole("form", {
-      name: "新建设计参考点",
+      name: "新建设计样本",
     });
     await userEvent.type(
       within(createForm).getByRole("textbox", { name: "点位名称" }),
@@ -892,9 +913,9 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
 
     await userEvent.click(
-      await screen.findByRole("button", { name: "新建设计参考点" }),
+      await screen.findByRole("button", { name: "新建设计样本" }),
     );
-    const form = await screen.findByRole("form", { name: "新建设计参考点" });
+    const form = await screen.findByRole("form", { name: "新建设计样本" });
     expect(within(form).getByLabelText("维护人")).toHaveValue("治理专员");
     expect(within(form).getByLabelText("维护人")).toBeDisabled();
     expect(within(form).getByLabelText("维护单位")).toHaveValue(
@@ -983,9 +1004,9 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
     await userEvent.click(screen.getByRole("tab", { name: "设计参考点" }));
     await userEvent.click(
-      await screen.findByRole("button", { name: "新建设计参考点" }),
+      await screen.findByRole("button", { name: "新建设计样本" }),
     );
-    const form = await screen.findByRole("form", { name: "新建设计参考点" });
+    const form = await screen.findByRole("form", { name: "新建设计样本" });
     await userEvent.type(
       within(form).getByRole("textbox", { name: "点位名称" }),
       "新建示范点",
@@ -1009,7 +1030,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     await userEvent.click(within(form).getByRole("button", { name: "保存" }));
 
     await vi.waitFor(() =>
-      expect(screen.queryByRole("form", { name: "新建设计参考点" })).toBeNull(),
+      expect(screen.queryByRole("form", { name: "新建设计样本" })).toBeNull(),
     );
     expect(createDesignSamplePoint).toHaveBeenCalledTimes(1);
     expect(listDesignSamplePoints).toHaveBeenCalledTimes(2);
@@ -1536,7 +1557,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
     await userEvent.type(
       within(filters).getByRole("searchbox", {
-        name: "搜索点位或行政区",
+        name: "搜索点位名称",
       }),
       "参考点55",
     );
