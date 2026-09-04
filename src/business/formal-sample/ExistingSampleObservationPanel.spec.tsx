@@ -295,6 +295,7 @@ function formalPoint(
   overrides: Partial<{
     id: string;
     canonicalName: string;
+    regionCode: string;
     address: string;
     longitude: number;
     latitude: number;
@@ -442,6 +443,37 @@ describe("ExistingSampleObservationPanel", () => {
     expect(api.listEligibleFormalSamples).toHaveBeenLastCalledWith(
       expect.objectContaining({ domain: "MARKET", productCode: "CORN" }),
     );
+  });
+
+  it("opens the authoritative stable-data editor for business region and coordinates", async () => {
+    const api = repository();
+    const onSelectionChange = vi.fn();
+    render(
+      <ExistingSampleObservationPanel
+        domain="MARKET"
+        permissions={["BUSINESS_CREATE", "FORMAL_SAMPLE_MANAGE"]}
+        productCode="CORN"
+        repository={api as unknown as RealtimeBusinessRepository}
+        selection={{
+          type: "formal-sample-observation",
+          id: sample.samplePointId,
+        }}
+        onSelectionChange={onSelectionChange}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("group", { name: "正式样本锁定信息" }),
+    ).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "编辑业务地区与定位坐标" }),
+    );
+
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      type: "formal-sample-edit",
+      id: sample.samplePointId,
+    });
   });
 
   it("keeps the mature business ledger visible behind the routed formal editor drawer", async () => {
@@ -856,8 +888,11 @@ describe("ExistingSampleObservationPanel", () => {
   it("creates and edits the same stable fields with an authoritative GET after each write", async () => {
     const created = formalPoint();
     const updated = formalPoint({
-      canonicalName: "龙沙区重点贸易商样本",
-      address: "龙沙区新立街 2 号",
+      canonicalName: "建华区重点贸易商样本",
+      regionCode: "230203",
+      address: "建华区新立街 2 号",
+      longitude: 123.97,
+      latitude: 47.36,
       version: 1,
     });
     const listEligibleFormalSamples = vi
@@ -872,7 +907,10 @@ describe("ExistingSampleObservationPanel", () => {
     const api = {
       ...repository(),
       loadMasterData: vi.fn().mockResolvedValue({
-        regions: [{ code: "230202", name: "龙沙区", level: "COUNTY" }],
+        regions: [
+          { code: "230202", name: "龙沙区", level: "COUNTY" },
+          { code: "230203", name: "建华区", level: "COUNTY" },
+        ],
       }),
       listEligibleFormalSamples,
       getFormalSamplePoint,
@@ -940,10 +978,20 @@ describe("ExistingSampleObservationPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "编辑稳定信息" }));
     const name = screen.getByLabelText("正式样本名称");
     const address = screen.getByLabelText("正式样本详细地址");
+    const longitude = screen.getByLabelText("正式样本经度");
+    const latitude = screen.getByLabelText("正式样本纬度");
     await userEvent.clear(name);
     await userEvent.type(name, updated.canonicalName);
+    await userEvent.selectOptions(
+      screen.getByLabelText("正式样本地区"),
+      updated.regionCode,
+    );
     await userEvent.clear(address);
     await userEvent.type(address, updated.address);
+    await userEvent.clear(longitude);
+    await userEvent.type(longitude, String(updated.longitude));
+    await userEvent.clear(latitude);
+    await userEvent.type(latitude, String(updated.latitude));
     await userEvent.click(screen.getByRole("button", { name: "保存修改" }));
 
     await waitFor(() =>
@@ -953,8 +1001,8 @@ describe("ExistingSampleObservationPanel", () => {
           canonicalName: updated.canonicalName,
           regionCode: updated.regionCode,
           address: updated.address,
-          longitude: 123.94,
-          latitude: 47.31,
+          longitude: updated.longitude,
+          latitude: updated.latitude,
           objectTypeCode: updated.objectTypeCode,
           maintainerSubjectId: maintainer.subjectId,
         },
@@ -968,7 +1016,7 @@ describe("ExistingSampleObservationPanel", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "正式样本详情" }),
-    ).toHaveTextContent("龙沙区新立街 2 号");
+    ).toHaveTextContent(updated.address);
     expect(screen.getByRole("status")).toHaveTextContent(
       "正式样本稳定信息已更新并重新查询",
     );
@@ -1738,7 +1786,10 @@ describe("ExistingSampleObservationPanel", () => {
       await screen.findByRole("button", { name: /中粮生化能源/u }),
     );
     expect(screen.getByRole("heading", { name: "本次正式观测" })).toBeVisible();
-    expect(screen.getByText("坐标由样本档案管理")).toBeVisible();
+    expect(screen.getByText("业务地区与坐标由样本档案统一管理")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "编辑业务地区与定位坐标" }),
+    ).toBeVisible();
     const identity = await screen.findByRole("group", {
       name: "正式样本锁定信息",
     });
