@@ -122,9 +122,7 @@ test("retires review and report routes while keeping design samples reachable", 
   }
 
   await page.goto("/#/我的工作/样本点管理");
-  const designTab = page.getByRole("tab", { name: "设计参考点" });
-  await designTab.click();
-  await expect(designTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tablist")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "设计参考点清单" }),
   ).toBeVisible();
@@ -150,7 +148,6 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/#/我的工作/样本点管理");
-  await page.getByRole("tab", { name: "设计参考点" }).click();
 
   const filters = page.getByRole("search", { name: "设计参考点筛选" });
   const controls = filters.locator("input, select, button");

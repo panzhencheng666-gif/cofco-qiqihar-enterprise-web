@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 58,
-  "sourceDigest": "620171b38b4a96606a9bb38240e8c3a0d22444a51fec64036b3ee684bd10df55",
+  "sourceDigest": "8cda5293f6d42029e0699b149ebcab6ce05ee44cc8fab38fa7a5a312ae9cafe1",
   "itemCount": 466,
   "countsByKind": {
     "BUTTON": 256,
@@ -3749,7 +3749,7 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => onSelectionChange({ type: \"formal-sample-edit\", id: row.samplePointId!, }) } >"
+      "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => onSelectionChange({ type: \"formal-sample-observation\", id: row.samplePointId!, }) } >"
     },
     {
       "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1414:27:BUTTON",
@@ -4533,7 +4533,7 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => onSelectionChange({ type: \"formal-sample-edit\", id: row.samplePointId!, }) } >"
+      "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => onSelectionChange({ type: \"formal-sample-observation\", id: row.samplePointId!, }) } >"
     },
     {
       "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1479:29:BUTTON",

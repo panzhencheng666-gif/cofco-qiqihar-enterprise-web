@@ -192,7 +192,7 @@ describe("product market collection workspace", () => {
     expect(onEditRecord).toHaveBeenCalledWith("CORN", "MKT-DB-001");
     await userEvent.click(within(row).getByRole("button", { name: "编辑" }));
     expect(onSelectionChange).toHaveBeenCalledWith({
-      type: "formal-sample-edit",
+      type: "formal-sample-observation",
       id: "sample-market-1",
     });
     await userEvent.click(

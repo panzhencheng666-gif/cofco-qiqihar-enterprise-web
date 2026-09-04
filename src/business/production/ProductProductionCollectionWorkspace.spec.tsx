@@ -285,7 +285,7 @@ describe("product production collection workspace", () => {
     expect(onEditRecord).toHaveBeenCalledWith("CORN", "PROD-DB-001");
     await userEvent.click(within(row).getByRole("button", { name: "编辑" }));
     expect(onSelectionChange).toHaveBeenCalledWith({
-      type: "formal-sample-edit",
+      type: "formal-sample-observation",
       id: "sample-production-1",
     });
     await userEvent.click(

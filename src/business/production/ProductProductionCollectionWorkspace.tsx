@@ -1466,7 +1466,7 @@ export function ProductProductionCollectionWorkspace({
                               type="button"
                               onClick={() =>
                                 onSelectionChange({
-                                  type: "formal-sample-edit",
+                                  type: "formal-sample-observation",
                                   id: row.samplePointId!,
                                 })
                               }
