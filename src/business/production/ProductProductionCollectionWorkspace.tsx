@@ -1508,7 +1508,22 @@ export function ProductProductionCollectionWorkspace({
                                   );
                               }}
                             >
-                              删除
+                              彻底删除
+                            </button>
+                          )}
+                        {row.samplePointId &&
+                          permissions.includes("FORMAL_SAMPLE_DELETE") && (
+                            <button
+                              className="enterprise-ledger-row-action"
+                              type="button"
+                              onClick={() =>
+                                onSelectionChange({
+                                  type: "formal-sample-view",
+                                  id: row.samplePointId!,
+                                })
+                              }
+                            >
+                              淘汰为历史
                             </button>
                           )}
                       </td>

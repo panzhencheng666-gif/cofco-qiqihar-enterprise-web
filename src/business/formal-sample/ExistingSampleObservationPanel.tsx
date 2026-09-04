@@ -231,13 +231,12 @@ export function ExistingSampleObservationPanel({
   const activeSelection = onSelectionChange ? selection : localSelection;
   const isObservationPage =
     activeSelection?.type === "formal-sample-observation";
-  const isFormalSampleEditor =
+  const isFormalSampleMaintenancePage =
     activeSelection?.type === "formal-sample-create" ||
-    activeSelection?.type === "formal-sample-edit";
+    activeSelection?.type === "formal-sample-edit" ||
+    activeSelection?.type === "formal-sample-view";
   const isEmbeddedLegacyList =
     activeSelection?.type === "formal-sample-list" && !onSelectionChange;
-  const isFormalSamplePage =
-    isObservationPage || isFormalSampleEditor || isEmbeddedLegacyList;
   const requestedSamplePointId = isObservationPage ? activeSelection.id : "";
   const navigate = (next: FormalSelection) => {
     setLocalSelection(next);
@@ -620,8 +619,8 @@ export function ExistingSampleObservationPanel({
 
   return (
     <div className="existing-observation">
-      {!isFormalSamplePage ? <>{children}</> : null}
-      {(isFormalSampleEditor || isEmbeddedLegacyList) &&
+      {!isObservationPage && !isEmbeddedLegacyList ? <>{children}</> : null}
+      {(isFormalSampleMaintenancePage || isEmbeddedLegacyList) &&
       repository.listFormalSamplePoints ? (
         <section
           className="existing-observation__page"
@@ -636,6 +635,10 @@ export function ExistingSampleObservationPanel({
               selection={onSelectionChange ? activeSelection : undefined}
               onSelectionChange={onSelectionChange ? navigate : undefined}
               onSelectionClear={closeWorkflow}
+              overlayOnly={Boolean(
+                onSelectionChange && isFormalSampleMaintenancePage,
+              )}
+              onChanged={onSaved}
               onCollectData={(samplePointId) => {
                 resetUpdateFilters();
                 resetSelection();

@@ -244,6 +244,7 @@ function repository() {
     updateFormalSamplePoint: vi.fn(),
     assignFormalSampleMaintainer: vi.fn(),
     deleteFormalSamplePoint: vi.fn(),
+    retireFormalSamplePoint: vi.fn(),
     subscribeBusinessEvents: vi.fn(
       (after: number, listener: (event: BusinessNotificationRow) => void) => {
         void after;
@@ -383,7 +384,7 @@ describe("ExistingSampleObservationPanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders a routed formal create page without nesting the business ledger", async () => {
+  it("keeps the mature business ledger visible behind the routed formal editor drawer", async () => {
     const onSelectionChange = vi.fn();
     render(
       <ExistingSampleObservationPanel
@@ -406,10 +407,56 @@ describe("ExistingSampleObservationPanel", () => {
     expect(
       await screen.findByRole("region", { name: "正式样本稳定信息" }),
     ).toBeVisible();
-    expect(screen.queryByText("原有采集台账内容")).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("原有采集台账内容")).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "正式样本稳定信息" }),
+    ).toHaveClass("enterprise-ledger-drawer");
+    expect(
+      screen.queryByRole("heading", { name: "采集台账" }),
+    ).not.toBeInTheDocument();
     await userEvent.click(
       screen.getByRole("button", { name: "返回正式样本台账" }),
+    );
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      type: "formal-sample-list",
+      id: "list",
+    });
+  });
+
+  it("renders the routed retirement entry as a focused enterprise drawer over the mature ledger", async () => {
+    const onSelectionChange = vi.fn();
+    render(
+      <ExistingSampleObservationPanel
+        domain="MARKET"
+        permissions={["FORMAL_SAMPLE_MANAGE", "FORMAL_SAMPLE_DELETE"]}
+        productCode="CORN"
+        repository={repository() as unknown as RealtimeBusinessRepository}
+        selection={{ type: "formal-sample-view", id: "formal-point-1" }}
+        onSelectionChange={onSelectionChange}
+        onSaved={() => undefined}
+      >
+        <div>原有采集台账内容</div>
+      </ExistingSampleObservationPanel>,
+    );
+
+    const drawer = await screen.findByRole("region", {
+      name: "淘汰现有样本点",
+    });
+    expect(drawer).toHaveClass("enterprise-ledger-drawer");
+    expect(screen.getByText("原有采集台账内容")).toBeVisible();
+    expect(within(drawer).getByText("淘汰不是删除")).toBeVisible();
+    expect(within(drawer).getByText("历史归档年度")).toBeVisible();
+    expect(within(drawer).queryByText("版本")).not.toBeInTheDocument();
+    expect(
+      within(drawer).queryByRole("button", { name: "编辑稳定信息" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(drawer).queryByRole("button", { name: "删除正式样本" }),
+    ).not.toBeInTheDocument();
+    expect(within(drawer).getAllByRole("button")).toHaveLength(2);
+
+    await userEvent.click(
+      within(drawer).getByRole("button", { name: "返回台账" }),
     );
     expect(onSelectionChange).toHaveBeenCalledWith({
       type: "formal-sample-list",
@@ -477,7 +524,10 @@ describe("ExistingSampleObservationPanel", () => {
     expect(row).toHaveTextContent("农资店");
     expect(within(row).getByRole("button", { name: "查看" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
-    expect(within(row).getByRole("button", { name: "删除" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "彻底删除" })).toBeVisible();
+    expect(
+      within(row).getByRole("button", { name: "淘汰为历史" }),
+    ).toBeVisible();
     expect(
       within(row).getByRole("button", { name: "填写采集数据" }),
     ).toBeVisible();
@@ -729,7 +779,9 @@ describe("ExistingSampleObservationPanel", () => {
       const row = await screen.findByRole("row", {
         name: new RegExp(point.canonicalName, "u"),
       });
-      await userEvent.click(within(row).getByRole("button", { name: "删除" }));
+      await userEvent.click(
+        within(row).getByRole("button", { name: "彻底删除" }),
+      );
       await userEvent.click(screen.getByRole("button", { name: "确认删除" }));
 
       await waitFor(() =>
@@ -769,7 +821,8 @@ describe("ExistingSampleObservationPanel", () => {
       deleteFormalSamplePoint: vi.fn(),
       subscribeBusinessEvents: vi.fn(() => vi.fn()),
     };
-    renderPanel(api);
+    const onSaved = vi.fn();
+    renderPanel(api, onSaved);
 
     await userEvent.click(
       await screen.findByRole("button", { name: "新增样本" }),
@@ -1070,7 +1123,8 @@ describe("ExistingSampleObservationPanel", () => {
       deleteFormalSamplePoint,
       subscribeBusinessEvents: vi.fn(() => vi.fn()),
     };
-    renderPanel(api);
+    const onSaved = vi.fn();
+    renderPanel(api, onSaved);
 
     expect(await screen.findByText("龙沙区正式样本")).toBeVisible();
     expect(screen.getAllByText("龙沙区").length).toBeGreaterThan(0);
@@ -1105,6 +1159,48 @@ describe("ExistingSampleObservationPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
       "正式样本已删除，列表已重新查询",
+    );
+  });
+
+  it("retires an existing market sample from the ledger without using physical deletion", async () => {
+    const onSaved = vi.fn();
+    const point = formalPoint({ version: 4 });
+    const listEligibleFormalSamples = vi
+      .fn()
+      .mockResolvedValueOnce([eligibleSampleFor(point)])
+      .mockResolvedValueOnce([]);
+    const retireFormalSamplePoint = vi.fn().mockResolvedValue(undefined);
+    const deleteFormalSamplePoint = vi.fn();
+    const api = {
+      ...repository(),
+      listEligibleFormalSamples,
+      getFormalSamplePoint: vi.fn().mockResolvedValue(point),
+      retireFormalSamplePoint,
+      deleteFormalSamplePoint,
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    };
+    renderPanel(api, onSaved);
+
+    const row = await screen.findByRole("row", { name: /龙沙区贸易商样本/u });
+    await userEvent.click(
+      within(row).getByRole("button", { name: "淘汰为历史" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "确认淘汰该样本点" }),
+    );
+
+    await waitFor(() =>
+      expect(retireFormalSamplePoint).toHaveBeenCalledWith(
+        point.id,
+        4,
+        "现有样本点不再使用，由维护人在业务台账执行淘汰",
+      ),
+    );
+    expect(deleteFormalSamplePoint).not.toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(point.canonicalName)).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "正式样本已淘汰为历史样本，列表已重新查询",
     );
   });
 
@@ -1802,7 +1898,7 @@ describe("ExistingSampleObservationPanel", () => {
     expect(screen.getByLabelText("播种面积（亩）")).toHaveValue(177.7);
   });
 
-  it("uses full-page sample workflows without the retired drawer structure", () => {
+  it("uses a shared enterprise drawer without changing the mature ledger grid", () => {
     const panelSource = readFileSync(
       "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
       "utf8",
@@ -1829,7 +1925,12 @@ describe("ExistingSampleObservationPanel", () => {
     expect(css).toMatch(
       /\.formal-sample-ledger__layout\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
     );
-    expect(css).toMatch(/\.formal-sample-page\s*\{[^}]*width:\s*100%/u);
+    expect(css).toMatch(
+      /\.enterprise-ledger-drawer\s*\{[^}]*width:\s*min\(540px,\s*calc\(100vw\s*-\s*24px\)\)/u,
+    );
+    expect(css).toMatch(
+      /\.formal-sample-ledger\.enterprise-ledger-workbench\.formal-sample-ledger--overlay-only\s*\{[^}]*background:\s*rgba\(8,\s*29,\s*45,\s*0\.28\)/u,
+    );
     expect(css).toMatch(
       /\.formal-sample-ledger__row-actions\s*\{[^}]*flex-wrap:\s*nowrap[^}]*white-space:\s*nowrap/u,
     );

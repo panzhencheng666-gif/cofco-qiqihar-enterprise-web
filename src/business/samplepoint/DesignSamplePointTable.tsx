@@ -103,7 +103,7 @@ export function DesignSamplePointTable({
   const hydratedSelection = useRef("");
   const canWrite = session.permissions.includes("BUSINESS_UPDATE");
   const canImport = session.permissions.includes("BUSINESS_IMPORT");
-  const showList = selection ? selection.type === "design-sample-list" : true;
+  const showList = true;
   const navigate = (next: FormalSelection) => onSelectionChange?.(next);
 
   useEffect(() => {
@@ -316,7 +316,11 @@ export function DesignSamplePointTable({
       contractVersion: editorContract.contractVersion,
       contractDigest: editorContract.contractDigest,
       context: editorContract.context,
-      values: submittedValues(editorContract, editorValues),
+      values: submittedValues(editorContract, {
+        ...editorValues,
+        DSP_MAINTAINER_NAME: session.displayName,
+        DSP_MAINTAINER_UNIT: session.workUnitName,
+      }),
     };
     setSaving(true);
     setEditorError("");
@@ -691,7 +695,7 @@ export function DesignSamplePointTable({
 
       {viewPoint ? (
         <section
-          className="design-sample-point-page"
+          className="design-sample-point-page enterprise-ledger-drawer"
           aria-label="设计参考点详情"
         >
           <header>
@@ -762,6 +766,7 @@ export function DesignSamplePointTable({
           }
           regions={regions}
           saving={saving}
+          session={session}
           values={editorValues}
         />
       ) : null}
@@ -781,6 +786,7 @@ function DesignSamplePointEditor({
   onValueChange,
   regions,
   saving,
+  session,
   values,
 }: {
   catalog: DesignSampleFieldContract | undefined;
@@ -794,6 +800,7 @@ function DesignSamplePointEditor({
   onValueChange: (code: string, value: string) => void;
   regions: readonly MasterRegion[];
   saving: boolean;
+  session: CurrentSession;
   values: Readonly<Record<string, string>>;
 }) {
   const fields = contract
@@ -896,11 +903,21 @@ function DesignSamplePointEditor({
         <>
           {fields.map((field) => (
             <MetadataField
+              disabled={
+                field.code === "DSP_MAINTAINER_NAME" ||
+                field.code === "DSP_MAINTAINER_UNIT"
+              }
               field={field}
               key={field.code}
               onChange={(value) => onValueChange(field.code, value)}
               regions={regions}
-              value={values[field.code] ?? ""}
+              value={
+                field.code === "DSP_MAINTAINER_NAME"
+                  ? session.displayName
+                  : field.code === "DSP_MAINTAINER_UNIT"
+                    ? session.workUnitName
+                    : (values[field.code] ?? "")
+              }
             />
           ))}
         </>
@@ -912,11 +929,13 @@ function DesignSamplePointEditor({
 }
 
 function MetadataField({
+  disabled = false,
   field,
   onChange,
   regions,
   value,
 }: {
+  disabled?: boolean;
   field: DesignSampleFieldDefinition;
   onChange: (value: string) => void;
   regions: readonly MasterRegion[];
@@ -975,6 +994,7 @@ function MetadataField({
       <span>{label}</span>
       <input
         aria-label={label}
+        disabled={disabled}
         max={field.maximumValue ?? undefined}
         maxLength={field.maxLength ?? undefined}
         min={field.minimumValue ?? undefined}

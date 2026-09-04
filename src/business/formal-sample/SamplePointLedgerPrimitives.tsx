@@ -201,7 +201,7 @@ export function SamplePointEditorForm({
     <section
       ref={sectionRef}
       tabIndex={-1}
-      className="formal-sample-page formal-sample-page--form"
+      className="formal-sample-page formal-sample-page--form enterprise-ledger-drawer"
       aria-label={ariaLabel}
       role={role}
     >
