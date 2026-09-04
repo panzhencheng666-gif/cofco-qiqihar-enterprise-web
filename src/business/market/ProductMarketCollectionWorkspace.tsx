@@ -804,7 +804,7 @@ export function ProductMarketCollectionWorkspace({
           rawObjectType.toLowerCase().replaceAll("_", "-"),
         );
       return {
-        rowId: record.id,
+        rowId: record.values.__FORMAL_SAMPLE_ID ?? record.id,
         workId: record.id,
         samplePointId: record.values.__FORMAL_SAMPLE_ID,
         sampleVersion: record.version,
