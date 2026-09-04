@@ -499,7 +499,7 @@ export function DesignSamplePointTable({
             <label className="sample-point-governance-workspace__filter-query">
               <span>点位名称</span>
               <input
-                aria-label="搜索点位或行政区"
+                aria-label="搜索点位名称"
                 onChange={(event) =>
                   setFilterDraft((current) => ({
                     ...current,
@@ -538,7 +538,7 @@ export function DesignSamplePointTable({
                 }}
                 type="button"
               >
-                清除筛选
+                重置
               </button>
             </div>
           </SamplePointLedgerFilters>
@@ -600,7 +600,7 @@ export function DesignSamplePointTable({
                           }}
                           type="button"
                         >
-                          新建设计参考点
+                          新建设计样本
                         </button>
                       </div>
                     ) : null}
@@ -816,8 +816,8 @@ function DesignSamplePointEditor({
     : [];
   return (
     <SamplePointEditorForm
-      ariaLabel={mode === "create" ? "新建设计参考点" : "编辑设计参考点"}
-      title={mode === "create" ? "新建设计参考点" : "编辑设计参考点"}
+      ariaLabel={mode === "create" ? "新建设计样本" : "编辑设计参考点"}
+      title={mode === "create" ? "新建设计样本" : "编辑设计参考点"}
       description="填写点位名称、行政区、详细地址和经纬度。"
       role="form"
       notice={error ? <p role="alert">{error}</p> : null}

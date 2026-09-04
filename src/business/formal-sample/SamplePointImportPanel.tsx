@@ -51,12 +51,7 @@ export function SamplePointImportPanel({
           ? await repository.downloadDesignSamplePointTemplate?.(domain)
           : await repository.downloadFormalSamplePointTemplate?.();
       if (!blob) throw new Error("template unavailable");
-      const templateLabel =
-        kind === "design"
-          ? domain === "PRODUCTION"
-            ? "产情类设计参考点"
-            : "市场类设计参考点"
-          : label;
+      const templateLabel = kind === "design" ? "设计样本点" : label;
       downloadBlob(blob, `${templateLabel}批量新增模板.xlsx`);
     } catch {
       setError("模板下载失败，请稍后重试。");

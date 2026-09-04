@@ -3218,19 +3218,19 @@
 
 .existing-observation__page {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   min-width: 0;
   width: 100%;
 }
 .existing-observation__header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 18px 20px;
+  padding: 12px 16px;
   border: 1px solid #b9c8d5;
-  border-left: 4px solid #0f6eb8;
+  border-left: 3px solid #0f6eb8;
   background: #fff;
 }
 .existing-observation__header h2,
@@ -3238,10 +3238,17 @@
   margin: 0;
   color: #17324d;
 }
+.existing-observation__header h2 {
+  font-size: 18px;
+}
 .existing-observation__header p,
 .existing-observation__section-title p {
   margin: 5px 0 0;
   color: #5a6d7e;
+}
+.existing-observation__header p {
+  margin-top: 3px;
+  font-size: 12px;
 }
 .existing-observation__header-badge {
   flex: 0 0 auto;
@@ -3322,6 +3329,16 @@
   padding: 0 16px 14px;
   border: 1px solid #b9c8d5;
   background: #f7f9fb;
+}
+.existing-observation__filters.enterprise-ledger-query--design {
+  grid-template-columns:
+    minmax(190px, 0.9fr) minmax(160px, 0.75fr)
+    minmax(180px, 0.8fr) minmax(240px, 1.2fr) auto;
+  padding: 10px 12px;
+}
+.existing-observation__filters.enterprise-ledger-query--design
+  > .enterprise-ledger-query__actions {
+  grid-column: auto;
 }
 .existing-observation__filter-heading {
   grid-column: 1 / -1;
@@ -3426,7 +3443,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid #cbd6df;
   background: #fff;
 }
@@ -3523,7 +3540,7 @@
   grid-template-columns: 1.5fr 1fr 1fr 1.15fr;
   gap: 1px;
   padding: 1px;
-  border-bottom: 1px solid #b9c8d5;
+  border: 1px solid #b9c8d5;
   background: #cbd6df;
   overflow-wrap: anywhere;
 }
@@ -3544,25 +3561,25 @@
 }
 .existing-observation__form {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
 }
 .existing-observation__form fieldset {
   margin: 0;
-  padding: 15px 16px 17px;
+  padding: 12px 14px 14px;
   border: 1px solid #d3dde5;
   background: #fff;
 }
 .existing-observation__form legend {
-  padding: 0 0 10px;
+  padding: 0 0 7px;
   color: #174d76;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 750;
 }
 .existing-observation__field-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 13px 14px;
+  gap: 10px 12px;
 }
 .existing-observation__form em {
   margin-left: 3px;
@@ -3581,7 +3598,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 15px 16px;
+  padding: 11px 14px;
   border: 1px solid #c9d6df;
   background: #f7f9fb;
 }
@@ -3595,6 +3612,25 @@
 .existing-observation__actions button {
   min-width: 170px;
   min-height: 40px;
+}
+.existing-observation__action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.existing-observation__action-buttons button {
+  min-width: 96px;
+}
+.existing-observation__action-buttons .is-primary {
+  min-width: 170px;
+  border-color: #0c74bd;
+  color: #fff;
+  background: #0c74bd;
+}
+.existing-observation__action-buttons .is-primary:hover:not(:disabled) {
+  border-color: #075f9e;
+  background: #075f9e;
 }
 .existing-observation__history-layout {
   display: grid;
@@ -4123,6 +4159,13 @@
   .existing-observation__filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .existing-observation__filters.enterprise-ledger-query--design {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .existing-observation__filters.enterprise-ledger-query--design
+    > .enterprise-ledger-query__actions {
+    grid-column: 1 / -1;
+  }
   .existing-observation__filters > button {
     width: max-content;
   }
@@ -4211,6 +4254,9 @@
   .existing-observation__identity {
     grid-template-columns: minmax(0, 1fr);
   }
+  .existing-observation__filters.enterprise-ledger-query--design {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .existing-observation__filters > button,
   .existing-observation__actions button {
     width: 100%;
@@ -4218,6 +4264,11 @@
   .existing-observation__actions {
     align-items: stretch;
     flex-direction: column;
+  }
+  .existing-observation__action-buttons {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column-reverse;
   }
   .existing-observation__filter-heading,
   .existing-observation__editor-heading {

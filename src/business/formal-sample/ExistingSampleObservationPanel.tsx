@@ -238,6 +238,7 @@ export function ExistingSampleObservationPanel({
   const isEmbeddedLegacyList =
     activeSelection?.type === "formal-sample-list" && !onSelectionChange;
   const requestedSamplePointId = isObservationPage ? activeSelection.id : "";
+  const canCollect = permissions.includes("BUSINESS_CREATE");
   const navigate = (next: FormalSelection) => {
     setLocalSelection(next);
     onSelectionChange?.(next);
@@ -328,6 +329,12 @@ export function ExistingSampleObservationPanel({
     setRegionCode("");
     setKeyword("");
   }, []);
+
+  const closeObservation = () => {
+    resetUpdateFilters();
+    resetSelection();
+    closeWorkflow();
+  };
 
   const invalidateQuery = useCallback(() => {
     sampleRequestVersion.current += 1;
@@ -468,7 +475,11 @@ export function ExistingSampleObservationPanel({
   }, [historyYear, loadHistory, productCode, sample]);
 
   useEffect(() => {
-    if (!isObservationPage || !repository?.subscribeBusinessEvents) {
+    if (
+      !isObservationPage ||
+      !canCollect ||
+      !repository?.subscribeBusinessEvents
+    ) {
       return undefined;
     }
     return repository.subscribeBusinessEvents(
@@ -493,10 +504,10 @@ export function ExistingSampleObservationPanel({
           });
       },
     );
-  }, [isObservationPage, repository]);
+  }, [canCollect, isObservationPage, repository]);
 
   useEffect(() => {
-    if (!isObservationPage || !repository) return;
+    if (!isObservationPage || !canCollect || !repository) return;
     let active = true;
     if (domain !== "LOGISTICS") {
       repository
@@ -527,6 +538,7 @@ export function ExistingSampleObservationPanel({
     };
   }, [
     domain,
+    canCollect,
     isObservationPage,
     observedAt,
     productCode,
@@ -566,6 +578,7 @@ export function ExistingSampleObservationPanel({
   const save = async () => {
     if (
       !repository?.saveFormalSampleObservation ||
+      !canCollect ||
       !sample ||
       !definition ||
       !Number.isFinite(Date.parse(observedAt))
@@ -651,7 +664,23 @@ export function ExistingSampleObservationPanel({
           </Suspense>
         </section>
       ) : null}
-      {isObservationPage && (
+      {isObservationPage && !canCollect && (
+        <section
+          className="existing-observation__page"
+          aria-label="采集数据填写权限不足"
+        >
+          <header className="existing-observation__header">
+            <div className="existing-observation__header-copy">
+              <h2>无法填写采集数据</h2>
+              <p role="alert">当前账号没有填写正式采集数据的权限。</p>
+            </div>
+            <button type="button" onClick={closeWorkflow}>
+              返回业务列表
+            </button>
+          </header>
+        </section>
+      )}
+      {isObservationPage && canCollect && (
         <section
           className="existing-observation__page"
           aria-label="采集数据填写工作台"
@@ -661,14 +690,7 @@ export function ExistingSampleObservationPanel({
               <h2>填写或更新采集数据</h2>
               <p>当前样本身份保持锁定，本页只填写本次期间观测。</p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                resetUpdateFilters();
-                resetSelection();
-                closeWorkflow();
-              }}
-            >
+            <button type="button" onClick={closeObservation}>
               返回业务列表
             </button>
           </header>
@@ -872,11 +894,7 @@ export function ExistingSampleObservationPanel({
                           <button
                             type="button"
                             disabled={busy}
-                            onClick={() => {
-                              resetUpdateFilters();
-                              resetSelection();
-                              closeWorkflow();
-                            }}
+                            onClick={closeObservation}
                           >
                             取消
                           </button>

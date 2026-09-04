@@ -384,6 +384,33 @@ describe("ExistingSampleObservationPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("blocks a direct observation route without collection permission", async () => {
+    const api = repository();
+    render(
+      <ExistingSampleObservationPanel
+        domain="MARKET"
+        permissions={[]}
+        productCode="CORN"
+        repository={api as unknown as RealtimeBusinessRepository}
+        selection={{ type: "formal-sample-observation", id: "sample-1" }}
+        onSelectionChange={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("region", { name: "采集数据填写权限不足" }),
+    ).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "当前账号没有填写正式采集数据的权限。",
+    );
+    expect(
+      screen.queryByRole("button", { name: "保存并正式入库" }),
+    ).not.toBeInTheDocument();
+    expect(api.listEligibleFormalSamples).not.toHaveBeenCalled();
+    expect(api.saveFormalSampleObservation).not.toHaveBeenCalled();
+  });
+
   it("keeps the mature business ledger visible behind the routed formal editor drawer", async () => {
     const onSelectionChange = vi.fn();
     render(
