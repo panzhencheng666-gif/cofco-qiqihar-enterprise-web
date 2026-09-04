@@ -411,6 +411,39 @@ describe("ExistingSampleObservationPanel", () => {
     expect(api.saveFormalSampleObservation).not.toHaveBeenCalled();
   });
 
+  it("preserves the locked sample when a direct observation route is queried again", async () => {
+    const api = repository();
+    render(
+      <ExistingSampleObservationPanel
+        domain="MARKET"
+        permissions={["BUSINESS_CREATE"]}
+        productCode="CORN"
+        repository={api as unknown as RealtimeBusinessRepository}
+        selection={{
+          type: "formal-sample-observation",
+          id: sample.samplePointId,
+        }}
+        onSelectionChange={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("group", { name: "正式样本锁定信息" }),
+    ).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "查询正式样本" }));
+
+    expect(
+      await screen.findByRole("group", { name: "正式样本锁定信息" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    ).toBeVisible();
+    expect(api.listEligibleFormalSamples).toHaveBeenLastCalledWith(
+      expect.objectContaining({ domain: "MARKET", productCode: "CORN" }),
+    );
+  });
+
   it("keeps the mature business ledger visible behind the routed formal editor drawer", async () => {
     const onSelectionChange = vi.fn();
     render(
