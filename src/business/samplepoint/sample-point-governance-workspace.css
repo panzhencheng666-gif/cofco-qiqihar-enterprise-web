@@ -137,21 +137,57 @@
 
 .design-sample-ledger .enterprise-ledger-title--collection {
   margin-top: 0;
-  padding-block: 12px 10px;
+  padding: 15px 16px 13px;
+  background: #fff;
+}
+
+.design-sample-ledger .enterprise-ledger-title--collection h2 {
+  margin: 0;
+  color: #173652;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.design-sample-ledger .enterprise-ledger-title--collection p {
+  margin: 5px 0 0;
+  color: #657d8f;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .design-sample-ledger .enterprise-ledger-query--design {
+  grid-template-columns:
+    minmax(108px, 0.9fr) minmax(108px, 0.9fr) minmax(120px, 1fr)
+    minmax(120px, 1fr) minmax(140px, 1.15fr) auto;
+  gap: 10px;
+  padding: 12px 14px;
   border-bottom: 0;
 }
 
 .design-sample-ledger .enterprise-ledger-table__toolbar--collection {
-  min-height: 54px;
-  padding-block: 7px;
+  min-height: 50px;
+  flex-wrap: nowrap;
+  padding: 7px 10px;
 }
 
 .design-sample-ledger .enterprise-ledger-action-group__label {
   flex-basis: auto;
   margin-right: 3px;
+  white-space: nowrap;
+}
+
+.design-sample-ledger
+  .enterprise-ledger-table__toolbar--collection
+  > .enterprise-ledger-table__actions,
+.design-sample-ledger .enterprise-ledger-action-group {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.design-sample-ledger
+  .enterprise-ledger-table__toolbar--collection
+  > .enterprise-ledger-table__actions {
+  flex-basis: auto;
 }
 
 .design-sample-ledger
@@ -163,6 +199,19 @@
   color: #526f83;
   font-size: 11px;
   font-weight: 700;
+}
+
+.design-sample-ledger
+  .sample-point-import--ledger-toolbar
+  > label:not(.realtime-business-file-action)
+  > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .design-sample-ledger
@@ -184,8 +233,77 @@
 }
 
 .design-sample-ledger .enterprise-ledger-table--compact :is(th, td) {
-  height: 38px;
-  padding: 6px 8px;
+  height: 36px;
+  padding: 5px 8px;
+}
+
+.design-sample-ledger .enterprise-ledger-table--compact thead th {
+  color: #36546c;
+}
+
+.design-sample-ledger .enterprise-ledger-action-group--primary button {
+  border-color: #0c74bd;
+  color: #fff;
+  background: #0c74bd;
+}
+
+.design-sample-ledger
+  .sample-point-governance-workspace__table-scroll--bounded.is-empty {
+  height: auto;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+.design-sample-ledger__empty {
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  min-height: 108px;
+  padding: 18px;
+  border-top: 1px solid #d7e2e9;
+  background: #fbfcfd;
+  color: #6a8192;
+  text-align: center;
+}
+
+.design-sample-ledger__empty strong {
+  color: #294b63;
+  font-size: 14px;
+}
+
+.design-sample-ledger__empty span {
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .design-sample-ledger .enterprise-ledger-query--design {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+
+  .design-sample-ledger
+    .enterprise-ledger-query--design
+    > .enterprise-ledger-query__actions {
+    grid-column: 1 / -1;
+  }
+
+  .design-sample-ledger .enterprise-ledger-table__toolbar--collection,
+  .design-sample-ledger
+    .enterprise-ledger-table__toolbar--collection
+    > .enterprise-ledger-table__actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .design-sample-ledger .enterprise-ledger-query--design {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .design-sample-ledger
+    .enterprise-ledger-query--design
+    > .enterprise-ledger-query__actions {
+    grid-column: 1;
+  }
 }
 
 .sample-point-governance-workspace__review-switch {

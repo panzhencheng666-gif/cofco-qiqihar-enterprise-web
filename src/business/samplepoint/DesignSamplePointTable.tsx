@@ -382,7 +382,7 @@ export function DesignSamplePointTable({
       ariaLabel="设计参考点台账工作台"
       className="sample-point-governance-workspace__table-region design-sample-ledger formal-sample-ledger enterprise-ledger-workbench"
     >
-      {onSelectionClear ? (
+      {onSelectionClear && !onSelectionChange ? (
         <div className="enterprise-ledger-table__toolbar">
           <button onClick={onSelectionClear} type="button">
             返回业务台账
@@ -568,13 +568,15 @@ export function DesignSamplePointTable({
                   "维护人/维护单位",
                   "操作",
                 ]}
-                scrollClassName="sample-point-governance-workspace__table-scroll--bounded enterprise-ledger-table__scroll"
+                scrollClassName={`sample-point-governance-workspace__table-scroll--bounded enterprise-ledger-table__scroll${
+                  pageData.items.length === 0 ? " is-empty" : ""
+                }`}
                 scrollAriaLabel="设计参考点滚动清单"
                 scrollTabIndex={0}
                 toolbar={
                   <SamplePointLedgerToolbar
                     ariaLabel="设计参考点批量操作"
-                    count={`共 ${pageData.totalElements} 个参考点，当前显示 ${pageData.items.length} 个`}
+                    count={`共 ${pageData.totalElements} 条`}
                   >
                     {canImport ? (
                       <SamplePointImportPanel
@@ -607,9 +609,14 @@ export function DesignSamplePointTable({
                   </SamplePointLedgerToolbar>
                 }
                 empty={
-                  pageData.items.length === 0
-                    ? "没有符合条件的设计参考点。"
-                    : undefined
+                  pageData.items.length === 0 ? (
+                    <div className="design-sample-ledger__empty" role="status">
+                      <strong>暂无设计样本点</strong>
+                      <span>
+                        当前筛选条件下没有真实点位，可调整条件后查询或新建设计样本。
+                      </span>
+                    </div>
+                  ) : undefined
                 }
                 footer={
                   <SamplePointLedgerPagination
