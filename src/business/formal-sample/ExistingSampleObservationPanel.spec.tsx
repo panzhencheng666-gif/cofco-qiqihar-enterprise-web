@@ -423,7 +423,8 @@ describe("ExistingSampleObservationPanel", () => {
     });
   });
 
-  it("renders the routed formal detail used by the production and market retirement entry", async () => {
+  it("renders the routed retirement entry as a focused enterprise drawer over the mature ledger", async () => {
+    const onSelectionChange = vi.fn();
     render(
       <ExistingSampleObservationPanel
         domain="MARKET"
@@ -431,17 +432,36 @@ describe("ExistingSampleObservationPanel", () => {
         productCode="CORN"
         repository={repository() as unknown as RealtimeBusinessRepository}
         selection={{ type: "formal-sample-view", id: "formal-point-1" }}
-        onSelectionChange={vi.fn()}
+        onSelectionChange={onSelectionChange}
         onSaved={() => undefined}
-      />,
+      >
+        <div>原有采集台账内容</div>
+      </ExistingSampleObservationPanel>,
     );
 
+    const drawer = await screen.findByRole("region", {
+      name: "淘汰现有样本点",
+    });
+    expect(drawer).toHaveClass("enterprise-ledger-drawer");
+    expect(screen.getByText("原有采集台账内容")).toBeVisible();
+    expect(within(drawer).getByText("淘汰不是删除")).toBeVisible();
+    expect(within(drawer).getByText("历史归档年度")).toBeVisible();
+    expect(within(drawer).queryByText("版本")).not.toBeInTheDocument();
     expect(
-      await screen.findByRole("region", { name: "正式样本详情" }),
-    ).toHaveClass("enterprise-ledger-drawer");
+      within(drawer).queryByRole("button", { name: "编辑稳定信息" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "淘汰为历史样本" }),
-    ).toBeVisible();
+      within(drawer).queryByRole("button", { name: "删除正式样本" }),
+    ).not.toBeInTheDocument();
+    expect(within(drawer).getAllByRole("button")).toHaveLength(2);
+
+    await userEvent.click(
+      within(drawer).getByRole("button", { name: "返回台账" }),
+    );
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      type: "formal-sample-list",
+      id: "list",
+    });
   });
 
   afterEach(cleanup);
@@ -1165,17 +1185,15 @@ describe("ExistingSampleObservationPanel", () => {
     await userEvent.click(
       within(row).getByRole("button", { name: "淘汰为历史" }),
     );
-    await userEvent.type(
-      screen.getByLabelText("淘汰原因"),
-      "该样本点已停止经营",
+    await userEvent.click(
+      screen.getByRole("button", { name: "确认淘汰该样本点" }),
     );
-    await userEvent.click(screen.getByRole("button", { name: "确认淘汰" }));
 
     await waitFor(() =>
       expect(retireFormalSamplePoint).toHaveBeenCalledWith(
         point.id,
         4,
-        "该样本点已停止经营",
+        "现有样本点不再使用，由维护人在业务台账执行淘汰",
       ),
     );
     expect(deleteFormalSamplePoint).not.toHaveBeenCalled();
@@ -1909,6 +1927,9 @@ describe("ExistingSampleObservationPanel", () => {
     );
     expect(css).toMatch(
       /\.enterprise-ledger-drawer\s*\{[^}]*width:\s*min\(540px,\s*calc\(100vw\s*-\s*24px\)\)/u,
+    );
+    expect(css).toMatch(
+      /\.formal-sample-ledger\.enterprise-ledger-workbench\.formal-sample-ledger--overlay-only\s*\{[^}]*background:\s*rgba\(8,\s*29,\s*45,\s*0\.28\)/u,
     );
     expect(css).toMatch(
       /\.formal-sample-ledger__row-actions\s*\{[^}]*flex-wrap:\s*nowrap[^}]*white-space:\s*nowrap/u,

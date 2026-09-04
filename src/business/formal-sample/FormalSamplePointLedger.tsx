@@ -33,6 +33,8 @@ import {
 } from "./SamplePointLedgerPrimitives";
 
 const pageSize = 20;
+const formalSampleRetirementReason =
+  "现有样本点不再使用，由维护人在业务台账执行淘汰";
 
 function formalSampleError(error: unknown, fallback: string): string {
   if (!(error instanceof RealtimeApiError)) return fallback;
@@ -287,7 +289,6 @@ export function FormalSamplePointLedger({
   const [detail, setDetail] = useState<FormalSamplePointRow | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [retiringId, setRetiringId] = useState<string | null>(null);
-  const [retirementReason, setRetirementReason] = useState("");
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [maintainerEditor, setMaintainerEditor] =
     useState<MaintainerEditorState | null>(null);
@@ -518,7 +519,6 @@ export function FormalSamplePointLedger({
           setDetail(next);
           setConfirmingId(intent === "DELETE" ? next.id : null);
           setRetiringId(intent === "RETIRE" ? next.id : null);
-          setRetirementReason("");
           setEditor(intent === "EDIT" ? editEditor(next) : null);
           setMaintainerEditor(null);
         }
@@ -609,7 +609,7 @@ export function FormalSamplePointLedger({
       return;
     }
     if (selection.type === "formal-sample-view") {
-      queueMicrotask(() => void loadDetail(selection.id, "VIEW"));
+      queueMicrotask(() => void loadDetail(selection.id, "RETIRE"));
       return;
     }
     if (selection.type === "formal-sample-edit") {
@@ -836,23 +836,17 @@ export function FormalSamplePointLedger({
 
   const retire = async () => {
     if (!canRetire || !detail || !repository.retireFormalSamplePoint) return;
-    const reason = retirementReason.trim();
-    if (!reason) {
-      setNotice("请填写淘汰原因。");
-      return;
-    }
     setWriteBusy(true);
     setNotice("");
     try {
       await repository.retireFormalSamplePoint(
         detail.id,
         detail.version,
-        reason,
+        formalSampleRetirementReason,
       );
       detailRequestVersion.current += 1;
       setDetail(null);
       setRetiringId(null);
-      setRetirementReason("");
       setEditor(null);
       await query(pageNumber);
       onChanged();
@@ -1290,7 +1284,68 @@ export function FormalSamplePointLedger({
             })}
           </SamplePointLedgerTable>
         )}
-        {detail && (
+        {detail && retiringId === detail.id ? (
+          <section
+            ref={detailRegion}
+            tabIndex={-1}
+            className="formal-sample-page formal-sample-page--detail enterprise-ledger-drawer formal-sample-retirement"
+            aria-label="淘汰现有样本点"
+          >
+            <header className="formal-sample-retirement__header">
+              <h3>淘汰现有样本点</h3>
+            </header>
+            <div className="formal-sample-retirement__identity">
+              <strong>{detail.canonicalName}</strong>
+              <span>
+                {regionName(detail.regionCode)} · {productLabel(productCode)} ·
+                现有样本点
+              </span>
+            </div>
+            <div className="formal-sample-retirement__warning" role="alert">
+              <strong>淘汰不是删除</strong>
+              <p>
+                淘汰后，该样本点将从现有样本点中移除，并按最后一次维护数据进入历史样本点。此操作不会删除历史数据。
+              </p>
+            </div>
+            <dl className="formal-sample-retirement__summary">
+              <div>
+                <dt>所属地区</dt>
+                <dd>{regionName(detail.regionCode)}</dd>
+              </div>
+              <div>
+                <dt>定位坐标</dt>
+                <dd>{coordinate(detail)}</dd>
+              </div>
+              <div>
+                <dt>样本点维护人</dt>
+                <dd>{detail.maintainerDisplayName ?? "未指定维护人"}</dd>
+              </div>
+              <div>
+                <dt>历史归档年度</dt>
+                <dd>{new Date().getFullYear()}年</dd>
+              </div>
+            </dl>
+            <footer className="formal-sample-retirement__actions">
+              <button
+                disabled={busy}
+                type="button"
+                onClick={() =>
+                  navigate({ type: "formal-sample-list", id: "list" })
+                }
+              >
+                返回台账
+              </button>
+              <button
+                className="is-danger"
+                disabled={busy}
+                type="button"
+                onClick={() => void retire()}
+              >
+                确认淘汰该样本点
+              </button>
+            </footer>
+          </section>
+        ) : detail ? (
           <section
             ref={detailRegion}
             tabIndex={-1}
@@ -1360,30 +1415,18 @@ export function FormalSamplePointLedger({
                 className="formal-sample-ledger__delete-confirmation"
               >
                 <p>淘汰后保留最后一次维护数据，并转入总揽监测历史样本图层。</p>
-                <label>
-                  <span>淘汰原因</span>
-                  <input
-                    aria-label="淘汰原因"
-                    maxLength={500}
-                    value={retirementReason}
-                    onChange={(event) =>
-                      setRetirementReason(event.target.value)
-                    }
-                  />
-                </label>
                 <button
                   disabled={busy}
                   type="button"
                   onClick={() => void retire()}
                 >
-                  确认淘汰
+                  确认淘汰该样本点
                 </button>
                 <button
                   disabled={writeBusy}
                   type="button"
                   onClick={() => {
                     setRetiringId(null);
-                    setRetirementReason("");
                   }}
                 >
                   取消
@@ -1396,7 +1439,6 @@ export function FormalSamplePointLedger({
                 onClick={() => {
                   setConfirmingId(null);
                   setRetiringId(detail.id);
-                  setRetirementReason("");
                 }}
               >
                 淘汰为历史样本
@@ -1518,7 +1560,7 @@ export function FormalSamplePointLedger({
               返回正式样本台账
             </button>
           </section>
-        )}
+        ) : null}
       </div>
       {notice && <p role="status">{notice}</p>}
     </SamplePointLedgerPage>
