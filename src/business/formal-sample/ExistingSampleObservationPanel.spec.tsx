@@ -244,6 +244,7 @@ function repository() {
     updateFormalSamplePoint: vi.fn(),
     assignFormalSampleMaintainer: vi.fn(),
     deleteFormalSamplePoint: vi.fn(),
+    retireFormalSamplePoint: vi.fn(),
     subscribeBusinessEvents: vi.fn(
       (after: number, listener: (event: BusinessNotificationRow) => void) => {
         void after;
@@ -417,6 +418,27 @@ describe("ExistingSampleObservationPanel", () => {
     });
   });
 
+  it("renders the routed formal detail used by the production and market retirement entry", async () => {
+    render(
+      <ExistingSampleObservationPanel
+        domain="MARKET"
+        permissions={["FORMAL_SAMPLE_MANAGE", "FORMAL_SAMPLE_DELETE"]}
+        productCode="CORN"
+        repository={repository() as unknown as RealtimeBusinessRepository}
+        selection={{ type: "formal-sample-view", id: "formal-point-1" }}
+        onSelectionChange={vi.fn()}
+        onSaved={() => undefined}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("region", { name: "正式样本详情" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "淘汰为历史样本" }),
+    ).toBeVisible();
+  });
+
   afterEach(cleanup);
 
   it("keeps legacy embedded ledger coverage without exposing a second entry", async () => {
@@ -477,7 +499,10 @@ describe("ExistingSampleObservationPanel", () => {
     expect(row).toHaveTextContent("农资店");
     expect(within(row).getByRole("button", { name: "查看" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
-    expect(within(row).getByRole("button", { name: "删除" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "彻底删除" })).toBeVisible();
+    expect(
+      within(row).getByRole("button", { name: "淘汰为历史" }),
+    ).toBeVisible();
     expect(
       within(row).getByRole("button", { name: "填写采集数据" }),
     ).toBeVisible();
@@ -729,7 +754,9 @@ describe("ExistingSampleObservationPanel", () => {
       const row = await screen.findByRole("row", {
         name: new RegExp(point.canonicalName, "u"),
       });
-      await userEvent.click(within(row).getByRole("button", { name: "删除" }));
+      await userEvent.click(
+        within(row).getByRole("button", { name: "彻底删除" }),
+      );
       await userEvent.click(screen.getByRole("button", { name: "确认删除" }));
 
       await waitFor(() =>
@@ -769,7 +796,8 @@ describe("ExistingSampleObservationPanel", () => {
       deleteFormalSamplePoint: vi.fn(),
       subscribeBusinessEvents: vi.fn(() => vi.fn()),
     };
-    renderPanel(api);
+    const onSaved = vi.fn();
+    renderPanel(api, onSaved);
 
     await userEvent.click(
       await screen.findByRole("button", { name: "新增样本" }),
@@ -1070,7 +1098,8 @@ describe("ExistingSampleObservationPanel", () => {
       deleteFormalSamplePoint,
       subscribeBusinessEvents: vi.fn(() => vi.fn()),
     };
-    renderPanel(api);
+    const onSaved = vi.fn();
+    renderPanel(api, onSaved);
 
     expect(await screen.findByText("龙沙区正式样本")).toBeVisible();
     expect(screen.getAllByText("龙沙区").length).toBeGreaterThan(0);
@@ -1105,6 +1134,50 @@ describe("ExistingSampleObservationPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
       "正式样本已删除，列表已重新查询",
+    );
+  });
+
+  it("retires an existing market sample from the ledger without using physical deletion", async () => {
+    const onSaved = vi.fn();
+    const point = formalPoint({ version: 4 });
+    const listEligibleFormalSamples = vi
+      .fn()
+      .mockResolvedValueOnce([eligibleSampleFor(point)])
+      .mockResolvedValueOnce([]);
+    const retireFormalSamplePoint = vi.fn().mockResolvedValue(undefined);
+    const deleteFormalSamplePoint = vi.fn();
+    const api = {
+      ...repository(),
+      listEligibleFormalSamples,
+      getFormalSamplePoint: vi.fn().mockResolvedValue(point),
+      retireFormalSamplePoint,
+      deleteFormalSamplePoint,
+      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    };
+    renderPanel(api, onSaved);
+
+    const row = await screen.findByRole("row", { name: /龙沙区贸易商样本/u });
+    await userEvent.click(
+      within(row).getByRole("button", { name: "淘汰为历史" }),
+    );
+    await userEvent.type(
+      screen.getByLabelText("淘汰原因"),
+      "该样本点已停止经营",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "确认淘汰" }));
+
+    await waitFor(() =>
+      expect(retireFormalSamplePoint).toHaveBeenCalledWith(
+        point.id,
+        4,
+        "该样本点已停止经营",
+      ),
+    );
+    expect(deleteFormalSamplePoint).not.toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(point.canonicalName)).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "正式样本已淘汰为历史样本，列表已重新查询",
     );
   });
 

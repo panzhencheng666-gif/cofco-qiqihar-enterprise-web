@@ -1562,6 +1562,11 @@ export interface RealtimeBusinessRepository {
     id: string,
     input: FormalSampleMaintainerMutation,
   ): Promise<FormalSampleMaintainerView>;
+  retireFormalSamplePoint?(
+    id: string,
+    expectedVersion: number,
+    reason: string,
+  ): Promise<void>;
   deleteFormalSamplePoint?(id: string, expectedVersion: number): Promise<void>;
   downloadFormalSamplePointTemplate?(): Promise<Blob>;
   importFormalSamplePoints?(
@@ -2101,6 +2106,11 @@ export function createRealtimeBusinessRepository(
       client.put<FormalSampleMaintainerView>(
         `/api/v1/formal-sample-points/${encodeURIComponent(id)}/maintainer`,
         input,
+      ),
+    retireFormalSamplePoint: (id, expectedVersion, reason) =>
+      client.put<void>(
+        `/api/v1/formal-sample-points/${encodeURIComponent(id)}/retirement`,
+        { expectedVersion, reason },
       ),
     deleteFormalSamplePoint: (id, expectedVersion) =>
       client.delete(`/api/v1/formal-sample-points/${encodeURIComponent(id)}`, {

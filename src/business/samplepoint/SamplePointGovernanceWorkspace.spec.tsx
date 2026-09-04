@@ -50,6 +50,9 @@ function repository(): RealtimeBusinessRepository {
       periods: [],
       regions: [],
     }),
+    listObjectTypes: vi.fn().mockResolvedValue([]),
+    listEligibleFormalSamples: vi.fn().mockResolvedValue([]),
+    getFormalSamplePoint: vi.fn(),
     listDesignSamplePoints: vi.fn().mockResolvedValue({
       items: [designPoint()],
       pageNumber: 0,
@@ -334,6 +337,44 @@ function marketPurchaseContract(
 }
 
 describe("SamplePointGovernanceWorkspace", () => {
+  it("keeps the business sample-point management entry focused on design samples", async () => {
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        mode="business"
+        repository={repository()}
+        session={session}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "样本点管理" })).toBeVisible();
+    expect(screen.queryByRole("tab", { name: "现有样本" })).toBeNull();
+    expect(screen.queryByText("现有样本业务范围")).toBeNull();
+    expect(
+      screen.getByRole("region", { name: "设计样本点台账" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+    expect(
+      await screen.findByRole("table", { name: "设计参考点清单" }),
+    ).toBeVisible();
+  });
+
+  it("shows the design ledger when a retired formal-sample deep link reaches business mode", async () => {
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        mode="business"
+        repository={repository()}
+        selection={{ type: "formal-sample-view", id: "retired-route" }}
+        session={session}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("table", { name: "设计参考点清单" }),
+    ).toBeVisible();
+  });
+
   it("uses the shared ledger filter alignment contract at desktop and narrow widths", () => {
     const css = readFileSync(
       "src/business/samplepoint/sample-point-governance-workspace.css",
@@ -807,6 +848,90 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(confirm).toHaveBeenCalledWith("确认删除“众兴村”？");
     expect(listDesignSamplePoints).toHaveBeenCalledTimes(4);
     confirm.mockRestore();
+  });
+
+  it("locks design-sample maintainer identity to the signed-in account", async () => {
+    const contract = designFieldContract();
+    const accountContract: DesignSampleFieldContract = {
+      ...contract,
+      identityFields: [
+        ...contract.identityFields,
+        contractField("DSP_MAINTAINER_NAME", "维护人", "STRING", true, 90),
+        contractField("DSP_MAINTAINER_UNIT", "维护单位", "STRING", true, 100),
+      ],
+    };
+    const createDesignSamplePoint = vi.fn().mockResolvedValue(designPoint());
+    const data = {
+      ...repository(),
+      loadDesignSamplePointFields: vi.fn().mockResolvedValue(accountContract),
+      loadMasterData: vi.fn().mockResolvedValue({
+        products: [],
+        periods: [],
+        regions: [
+          {
+            code: "230231100201",
+            name: "众兴村",
+            parentCode: "230231100",
+            level: "VILLAGE",
+          },
+        ],
+      }),
+      createDesignSamplePoint,
+      getDesignSamplePoint: vi.fn().mockResolvedValue(designPoint()),
+    } as RealtimeBusinessRepository;
+
+    render(
+      <SamplePointGovernanceWorkspace
+        currentYear={2026}
+        mode="design"
+        repository={data}
+        session={{
+          ...session,
+          permissions: [...session.permissions, "BUSINESS_UPDATE"],
+        }}
+      />,
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "新建设计参考点" }),
+    );
+    const form = await screen.findByRole("form", { name: "新建设计参考点" });
+    expect(within(form).getByLabelText("维护人")).toHaveValue("治理专员");
+    expect(within(form).getByLabelText("维护人")).toBeDisabled();
+    expect(within(form).getByLabelText("维护单位")).toHaveValue(
+      "齐齐哈尔经营部",
+    );
+    expect(within(form).getByLabelText("维护单位")).toBeDisabled();
+
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "点位名称" }),
+      "登录账号维护点",
+    );
+    await userEvent.selectOptions(
+      within(form).getByRole("combobox", { name: "行政区" }),
+      "众兴村",
+    );
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "详细地址" }),
+      "兴农镇众兴村三组",
+    );
+    await userEvent.type(
+      within(form).getByRole("spinbutton", { name: "经度" }),
+      "126.2",
+    );
+    await userEvent.type(
+      within(form).getByRole("spinbutton", { name: "纬度" }),
+      "47.7",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "保存" }));
+
+    await vi.waitFor(() => expect(createDesignSamplePoint).toHaveBeenCalled());
+    expect(createDesignSamplePoint.mock.calls[0]?.[0]).toMatchObject({
+      values: {
+        DSP_MAINTAINER_NAME: "治理专员",
+        DSP_MAINTAINER_UNIT: "齐齐哈尔经营部",
+      },
+    });
   });
 
   it("does not invite a second write when the post-save authoritative requery fails", async () => {

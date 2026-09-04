@@ -220,6 +220,12 @@ describe("realtime business repository", () => {
         expectedVersion: 5,
       },
     );
+
+    await repository.retireFormalSamplePoint!("formal/point-1", 6, "停止经营");
+    expect(put).toHaveBeenLastCalledWith(
+      "/api/v1/formal-sample-points/formal%2Fpoint-1/retirement",
+      { expectedVersion: 6, reason: "停止经营" },
+    );
   });
 
   it("adapts the year-independent design sample point CRUD contract", async () => {

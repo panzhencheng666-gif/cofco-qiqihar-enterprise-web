@@ -85,6 +85,19 @@ function formalSampleMaintainerError(error: unknown, fallback: string): string {
   return messages[error.code] ?? error.clientMessage ?? fallback;
 }
 
+function formalSampleRetirementError(error: unknown, fallback: string): string {
+  if (!(error instanceof RealtimeApiError)) return fallback;
+  const messages: Readonly<Record<string, string>> = {
+    FORMAL_SAMPLE_POINT_VERSION_CONFLICT:
+      "正式样本已被其他人更新，请刷新后再淘汰。",
+    ACCESS_PERMISSION_DENIED: "当前账号没有淘汰正式样本的权限。",
+    ACCESS_REGION_DENIED: "该正式样本不在当前账号的授权地区内。",
+    FORMAL_SAMPLE_POINT_NOT_FOUND: "正式样本不存在或已被淘汰。",
+    INVALID_FORMAL_SAMPLE_POINT: "请填写淘汰原因。",
+  };
+  return messages[error.code] ?? error.clientMessage ?? fallback;
+}
+
 function coordinate(
   point:
     Pick<FormalSamplePointRow, "longitude" | "latitude"> | EligibleFormalSample,
@@ -235,6 +248,7 @@ export function FormalSamplePointLedger({
   onSelectionChange,
   onSelectionClear,
   onCollectData,
+  onChanged = () => undefined,
   showAllApplicableFields = false,
 }: {
   domain: FormalSampleObservationDomain;
@@ -245,6 +259,7 @@ export function FormalSamplePointLedger({
   onSelectionChange?: (selection: FormalSelection) => void;
   onSelectionClear?: () => void;
   onCollectData: (samplePointId: string) => void;
+  onChanged?: () => void;
   showAllApplicableFields?: boolean;
 }) {
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
@@ -269,6 +284,8 @@ export function FormalSamplePointLedger({
   >([]);
   const [detail, setDetail] = useState<FormalSamplePointRow | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [retiringId, setRetiringId] = useState<string | null>(null);
+  const [retirementReason, setRetirementReason] = useState("");
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [maintainerEditor, setMaintainerEditor] =
     useState<MaintainerEditorState | null>(null);
@@ -298,6 +315,9 @@ export function FormalSamplePointLedger({
   const canDelete =
     permissions.includes("FORMAL_SAMPLE_DELETE") &&
     typeof repository.deleteFormalSamplePoint === "function";
+  const canRetire =
+    permissions.includes("FORMAL_SAMPLE_DELETE") &&
+    typeof repository.retireFormalSamplePoint === "function";
   const canCollect = permissions.includes("BUSINESS_CREATE");
   const canImport = permissions.includes("BUSINESS_IMPORT");
   const totalPages = Math.ceil(eligibleSamples.length / pageSize);
@@ -476,7 +496,7 @@ export function FormalSamplePointLedger({
   const loadDetail = useCallback(
     async (
       id: string,
-      intent: "VIEW" | "EDIT" | "DELETE" | "REFRESH" = "VIEW",
+      intent: "VIEW" | "EDIT" | "DELETE" | "RETIRE" | "REFRESH" = "VIEW",
     ) => {
       if (!repository.getFormalSamplePoint) return;
       const version = ++detailRequestVersion.current;
@@ -493,6 +513,8 @@ export function FormalSamplePointLedger({
                 : "DETAIL";
           setDetail(next);
           setConfirmingId(intent === "DELETE" ? next.id : null);
+          setRetiringId(intent === "RETIRE" ? next.id : null);
+          setRetirementReason("");
           setEditor(intent === "EDIT" ? editEditor(next) : null);
           setMaintainerEditor(null);
         }
@@ -562,6 +584,7 @@ export function FormalSamplePointLedger({
     if (selection.type === "formal-sample-list") {
       queueMicrotask(() => {
         setConfirmingId(null);
+        setRetiringId(null);
         setMaintainerEditor(null);
         setNotice("");
         setDetail(null);
@@ -572,6 +595,7 @@ export function FormalSamplePointLedger({
     if (selection.type === "formal-sample-create") {
       queueMicrotask(() => {
         setConfirmingId(null);
+        setRetiringId(null);
         setMaintainerEditor(null);
         setNotice("");
         pendingFocusTarget.current = "EDITOR";
@@ -653,11 +677,15 @@ export function FormalSamplePointLedger({
           )
             return;
           if (
-            event.actionCode === "FORMAL_SAMPLE_POINT_DELETED" &&
+            [
+              "FORMAL_SAMPLE_POINT_DELETED",
+              "FORMAL_SAMPLE_POINT_RETIRED",
+            ].includes(event.actionCode) &&
             event.aggregateId === selectedId
           ) {
             setDetail(null);
             setConfirmingId(null);
+            setRetiringId(null);
             return;
           }
           void refreshDetail(selectedId, "REFRESH");
@@ -691,6 +719,7 @@ export function FormalSamplePointLedger({
       setMaintainerEditor(null);
       await query(pageNumber);
       setDetail(authoritative);
+      onChanged();
       setNotice("维护人已更新并重新查询。");
     } catch (error) {
       const conflict =
@@ -737,6 +766,7 @@ export function FormalSamplePointLedger({
       setConfirmingId(null);
       await query(editor.mode === "CREATE" ? 0 : pageNumber);
       setDetail(authoritative);
+      onChanged();
       setNotice(
         editor.mode === "CREATE"
           ? "正式样本已新增并重新查询。"
@@ -776,6 +806,7 @@ export function FormalSamplePointLedger({
       setConfirmingId(null);
       setEditor(null);
       await query(pageNumber);
+      onChanged();
       setNotice("正式样本已删除，列表已重新查询。");
       navigate({ type: "formal-sample-list", id: "list" });
     } catch (error) {
@@ -796,6 +827,46 @@ export function FormalSamplePointLedger({
       setNotice(message);
     } finally {
       setDeleteBusy(false);
+    }
+  };
+
+  const retire = async () => {
+    if (!canRetire || !detail || !repository.retireFormalSamplePoint) return;
+    const reason = retirementReason.trim();
+    if (!reason) {
+      setNotice("请填写淘汰原因。");
+      return;
+    }
+    setWriteBusy(true);
+    setNotice("");
+    try {
+      await repository.retireFormalSamplePoint(
+        detail.id,
+        detail.version,
+        reason,
+      );
+      detailRequestVersion.current += 1;
+      setDetail(null);
+      setRetiringId(null);
+      setRetirementReason("");
+      setEditor(null);
+      await query(pageNumber);
+      onChanged();
+      setNotice("正式样本已淘汰为历史样本，列表已重新查询。");
+      navigate({ type: "formal-sample-list", id: "list" });
+    } catch (error) {
+      const selectedId = detail.id;
+      const conflict =
+        error instanceof RealtimeApiError &&
+        error.code === "FORMAL_SAMPLE_POINT_VERSION_CONFLICT";
+      setRetiringId(null);
+      await query(pageNumber);
+      if (conflict) await loadDetail(selectedId);
+      setNotice(
+        formalSampleRetirementError(error, "正式样本淘汰失败，请稍后重试。"),
+      );
+    } finally {
+      setWriteBusy(false);
     }
   };
 
@@ -1170,7 +1241,18 @@ export function FormalSamplePointLedger({
                               );
                           }}
                         >
-                          删除
+                          彻底删除
+                        </button>
+                      )}
+                      {canRetire && (
+                        <button
+                          className="enterprise-ledger-row-action"
+                          type="button"
+                          onClick={() =>
+                            void loadDetail(samplePoint.samplePointId, "RETIRE")
+                          }
+                        >
+                          淘汰为历史
                         </button>
                       )}
                       <button
@@ -1268,6 +1350,54 @@ export function FormalSamplePointLedger({
                 编辑稳定信息
               </button>
             )}
+            {canRetire && retiringId === detail.id ? (
+              <section
+                aria-label="淘汰正式样本"
+                className="formal-sample-ledger__delete-confirmation"
+              >
+                <p>淘汰后保留最后一次维护数据，并转入总揽监测历史样本图层。</p>
+                <label>
+                  <span>淘汰原因</span>
+                  <input
+                    aria-label="淘汰原因"
+                    maxLength={500}
+                    value={retirementReason}
+                    onChange={(event) =>
+                      setRetirementReason(event.target.value)
+                    }
+                  />
+                </label>
+                <button
+                  disabled={busy}
+                  type="button"
+                  onClick={() => void retire()}
+                >
+                  确认淘汰
+                </button>
+                <button
+                  disabled={writeBusy}
+                  type="button"
+                  onClick={() => {
+                    setRetiringId(null);
+                    setRetirementReason("");
+                  }}
+                >
+                  取消
+                </button>
+              </section>
+            ) : canRetire ? (
+              <button
+                disabled={busy}
+                type="button"
+                onClick={() => {
+                  setConfirmingId(null);
+                  setRetiringId(detail.id);
+                  setRetirementReason("");
+                }}
+              >
+                淘汰为历史样本
+              </button>
+            ) : null}
             {canManage && repository.assignFormalSampleMaintainer && (
               <button
                 disabled={busy}
