@@ -215,7 +215,7 @@ export function SamplePointGovernanceWorkspace({
         </nav>
       ) : null}
 
-      {mode !== "design" ? (
+      {mode === "all" ? (
         <div className="sample-point-governance-workspace__context">
           <strong>{moduleGuidance[activeModule].title}</strong>
           <span>{moduleGuidance[activeModule].description}</span>
@@ -246,7 +246,7 @@ export function SamplePointGovernanceWorkspace({
           />
         </dl>
       ) : null}
-      {mode !== "design" && activeModule === "design" ? (
+      {mode === "all" && activeModule === "design" ? (
         <dl
           aria-label="设计参考点概况"
           className="sample-point-governance-workspace__status-line"

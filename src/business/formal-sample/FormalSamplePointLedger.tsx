@@ -250,6 +250,7 @@ export function FormalSamplePointLedger({
   onCollectData,
   onChanged = () => undefined,
   showAllApplicableFields = false,
+  overlayOnly = false,
 }: {
   domain: FormalSampleObservationDomain;
   productCode: string;
@@ -261,6 +262,7 @@ export function FormalSamplePointLedger({
   onCollectData: (samplePointId: string) => void;
   onChanged?: () => void;
   showAllApplicableFields?: boolean;
+  overlayOnly?: boolean;
 }) {
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
   const [objectTypes, setObjectTypes] = useState<readonly MasterObjectType[]>(
@@ -362,7 +364,9 @@ export function FormalSamplePointLedger({
       editor?.regionCode ?? detail?.regionCode ?? "",
     ),
   );
-  const showList = selection ? selection.type === "formal-sample-list" : true;
+  const showList =
+    !overlayOnly &&
+    (selection ? selection.type === "formal-sample-list" : true);
   const navigate = (next: FormalSelection) => onSelectionChange?.(next);
 
   useEffect(() => {
@@ -879,10 +883,10 @@ export function FormalSamplePointLedger({
 
   return (
     <SamplePointLedgerPage
-      className="formal-sample-ledger enterprise-ledger-workbench"
+      className={`formal-sample-ledger enterprise-ledger-workbench${overlayOnly ? " formal-sample-ledger--overlay-only" : ""}`}
       ariaLabel="采集台账工作台"
     >
-      {onSelectionClear && (
+      {onSelectionClear && !overlayOnly && (
         <div className="enterprise-ledger-table__toolbar">
           <button type="button" onClick={onSelectionClear}>
             返回业务台账
@@ -1290,7 +1294,7 @@ export function FormalSamplePointLedger({
           <section
             ref={detailRegion}
             tabIndex={-1}
-            className="formal-sample-page formal-sample-page--detail"
+            className="formal-sample-page formal-sample-page--detail enterprise-ledger-drawer"
             aria-label="正式样本详情"
           >
             <h3>{detail.canonicalName}</h3>

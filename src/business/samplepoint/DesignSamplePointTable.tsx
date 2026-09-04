@@ -103,7 +103,7 @@ export function DesignSamplePointTable({
   const hydratedSelection = useRef("");
   const canWrite = session.permissions.includes("BUSINESS_UPDATE");
   const canImport = session.permissions.includes("BUSINESS_IMPORT");
-  const showList = selection ? selection.type === "design-sample-list" : true;
+  const showList = true;
   const navigate = (next: FormalSelection) => onSelectionChange?.(next);
 
   useEffect(() => {
@@ -695,7 +695,7 @@ export function DesignSamplePointTable({
 
       {viewPoint ? (
         <section
-          className="design-sample-point-page"
+          className="design-sample-point-page enterprise-ledger-drawer"
           aria-label="设计参考点详情"
         >
           <header>

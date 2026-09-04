@@ -384,7 +384,7 @@ describe("ExistingSampleObservationPanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders a routed formal create page without nesting the business ledger", async () => {
+  it("keeps the mature business ledger visible behind the routed formal editor drawer", async () => {
     const onSelectionChange = vi.fn();
     render(
       <ExistingSampleObservationPanel
@@ -407,8 +407,13 @@ describe("ExistingSampleObservationPanel", () => {
     expect(
       await screen.findByRole("region", { name: "正式样本稳定信息" }),
     ).toBeVisible();
-    expect(screen.queryByText("原有采集台账内容")).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("原有采集台账内容")).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "正式样本稳定信息" }),
+    ).toHaveClass("enterprise-ledger-drawer");
+    expect(
+      screen.queryByRole("heading", { name: "采集台账" }),
+    ).not.toBeInTheDocument();
     await userEvent.click(
       screen.getByRole("button", { name: "返回正式样本台账" }),
     );
@@ -433,7 +438,7 @@ describe("ExistingSampleObservationPanel", () => {
 
     expect(
       await screen.findByRole("region", { name: "正式样本详情" }),
-    ).toBeVisible();
+    ).toHaveClass("enterprise-ledger-drawer");
     expect(
       screen.getByRole("button", { name: "淘汰为历史样本" }),
     ).toBeVisible();
@@ -1875,7 +1880,7 @@ describe("ExistingSampleObservationPanel", () => {
     expect(screen.getByLabelText("播种面积（亩）")).toHaveValue(177.7);
   });
 
-  it("uses full-page sample workflows without the retired drawer structure", () => {
+  it("uses a shared enterprise drawer without changing the mature ledger grid", () => {
     const panelSource = readFileSync(
       "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
       "utf8",
@@ -1902,7 +1907,9 @@ describe("ExistingSampleObservationPanel", () => {
     expect(css).toMatch(
       /\.formal-sample-ledger__layout\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u,
     );
-    expect(css).toMatch(/\.formal-sample-page\s*\{[^}]*width:\s*100%/u);
+    expect(css).toMatch(
+      /\.enterprise-ledger-drawer\s*\{[^}]*width:\s*min\(540px,\s*calc\(100vw\s*-\s*24px\)\)/u,
+    );
     expect(css).toMatch(
       /\.formal-sample-ledger__row-actions\s*\{[^}]*flex-wrap:\s*nowrap[^}]*white-space:\s*nowrap/u,
     );

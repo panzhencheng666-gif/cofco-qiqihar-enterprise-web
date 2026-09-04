@@ -3797,6 +3797,138 @@
   display: flex;
   gap: 8px;
 }
+.formal-sample-ledger--overlay-only {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: rgba(8, 29, 45, 0.28);
+}
+.formal-sample-ledger--overlay-only .formal-sample-ledger__layout {
+  display: contents;
+}
+.enterprise-ledger-drawer {
+  position: fixed;
+  top: 58px;
+  right: 0;
+  bottom: 0;
+  z-index: 91;
+  display: flex;
+  width: min(540px, calc(100vw - 24px));
+  max-height: calc(100vh - 58px);
+  gap: 0;
+  overflow: auto;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid #9fb4c4;
+  background: #f4f7f9;
+  box-shadow: -16px 0 36px rgba(14, 43, 65, 0.24);
+}
+.enterprise-ledger-drawer > header,
+.enterprise-ledger-drawer > h3 {
+  margin: 0;
+  padding: 18px 20px;
+  border-bottom: 1px solid #0b446e;
+  color: #fff;
+  background: #105f96;
+}
+.enterprise-ledger-drawer > header h3 {
+  color: #fff;
+  font-size: 18px;
+}
+.enterprise-ledger-drawer > header p {
+  color: #d9edf9;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.enterprise-ledger-drawer > header strong {
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  font-size: 12px;
+}
+.enterprise-ledger-drawer .formal-sample-page__field-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+  padding: 18px 20px;
+}
+.enterprise-ledger-drawer .formal-sample-page__field-grid label {
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid #d3dee6;
+  background: #fff;
+}
+.enterprise-ledger-drawer .formal-sample-page__address {
+  grid-column: 1 / -1;
+}
+.enterprise-ledger-drawer > [role="alert"],
+.enterprise-ledger-drawer > [role="status"] {
+  margin: 0 20px 14px;
+  padding: 10px 12px;
+  border: 1px solid #d7b0a7;
+  background: #fff7f4;
+}
+.enterprise-ledger-drawer .formal-sample-page__actions,
+.enterprise-ledger-drawer .design-sample-point-page__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: auto;
+  padding: 14px 20px;
+  border-top: 1px solid #c7d5df;
+  background: #fff;
+}
+.enterprise-ledger-drawer button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #8da8bc;
+  border-radius: 2px;
+  color: #174968;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.enterprise-ledger-drawer .formal-sample-page__actions button:first-child,
+.enterprise-ledger-drawer
+  .design-sample-point-page__actions
+  button:first-child {
+  border-color: #0f6eb8;
+  color: #fff;
+  background: #0f6eb8;
+}
+.enterprise-ledger-drawer.formal-sample-page--detail,
+.enterprise-ledger-drawer.design-sample-point-page {
+  padding: 0;
+}
+.enterprise-ledger-drawer.formal-sample-page--detail > dl,
+.enterprise-ledger-drawer.design-sample-point-page > dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 18px 20px;
+  border: 1px solid #d3dee6;
+  background: #fff;
+}
+.enterprise-ledger-drawer.formal-sample-page--detail > dl > div,
+.enterprise-ledger-drawer.design-sample-point-page > dl > div {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border-right: 1px solid #e0e7ec;
+  border-bottom: 1px solid #e0e7ec;
+}
+.enterprise-ledger-drawer.formal-sample-page--detail > button,
+.enterprise-ledger-drawer.formal-sample-page--detail > section,
+.enterprise-ledger-drawer.formal-sample-page--detail > div {
+  margin: 0 20px 10px;
+}
 .formal-sample-ledger__table,
 .formal-sample-ledger__detail {
   min-width: 0;

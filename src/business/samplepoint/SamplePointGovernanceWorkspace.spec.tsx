@@ -475,6 +475,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(editor).toHaveClass(
       "formal-sample-page",
       "formal-sample-page--form",
+      "enterprise-ledger-drawer",
     );
     expect(
       editor.querySelector(".formal-sample-page__field-grid"),
@@ -510,7 +511,7 @@ describe("SamplePointGovernanceWorkspace", () => {
     );
   });
 
-  it("renders a routed design create page without nesting the ledger", async () => {
+  it("keeps the design ledger visible behind the routed enterprise editor drawer", async () => {
     const onSelectionChange = vi.fn();
     render(
       <SamplePointGovernanceWorkspace
@@ -528,10 +529,8 @@ describe("SamplePointGovernanceWorkspace", () => {
 
     expect(
       await screen.findByRole("form", { name: "新建设计参考点" }),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole("table", { name: "设计参考点清单" }),
-    ).not.toBeInTheDocument();
+    ).toHaveClass("enterprise-ledger-drawer");
+    expect(screen.getByRole("table", { name: "设计参考点清单" })).toBeVisible();
     expect(document.querySelector(".design-sample-point-editor")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "取消" }));
     expect(onSelectionChange).toHaveBeenCalledWith({
