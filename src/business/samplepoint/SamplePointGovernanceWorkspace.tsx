@@ -177,19 +177,11 @@ export function SamplePointGovernanceWorkspace({
       className="sample-point-governance-workspace"
       data-layout="ledger-workbench"
     >
-      {mode !== "design" ? (
+      {mode === "all" ? (
         <WorkspaceHeader
-          eyebrow={
-            mode === "business"
-              ? "我的工作 / 样本点"
-              : "平台运营管理部 / 数据治理"
-          }
+          eyebrow="平台运营管理部 / 数据治理"
           title="样本点管理"
-          summary={
-            mode === "business"
-              ? "维护设计参考点；现有样本统一在各产情、市场和物流业务台账中维护。"
-              : "分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
-          }
+          summary="分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
         />
       ) : null}
 

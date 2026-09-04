@@ -347,7 +347,12 @@ describe("SamplePointGovernanceWorkspace", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "样本点管理" })).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "样本点管理" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "设计参考点清单" }),
+    ).toBeVisible();
     expect(screen.queryByRole("tab", { name: "现有样本" })).toBeNull();
     expect(screen.queryByText("现有样本业务范围")).toBeNull();
     expect(

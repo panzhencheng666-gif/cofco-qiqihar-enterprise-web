@@ -3332,8 +3332,8 @@
 }
 .existing-observation__filters.enterprise-ledger-query--design {
   grid-template-columns:
-    minmax(190px, 0.9fr) minmax(160px, 0.75fr)
-    minmax(180px, 0.8fr) minmax(240px, 1.2fr) auto;
+    minmax(150px, 0.9fr) minmax(120px, 0.72fr)
+    minmax(140px, 0.78fr) minmax(180px, 1.18fr) auto;
   padding: 10px 12px;
 }
 .existing-observation__filters.enterprise-ledger-query--design
@@ -3547,7 +3547,7 @@
 .existing-observation__identity > div {
   display: grid;
   gap: 4px;
-  padding: 11px 13px;
+  padding: 10px 13px;
   background: #f5f8fa;
 }
 .existing-observation__identity span {
@@ -3566,7 +3566,7 @@
 }
 .existing-observation__form fieldset {
   margin: 0;
-  padding: 12px 14px 14px;
+  padding: 10px 12px 12px;
   border: 1px solid #d3dde5;
   background: #fff;
 }
@@ -3596,7 +3596,7 @@
   z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 18px;
   padding: 11px 14px;
   border: 1px solid #c9d6df;
@@ -3605,6 +3605,7 @@
 .existing-observation__actions > div {
   display: grid;
   gap: 3px;
+  margin-right: auto;
 }
 .existing-observation__actions span {
   color: #617486;
@@ -3619,7 +3620,12 @@
   justify-content: flex-end;
   gap: 8px;
 }
+.existing-observation__actions > .existing-observation__action-buttons {
+  display: flex;
+  margin-right: 0;
+}
 .existing-observation__action-buttons button {
+  width: auto;
   min-width: 96px;
 }
 .existing-observation__action-buttons .is-primary {
@@ -4156,24 +4162,23 @@
   .formal-sample-ledger__filters > button {
     width: max-content;
   }
-  .existing-observation__filters {
+}
+
+@media (max-width: 820px) {
+  .existing-observation__filters,
+  .existing-observation__filters.enterprise-ledger-query--design,
+  .existing-observation__field-grid,
+  .existing-observation__identity {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .existing-observation__filters.enterprise-ledger-query--design {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+
   .existing-observation__filters.enterprise-ledger-query--design
     > .enterprise-ledger-query__actions {
     grid-column: 1 / -1;
   }
+
   .existing-observation__filters > button {
     width: max-content;
-  }
-  .existing-observation__field-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .existing-observation__identity {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
