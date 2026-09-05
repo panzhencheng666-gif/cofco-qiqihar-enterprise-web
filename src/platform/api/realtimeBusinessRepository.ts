@@ -443,7 +443,7 @@ export interface RegionResponsibility {
     nextDisplayName: string | null;
     version: number;
   }[];
-  previewToken: string;
+  previewToken: string | null;
 }
 
 export interface IdentityAssignmentOptions {
