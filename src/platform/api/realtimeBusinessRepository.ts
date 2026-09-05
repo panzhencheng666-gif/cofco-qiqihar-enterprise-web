@@ -418,7 +418,32 @@ export interface EmployeeProfile {
     primaryPosition: boolean;
   }[];
   regionCodes: readonly string[];
+  responsibilityRegionCodes?: readonly string[];
   version: number;
+}
+
+export interface RegionResponsibility {
+  subjectId: string;
+  regionCodes: readonly string[];
+  regions: readonly {
+    regionCode: string;
+    regionName: string;
+    subjectId: string | null;
+    displayName: string | null;
+    version: number;
+  }[];
+  samples: readonly {
+    id: string;
+    canonicalName: string;
+    regionCode: string;
+    regionName: string;
+    previousSubjectId: string | null;
+    previousDisplayName: string | null;
+    nextSubjectId: string | null;
+    nextDisplayName: string | null;
+    version: number;
+  }[];
+  previewToken: string;
 }
 
 export interface IdentityAssignmentOptions {
@@ -1460,6 +1485,19 @@ export interface RealtimeBusinessRepository {
   reissueInvitation(
     input: EmployeeInvitationReissue,
   ): Promise<IdentityInvitationReceipt>;
+  loadRegionResponsibility(subjectId: string): Promise<RegionResponsibility>;
+  previewRegionResponsibility(
+    subjectId: string,
+    input: { regionCodes: readonly string[] },
+  ): Promise<RegionResponsibility>;
+  saveRegionResponsibility(
+    subjectId: string,
+    input: {
+      regionCodes: readonly string[];
+      previewToken: string;
+      reason: string;
+    },
+  ): Promise<RegionResponsibility>;
   listEmployees(): Promise<readonly EmployeeProfile[]>;
   loadAssignmentOptions(
     workUnitCode: string,
@@ -2178,6 +2216,20 @@ export function createRealtimeBusinessRepository(
             [identityLifecycleContract.idempotencyHeader]: idempotencyKey,
           },
         },
+      ),
+    loadRegionResponsibility: (subjectId) =>
+      client.get<RegionResponsibility>(
+        `/api/v1/identity/employees/${encodeURIComponent(subjectId)}/region-responsibility`,
+      ),
+    previewRegionResponsibility: (subjectId, input) =>
+      client.post<RegionResponsibility>(
+        `/api/v1/identity/employees/${encodeURIComponent(subjectId)}/region-responsibility/preview`,
+        input,
+      ),
+    saveRegionResponsibility: (subjectId, input) =>
+      client.put<RegionResponsibility>(
+        `/api/v1/identity/employees/${encodeURIComponent(subjectId)}/region-responsibility`,
+        input,
       ),
     listEmployees: () =>
       client.get<readonly EmployeeProfile[]>("/api/v1/identity/employees"),

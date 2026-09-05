@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AccessReviewCampaign,
   AccessReviewDecision,
@@ -7,12 +7,16 @@ import type {
   EmployeeAssignmentUpdate,
   EmployeeInvitation,
   EmployeeProfile,
-  FormalSamplePointRow,
   IdentityAssignmentOptions,
   IdentityInvitationReceipt,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { csrfTokenFromCookies } from "@/platform/api/browserSession";
+const SampleResponsibilityEditor = lazy(() =>
+  import("./SampleResponsibilityEditor").then((module) => ({
+    default: module.SampleResponsibilityEditor,
+  })),
+);
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
 type GovernanceView =
@@ -90,18 +94,6 @@ function regionScopeSummary(
   return codes.length > visible.length
     ? `${visible.join("、")} 等 ${codes.length} 个地区`
     : visible.join("、");
-}
-
-function employeeCoversSample(
-  employee: EmployeeProfile,
-  sample: FormalSamplePointRow,
-): boolean {
-  return employee.regionCodes.some(
-    (code) =>
-      code === "*" ||
-      sample.regionCode.startsWith(code) ||
-      code.startsWith(sample.regionCode),
-  );
 }
 
 function auditObjectLabel(value: string): string {
@@ -442,10 +434,9 @@ export function IdentityGovernancePanel({
   const [employees, setEmployees] = useState<readonly EmployeeProfile[]>([]);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [employeeUnit, setEmployeeUnit] = useState("");
+  const [employeeRole, setEmployeeRole] = useState("");
   const [employeeStatus, setEmployeeStatus] = useState("");
-  const [formalSamples, setFormalSamples] = useState<
-    readonly FormalSamplePointRow[]
-  >([]);
+
   const [options, setOptions] =
     useState<IdentityAssignmentOptions>(emptyOptions);
   const [regionNames, setRegionNames] = useState<ReadonlyMap<string, string>>(
@@ -463,8 +454,7 @@ export function IdentityGovernancePanel({
   } | null>(null);
   const [responsibilityEditor, setResponsibilityEditor] = useState<{
     employee: EmployeeProfile;
-    sampleIds: readonly string[];
-    reason: string;
+    readOnly?: boolean;
   } | null>(null);
   const [loadingInvitation, setLoadingInvitation] = useState(false);
   const [reviews, setReviews] = useState<readonly AccessReviewCampaign[]>([]);
@@ -491,23 +481,6 @@ export function IdentityGovernancePanel({
   const [error, setError] = useState<string | null>(null);
   const assignmentOptionsRequest = useRef(0);
   const invitationEditorSubject = useRef<string | null>(null);
-
-  const loadFormalSamples = async () => {
-    if (!repository.listFormalSamplePoints) return [];
-    const rows: FormalSamplePointRow[] = [];
-    let page = 0;
-    let totalPages = 1;
-    while (page < totalPages) {
-      const result = await repository.listFormalSamplePoints({
-        page,
-        pageSize: 100,
-      });
-      rows.push(...result.items);
-      totalPages = result.totalPages;
-      page += 1;
-    }
-    return rows;
-  };
 
   useEffect(() => {
     let active = true;
@@ -550,15 +523,12 @@ export function IdentityGovernancePanel({
     setLoading(true);
     setError(null);
     try {
-      const [nextEmployees, nextOptions, nextFormalSamples] = await Promise.all(
-        [
-          repository.listEmployees(),
-          repository.loadAssignmentOptions(session.workUnitCode),
-          loadFormalSamples(),
-        ],
-      );
+      const [nextEmployees, nextOptions] = await Promise.all([
+        repository.listEmployees(),
+        repository.loadAssignmentOptions(session.workUnitCode),
+      ]);
       setEmployees(nextEmployees);
-      setFormalSamples(nextFormalSamples);
+
       if (
         assignmentOptionsRequest.current === assignmentOptionsGeneration &&
         !editor
@@ -646,22 +616,12 @@ export function IdentityGovernancePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mayReadEmployees, repository, view]);
 
-  const samplesByMaintainer = useMemo(() => {
-    const grouped = new Map<string, FormalSamplePointRow[]>();
-    for (const sample of formalSamples) {
-      if (!sample.maintainerSubjectId) continue;
-      grouped.set(sample.maintainerSubjectId, [
-        ...(grouped.get(sample.maintainerSubjectId) ?? []),
-        sample,
-      ]);
-    }
-    return grouped;
-  }, [formalSamples]);
-
   const visibleEmployees = employees.filter(
     (employee) =>
       employee.displayName.includes(employeeSearch.trim()) &&
       (!employeeUnit || employee.workUnitCode === employeeUnit) &&
+      (!employeeRole ||
+        employee.roles.some(({ code }) => code === employeeRole)) &&
       (!employeeStatus || employee.accountStatus === employeeStatus),
   );
 
@@ -916,40 +876,6 @@ export function IdentityGovernancePanel({
     }
   };
 
-  const saveSampleResponsibility = async () => {
-    if (
-      !responsibilityEditor ||
-      !repository.assignFormalSampleMaintainer ||
-      !responsibilityEditor.reason.trim()
-    )
-      return;
-    setSaving(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const selected = formalSamples.filter(
-        (sample) =>
-          responsibilityEditor.sampleIds.includes(sample.id) &&
-          sample.maintainerSubjectId !==
-            responsibilityEditor.employee.subjectId,
-      );
-      for (const sample of selected) {
-        await repository.assignFormalSampleMaintainer(sample.id, {
-          maintainerSubjectId: responsibilityEditor.employee.subjectId,
-          maintainerChangeReason: responsibilityEditor.reason.trim(),
-          expectedVersion: sample.version,
-        });
-      }
-      setResponsibilityEditor(null);
-      setMessage("样本维护责任已更新，员工与样本列表已重新读取。");
-      await loadEmployees();
-    } catch (caught) {
-      setError(businessError(caught, "样本维护责任保存失败，请刷新后重试。"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const createReview = async () => {
     if (!newReviewName.trim() || !newReviewDueAt) return;
     setSaving(true);
@@ -1058,7 +984,7 @@ export function IdentityGovernancePanel({
               type="button"
               onClick={() => changeView("employees")}
             >
-              员工与授权
+              员工管理
             </button>
           )}
           {mayReview && (
@@ -1267,318 +1193,264 @@ export function IdentityGovernancePanel({
             </section>
           )}
           {view === "employees" && mayReadEmployees && (
-            <section aria-label="员工与授权">
-              <div className="identity-governance-toolbar">
-                <div>
-                  <h3>员工与授权</h3>
-                  <p>按员工维护单位、业务角色、责任地区和账号生命周期。</p>
-                </div>
-                {mayAdminister && (
-                  <button
-                    className="is-primary"
-                    type="button"
-                    onClick={() =>
-                      openAssignmentEditor(true, invitationDraft(session))
-                    }
-                  >
-                    邀请员工
-                  </button>
-                )}
-              </div>
-              <div
-                className="identity-audit-filters identity-employee-filters"
-                role="search"
-                aria-label="筛选员工"
-              >
-                <label>
-                  筛选员工姓名
-                  <input
-                    value={employeeSearch}
-                    onChange={(event) => setEmployeeSearch(event.target.value)}
-                  />
-                </label>
-                <label>
-                  筛选工作单位
-                  <select
-                    aria-label="筛选工作单位"
-                    value={employeeUnit}
-                    onChange={(event) => setEmployeeUnit(event.target.value)}
-                  >
-                    <option value="">全部单位</option>
-                    {[
-                      ...new Map(
-                        employees.map((employee) => [
-                          employee.workUnitCode,
-                          employee.workUnitName,
-                        ]),
-                      ).entries(),
-                    ].map(([code, name]) => (
-                      <option key={code} value={code}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  筛选账号状态
-                  <select
-                    aria-label="筛选账号状态"
-                    value={employeeStatus}
-                    onChange={(event) => setEmployeeStatus(event.target.value)}
-                  >
-                    <option value="">全部状态</option>
-                    {[
-                      "ACTIVE",
-                      "INVITED",
-                      "LOCKED",
-                      "SUSPENDED",
-                      "REVOKED",
-                    ].map((status) => (
-                      <option key={status} value={status}>
-                        {accountLabel(status)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmployeeSearch("");
-                    setEmployeeUnit("");
-                    setEmployeeStatus("");
-                  }}
-                >
-                  重置筛选
-                </button>
-              </div>
-              {loading ? (
-                <p>正在读取员工信息…</p>
-              ) : (
-                <div className="identity-data-table-scroll">
-                  <table
-                    aria-label="员工授权清单"
-                    className="identity-data-table identity-employee-table"
-                  >
-                    <thead>
-                      <tr>
-                        <th scope="col">员工</th>
-                        <th scope="col">工作单位</th>
-                        <th scope="col">角色与责任地区</th>
-                        <th scope="col">负责样本点</th>
-                        <th scope="col">账号状态</th>
-                        <th scope="col">处理</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleEmployees.map((employee) => (
-                        <tr key={employee.subjectId}>
-                          <th scope="row">
-                            <strong>{employee.displayName}</strong>
-                          </th>
-                          <td>
-                            <strong>{employee.workUnitName}</strong>
-                          </td>
-                          <td>
-                            <strong>
-                              {employee.roles
-                                .map(({ name }) => name)
-                                .join("、") || "未分配业务角色"}
-                            </strong>
-                            <small>
-                              {regionScopeSummary(
-                                employee.regionCodes,
-                                regionNames,
-                              )}
-                            </small>
-                          </td>
-                          <td>
-                            <strong>
-                              {(
-                                samplesByMaintainer.get(employee.subjectId) ??
-                                []
-                              )
-                                .map(({ canonicalName }) => canonicalName)
-                                .join("、") || "未分配样本点"}
-                            </strong>
-                          </td>
-                          <td>
-                            {employmentLabel(employee.employmentStatus)} ·{" "}
-                            {accountLabel(employee.accountStatus)}
-                          </td>
-                          <td>
-                            {employee.subjectId === session.subjectId ? (
-                              <span>本人账号</span>
-                            ) : mayAdminister ? (
-                              <div className="identity-profile-actions identity-employee-actions">
-                                <button
-                                  aria-label={`管理${employee.displayName}的授权`}
-                                  type="button"
-                                  onClick={() =>
-                                    openAssignmentEditor(
-                                      false,
-                                      employeeDraft(employee),
-                                    )
-                                  }
-                                >
-                                  管理授权
-                                </button>
-                                {employee.employmentStatus === "ACTIVE" &&
-                                  employee.accountStatus === "ACTIVE" &&
-                                  repository.assignFormalSampleMaintainer && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setResponsibilityEditor({
-                                          employee,
-                                          sampleIds: [],
-                                          reason: "",
-                                        })
-                                      }
-                                    >
-                                      调整负责样本点
-                                    </button>
-                                  )}
-                                {employee.accountStatus === "INVITED" && (
-                                  <button
-                                    aria-label={`管理${employee.displayName}的邀请`}
-                                    type="button"
-                                    onClick={() =>
-                                      void openInvitationEditor(employee)
-                                    }
-                                  >
-                                    管理邀请
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              "只读"
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                      {visibleEmployees.length === 0 && (
-                        <tr>
-                          <td colSpan={6}>
-                            {employees.length === 0
-                              ? "当前单位暂无员工账号。"
-                              : "没有符合筛选条件的员工。"}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {editor && (
-                <AssignmentEditor
-                  draft={editor.draft}
-                  invite={editor.invite}
-                  onCancel={closeAssignmentEditor}
-                  onChange={(draft) => setEditor({ ...editor, draft })}
-                  onWorkUnitChange={(workUnitCode) =>
-                    void changeAssignmentWorkUnit(workUnitCode)
-                  }
-                  onSubmit={() => void saveAssignment()}
-                  options={options}
-                  regionNames={regionNames}
-                  saving={saving}
-                  loadingOptions={loadingAssignmentOptions}
-                />
-              )}
-              {responsibilityEditor && (
-                <section
-                  aria-label={`调整${responsibilityEditor.employee.displayName}负责样本点`}
-                  className="identity-governance-editor"
-                >
-                  <header>
-                    <div>
-                      <h3>调整负责样本点</h3>
-                      <p>
-                        选择需要交给该员工负责的样本。已有责任保持不变；转交其他员工请在对方账号中操作。
-                      </p>
-                    </div>
+            <section
+              aria-label="员工与授权"
+              className="identity-employee-workspace"
+            >
+              <aside className="identity-unit-sidebar" aria-label="组织单位">
+                <h3>组织单位</h3>
+                {[{ code: "", name: "全部单位" }, ...options.workUnits].map(
+                  ({ code, name }) => (
                     <button
                       type="button"
-                      onClick={() => setResponsibilityEditor(null)}
+                      key={code}
+                      aria-pressed={employeeUnit === code}
+                      onClick={() => setEmployeeUnit(code)}
                     >
-                      取消
+                      {name}
                     </button>
-                  </header>
-                  <div className="identity-governance-form-grid identity-responsibility-form">
-                    <label>
-                      选择负责样本点
-                      <select
-                        aria-label="选择负责样本点"
-                        multiple
-                        size={8}
-                        value={[...responsibilityEditor.sampleIds]}
-                        onChange={(event) => {
-                          const sampleIds = Array.from(
-                            event.currentTarget.selectedOptions,
-                            ({ value }) => value,
-                          );
-                          setResponsibilityEditor((current) =>
-                            current
-                              ? {
-                                  ...current,
-                                  sampleIds,
-                                }
-                              : current,
-                          );
-                        }}
-                      >
-                        {formalSamples
-                          .filter(
-                            (sample) =>
-                              sample.maintainerSubjectId !==
-                                responsibilityEditor.employee.subjectId &&
-                              employeeCoversSample(
-                                responsibilityEditor.employee,
-                                sample,
-                              ),
-                          )
-                          .map((sample) => (
-                            <option key={sample.id} value={sample.id}>
-                              {sample.canonicalName} ·{" "}
-                              {displayRegion(sample.regionCode, regionNames)}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    <label>
-                      维护责任调整原因
-                      <textarea
-                        aria-label="维护责任调整原因"
-                        value={responsibilityEditor.reason}
-                        onChange={(event) =>
-                          setResponsibilityEditor((current) =>
-                            current
-                              ? { ...current, reason: event.target.value }
-                              : current,
-                          )
-                        }
-                      />
-                    </label>
+                  ),
+                )}
+              </aside>
+              <div className="identity-employee-body">
+                <div className="identity-governance-toolbar">
+                  <div>
+                    <h3>
+                      {options.workUnits.find(
+                        ({ code }) => code === employeeUnit,
+                      )?.name ?? "全部单位"}{" "}
+                      / 员工管理
+                    </h3>
                   </div>
-                  <p>
-                    按住 Ctrl（Mac 为 Command）可多选。已选择{" "}
-                    {responsibilityEditor.sampleIds.length} 个待分配样本。
-                  </p>
-                  <footer>
+                  {mayAdminister && (
                     <button
                       className="is-primary"
-                      disabled={
-                        saving ||
-                        responsibilityEditor.sampleIds.length === 0 ||
-                        !responsibilityEditor.reason.trim()
-                      }
                       type="button"
-                      onClick={() => void saveSampleResponsibility()}
+                      onClick={() =>
+                        openAssignmentEditor(true, invitationDraft(session))
+                      }
                     >
-                      保存样本责任
+                      邀请员工
                     </button>
-                  </footer>
-                </section>
+                  )}
+                </div>
+                <div
+                  className="identity-audit-filters identity-employee-filters"
+                  role="search"
+                  aria-label="筛选员工"
+                >
+                  <label>
+                    筛选员工姓名
+                    <input
+                      value={employeeSearch}
+                      onChange={(event) =>
+                        setEmployeeSearch(event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    筛选业务角色
+                    <select
+                      aria-label="筛选业务角色"
+                      value={employeeRole}
+                      onChange={(event) => setEmployeeRole(event.target.value)}
+                    >
+                      <option value="">全部业务角色</option>
+                      {options.roles.map(({ code, name }) => (
+                        <option key={code} value={code}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    筛选账号状态
+                    <select
+                      aria-label="筛选账号状态"
+                      value={employeeStatus}
+                      onChange={(event) =>
+                        setEmployeeStatus(event.target.value)
+                      }
+                    >
+                      <option value="">全部状态</option>
+                      {[
+                        "ACTIVE",
+                        "INVITED",
+                        "LOCKED",
+                        "SUSPENDED",
+                        "REVOKED",
+                      ].map((status) => (
+                        <option key={status} value={status}>
+                          {accountLabel(status)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmployeeSearch("");
+                      setEmployeeRole("");
+                      setEmployeeUnit("");
+                      setEmployeeStatus("");
+                    }}
+                  >
+                    重置筛选
+                  </button>
+                </div>
+                {loading ? (
+                  <p>正在读取员工信息…</p>
+                ) : (
+                  <div className="identity-data-table-scroll">
+                    <table
+                      aria-label="员工授权清单"
+                      className="identity-data-table identity-employee-table"
+                    >
+                      <thead>
+                        <tr>
+                          <th scope="col">员工</th>
+                          <th scope="col">业务角色</th>
+                          <th scope="col">负责地区</th>
+                          <th scope="col">样本责任</th>
+                          <th scope="col">账号状态</th>
+                          <th scope="col">处理</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleEmployees.map((employee) => (
+                          <tr key={employee.subjectId}>
+                            <th scope="row">
+                              <strong>{employee.displayName}</strong>
+                            </th>
+                            <td>
+                              <strong>
+                                {employee.roles
+                                  .map(({ name }) => name)
+                                  .join("、") || "未分配业务角色"}
+                              </strong>
+                            </td>
+                            <td>
+                              <span>
+                                {regionScopeSummary(
+                                  employee.responsibilityRegionCodes ?? [],
+                                  regionNames,
+                                )}
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setResponsibilityEditor({
+                                    employee,
+                                    readOnly: true,
+                                  })
+                                }
+                              >
+                                查看明细
+                              </button>
+                            </td>
+                            <td>
+                              {employmentLabel(employee.employmentStatus)} ·{" "}
+                              {accountLabel(employee.accountStatus)}
+                            </td>
+                            <td>
+                              {employee.subjectId === session.subjectId ? (
+                                <span>本人账号</span>
+                              ) : mayAdminister ? (
+                                <div className="identity-profile-actions identity-employee-actions">
+                                  <button
+                                    aria-label={`管理${employee.displayName}的授权`}
+                                    type="button"
+                                    onClick={() =>
+                                      openAssignmentEditor(
+                                        false,
+                                        employeeDraft(employee),
+                                      )
+                                    }
+                                  >
+                                    编辑账号
+                                  </button>
+                                  {employee.employmentStatus === "ACTIVE" &&
+                                    employee.accountStatus === "ACTIVE" &&
+                                    session.permissions.includes(
+                                      "FORMAL_SAMPLE_MANAGE",
+                                    ) && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setResponsibilityEditor({
+                                            employee,
+                                          })
+                                        }
+                                      >
+                                        设置负责地区
+                                      </button>
+                                    )}
+                                  {employee.accountStatus === "INVITED" && (
+                                    <button
+                                      aria-label={`管理${employee.displayName}的邀请`}
+                                      type="button"
+                                      onClick={() =>
+                                        void openInvitationEditor(employee)
+                                      }
+                                    >
+                                      管理邀请
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                "只读"
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                        {visibleEmployees.length === 0 && (
+                          <tr>
+                            <td colSpan={6}>
+                              {employees.length === 0
+                                ? "当前单位暂无员工账号。"
+                                : "没有符合筛选条件的员工。"}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {editor && (
+                  <AssignmentEditor
+                    draft={editor.draft}
+                    invite={editor.invite}
+                    onCancel={closeAssignmentEditor}
+                    onChange={(draft) => setEditor({ ...editor, draft })}
+                    onWorkUnitChange={(workUnitCode) =>
+                      void changeAssignmentWorkUnit(workUnitCode)
+                    }
+                    onSubmit={() => void saveAssignment()}
+                    options={options}
+                    regionNames={regionNames}
+                    saving={saving}
+                    loadingOptions={loadingAssignmentOptions}
+                  />
+                )}
+              </div>
+              {responsibilityEditor && (
+                <Suspense fallback={<p role="status">正在打开负责地区…</p>}>
+                  <SampleResponsibilityEditor
+                    key={responsibilityEditor.employee.subjectId}
+                    employee={responsibilityEditor.employee}
+                    readOnly={responsibilityEditor.readOnly}
+                    repository={repository}
+                    regionNames={regionNames}
+                    onCancel={() => setResponsibilityEditor(null)}
+                    onSaved={async () => {
+                      setResponsibilityEditor(null);
+                      setMessage("负责地区已保存，员工与样本列表已重新读取。");
+                      await loadEmployees();
+                    }}
+                  />
+                </Suspense>
               )}
               {invitationEditor && (
                 <section
