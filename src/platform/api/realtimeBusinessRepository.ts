@@ -1537,12 +1537,9 @@ export interface RealtimeBusinessRepository {
     expectedVersion: number,
   ): Promise<DesignSamplePointRow>;
   deleteDesignSamplePoint?(id: string, expectedVersion: number): Promise<void>;
-  downloadDesignSamplePointTemplate?(
-    domain: "PRODUCTION" | "MARKET",
-  ): Promise<Blob>;
+  downloadDesignSamplePointTemplate?(): Promise<Blob>;
   importDesignSamplePoints?(
     file: File,
-    domain: "PRODUCTION" | "MARKET",
     idempotencyKey: string,
   ): Promise<SamplePointImportResult>;
   downloadDesignSamplePointImportErrors?(importId: string): Promise<Blob>;
@@ -2073,15 +2070,13 @@ export function createRealtimeBusinessRepository(
       client.delete(`/api/v1/design-sample-points/${encodeURIComponent(id)}`, {
         expectedVersion,
       }),
-    downloadDesignSamplePointTemplate: (domain) =>
-      client.download(
-        `/api/v1/design-sample-points/import-template?domain=${encodeURIComponent(domain)}`,
-      ),
-    importDesignSamplePoints: (file, domain, idempotencyKey) => {
+    downloadDesignSamplePointTemplate: () =>
+      client.download("/api/v1/design-sample-points/import-template"),
+    importDesignSamplePoints: (file, idempotencyKey) => {
       const form = new FormData();
       form.append("file", file, file.name);
       return client.upload<SamplePointImportResult>(
-        `/api/v1/design-sample-points/imports?domain=${encodeURIComponent(domain)}`,
+        "/api/v1/design-sample-points/imports",
         form,
         { "Idempotency-Key": idempotencyKey },
       );

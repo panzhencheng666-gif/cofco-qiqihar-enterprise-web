@@ -36,19 +36,16 @@ export function SamplePointImportPanel({
     crypto.randomUUID(),
   );
   const [busy, setBusy] = useState(false);
-  const [designDomain, setDesignDomain] = useState<"PRODUCTION" | "MARKET">(
-    "PRODUCTION",
-  );
   const [result, setResult] = useState<SamplePointImportResult>();
   const [error, setError] = useState<string>();
   const label = kind === "design" ? "设计样本点" : "正式样本";
 
-  const handleTemplate = async (domain = designDomain) => {
+  const handleTemplate = async () => {
     setError(undefined);
     try {
       const blob =
         kind === "design"
-          ? await repository.downloadDesignSamplePointTemplate?.(domain)
+          ? await repository.downloadDesignSamplePointTemplate?.()
           : await repository.downloadFormalSamplePointTemplate?.();
       if (!blob) throw new Error("template unavailable");
       const templateLabel = kind === "design" ? "设计样本点" : label;
@@ -66,11 +63,7 @@ export function SamplePointImportPanel({
     try {
       const next =
         kind === "design"
-          ? await repository.importDesignSamplePoints?.(
-              file,
-              designDomain,
-              idempotencyKey,
-            )
+          ? await repository.importDesignSamplePoints?.(file, idempotencyKey)
           : await repository.importFormalSamplePoints?.(file, idempotencyKey);
       if (!next) throw new Error("import unavailable");
       setResult(next);
@@ -100,31 +93,11 @@ export function SamplePointImportPanel({
     }
   };
 
-  const templateActions =
-    kind === "design" ? (
-      <>
-        <label>
-          <span>导入分类</span>
-          <select
-            aria-label="设计参考点导入分类"
-            value={designDomain}
-            onChange={(event) =>
-              setDesignDomain(event.target.value as "PRODUCTION" | "MARKET")
-            }
-          >
-            <option value="PRODUCTION">产情类设计参考点</option>
-            <option value="MARKET">市场类设计参考点</option>
-          </select>
-        </label>
-        <button type="button" onClick={() => void handleTemplate()}>
-          下载 XLSX 模板
-        </button>
-      </>
-    ) : (
-      <button type="button" onClick={() => void handleTemplate()}>
-        下载 XLSX 模板
-      </button>
-    );
+  const templateActions = (
+    <button type="button" onClick={() => void handleTemplate()}>
+      下载 XLSX 模板
+    </button>
+  );
 
   if (variant === "standalone") {
     return (
