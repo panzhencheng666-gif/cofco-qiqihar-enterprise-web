@@ -239,6 +239,7 @@ export function ExistingSampleObservationPanel({
     activeSelection?.type === "formal-sample-list" && !onSelectionChange;
   const requestedSamplePointId = isObservationPage ? activeSelection.id : "";
   const canCollect = permissions.includes("BUSINESS_CREATE");
+  const canEditLocation = permissions.includes("FORMAL_SAMPLE_MANAGE");
   const navigate = (next: FormalSelection) => {
     setLocalSelection(next);
     onSelectionChange?.(next);
@@ -257,10 +258,17 @@ export function ExistingSampleObservationPanel({
   const [keyword, setKeyword] = useState("");
   const [samples, setSamples] = useState<readonly EligibleFormalSample[]>([]);
   const [sampleId, setSampleId] = useState("");
+  const [sample, setSample] = useState<EligibleFormalSample | undefined>();
   const [definition, setDefinition] = useState<
     ProductionDefinition | MarketDefinition | LogisticsDefinition | null
   >(null);
   const [values, setValues] = useState<ValueMap>({});
+  const [location, setLocation] = useState({
+    expectedVersion: 0,
+    regionCode: "",
+    longitude: "",
+    latitude: "",
+  });
   const [history, setHistory] = useState<
     readonly FormalSampleObservationHistoryItem[]
   >([]);
@@ -280,11 +288,31 @@ export function ExistingSampleObservationPanel({
   const definitionRequestVersion = useRef(0);
   const historyRequestVersion = useRef(0);
   const valuesDirty = useRef(false);
+  const locationDirty = useRef(false);
+  const saving = useRef(false);
+  const pendingRealtimeInvalidation = useRef({
+    relevant: false,
+    observationChanged: false,
+  });
+  const resetLocation = useCallback((selected?: EligibleFormalSample) => {
+    setLocation({
+      expectedVersion: selected?.version ?? 0,
+      regionCode: selected?.regionCode ?? "",
+      longitude: selected?.longitude ?? "",
+      latitude: selected?.latitude ?? "",
+    });
+    locationDirty.current = false;
+  }, []);
+  const changeLocation = (
+    field: "regionCode" | "longitude" | "latitude",
+    value: string,
+  ) => {
+    valuesDirty.current = true;
+    locationDirty.current = true;
+    setLocation((current) => ({ ...current, [field]: value }));
+    setIdempotencyKey(crypto.randomUUID());
+  };
 
-  const sample = useMemo(
-    () => samples.find(({ samplePointId }) => samplePointId === sampleId),
-    [samples, sampleId],
-  );
   const fields = useMemo(
     () => observationFields(domain, definition),
     [definition, domain],
@@ -316,13 +344,15 @@ export function ExistingSampleObservationPanel({
     historyRequestVersion.current += 1;
     definitionRequestVersion.current += 1;
     setSampleId("");
+    setSample(undefined);
     setDefinition(null);
     setValues({});
+    resetLocation();
     valuesDirty.current = false;
     setHistory([]);
     setHistoryTotal(0);
     setHistoryDetail(null);
-  }, []);
+  }, [resetLocation]);
 
   const resetUpdateFilters = useCallback(() => {
     setObjectTypeCode("");
@@ -362,7 +392,11 @@ export function ExistingSampleObservationPanel({
   );
 
   const querySamples = useCallback(
-    async (preserveSampleId?: string, refreshEditor = false) => {
+    async (
+      preserveSampleId?: string,
+      refreshEditor = false,
+      ignoreRegionFilter = false,
+    ) => {
       if (
         !repository?.listEligibleFormalSamples ||
         !Number.isFinite(Date.parse(observedAt))
@@ -375,7 +409,7 @@ export function ExistingSampleObservationPanel({
         const next = await repository.listEligibleFormalSamples({
           domain,
           productCode,
-          regionCode: regionCode || undefined,
+          regionCode: ignoreRegionFilter ? undefined : regionCode || undefined,
           objectTypeCode: objectTypeCode || undefined,
           keyword: keyword.trim() || undefined,
           year: Number(observedAt.slice(0, 4)),
@@ -388,6 +422,7 @@ export function ExistingSampleObservationPanel({
         );
         if (preserved) {
           setSampleId(preserved.samplePointId);
+          setSample(preserved);
           if (refreshEditor) {
             if (valuesDirty.current) {
               setNotice(
@@ -403,11 +438,22 @@ export function ExistingSampleObservationPanel({
               )
                 return;
               setValues({ ...preserved.latestValues });
+              resetLocation(preserved);
               setDefinition(refreshedDefinition);
               setIdempotencyKey(crypto.randomUUID());
             }
           }
           return preserved;
+        } else if (
+          refreshEditor &&
+          preserveSampleId &&
+          valuesDirty.current &&
+          sample?.samplePointId === preserveSampleId
+        ) {
+          setNotice(
+            "正式样本已不在当前查询结果，当前未保存内容未被覆盖；请明确取消或重新选择样本。",
+          );
+          return sample;
         } else {
           resetSelection();
         }
@@ -428,6 +474,8 @@ export function ExistingSampleObservationPanel({
       regionCode,
       repository,
       resetSelection,
+      resetLocation,
+      sample,
     ],
   );
 
@@ -453,6 +501,7 @@ export function ExistingSampleObservationPanel({
         setHistoryTotal(result.totalElements);
         setHistoryPage(result.pageNumber);
         setHistoryDetail(result.items[0] ?? null);
+        return true;
       } catch (error) {
         if (requestVersion === historyRequestVersion.current) {
           setNotice(errorMessage(error, "历史记录加载失败，请稍后重试"));
@@ -473,6 +522,30 @@ export function ExistingSampleObservationPanel({
   useEffect(() => {
     eventState.current = { sample, productCode, historyYear, loadHistory };
   }, [historyYear, loadHistory, productCode, sample]);
+
+  const refreshAfterRealtimeInvalidation = useCallback(
+    async (observationChanged: boolean) => {
+      const current = eventState.current;
+      const refreshed = await querySamplesRef.current(
+        current.sample?.samplePointId,
+        true,
+      );
+      if (refreshed && observationChanged) {
+        await current.loadHistory(refreshed, 0, current.historyYear);
+      }
+    },
+    [],
+  );
+
+  const drainPendingRealtimeInvalidation = useCallback(async () => {
+    const pending = pendingRealtimeInvalidation.current;
+    if (!pending.relevant) return;
+    pendingRealtimeInvalidation.current = {
+      relevant: false,
+      observationChanged: false,
+    };
+    await refreshAfterRealtimeInvalidation(pending.observationChanged);
+  }, [refreshAfterRealtimeInvalidation]);
 
   useEffect(() => {
     if (
@@ -495,16 +568,21 @@ export function ExistingSampleObservationPanel({
           "FORMAL_SAMPLE_POINT_",
         );
         if (!observationChanged && !formalSampleChanged) return;
-        void querySamplesRef
-          .current(current.sample?.samplePointId, true)
-          .then((refreshed) => {
-            if (refreshed && observationChanged) {
-              void current.loadHistory(refreshed, 0, current.historyYear);
-            }
-          });
+        if (saving.current) {
+          pendingRealtimeInvalidation.current.relevant = true;
+          pendingRealtimeInvalidation.current.observationChanged ||=
+            observationChanged;
+          return;
+        }
+        void refreshAfterRealtimeInvalidation(observationChanged);
       },
     );
-  }, [canCollect, isObservationPage, repository]);
+  }, [
+    canCollect,
+    isObservationPage,
+    refreshAfterRealtimeInvalidation,
+    repository,
+  ]);
 
   useEffect(() => {
     if (!isObservationPage || !canCollect || !repository) return;
@@ -524,7 +602,9 @@ export function ExistingSampleObservationPanel({
       .then((data) => {
         if (active) setRegions(data.regions);
       })
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        if (active) setNotice(errorMessage(error, "业务地区加载失败，请重试"));
+      });
     void querySamplesRef
       .current(requestedSamplePointId || undefined, true)
       .then((preserved) => {
@@ -552,7 +632,9 @@ export function ExistingSampleObservationPanel({
     historyRequestVersion.current += 1;
     const selectedHistoryYear = Number(observedAt.slice(0, 4));
     setSampleId(selected.samplePointId);
+    setSample(selected);
     setValues({ ...selected.latestValues });
+    resetLocation(selected);
     valuesDirty.current = false;
     setDefinition(null);
     setHistory([]);
@@ -581,11 +663,26 @@ export function ExistingSampleObservationPanel({
       !canCollect ||
       !sample ||
       !definition ||
+      saving.current ||
       !Number.isFinite(Date.parse(observedAt))
     )
       return;
+    const locationChanged = canEditLocation && locationDirty.current;
+    if (
+      locationChanged &&
+      (!location.regionCode ||
+        !location.longitude.trim() ||
+        !location.latitude.trim() ||
+        !Number.isFinite(Number(location.longitude)) ||
+        !Number.isFinite(Number(location.latitude)))
+    ) {
+      setNotice("请填写业务地区和有效的经纬度");
+      return;
+    }
+    saving.current = true;
     setBusy(true);
     setNotice("");
+    let finalNotice = "";
     try {
       const result = await repository.saveFormalSampleObservation(
         {
@@ -593,6 +690,7 @@ export function ExistingSampleObservationPanel({
           samplePointId: sample.samplePointId,
           productCode,
           observedAt: new Date(observedAt).toISOString(),
+          ...(locationChanged ? { sampleLocation: location } : {}),
           payload: buildPayload(
             domain,
             productCode,
@@ -611,16 +709,24 @@ export function ExistingSampleObservationPanel({
         .join("、");
       setIdempotencyKey(crypto.randomUUID());
       valuesDirty.current = false;
-      await Promise.all([
-        querySamples(sample.samplePointId, true),
+      locationDirty.current = false;
+      if (locationChanged) setRegionCode("");
+      const [refreshed, historyLoaded] = await Promise.all([
+        querySamples(sample.samplePointId, true, locationChanged),
         loadHistory(sample, 0, historyYear),
       ]);
-      setNotice(`已正式入库，已实时联动${linked}`);
+      finalNotice =
+        refreshed && historyLoaded
+          ? `已正式入库，已实时联动${linked}`
+          : "已正式入库，但页面数据回查未完成，请重新查询；无需重复保存。";
       onSaved();
     } catch (error) {
-      setNotice(errorMessage(error, "保存失败，请核对数据和权限后重试"));
+      finalNotice = errorMessage(error, "保存失败，请核对数据和权限后重试");
     } finally {
+      saving.current = false;
+      await drainPendingRealtimeInvalidation();
       setBusy(false);
+      setNotice(finalNotice);
     }
   };
 
@@ -688,27 +794,14 @@ export function ExistingSampleObservationPanel({
           <header className="existing-observation__header">
             <div className="existing-observation__header-copy">
               <h2>填写或更新采集数据</h2>
-              <p>当前样本身份保持锁定，本页只填写本次期间观测。</p>
+              <p>更新当前样本的采集数据，保存后仍为同一样本。</p>
             </div>
             <button type="button" onClick={closeObservation}>
               返回业务列表
             </button>
           </header>
 
-          {sample ? (
-            <LockedSampleIdentity
-              sample={sample}
-              onEdit={
-                permissions.includes("FORMAL_SAMPLE_MANAGE")
-                  ? () =>
-                      navigate({
-                        type: "formal-sample-edit",
-                        id: sample.samplePointId,
-                      })
-                  : undefined
-              }
-            />
-          ) : null}
+          {sample ? <LockedSampleIdentity sample={sample} /> : null}
 
           <section
             className="existing-observation__filters enterprise-ledger-query enterprise-ledger-query--design"
@@ -846,7 +939,9 @@ export function ExistingSampleObservationPanel({
               {!sample && (
                 <div className="existing-observation__placeholder">
                   <strong>请选择左侧正式样本</strong>
-                  <span>样本身份与地区锁定，右侧仅填写本次实际观测数据。</span>
+                  <span>
+                    选择样本后填写本次数据，业务地区与经纬度可在表单中维护。
+                  </span>
                 </div>
               )}
               {sample && (
@@ -854,7 +949,7 @@ export function ExistingSampleObservationPanel({
                   <div className="existing-observation__editor-heading">
                     <div>
                       <h3>本次正式观测</h3>
-                      <p>样本身份只读，本页仅更新观测数据。</p>
+                      <p>业务地区、经纬度与本次采集数据统一保存。</p>
                     </div>
                     <span>保存后立即生效</span>
                   </div>
@@ -866,8 +961,74 @@ export function ExistingSampleObservationPanel({
                         void save();
                       }}
                     >
+                      <fieldset disabled={busy || !canEditLocation}>
+                        <legend>业务地区与定位</legend>
+                        <div className="existing-observation__field-grid">
+                          <label>
+                            <span>业务地区</span>
+                            <select
+                              aria-label="样本业务地区"
+                              required
+                              value={location.regionCode}
+                              onChange={(event) =>
+                                changeLocation("regionCode", event.target.value)
+                              }
+                            >
+                              <option value="">请选择业务地区</option>
+                              {!regions.some(
+                                (item) => item.code === location.regionCode,
+                              ) &&
+                                location.regionCode && (
+                                  <option value={location.regionCode}>
+                                    {sample.regionName}
+                                  </option>
+                                )}
+                              {regions.map((item) => (
+                                <option key={item.code} value={item.code}>
+                                  {item.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>经度</span>
+                            <input
+                              aria-label="经度"
+                              type="number"
+                              required
+                              min={-180}
+                              max={180}
+                              step="0.0000001"
+                              value={location.longitude}
+                              onChange={(event) =>
+                                changeLocation("longitude", event.target.value)
+                              }
+                            />
+                          </label>
+                          <label>
+                            <span>纬度</span>
+                            <input
+                              aria-label="纬度"
+                              type="number"
+                              required
+                              min={-90}
+                              max={90}
+                              step="0.0000001"
+                              value={location.latitude}
+                              onChange={(event) =>
+                                changeLocation("latitude", event.target.value)
+                              }
+                            />
+                          </label>
+                        </div>
+                      </fieldset>
+                      {!canEditLocation && (
+                        <p>
+                          当前账号无权修改业务地区与经纬度，可继续填写采集数据。
+                        </p>
+                      )}
                       {sections.map((section) => (
-                        <fieldset key={section}>
+                        <fieldset key={section} disabled={busy}>
                           <legend>{section}</legend>
                           <div className="existing-observation__field-grid">
                             {fields
@@ -1069,13 +1230,7 @@ export function ExistingSampleObservationPanel({
   );
 }
 
-function LockedSampleIdentity({
-  sample,
-  onEdit,
-}: {
-  sample: EligibleFormalSample;
-  onEdit?: () => void;
-}) {
+function LockedSampleIdentity({ sample }: { sample: EligibleFormalSample }) {
   return (
     <div
       className="existing-observation__identity"
@@ -1099,16 +1254,6 @@ function LockedSampleIdentity({
         <strong>
           {sample.longitude}，{sample.latitude}
         </strong>
-        <small>业务地区与坐标由样本档案统一管理</small>
-        {onEdit && (
-          <button
-            className="enterprise-ledger-row-action"
-            type="button"
-            onClick={onEdit}
-          >
-            编辑业务地区与定位坐标
-          </button>
-        )}
       </div>
     </div>
   );

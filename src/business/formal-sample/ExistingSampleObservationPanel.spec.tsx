@@ -445,7 +445,7 @@ describe("ExistingSampleObservationPanel", () => {
     );
   });
 
-  it("opens the authoritative stable-data editor for business region and coordinates", async () => {
+  it("edits location inline and submits it atomically with the selected sample observation", async () => {
     const api = repository();
     const onSelectionChange = vi.fn();
     render(
@@ -466,14 +466,224 @@ describe("ExistingSampleObservationPanel", () => {
     expect(
       await screen.findByRole("group", { name: "正式样本锁定信息" }),
     ).toBeVisible();
+    const longitude = await screen.findByRole("spinbutton", { name: "经度" });
+    expect(longitude.closest("form")).toContainElement(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+    expect(screen.getByRole("combobox", { name: "样本业务地区" })).toHaveValue(
+      sample.regionCode,
+    );
+    expect(screen.getByRole("spinbutton", { name: "纬度" })).toHaveValue(
+      Number(sample.latitude),
+    );
+    await userEvent.clear(longitude);
+    await userEvent.type(longitude, "123.4567890");
     await userEvent.click(
-      screen.getByRole("button", { name: "编辑业务地区与定位坐标" }),
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+    await waitFor(() =>
+      expect(api.saveFormalSampleObservation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          samplePointId: sample.samplePointId,
+          sampleLocation: {
+            expectedVersion: sample.version,
+            regionCode: sample.regionCode,
+            longitude: "123.456789",
+            latitude: sample.latitude,
+          },
+        }),
+        expect.any(String),
+      ),
+    );
+    expect(onSelectionChange).not.toHaveBeenCalled();
+    expect(api.updateFormalSamplePoint).not.toHaveBeenCalled();
+    expect(api.createFormalSamplePoint).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "编辑业务地区与定位坐标" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not coerce a cleared inline coordinate to zero or submit it", async () => {
+    const { api } = renderPanel();
+    await openCollectionData();
+    const longitude = await screen.findByRole("spinbutton", { name: "经度" });
+    await userEvent.clear(longitude);
+    await userEvent.click(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+    expect(longitude).toHaveValue(null);
+    expect(api.saveFormalSampleObservation).not.toHaveBeenCalled();
+  });
+
+  it("preserves location drafts and their version across realtime updates and failed saves", async () => {
+    const api = repository();
+    const { onSaved } = renderPanel(api);
+    await openCollectionData();
+    const longitude = await screen.findByRole("spinbutton", { name: "经度" });
+    await userEvent.clear(longitude);
+    await userEvent.type(longitude, "123.456789");
+    const listener = api.subscribeBusinessEvents.mock.calls.at(-1)![1];
+    api.listEligibleFormalSamples.mockResolvedValue([
+      { ...sample, version: 3, longitude: "123.4" },
+    ]);
+    act(() =>
+      listener({
+        id: "location-update",
+        sequence: 88,
+        aggregateType: "FORMAL_SAMPLE_POINT",
+        aggregateId: sample.samplePointId,
+        actionCode: "FORMAL_SAMPLE_POINT_UPDATED",
+        productCode: null,
+        regionCodes: [sample.regionCode],
+        occurredAt: "2026-09-05T00:00:00Z",
+        read: false,
+      }),
+    );
+    await screen.findByText(/当前未保存内容未被覆盖/u);
+    expect(longitude).toHaveValue(123.456789);
+    api.saveFormalSampleObservation.mockRejectedValue(
+      new RealtimeApiError({
+        code: "FORMAL_SAMPLE_POINT_VERSION_CONFLICT",
+        message: "正式样本已发生变化，请刷新后重试",
+        status: 409,
+      }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+    await screen.findByText("正式样本已发生变化，请刷新后重试");
+    expect(api.saveFormalSampleObservation).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        samplePointId: sample.samplePointId,
+        sampleLocation: {
+          expectedVersion: 2,
+          longitude: "123.456789",
+          latitude: sample.latitude,
+          regionCode: sample.regionCode,
+        },
+      }),
+      expect.any(String),
+    );
+    expect(longitude).toHaveValue(123.456789);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("retains a dirty selected sample when a realtime move removes it from the filtered result", async () => {
+    const api = repository();
+    renderPanel(api);
+    await openCollectionData();
+    const longitude = await screen.findByRole("spinbutton", { name: "经度" });
+    await userEvent.clear(longitude);
+    await userEvent.type(longitude, "123.456789");
+    const listener = api.subscribeBusinessEvents.mock.calls.at(-1)![1];
+    api.listEligibleFormalSamples.mockResolvedValue([]);
+
+    act(() =>
+      listener({
+        id: "location-moved-outside-filter",
+        sequence: 89,
+        aggregateType: "FORMAL_SAMPLE_POINT",
+        aggregateId: sample.samplePointId,
+        actionCode: "FORMAL_SAMPLE_POINT_UPDATED",
+        productCode: null,
+        regionCodes: [sample.regionCode, "230202"],
+        occurredAt: "2026-09-05T00:01:00Z",
+        read: false,
+      }),
     );
 
-    expect(onSelectionChange).toHaveBeenCalledWith({
-      type: "formal-sample-edit",
-      id: sample.samplePointId,
-    });
+    expect(
+      await screen.findByText(/已不在当前查询结果.*未保存内容未被覆盖/u),
+    ).toBeVisible();
+    expect(longitude).toHaveValue(123.456789);
+    expect(screen.getByRole("spinbutton", { name: "纬度" })).toHaveValue(
+      Number(sample.latitude),
+    );
+    expect(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    ).toBeVisible();
+  });
+
+  it("drains a relevant realtime event after a failed save without resetting the draft", async () => {
+    let rejectSave: (error: unknown) => void = () => undefined;
+    const api = repository();
+    api.saveFormalSampleObservation.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSave = reject;
+        }),
+    );
+    renderPanel(api);
+    await openCollectionData();
+    const longitude = await screen.findByRole("spinbutton", { name: "经度" });
+    await userEvent.clear(longitude);
+    await userEvent.type(longitude, "123.456789");
+    const listener = api.subscribeBusinessEvents.mock.calls.at(-1)![1];
+    const callsBeforeSave = api.listEligibleFormalSamples.mock.calls.length;
+    await userEvent.click(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+    await waitFor(() =>
+      expect(api.saveFormalSampleObservation).toHaveBeenCalledTimes(1),
+    );
+
+    act(() =>
+      listener({
+        id: "location-update-during-save",
+        sequence: 90,
+        aggregateType: "FORMAL_SAMPLE_POINT",
+        aggregateId: sample.samplePointId,
+        actionCode: "FORMAL_SAMPLE_POINT_UPDATED",
+        productCode: null,
+        regionCodes: [sample.regionCode],
+        occurredAt: "2026-09-05T00:02:00Z",
+        read: false,
+      }),
+    );
+    expect(api.listEligibleFormalSamples).toHaveBeenCalledTimes(
+      callsBeforeSave,
+    );
+
+    act(() =>
+      rejectSave(
+        new RealtimeApiError({
+          code: "FORMAL_SAMPLE_POINT_VERSION_CONFLICT",
+          message: "正式样本已发生变化，请刷新后重试",
+          status: 409,
+        }),
+      ),
+    );
+
+    await waitFor(() =>
+      expect(api.listEligibleFormalSamples).toHaveBeenCalledTimes(
+        callsBeforeSave + 1,
+      ),
+    );
+    expect(longitude).toHaveValue(123.456789);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "正式样本已发生变化，请刷新后重试",
+    );
+  });
+
+  it("keeps inline location read-only without master-data permission and submits only observation data", async () => {
+    const { api } = renderPanel(repository(), vi.fn(), ["BUSINESS_CREATE"]);
+    await openCollectionData();
+    expect(
+      await screen.findByRole("spinbutton", { name: "经度" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("spinbutton", { name: "纬度" })).toBeDisabled();
+    expect(
+      screen.getByRole("combobox", { name: "样本业务地区" }),
+    ).toBeDisabled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+    await waitFor(() =>
+      expect(api.saveFormalSampleObservation).toHaveBeenCalledTimes(1),
+    );
+    expect(api.saveFormalSampleObservation.mock.calls[0][0]).not.toHaveProperty(
+      "sampleLocation",
+    );
   });
 
   it("keeps the mature business ledger visible behind the routed formal editor drawer", async () => {
@@ -1786,10 +1996,11 @@ describe("ExistingSampleObservationPanel", () => {
       await screen.findByRole("button", { name: /中粮生化能源/u }),
     );
     expect(screen.getByRole("heading", { name: "本次正式观测" })).toBeVisible();
-    expect(screen.getByText("业务地区与坐标由样本档案统一管理")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "编辑业务地区与定位坐标" }),
-    ).toBeVisible();
+      screen.getByRole("combobox", { name: "样本业务地区" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("spinbutton", { name: "经度" })).toBeEnabled();
+    expect(screen.getByRole("spinbutton", { name: "纬度" })).toBeEnabled();
     const identity = await screen.findByRole("group", {
       name: "正式样本锁定信息",
     });

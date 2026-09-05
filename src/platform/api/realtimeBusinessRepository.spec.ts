@@ -413,6 +413,12 @@ describe("realtime business repository", () => {
         productCode: "CORN",
         observedAt: "2026-08-29T02:51:00Z",
         payload: { productCode: "CORN", coreValues: {}, facts: {} },
+        sampleLocation: {
+          expectedVersion: 2,
+          regionCode: "230221",
+          longitude: "123.456789",
+          latitude: "47.5",
+        },
       },
       "formal-observation-key-1",
     );
@@ -439,7 +445,15 @@ describe("realtime business repository", () => {
     );
     expect(post).toHaveBeenCalledWith(
       "/api/v1/formal-sample-observations/observations",
-      expect.objectContaining({ samplePointId: "sample-1" }),
+      expect.objectContaining({
+        samplePointId: "sample-1",
+        sampleLocation: {
+          expectedVersion: 2,
+          regionCode: "230221",
+          longitude: "123.456789",
+          latitude: "47.5",
+        },
+      }),
       { headers: { "Idempotency-Key": "formal-observation-key-1" } },
     );
     expect(get).toHaveBeenCalledWith(
