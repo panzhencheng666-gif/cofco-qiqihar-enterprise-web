@@ -1645,6 +1645,12 @@ export interface RealtimeBusinessRepository {
       productCode: string;
       observedAt: string;
       payload: unknown;
+      sampleLocation?: {
+        expectedVersion: number;
+        regionCode: string;
+        longitude: string;
+        latitude: string;
+      };
     },
     idempotencyKey: string,
   ): Promise<FormalSampleObservationResult>;
