@@ -1238,6 +1238,32 @@ describe("realtime business repository", () => {
     expect(get).toHaveBeenCalledWith("/api/v1/session/me");
   });
 
+  it("uses one atomic responsibility save including empty replacement and preview token", async () => {
+    const { api, get, post, put } = client();
+    get.mockResolvedValueOnce([]);
+    post.mockResolvedValueOnce({ id: "result", version: 0 });
+    put.mockResolvedValueOnce({ id: "result", version: 0 });
+    const repository = createRealtimeBusinessRepository(api);
+    await repository.loadRegionResponsibility("employee/1");
+    await repository.previewRegionResponsibility("employee/1", {
+      regionCodes: [],
+    });
+    await repository.saveRegionResponsibility("employee/1", {
+      regionCodes: [],
+      previewToken: "token",
+      reason: "岗位交接",
+    });
+    const path =
+      "/api/v1/identity/employees/employee%2F1/region-responsibility";
+    expect(get).toHaveBeenCalledWith(path);
+    expect(post).toHaveBeenCalledWith(`${path}/preview`, { regionCodes: [] });
+    expect(put).toHaveBeenCalledExactlyOnceWith(path, {
+      regionCodes: [],
+      previewToken: "token",
+      reason: "岗位交接",
+    });
+  });
+
   it("connects employee assignments and access reviews to governance APIs", async () => {
     const { api, get, post, put } = client();
     const repository = createRealtimeBusinessRepository(api);

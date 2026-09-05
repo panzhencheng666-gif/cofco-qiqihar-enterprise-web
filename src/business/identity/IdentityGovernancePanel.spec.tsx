@@ -35,6 +35,7 @@ const session: CurrentSession = {
   permissions: [
     "IDENTITY_READ",
     "IDENTITY_ADMIN",
+    "FORMAL_SAMPLE_MANAGE",
     "ACCESS_REVIEW",
     "AUDIT_READ",
   ],
@@ -298,7 +299,7 @@ describe("IdentityGovernancePanel", () => {
     await user.click(
       within(unit).getByRole("button", { name: "管理员工与授权" }),
     );
-    expect(screen.getByRole("button", { name: "员工与授权" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "员工管理" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -443,6 +444,38 @@ describe("IdentityGovernancePanel", () => {
     );
   });
 
+  it("lists authoritative units even when they have no employee", async () => {
+    const api = repository();
+    const units = [
+      ["QIQIHAR_BUSINESS", "齐齐哈尔经营部"],
+      ["NEHE_DEPOT", "讷河库"],
+      ["KESHAN_DEPOT", "克山库"],
+      ["KEDONG_DEPOT", "克东库"],
+      ["LONGZHEN_DEPOT", "龙镇库"],
+      ["CHENGJISIHAN_DEPOT", "成吉思汗库"],
+    ].map(([code, name]) => ({ code, name }));
+    const options = await api.loadAssignmentOptions();
+    api.loadAssignmentOptions.mockResolvedValue({
+      ...options,
+      workUnits: units,
+    });
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    await screen.findByText("张敏");
+    const unitsPanel = screen.getByRole("complementary", { name: "组织单位" });
+    expect(within(unitsPanel).getAllByRole("button")).toHaveLength(7);
+    await userEvent.click(
+      within(unitsPanel).getByRole("button", { name: "讷河库" }),
+    );
+    expect(screen.getByText("没有符合筛选条件的员工。")).toBeVisible();
+  });
+
   it("filters the authoritative employee list and resets empty results", async () => {
     const user = userEvent.setup();
     const api = repository();
@@ -471,83 +504,58 @@ describe("IdentityGovernancePanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows and assigns formal-sample responsibility from the employee table", async () => {
+  it("saves the complete region responsibility once and requeries employees", async () => {
+    await import("./SampleResponsibilityEditor");
     const user = userEvent.setup();
-    const api = {
-      ...repository(),
-      listFormalSamplePoints: vi.fn().mockResolvedValue({
-        items: [
-          {
-            id: "sample-1",
-            kindCode: "SURVEY_SITE",
-            canonicalName: "龙沙区玉米样本点",
-            regionCode: "230202001",
-            objectTypeCode: "TRADER",
-            objectTypeName: "贸易商",
-            businessDomain: "MARKET",
-            address: "龙沙区样本地址",
-            maintainerSubjectId: null,
-            maintainerDisplayName: null,
-            approvalState: "APPROVED",
-            locationState: "VALID",
-            longitude: 123.9,
-            latitude: 47.3,
-            effectiveFrom: "2026-01-01",
-            effectiveTo: null,
-            version: 4,
-            annualObservationCount: 0,
-            networkMembershipCount: 0,
-          },
-        ],
-        pageNumber: 0,
-        pageSize: 100,
-        totalElements: 1,
-        totalPages: 1,
-      }),
-      assignFormalSampleMaintainer: vi.fn().mockResolvedValue({
-        id: "sample-1",
-        kindCode: "SURVEY_SITE",
-        canonicalName: "龙沙区玉米样本点",
-        regionCode: "230202001",
-        maintainerSubjectId: "employee-1",
-        maintainerDisplayName: "王洋",
-        version: 5,
-      }),
-      subscribeBusinessEvents: vi.fn(() => vi.fn()),
+    const api = repository();
+    const current = {
+      subjectId: "employee-1",
+      regionCodes: [],
+      regions: [],
+      samples: [],
+      previewToken: "fresh-token",
     };
-
+    const service = {
+      ...api,
+      loadRegionResponsibility: vi.fn().mockResolvedValue(current),
+      previewRegionResponsibility: vi.fn().mockResolvedValue(current),
+      saveRegionResponsibility: vi.fn().mockResolvedValue(current),
+      assignFormalSampleMaintainer: vi.fn(),
+    };
     render(
       <IdentityGovernancePanel
         initialView="employees"
         onClose={vi.fn()}
-        repository={api as unknown as RealtimeBusinessRepository}
+        repository={service as unknown as RealtimeBusinessRepository}
         session={session}
       />,
     );
-
-    expect(
-      await screen.findByRole("columnheader", { name: "负责样本点" }),
-    ).toBeVisible();
-    const employeeRow = screen.getByRole("row", { name: /张敏/u });
+    const employeeRow = await screen.findByRole("row", { name: /张敏/u });
+    expect(within(employeeRow).getByText("未分配责任地区")).toBeVisible();
     await user.click(
-      within(employeeRow).getByRole("button", { name: "调整负责样本点" }),
+      within(employeeRow).getByRole("button", { name: "设置负责地区" }),
     );
-    await user.selectOptions(screen.getByLabelText("选择负责样本点"), [
-      "sample-1",
-    ]);
-    await user.type(screen.getByLabelText("维护责任调整原因"), "正式分工");
-    await user.click(screen.getByRole("button", { name: "保存样本责任" }));
-
+    const checkbox = await screen.findByRole("checkbox", {
+      name: /测试乡镇$/u,
+    });
     await waitFor(() =>
-      expect(api.assignFormalSampleMaintainer).toHaveBeenCalledWith(
-        "sample-1",
-        expect.objectContaining({
-          maintainerSubjectId: "employee-1",
-          maintainerChangeReason: "正式分工",
-          expectedVersion: 4,
-        }),
+      expect(service.previewRegionResponsibility).toHaveBeenCalledTimes(1),
+    );
+    await user.click(checkbox);
+    await user.type(screen.getByLabelText("调整原因"), "正式分工");
+    await user.click(screen.getByRole("button", { name: "保存负责地区" }));
+    await waitFor(() =>
+      expect(service.saveRegionResponsibility).toHaveBeenCalledExactlyOnceWith(
+        "employee-1",
+        {
+          regionCodes: ["230202001"],
+          previewToken: "fresh-token",
+          reason: "正式分工",
+        },
       ),
     );
+    expect(service.assignFormalSampleMaintainer).not.toHaveBeenCalled();
+    await waitFor(() => expect(api.listEmployees).toHaveBeenCalledTimes(2));
   });
 
   it.each(["FORMAL_SAMPLE_POINT", "SECURITY_USER"])(
@@ -586,9 +594,7 @@ describe("IdentityGovernancePanel", () => {
           session={session}
         />,
       );
-      await waitFor(() =>
-        expect(api.listFormalSamplePoints).toHaveBeenCalledTimes(1),
-      );
+      await waitFor(() => expect(api.listEmployees).toHaveBeenCalledTimes(1));
 
       act(() =>
         onEvent({
@@ -604,9 +610,7 @@ describe("IdentityGovernancePanel", () => {
         }),
       );
 
-      await waitFor(() =>
-        expect(api.listFormalSamplePoints).toHaveBeenCalledTimes(2),
-      );
+      await waitFor(() => expect(api.listEmployees).toHaveBeenCalledTimes(2));
     },
   );
 
@@ -1177,7 +1181,7 @@ describe("IdentityGovernancePanel", () => {
     expect(
       screen.queryByRole("button", { name: "发送入职邀请" }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "员工与授权" }));
+    await user.click(screen.getByRole("button", { name: "员工管理" }));
 
     expect(await screen.findByText("张敏")).toBeVisible();
     expect(
