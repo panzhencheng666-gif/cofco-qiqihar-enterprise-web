@@ -7752,6 +7752,7 @@ body {
 .identity-review-list button,
 .identity-data-table button,
 .identity-review-detail button,
+.identity-governance-editor > header > button,
 .identity-governance-editor footer button {
   min-height: 38px;
   padding: 8px 14px;
@@ -8358,6 +8359,7 @@ body {
 .identity-review-list button,
 .identity-data-table button,
 .identity-review-detail button,
+.identity-governance-editor > header > button,
 .identity-governance-editor footer button {
   border-color: #0f62fe;
   border-radius: 0;
@@ -8371,6 +8373,8 @@ body {
 
   .identity-governance-panel {
     max-height: none;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 
   .identity-account-summary[data-layout="property-table"] > div {
@@ -8379,3 +8383,65 @@ body {
 }
 
 /* account-and-authorization final page cascade:end */
+
+/* Keep account actions and responsibility fields usable at ledger widths. */
+.identity-employee-filters {
+  grid-template-columns: repeat(3, minmax(140px, 1fr)) auto;
+}
+
+.identity-employee-table {
+  min-width: 1020px;
+}
+
+.identity-employee-table th:first-child {
+  min-width: 150px;
+}
+.identity-employee-table td:nth-child(2) {
+  min-width: 140px;
+}
+.identity-employee-table td:nth-child(5) {
+  min-width: 130px;
+}
+.identity-employee-actions {
+  min-width: 144px;
+  gap: 8px;
+}
+.identity-employee-actions button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.identity-responsibility-form {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+.identity-responsibility-form :is(select, textarea) {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 180px;
+  padding: 10px;
+  border: 1px solid var(--formal-line-strong);
+  border-radius: 0;
+  background: #fff;
+  color: var(--formal-text);
+  font: inherit;
+}
+.identity-responsibility-form textarea {
+  resize: vertical;
+}
+@media (max-width: 900px) {
+  .identity-employee-filters,
+  .identity-responsibility-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.identity-governance-editor > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.identity-governance-editor > header > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

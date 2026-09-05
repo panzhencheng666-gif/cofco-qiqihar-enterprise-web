@@ -443,6 +443,34 @@ describe("IdentityGovernancePanel", () => {
     );
   });
 
+  it("filters the authoritative employee list and resets empty results", async () => {
+    const user = userEvent.setup();
+    const api = repository();
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    await screen.findByRole("row", { name: /张敏/u });
+    await user.type(screen.getByLabelText("筛选员工姓名"), "不存在");
+    expect(
+      screen.queryByRole("row", { name: /张敏/u }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("没有符合筛选条件的员工。")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "重置筛选" }));
+    expect(screen.getByRole("row", { name: /张敏/u })).toBeVisible();
+    await user.selectOptions(
+      screen.getByLabelText("筛选账号状态"),
+      "SUSPENDED",
+    );
+    expect(
+      screen.queryByRole("row", { name: /张敏/u }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows and assigns formal-sample responsibility from the employee table", async () => {
     const user = userEvent.setup();
     const api = {
@@ -522,62 +550,65 @@ describe("IdentityGovernancePanel", () => {
     );
   });
 
-  it("requeries employee responsibility after a formal-sample event", async () => {
-    let onEvent: Parameters<
-      RealtimeBusinessRepository["subscribeBusinessEvents"]
-    >[1] = () => undefined;
-    const api = {
-      ...repository(),
-      listFormalSamplePoints: vi.fn().mockResolvedValue({
-        items: [],
-        pageNumber: 0,
-        pageSize: 100,
-        totalElements: 0,
-        totalPages: 0,
-      }),
-      subscribeBusinessEvents: vi.fn(
-        (
-          _after: number,
-          listener: Parameters<
-            RealtimeBusinessRepository["subscribeBusinessEvents"]
-          >[1],
-        ) => {
-          onEvent = listener;
-          return vi.fn();
-        },
-      ),
-    };
+  it.each(["FORMAL_SAMPLE_POINT", "SECURITY_USER"])(
+    "requeries employee responsibility after a %s event",
+    async (aggregateType) => {
+      let onEvent: Parameters<
+        RealtimeBusinessRepository["subscribeBusinessEvents"]
+      >[1] = () => undefined;
+      const api = {
+        ...repository(),
+        listFormalSamplePoints: vi.fn().mockResolvedValue({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+        subscribeBusinessEvents: vi.fn(
+          (
+            _after: number,
+            listener: Parameters<
+              RealtimeBusinessRepository["subscribeBusinessEvents"]
+            >[1],
+          ) => {
+            onEvent = listener;
+            return vi.fn();
+          },
+        ),
+      };
 
-    render(
-      <IdentityGovernancePanel
-        initialView="employees"
-        onClose={vi.fn()}
-        repository={api as unknown as RealtimeBusinessRepository}
-        session={session}
-      />,
-    );
-    await waitFor(() =>
-      expect(api.listFormalSamplePoints).toHaveBeenCalledTimes(1),
-    );
+      render(
+        <IdentityGovernancePanel
+          initialView="employees"
+          onClose={vi.fn()}
+          repository={api as unknown as RealtimeBusinessRepository}
+          session={session}
+        />,
+      );
+      await waitFor(() =>
+        expect(api.listFormalSamplePoints).toHaveBeenCalledTimes(1),
+      );
 
-    act(() =>
-      onEvent({
-        id: "event-1",
-        sequence: 1,
-        aggregateType: "FORMAL_SAMPLE_POINT",
-        aggregateId: "sample-1",
-        actionCode: "FORMAL_SAMPLE_MAINTAINER_ASSIGNED",
-        productCode: null,
-        regionCodes: ["230202"],
-        occurredAt: "2026-09-03T08:00:00Z",
-        read: false,
-      }),
-    );
+      act(() =>
+        onEvent({
+          id: "event-1",
+          sequence: 1,
+          aggregateType,
+          aggregateId: "sample-1",
+          actionCode: "FORMAL_SAMPLE_MAINTAINER_ASSIGNED",
+          productCode: null,
+          regionCodes: ["230202"],
+          occurredAt: "2026-09-03T08:00:00Z",
+          read: false,
+        }),
+      );
 
-    await waitFor(() =>
-      expect(api.listFormalSamplePoints).toHaveBeenCalledTimes(2),
-    );
-  });
+      await waitFor(() =>
+        expect(api.listFormalSamplePoints).toHaveBeenCalledTimes(2),
+      );
+    },
+  );
 
   it("uses server-owned region levels and reports the real invitation delivery result", async () => {
     const user = userEvent.setup();

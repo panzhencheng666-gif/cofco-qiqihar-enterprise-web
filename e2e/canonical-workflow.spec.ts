@@ -175,8 +175,11 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
       await designTable
         .getByRole("row")
         .first()
-        .evaluate((element) => element.getBoundingClientRect().height >= 36),
-    ).toBe(true);
+        .evaluate(
+          (element) =>
+            Math.round(element.getBoundingClientRect().height * 100) / 100,
+        ),
+    ).toBeGreaterThanOrEqual(36);
   }
   await page.setViewportSize({ width: 1440, height: 900 });
 

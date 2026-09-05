@@ -440,6 +440,9 @@ export function IdentityGovernancePanel({
   const mayReadAudit = session.permissions.includes("AUDIT_READ");
   const [view, setView] = useState<GovernanceView>(initialView);
   const [employees, setEmployees] = useState<readonly EmployeeProfile[]>([]);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeeUnit, setEmployeeUnit] = useState("");
+  const [employeeStatus, setEmployeeStatus] = useState("");
   const [formalSamples, setFormalSamples] = useState<
     readonly FormalSamplePointRow[]
   >([]);
@@ -632,7 +635,10 @@ export function IdentityGovernancePanel({
     )
       return;
     return repository.subscribeBusinessEvents(0, (event) => {
-      if (event.actionCode.startsWith("FORMAL_SAMPLE_")) {
+      if (
+        event.actionCode.startsWith("FORMAL_SAMPLE_") ||
+        event.aggregateType === "SECURITY_USER"
+      ) {
         void loadEmployees();
       }
     });
@@ -651,6 +657,13 @@ export function IdentityGovernancePanel({
     }
     return grouped;
   }, [formalSamples]);
+
+  const visibleEmployees = employees.filter(
+    (employee) =>
+      employee.displayName.includes(employeeSearch.trim()) &&
+      (!employeeUnit || employee.workUnitCode === employeeUnit) &&
+      (!employeeStatus || employee.accountStatus === employeeStatus),
+  );
 
   const pendingItems = useMemo(
     () =>
@@ -1112,7 +1125,7 @@ export function IdentityGovernancePanel({
                     <dt>员工</dt>
                     <dd>
                       <strong>{session.displayName}</strong>
-                      <small>企业员工身份已认证</small>
+                      <small>当前会话对应的员工资料</small>
                     </dd>
                   </div>
                   <div>
@@ -1227,7 +1240,7 @@ export function IdentityGovernancePanel({
                   <dt>当前员工</dt>
                   <dd>
                     <strong>{session.displayName}</strong>
-                    <small>企业员工身份已认证</small>
+                    <small>当前会话对应的员工资料</small>
                   </dd>
                 </div>
                 <div>
@@ -1272,13 +1285,79 @@ export function IdentityGovernancePanel({
                   </button>
                 )}
               </div>
+              <div
+                className="identity-audit-filters identity-employee-filters"
+                role="search"
+                aria-label="筛选员工"
+              >
+                <label>
+                  筛选员工姓名
+                  <input
+                    value={employeeSearch}
+                    onChange={(event) => setEmployeeSearch(event.target.value)}
+                  />
+                </label>
+                <label>
+                  筛选工作单位
+                  <select
+                    aria-label="筛选工作单位"
+                    value={employeeUnit}
+                    onChange={(event) => setEmployeeUnit(event.target.value)}
+                  >
+                    <option value="">全部单位</option>
+                    {[
+                      ...new Map(
+                        employees.map((employee) => [
+                          employee.workUnitCode,
+                          employee.workUnitName,
+                        ]),
+                      ).entries(),
+                    ].map(([code, name]) => (
+                      <option key={code} value={code}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  筛选账号状态
+                  <select
+                    aria-label="筛选账号状态"
+                    value={employeeStatus}
+                    onChange={(event) => setEmployeeStatus(event.target.value)}
+                  >
+                    <option value="">全部状态</option>
+                    {[
+                      "ACTIVE",
+                      "INVITED",
+                      "LOCKED",
+                      "SUSPENDED",
+                      "REVOKED",
+                    ].map((status) => (
+                      <option key={status} value={status}>
+                        {accountLabel(status)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmployeeSearch("");
+                    setEmployeeUnit("");
+                    setEmployeeStatus("");
+                  }}
+                >
+                  重置筛选
+                </button>
+              </div>
               {loading ? (
                 <p>正在读取员工信息…</p>
               ) : (
                 <div className="identity-data-table-scroll">
                   <table
                     aria-label="员工授权清单"
-                    className="identity-data-table"
+                    className="identity-data-table identity-employee-table"
                   >
                     <thead>
                       <tr>
@@ -1291,11 +1370,10 @@ export function IdentityGovernancePanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {employees.map((employee) => (
+                      {visibleEmployees.map((employee) => (
                         <tr key={employee.subjectId}>
                           <th scope="row">
                             <strong>{employee.displayName}</strong>
-                            <small>{employee.subjectId}</small>
                           </th>
                           <td>
                             <strong>{employee.workUnitName}</strong>
@@ -1331,7 +1409,7 @@ export function IdentityGovernancePanel({
                             {employee.subjectId === session.subjectId ? (
                               <span>本人账号</span>
                             ) : mayAdminister ? (
-                              <div className="identity-profile-actions">
+                              <div className="identity-profile-actions identity-employee-actions">
                                 <button
                                   aria-label={`管理${employee.displayName}的授权`}
                                   type="button"
@@ -1352,11 +1430,7 @@ export function IdentityGovernancePanel({
                                       onClick={() =>
                                         setResponsibilityEditor({
                                           employee,
-                                          sampleIds: (
-                                            samplesByMaintainer.get(
-                                              employee.subjectId,
-                                            ) ?? []
-                                          ).map(({ id }) => id),
+                                          sampleIds: [],
                                           reason: "",
                                         })
                                       }
@@ -1382,9 +1456,13 @@ export function IdentityGovernancePanel({
                           </td>
                         </tr>
                       ))}
-                      {employees.length === 0 && (
+                      {visibleEmployees.length === 0 && (
                         <tr>
-                          <td colSpan={6}>当前单位暂无员工账号。</td>
+                          <td colSpan={6}>
+                            {employees.length === 0
+                              ? "当前单位暂无员工账号。"
+                              : "没有符合筛选条件的员工。"}
+                          </td>
                         </tr>
                       )}
                     </tbody>
@@ -1416,7 +1494,7 @@ export function IdentityGovernancePanel({
                     <div>
                       <h3>调整负责样本点</h3>
                       <p>
-                        仅显示该员工责任地区覆盖的正式样本；保存仍写入正式样本唯一维护人字段。
+                        选择需要交给该员工负责的样本。已有责任保持不变；转交其他员工请在对方账号中操作。
                       </p>
                     </div>
                     <button
@@ -1426,55 +1504,66 @@ export function IdentityGovernancePanel({
                       取消
                     </button>
                   </header>
-                  <label>
-                    选择负责样本点
-                    <select
-                      aria-label="选择负责样本点"
-                      multiple
-                      value={[...responsibilityEditor.sampleIds]}
-                      onChange={(event) => {
-                        const sampleIds = Array.from(
-                          event.currentTarget.selectedOptions,
-                          ({ value }) => value,
-                        );
-                        setResponsibilityEditor((current) =>
-                          current
-                            ? {
-                                ...current,
-                                sampleIds,
-                              }
-                            : current,
-                        );
-                      }}
-                    >
-                      {formalSamples
-                        .filter((sample) =>
-                          employeeCoversSample(
-                            responsibilityEditor.employee,
-                            sample,
-                          ),
-                        )
-                        .map((sample) => (
-                          <option key={sample.id} value={sample.id}>
-                            {sample.canonicalName} · {sample.regionCode}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                  <label>
-                    维护责任调整原因
-                    <textarea
-                      aria-label="维护责任调整原因"
-                      value={responsibilityEditor.reason}
-                      onChange={(event) =>
-                        setResponsibilityEditor((current) =>
-                          current
-                            ? { ...current, reason: event.target.value }
-                            : current,
-                        )
-                      }
-                    />
-                  </label>
+                  <div className="identity-governance-form-grid identity-responsibility-form">
+                    <label>
+                      选择负责样本点
+                      <select
+                        aria-label="选择负责样本点"
+                        multiple
+                        size={8}
+                        value={[...responsibilityEditor.sampleIds]}
+                        onChange={(event) => {
+                          const sampleIds = Array.from(
+                            event.currentTarget.selectedOptions,
+                            ({ value }) => value,
+                          );
+                          setResponsibilityEditor((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  sampleIds,
+                                }
+                              : current,
+                          );
+                        }}
+                      >
+                        {formalSamples
+                          .filter(
+                            (sample) =>
+                              sample.maintainerSubjectId !==
+                                responsibilityEditor.employee.subjectId &&
+                              employeeCoversSample(
+                                responsibilityEditor.employee,
+                                sample,
+                              ),
+                          )
+                          .map((sample) => (
+                            <option key={sample.id} value={sample.id}>
+                              {sample.canonicalName} ·{" "}
+                              {displayRegion(sample.regionCode, regionNames)}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <label>
+                      维护责任调整原因
+                      <textarea
+                        aria-label="维护责任调整原因"
+                        value={responsibilityEditor.reason}
+                        onChange={(event) =>
+                          setResponsibilityEditor((current) =>
+                            current
+                              ? { ...current, reason: event.target.value }
+                              : current,
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                  <p>
+                    按住 Ctrl（Mac 为 Command）可多选。已选择{" "}
+                    {responsibilityEditor.sampleIds.length} 个待分配样本。
+                  </p>
                   <footer>
                     <button
                       className="is-primary"
