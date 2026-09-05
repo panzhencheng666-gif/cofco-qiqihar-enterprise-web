@@ -505,6 +505,7 @@ describe("IdentityGovernancePanel", () => {
   });
 
   it("saves the complete region responsibility once and requeries employees", async () => {
+    await import("./SampleResponsibilityEditor");
     const user = userEvent.setup();
     const api = repository();
     const current = {
