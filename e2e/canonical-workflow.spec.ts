@@ -189,16 +189,25 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
   await expect(
     importPanel.getByRole("button", { name: "下载 XLSX 模板" }),
   ).toBeVisible();
-  await importPanel
-    .getByRole("combobox", { name: "设计参考点导入分类" })
-    .selectOption("MARKET");
+  await expect(
+    importPanel.getByRole("combobox", { name: "设计参考点导入分类" }),
+  ).toHaveCount(0);
   await importPanel.getByLabel("选择 XLSX 文件").setInputFiles({
-    name: "市场类设计参考点.xlsx",
+    name: "统一设计样本点.xlsx",
     mimeType:
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("controlled-xlsx"),
   });
+  const importRequest = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      new URL(request.url()).pathname ===
+        "/api/v1/design-sample-points/imports",
+  );
   await importPanel.getByRole("button", { name: "校验并导入" }).click();
+  expect(new URL((await importRequest).url()).searchParams.has("domain")).toBe(
+    false,
+  );
   await expect(
     page.getByText("XLSX导入设计参考点", { exact: true }),
   ).toBeVisible();
