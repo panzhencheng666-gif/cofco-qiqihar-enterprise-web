@@ -587,7 +587,7 @@ describe("formal enterprise prototype", () => {
     );
     expect(
       screen.getByRole("dialog", { name: "账号与授权" }),
-    ).toHaveTextContent("已授权 1 个责任地区");
+    ).toHaveTextContent("已分配 1 个可访问地区");
     expect(
       screen.getByRole("dialog", { name: "账号与授权" }),
     ).not.toHaveTextContent("230200");
