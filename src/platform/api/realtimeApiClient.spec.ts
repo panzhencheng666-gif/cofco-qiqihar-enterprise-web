@@ -2,6 +2,57 @@ import { describe, expect, it, vi } from "vitest";
 import { RealtimeApiError, createRealtimeApiClient } from "./realtimeApiClient";
 
 describe("realtime API client", () => {
+  it("waits for atomic file processing beyond the ordinary read timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetcher = vi.fn<typeof fetch>(
+        (_input, init) =>
+          new Promise((resolve, reject) => {
+            const responseTimer = setTimeout(
+              () =>
+                resolve(
+                  new Response(JSON.stringify({ data: { importedRows: 584 } })),
+                ),
+              20_000,
+            );
+            init?.signal?.addEventListener("abort", () => {
+              clearTimeout(responseTimer);
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          }),
+      );
+      const client = createRealtimeApiClient({ baseUrl: "", fetcher });
+      const upload = client
+        .upload("/api/v1/design-sample-points/imports", new FormData())
+        .catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(await upload).toEqual({ importedRows: 584 });
+
+      const read = client
+        .get("/api/v1/design-sample-points")
+        .catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(await read).toMatchObject({ code: "API_TIMEOUT" });
+
+      const shortClient = createRealtimeApiClient({
+        baseUrl: "",
+        fetcher,
+        timeoutMs: 10,
+      });
+      const timeout = shortClient
+        .upload("/api/v1/design-sample-points/imports", new FormData())
+        .catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(20);
+      const timeoutError = await timeout;
+      expect(timeoutError).toMatchObject({ code: "API_TIMEOUT" });
+      expect((timeoutError as RealtimeApiError).clientMessage).toContain(
+        "结果尚未确认",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("returns an unwrapped direct contract through getRaw", async () => {
     const payload = {
       contractVersion: "design-sample-fields-v2",

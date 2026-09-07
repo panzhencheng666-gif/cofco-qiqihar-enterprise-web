@@ -261,7 +261,11 @@ export function createRealtimeApiClient(
     extraHeaders: Record<string, string> = {},
   ): Promise<T> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    // File requests include server validation and atomic persistence after transfer.
+    const timeout = setTimeout(
+      () => controller.abort(),
+      options.timeoutMs ?? 300_000,
+    );
     try {
       const response = await fetcher(joinUrl(baseUrl, path), {
         method: "POST",
@@ -292,7 +296,7 @@ export function createRealtimeApiClient(
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new RealtimeApiError({
           code: "API_TIMEOUT",
-          message: "服务请求超时，请稍后重试",
+          message: "上传处理等待超时，结果尚未确认，请核对处理结果后再重试",
           status: 408,
         });
       }
