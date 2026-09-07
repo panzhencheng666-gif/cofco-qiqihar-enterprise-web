@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 59,
-  "sourceDigest": "e9dd8bbd86e3088587acf3a8175d54023c5c6f749027171c5288eff56208db6d",
+  "sourceDigest": "abd75d63704fdad958d2ca1c77686b6a45a02be4ded4eb0786aae08f7e35b9fb",
   "itemCount": 477,
   "countsByKind": {
     "BUTTON": 262,
@@ -1750,10 +1750,24 @@
       "sourceExcerpt": "<button className=\"is-primary\" disabled={busy} type=\"button\" onClick={() => void query(0)} >"
     },
     {
-      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:109:13:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:107:5:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/formal-sample/SamplePointImportPanel.tsx",
+      "line": 107,
+      "column": 5,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/SamplePointImportPanel.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button type=\"button\" onClick={() => void handleTemplate()}>"
+    },
+    {
+      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:119:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/SamplePointImportPanel.tsx",
-      "line": 109,
+      "line": 119,
       "column": 13,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"选择 XLSX 文件\"",
@@ -1764,10 +1778,10 @@
       "sourceExcerpt": "<input ref={inputRef} type=\"file\" accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" aria-label=\"选择 XLSX 文件\" onChange={(event) => setFile(event.target.files?.[0])} />"
     },
     {
-      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:117:11:BUTTON",
+      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:127:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/SamplePointImportPanel.tsx",
-      "line": 117,
+      "line": 127,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1778,10 +1792,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={!file || busy} onClick={() => void handleImport()} >"
     },
     {
-      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:131:15:BUTTON",
+      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:141:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/SamplePointImportPanel.tsx",
-      "line": 131,
+      "line": 141,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1792,10 +1806,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => void handleErrors()}>"
     },
     {
-      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:147:9:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:157:9:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/SamplePointImportPanel.tsx",
-      "line": 147,
+      "line": 157,
       "column": 9,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"选择 XLSX 文件\"",
@@ -1806,10 +1820,10 @@
       "sourceExcerpt": "<input ref={inputRef} type=\"file\" accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" aria-label=\"选择 XLSX 文件\" onChange={(event) => setFile(event.target.files?.[0])} />"
     },
     {
-      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:155:7:BUTTON",
+      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:165:7:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/SamplePointImportPanel.tsx",
-      "line": 155,
+      "line": 165,
       "column": 7,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1820,10 +1834,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={!file || busy} onClick={() => void handleImport()} >"
     },
     {
-      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:172:13:BUTTON",
+      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:182:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/SamplePointImportPanel.tsx",
-      "line": 172,
+      "line": 182,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1832,20 +1846,6 @@
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
       "sourceExcerpt": "<button type=\"button\" onClick={() => void handleErrors()}>"
-    },
-    {
-      "id": "src/business/formal-sample/SamplePointImportPanel.tsx:97:5:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/formal-sample/SamplePointImportPanel.tsx",
-      "line": 97,
-      "column": 5,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/SamplePointImportPanel.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button type=\"button\" onClick={() => void handleTemplate()}>"
     },
     {
       "id": "src/business/formal-sample/SamplePointLedgerPrimitives.tsx:152:7:BUTTON",
@@ -2800,10 +2800,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={onDownloadErrors}>"
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:1018:27:BUTTON",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:1019:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 1018,
+      "line": 1019,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2814,10 +2814,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => { if (realtimeRepository) { if (onEditRecord) { onEditRecord(productCode, row.workId); return; } setSelectedPersistedId(row.workId); } else { onSelectionChange..."
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:682:13:FILTER_OR_INPUT",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:683:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 682,
+      "line": 683,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"调查年份\"",
@@ -2828,10 +2828,10 @@
       "sourceExcerpt": "<select aria-label=\"调查年份\" required value={surveyYear} onChange={(event) => { setSurveyYear(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:700:13:FILTER_OR_INPUT",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:701:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 700,
+      "line": 701,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"调查月份\"",
@@ -2842,10 +2842,10 @@
       "sourceExcerpt": "<select aria-label=\"调查月份\" value={surveyMonth} onChange={(event) => { setSurveyMonth(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:741:13:FILTER_OR_INPUT",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:742:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 741,
+      "line": 742,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"运输方式\"",
@@ -2856,10 +2856,10 @@
       "sourceExcerpt": "<select aria-label=\"运输方式\" value={nodeType} onChange={(event) => { setNodeType(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:755:13:BUTTON",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:756:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 755,
+      "line": 756,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2870,10 +2870,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" onClick={() => setRecordsRevision((value) => value + 1)} >"
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:762:13:BUTTON",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:763:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 762,
+      "line": 763,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2884,10 +2884,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => { setNodeType(\"\"); setLowerRegion({}); setRealtimeRegionCode(\"\"); setSurveyYear(currentSurveyYear); setSurveyMonth(\"\"); setPageNumber(0); onScopeChange({ regionId: \"qiqihar-all\", periodKey: undefined,..."
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:841:21:BUTTON",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:842:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 841,
+      "line": 842,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2898,10 +2898,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => void downloadTemplate()} >"
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:852:25:FILTER_OR_INPUT",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:853:25:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 852,
+      "line": 853,
       "column": 25,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"批量导入物流记录\"",
@@ -2912,10 +2912,10 @@
       "sourceExcerpt": "<input accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" aria-label=\"批量导入物流记录\" disabled={importing} type=\"file\" onChange={(event) => { void importWorkbook(event.target.files?.[0]); event.target.value = \"\"; ..."
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:865:25:FILTER_OR_INPUT",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:866:25:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 865,
+      "line": 866,
       "column": 25,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"附加物流照片\"",
@@ -2926,10 +2926,10 @@
       "sourceExcerpt": "<input accept=\"image/jpeg,image/png\" aria-label=\"附加物流照片\" disabled={importing} multiple type=\"file\" onChange={(event) => setImportPhotos( Array.from(event.target.files ?? []), ) } />"
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:890:17:BUTTON",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:891:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 890,
+      "line": 891,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2940,10 +2940,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => onCreateRecord?.(productCode)} >"
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:935:27:BUTTON",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:936:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 935,
+      "line": 936,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2954,10 +2954,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" disabled={ Boolean(record.values.__FORMAL_SAMPLE_ID) && !record.values.__FORMAL_LATEST_OBSERVATION_ID } onClick={() => { if ( onEditRecord && (!record.values.__FORMAL_SAMPLE_..."
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:958:31:BUTTON",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:959:31:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 958,
+      "line": 959,
       "column": 31,
       "tag": "button",
       "accessibleNameSource": null,
@@ -2968,10 +2968,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => onSelectionChange({ type: \"formal-sample-observation\", id: record.values.__FORMAL_SAMPLE_ID, }) } >"
     },
     {
-      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:973:31:BUTTON",
+      "id": "src/business/market/LogisticsMonitoringWorkspace.tsx:974:31:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/LogisticsMonitoringWorkspace.tsx",
-      "line": 973,
+      "line": 974,
       "column": 31,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3738,10 +3738,10 @@
       "sourceExcerpt": "<input aria-label={`${modeLabel}经营产品：${label}`} checked={productIds.includes(id)} type=\"checkbox\" onChange={(event) => toggleProduct(id, event.target.checked)} />"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1077:13:FILTER_OR_INPUT",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1074:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1077,
+      "line": 1074,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"数据年份\"",
@@ -3752,10 +3752,10 @@
       "sourceExcerpt": "<select aria-label=\"数据年份\" required value={surveyYear} onChange={(event) => { setSurveyYear(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1095:13:FILTER_OR_INPUT",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1092:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1095,
+      "line": 1092,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"数据月份\"",
@@ -3766,10 +3766,10 @@
       "sourceExcerpt": "<select aria-label=\"数据月份\" value={surveyMonth} onChange={(event) => { setSurveyMonth(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1137:15:FILTER_OR_INPUT",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1134:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1137,
+      "line": 1134,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"监测批次\"",
@@ -3780,10 +3780,10 @@
       "sourceExcerpt": "<select aria-label=\"监测批次\" value={scope.coordinates.periodKey ?? \"\"} onChange={(event) => { setPageNumber(0); onScopeChange({ periodKey: event.target.value || undefined }); }} >"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1156:13:FILTER_OR_INPUT",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1153:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1156,
+      "line": 1153,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"样本点类型\"",
@@ -3794,10 +3794,10 @@
       "sourceExcerpt": "<select aria-label=\"样本点类型\" value={objectType} onChange={(event) => { setPageNumber(0); setObjectType( event.target.value as \"\" | MarketBusinessObjectTypeId, ); }} >"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1175:13:BUTTON",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1172:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1175,
+      "line": 1172,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3808,10 +3808,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" onClick={() => setRecordsRevision((value) => value + 1)} >"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1182:13:BUTTON",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1179:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1182,
+      "line": 1179,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3822,10 +3822,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => { setObjectType(\"\"); setSurveyYear(currentSurveyYear); setSurveyMonth(\"\"); setLowerRegion({}); setRealtimeRegionCode(\"\"); setPageNumber(0); onScopeChange({ regionId: \"authorized-all\", periodKey: undef..."
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1256:21:BUTTON",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1253:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1256,
+      "line": 1253,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3836,10 +3836,10 @@
       "sourceExcerpt": "<button disabled={ importing || !realtimeRepository.downloadMarketXlsxTemplate } type=\"button\" onClick={() => void downloadTemplate()} >"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1268:23:FILTER_OR_INPUT",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1265:23:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1268,
+      "line": 1265,
       "column": 23,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"批量导入市场采集记录\"",
@@ -3850,10 +3850,10 @@
       "sourceExcerpt": "<input accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" aria-label=\"批量导入市场采集记录\" disabled={ importing || !realtimeRepository.importMarketWorkbook } type=\"file\" onChange={(event) => { void importRecords(even..."
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1283:23:FILTER_OR_INPUT",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1280:23:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1283,
+      "line": 1280,
       "column": 23,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"附加市场照片\"",
@@ -3864,10 +3864,10 @@
       "sourceExcerpt": "<input accept=\"image/jpeg,image/png\" aria-label=\"附加市场照片\" disabled={importing} multiple type=\"file\" onChange={(event) => setImportPhotos(Array.from(event.target.files ?? [])) } />"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1305:17:BUTTON",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1302:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1305,
+      "line": 1302,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3878,10 +3878,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => onCreateRecord?.(productCode)} >"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1378:23:BUTTON",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1375:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1378,
+      "line": 1375,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3892,10 +3892,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" disabled={ Boolean(row.samplePointId) && !row.values.__FORMAL_LATEST_OBSERVATION_ID } onClick={() => { if ( realtimeRepository && onEditRecord && (!row.samplePointId || row.v..."
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1405:27:BUTTON",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1402:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1405,
+      "line": 1402,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3906,10 +3906,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => onSelectionChange({ type: \"formal-sample-observation\", id: row.samplePointId!, }) } >"
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1420:27:BUTTON",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1417:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1420,
+      "line": 1417,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -3920,10 +3920,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => { if (!realtimeRepository?.deleteFormalSamplePoint) return; if ( !window.confirm( `确认删除“${row.subject}”？删除后将从当前台账和分析中移除，历史审计仍保留。`, ) ) return; void realtimeRep..."
     },
     {
-      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1455:27:BUTTON",
+      "id": "src/business/market/ProductMarketCollectionWorkspace.tsx:1452:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/market/ProductMarketCollectionWorkspace.tsx",
-      "line": 1455,
+      "line": 1452,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4508,10 +4508,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={onClose}>"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1010:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1007:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1010,
+      "line": 1007,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"数据年份\"",
@@ -4522,10 +4522,10 @@
       "sourceExcerpt": "<select aria-label=\"数据年份\" required value={surveyYear} onChange={(event) => { setSurveyYearWasSelected(true); setSurveyYear(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1036:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1033:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1036,
+      "line": 1033,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"数据月份\"",
@@ -4536,10 +4536,10 @@
       "sourceExcerpt": "<select aria-label=\"数据月份\" value={surveyMonth} onChange={(event) => { setSurveyMonth(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1078:15:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1075:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1078,
+      "line": 1075,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"调查批次\"",
@@ -4550,10 +4550,10 @@
       "sourceExcerpt": "<select aria-label=\"调查批次\" value={scope.coordinates.periodKey ?? \"\"} onChange={(event) => { setPageNumber(0); onScopeChange({ periodKey: event.target.value || undefined }); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1097:13:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1094:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1097,
+      "line": 1094,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"样本点类型\"",
@@ -4564,10 +4564,10 @@
       "sourceExcerpt": "<select aria-label=\"样本点类型\" value={objectType} onChange={(event) => { setPageNumber(0); setObjectType( event.target.value as \"\" | ProductionBusinessObjectTypeId, ); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1120:17:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1117:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1120,
+      "line": 1117,
       "column": 17,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"具体品种\"",
@@ -4578,10 +4578,10 @@
       "sourceExcerpt": "<select aria-label=\"具体品种\" value={scope.coordinates.cultivarId ?? \"\"} onChange={(event) => { setPageNumber(0); onScopeChange({ cultivarId: event.target.value || undefined, }); }} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1140:13:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1137:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1140,
+      "line": 1137,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4592,10 +4592,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" onClick={() => setRecordsRevision((value) => value + 1)} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1147:13:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1144:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1147,
+      "line": 1144,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4606,10 +4606,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => { setObjectType(\"\"); setSurveyYear(currentSurveyYear); setSurveyMonth(\"\"); setLowerRegion({}); setRealtimeRegionCode(\"\"); setPageNumber(0); onScopeChange({ regionId: \"authorized-all\", periodKey: undef..."
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1221:21:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1218:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1221,
+      "line": 1218,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4620,10 +4620,10 @@
       "sourceExcerpt": "<button disabled={ importing || !realtimeRepository.downloadProductionXlsxTemplate } type=\"button\" onClick={() => void downloadTemplate()} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1233:23:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1230:23:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1233,
+      "line": 1230,
       "column": 23,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"批量导入产情记录\"",
@@ -4634,10 +4634,10 @@
       "sourceExcerpt": "<input accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" aria-label=\"批量导入产情记录\" disabled={!importObjectType || importing} type=\"file\" onChange={(event) => { void importRecords(event.target.files?.[0]); event..."
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1246:23:FILTER_OR_INPUT",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1243:23:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1246,
+      "line": 1243,
       "column": 23,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"附加产情照片\"",
@@ -4648,10 +4648,10 @@
       "sourceExcerpt": "<input accept=\"image/jpeg,image/png\" aria-label=\"附加产情照片\" disabled={importing} multiple type=\"file\" onChange={(event) => setImportPhotos(Array.from(event.target.files ?? [])) } />"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1268:17:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1265:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1268,
+      "line": 1265,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4662,10 +4662,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => onCreateRecord?.(productCode)} >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1440:25:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1437:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1440,
+      "line": 1437,
       "column": 25,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4676,10 +4676,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" disabled={ Boolean(row.samplePointId) && !row.values.__FORMAL_LATEST_OBSERVATION_ID } onClick={() => { if ( realtimeRepository && onEditRecord && (!row.samplePointId || row.v..."
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1467:29:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1464:29:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1467,
+      "line": 1464,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4690,10 +4690,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => onSelectionChange({ type: \"formal-sample-observation\", id: row.samplePointId!, }) } >"
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1482:29:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1479:29:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1482,
+      "line": 1479,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4704,10 +4704,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => { if ( !realtimeRepository?.deleteFormalSamplePoint ) return; if ( !window.confirm( `确认删除“${row.subject}”？删除后将从当前台账和分析中移除，历史审计仍保留。`, ) ) return; void realtimeR..."
     },
     {
-      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1519:29:BUTTON",
+      "id": "src/business/production/ProductProductionCollectionWorkspace.tsx:1516:29:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/production/ProductProductionCollectionWorkspace.tsx",
-      "line": 1519,
+      "line": 1516,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4914,10 +4914,10 @@
       "sourceExcerpt": "<button className={ activeYear === point.businessYear ? \"is-active\" : \"\" } key={point.businessYear} onFocus={() => setActiveYear(point.businessYear)} onMouseEnter={() => setActiveYear(point.businessYear)} type=\"button\" >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1002:27:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1008:27:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1002,
+      "line": 1008,
       "column": 27,
       "tag": "input",
       "accessibleNameSource": "aria-label={field.label}",
@@ -4928,10 +4928,10 @@
       "sourceExcerpt": "<input aria-label={field.label} {...(field.type === \"decimal\" ? decimalInputConstraints( field.precision, field.scale, ) : {})} inputMode={ field.type === \"decimal\" ? \"decimal\" : undefined } required={field.required} type={inputType(fiel..."
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1032:19:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1038:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1032,
+      "line": 1038,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"现场水印照片\"",
@@ -4942,10 +4942,10 @@
       "sourceExcerpt": "<input aria-label=\"现场水印照片\" accept=\"image/jpeg,image/png\" multiple type=\"file\" onChange={(event) => { const files = Array.from(event.target.files ?? []); if (files.length > 5) { setEvidenceFiles([]); setError(\"现场水印照片最多上传 5 张。\"); event.tar..."
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1065:25:LINK",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1071:25:LINK",
       "kind": "LINK",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1065,
+      "line": 1071,
       "column": 25,
       "tag": "a",
       "accessibleNameSource": null,
@@ -4956,10 +4956,10 @@
       "sourceExcerpt": "<a href={`/api/v1/evidence-photos/${photo.id}/content`} rel=\"noreferrer\" target=\"_blank\" >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1087:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1093:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1087,
+      "line": 1093,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4970,10 +4970,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={onCancel}>"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1092:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1098:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1092,
+      "line": 1098,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4984,10 +4984,10 @@
       "sourceExcerpt": "<button disabled={busy || !definitionReady || existingRecordUnavailable} type=\"submit\" >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1100:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1106:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1100,
+      "line": 1106,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -4998,10 +4998,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"void\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1109:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1115:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1109,
+      "line": 1115,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5012,10 +5012,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"approve\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1119:17:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1125:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1119,
+      "line": 1125,
       "column": 17,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"退回原因\"",
@@ -5026,10 +5026,10 @@
       "sourceExcerpt": "<input aria-label=\"退回原因\" placeholder=\"填写退回原因\" value={returnReason} onChange={(event) => setReturnReason(event.target.value)} />"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1125:17:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:1131:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 1125,
+      "line": 1131,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5040,10 +5040,10 @@
       "sourceExcerpt": "<button disabled={busy || !returnReason.trim()} type=\"button\" onClick={() => void transition(\"return\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:842:15:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:848:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 842,
+      "line": 848,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5054,10 +5054,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={busy || importing || !productCode} onClick={() => void downloadWorkbook()} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:851:17:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:857:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 851,
+      "line": 857,
       "column": 17,
       "tag": "input",
       "accessibleNameSource": null,
@@ -5068,10 +5068,10 @@
       "sourceExcerpt": "<input type=\"file\" accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" disabled={busy || importing} onChange={(event) => void importWorkbook(event.target.files?.[0]) } />"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:862:17:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:868:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 862,
+      "line": 868,
       "column": 17,
       "tag": "input",
       "accessibleNameSource": "aria-label={`${domain === \"production\" ? \"附加产情照片\" : \"附加市场照片\"}`}",
@@ -5082,10 +5082,10 @@
       "sourceExcerpt": "<input type=\"file\" accept=\"image/jpeg,image/png\" aria-label={`${domain === \"production\" ? \"附加产情照片\" : \"附加市场照片\"}`} disabled={busy || importing} multiple onChange={(event) => setImportPhotos(Array.from(event.target.files ?? [])) } />"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:876:13:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:882:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 876,
+      "line": 882,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5096,10 +5096,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={newRecord} disabled={busy || importing} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:902:19:BUTTON",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:908:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 902,
+      "line": 908,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5110,10 +5110,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={busy} onClick={() => void openRecord(record.id)} >"
     },
     {
-      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:986:27:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx:992:27:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeBusinessOperationsPanel.tsx",
-      "line": 986,
+      "line": 992,
       "column": 27,
       "tag": "select",
       "accessibleNameSource": "aria-label={field.label}",
@@ -5124,10 +5124,10 @@
       "sourceExcerpt": "<select aria-label={field.label} required={field.required} value={values[field.code] ?? \"\"} onChange={(event) => edit(field.code, event.target.value) } >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:454:13:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:462:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 454,
+      "line": 462,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5138,10 +5138,10 @@
       "sourceExcerpt": "<button disabled={busy || importing} type=\"button\" onClick={() => void downloadWorkbook()} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:463:15:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:471:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 463,
+      "line": 471,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"导入 XLSX\"",
@@ -5152,10 +5152,10 @@
       "sourceExcerpt": "<input aria-label=\"导入 XLSX\" accept=\".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\" disabled={busy || importing} type=\"file\" onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget..."
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:477:15:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:485:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 477,
+      "line": 485,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"附加物流照片\"",
@@ -5166,10 +5166,10 @@
       "sourceExcerpt": "<input aria-label=\"附加物流照片\" accept=\"image/jpeg,image/png\" disabled={busy || importing} multiple type=\"file\" onChange={(event) => setImportPhotos(Array.from(event.target.files ?? [])) } />"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:488:13:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:496:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 488,
+      "line": 496,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5180,10 +5180,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={newRecord} disabled={busy || importing} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:519:19:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:527:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 519,
+      "line": 527,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5194,10 +5194,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={busy} onClick={() => void openRecord(record.id)} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:576:23:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:584:23:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 576,
+      "line": 584,
       "column": 23,
       "tag": "select",
       "accessibleNameSource": "aria-label={field.label}",
@@ -5208,10 +5208,10 @@
       "sourceExcerpt": "<select aria-label={field.label} required={field.required} value={values[field.code] ?? \"\"} onChange={(event) => setValues((current) => { formDirty.current = true; return { ...current, [field.code]: event.target.value, }; }) } >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:598:23:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:606:23:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 598,
+      "line": 606,
       "column": 23,
       "tag": "input",
       "accessibleNameSource": "aria-label={field.label}",
@@ -5222,10 +5222,10 @@
       "sourceExcerpt": "<input aria-label={field.label} max={ field.code === \"LOG_SAMPLE_LATITUDE\" ? 90 : field.code === \"LOG_SAMPLE_LONGITUDE\" ? 180 : undefined } min={ field.code === \"LOG_SAMPLE_LATITUDE\" ? -90 : field.code === \"LOG_SAMPLE_LONGITUDE\" ? -180 :..."
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:637:15:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:645:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 637,
+      "line": 645,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5234,20 +5234,6 @@
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={onCancel}>"
-    },
-    {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:642:15:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 642,
-      "column": 15,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button disabled={busy || !definition || existingRecordUnavailable} type=\"submit\" >"
     },
     {
       "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:650:15:BUTTON",
@@ -5261,13 +5247,27 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button disabled={busy || !definition || existingRecordUnavailable} type=\"submit\" >"
+    },
+    {
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:658:15:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
+      "line": 658,
+      "column": 15,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"submit\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:659:15:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:667:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 659,
+      "line": 667,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5278,10 +5278,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"void\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:668:15:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:676:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 668,
+      "line": 676,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5292,10 +5292,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void transition(\"approve\")} >"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:678:17:FILTER_OR_INPUT",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:686:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 678,
+      "line": 686,
       "column": 17,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"物流退回原因\"",
@@ -5306,10 +5306,10 @@
       "sourceExcerpt": "<input aria-label=\"物流退回原因\" placeholder=\"填写退回原因\" value={returnReason} onChange={(event) => setReturnReason(event.target.value)} />"
     },
     {
-      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:684:17:BUTTON",
+      "id": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx:692:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/realtime/RealtimeLogisticsOperationsPanel.tsx",
-      "line": 684,
+      "line": 692,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5768,10 +5768,10 @@
       "sourceExcerpt": "<select aria-label=\"现有样本产品\" value={productCode} onChange={(event) => { setProductCode(event.target.value); resetSelection(); }} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:1008:7:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:1010:7:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 1008,
+      "line": 1010,
       "column": 7,
       "tag": "input",
       "accessibleNameSource": "aria-label={label}",
@@ -5782,10 +5782,10 @@
       "sourceExcerpt": "<input aria-label={label} disabled={disabled} max={field.maximumValue ?? undefined} maxLength={field.maxLength ?? undefined} min={field.minimumValue ?? undefined} onChange={(event) => onChange(event.target.value)} required={field.require..."
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:387:11:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:389:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 387,
+      "line": 389,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5796,10 +5796,10 @@
       "sourceExcerpt": "<button onClick={onSelectionClear} type=\"button\">"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:406:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:408:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 406,
+      "line": 408,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"筛选参考类别\"",
@@ -5810,10 +5810,10 @@
       "sourceExcerpt": "<select aria-label=\"筛选参考类别\" onChange={(event) => setFilterDraft((current) => ({ ...current, domainCode: event.target.value, objectTypeCode: \"\", })) } value={filterDraft.domainCode} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:429:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:431:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 429,
+      "line": 431,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"筛选品种\"",
@@ -5824,10 +5824,10 @@
       "sourceExcerpt": "<select aria-label=\"筛选品种\" onChange={(event) => setFilterDraft((current) => ({ ...current, productCode: event.target.value, })) } value={filterDraft.productCode} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:451:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:453:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 451,
+      "line": 453,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"筛选参考对象类型\"",
@@ -5838,10 +5838,10 @@
       "sourceExcerpt": "<select aria-label=\"筛选参考对象类型\" onChange={(event) => setFilterDraft((current) => ({ ...current, objectTypeCode: event.target.value, })) } value={filterDraft.objectTypeCode} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:481:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:483:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 481,
+      "line": 483,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"筛选行政区\"",
@@ -5852,10 +5852,10 @@
       "sourceExcerpt": "<select aria-label=\"筛选行政区\" onChange={(event) => setFilterDraft((current) => ({ ...current, regionCode: event.target.value, })) } value={filterDraft.regionCode} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:501:15:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:503:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 501,
+      "line": 503,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"搜索点位名称\"",
@@ -5866,10 +5866,10 @@
       "sourceExcerpt": "<input aria-label=\"搜索点位名称\" onChange={(event) => setFilterDraft((current) => ({ ...current, keyword: event.target.value, })) } placeholder=\"输入点位名称\" type=\"search\" value={filterDraft.keyword} />"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:515:15:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:517:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 515,
+      "line": 517,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5880,10 +5880,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" onClick={() => { setPage(0); setFilters(filterDraft); }} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:525:15:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:527:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 525,
+      "line": 527,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5894,10 +5894,10 @@
       "sourceExcerpt": "<button disabled={!Object.values(filterDraft).some(Boolean)} onClick={() => { const empty = { keyword: \"\", regionCode: \"\", domainCode: \"\", productCode: \"\", objectTypeCode: \"\", }; setFilterDraft(empty); setFilters(empty); setPage(0); }} t..."
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:594:25:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:596:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 594,
+      "line": 596,
       "column": 25,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5908,10 +5908,10 @@
       "sourceExcerpt": "<button onClick={() => { if (onSelectionChange) { navigate({ type: \"design-sample-create\", id: \"new\", }); } else void loadEditor({ mode: \"create\" }); }} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:657:25:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:659:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 657,
+      "line": 659,
       "column": 25,
       "tag": "button",
       "accessibleNameSource": "aria-label={`查看${point.name}`}",
@@ -5922,10 +5922,10 @@
       "sourceExcerpt": "<button aria-label={`查看${point.name}`} className=\"enterprise-ledger-row-action\" onClick={() => { if (onSelectionChange) { navigate({ type: \"design-sample-view\", id: point.id, }); } else setViewPoint(point); }} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:674:29:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:676:29:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 674,
+      "line": 676,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": "aria-label={`编辑${point.name}`}",
@@ -5936,10 +5936,10 @@
       "sourceExcerpt": "<button aria-label={`编辑${point.name}`} className=\"enterprise-ledger-row-action\" onClick={() => { if (onSelectionChange) { navigate({ type: \"design-sample-edit\", id: point.id, }); } else void loadEditor({ mode: \"edit\", point }); }} type=\"..."
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:689:29:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:691:29:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 689,
+      "line": 691,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": "aria-label={`删除${point.name}`}",
@@ -5950,10 +5950,10 @@
       "sourceExcerpt": "<button aria-label={`删除${point.name}`} className=\"enterprise-ledger-row-action\" onClick={() => void remove(point)} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:742:15:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:744:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 742,
+      "line": 744,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5964,10 +5964,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => navigate({ type: \"design-sample-edit\", id: viewPoint.id }) } >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:751:13:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:753:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 751,
+      "line": 753,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5978,10 +5978,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => { setViewPoint(undefined); navigate({ type: \"design-sample-list\", id: \"list\" }); }} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:833:11:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:835:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 833,
+      "line": 835,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5992,10 +5992,10 @@
       "sourceExcerpt": "<button disabled={!contract || saving} type=\"button\" onClick={onSave}>"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:836:11:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:838:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 836,
+      "line": 838,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -6006,10 +6006,10 @@
       "sourceExcerpt": "<button onClick={onCancel} type=\"button\">"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:846:13:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:848:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 846,
+      "line": 848,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"参考类别\"",
@@ -6020,10 +6020,10 @@
       "sourceExcerpt": "<select aria-label=\"参考类别\" value={context.domainCode} onChange={(event) => onContextChange({ domainCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:864:13:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:866:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 864,
+      "line": 866,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"品种\"",
@@ -6034,10 +6034,10 @@
       "sourceExcerpt": "<select aria-label=\"品种\" value={context.productCode} onChange={(event) => onContextChange({ productCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:888:13:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:890:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 888,
+      "line": 890,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"参考对象类型\"",
@@ -6048,10 +6048,10 @@
       "sourceExcerpt": "<select aria-label=\"参考对象类型\" value={context.objectTypeCode} onChange={(event) => onContextChange({ objectTypeCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:965:9:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:967:9:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 965,
+      "line": 967,
       "column": 9,
       "tag": "select",
       "accessibleNameSource": "aria-label={businessLabel}",
@@ -6062,10 +6062,10 @@
       "sourceExcerpt": "<select aria-label={businessLabel} onChange={(event) => onChange(event.target.value)} required={field.required} value={value} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:985:9:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:987:9:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 985,
+      "line": 987,
       "column": 9,
       "tag": "select",
       "accessibleNameSource": "aria-label={label}",

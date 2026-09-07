@@ -76,6 +76,7 @@ export function DesignSamplePointTable({
   standalone?: boolean;
 }) {
   const [listState, setListState] = useState<ListState>("loading");
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [pageData, setPageData] =
     useState<Page<DesignSamplePointRow>>(EMPTY_PAGE);
   const [page, setPage] = useState(0);
@@ -159,6 +160,7 @@ export function DesignSamplePointTable({
       .then((next) => {
         if (!active) return;
         setPageData(next);
+        setHasLoaded(true);
         setListState("ready");
         onListStateChange("ready", next.totalElements);
       })
@@ -550,7 +552,7 @@ export function DesignSamplePointTable({
           {listState === "unavailable" ? (
             <p role="alert">设计参考点清单暂不可用，请稍后重试。</p>
           ) : null}
-          {listState === "ready" ? (
+          {hasLoaded ? (
             <>
               <SamplePointLedgerTable
                 ariaLabel="设计参考点清单"

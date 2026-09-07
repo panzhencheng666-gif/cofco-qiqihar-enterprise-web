@@ -1,3 +1,4 @@
+import { importFailureMessage } from "@/business/importing/businessImportPresentation";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
@@ -733,11 +734,7 @@ export function ProductProductionCollectionWorkspace({
         setRecordsRevision((value) => value + 1);
       }
     } catch (error) {
-      setRecordsError(
-        error instanceof RealtimeApiError && error.clientMessage
-          ? error.clientMessage
-          : "产情记录导入失败，请核对文件内容后重试。",
-      );
+      setRecordsError(importFailureMessage(error));
     } finally {
       setImporting(false);
     }

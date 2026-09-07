@@ -1,4 +1,8 @@
 import {
+  importFailureMessage,
+  importRefreshFailureMessage,
+} from "@/business/importing/businessImportPresentation";
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -348,11 +352,15 @@ export function RealtimeLogisticsOperationsPanel({
       });
       if (terminal.statusCode !== "FAILED") {
         setImportPhotos([]);
-        await reload();
-        onRecordsChanged?.();
+        try {
+          await reload();
+          onRecordsChanged?.();
+        } catch {
+          setError(importRefreshFailureMessage);
+        }
       }
-    } catch {
-      setError("物流记录导入失败，请核对 XLSX 模板内容后重试。");
+    } catch (error) {
+      setError(importFailureMessage(error));
     } finally {
       setImporting(false);
     }
