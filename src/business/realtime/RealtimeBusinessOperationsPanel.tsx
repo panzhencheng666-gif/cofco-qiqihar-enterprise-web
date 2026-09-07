@@ -1,4 +1,8 @@
 import {
+  importFailureMessage,
+  importRefreshFailureMessage,
+} from "@/business/importing/businessImportPresentation";
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -702,13 +706,15 @@ export function RealtimeBusinessOperationsPanel({
       });
       if (terminal.statusCode !== "FAILED") {
         setImportPhotos([]);
-        await reload(productCode);
-        onRecordsChanged?.();
+        try {
+          await reload(productCode);
+          onRecordsChanged?.();
+        } catch {
+          setError(importRefreshFailureMessage);
+        }
       }
-    } catch {
-      setError(
-        `${domain === "production" ? "产情" : "市场"}记录导入失败，请核对 XLSX 模板内容后重试。`,
-      );
+    } catch (error) {
+      setError(importFailureMessage(error));
     } finally {
       setImporting(false);
     }

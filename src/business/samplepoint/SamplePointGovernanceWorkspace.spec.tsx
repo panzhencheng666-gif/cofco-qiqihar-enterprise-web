@@ -24,6 +24,7 @@ import type {
 } from "@/platform/api/designSampleFieldContract";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { SamplePointGovernanceWorkspace } from "./SamplePointGovernanceWorkspace";
+import { DesignSamplePointTable } from "./DesignSamplePointTable";
 
 afterEach(() => {
   cleanup();
@@ -337,6 +338,38 @@ function marketPurchaseContract(
 }
 
 describe("SamplePointGovernanceWorkspace", () => {
+  it("preserves the selected import file during a background list refresh", async () => {
+    const data = repository();
+    const view = render(
+      <DesignSamplePointTable
+        repository={data}
+        session={session}
+        onListStateChange={vi.fn()}
+        refreshSequence={0}
+      />,
+    );
+    const input =
+      await screen.findByLabelText<HTMLInputElement>("选择 XLSX 文件");
+    const file = new File(["data"], "待导入.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    await userEvent.upload(input, file);
+    data.listDesignSamplePoints = vi
+      .fn<NonNullable<RealtimeBusinessRepository["listDesignSamplePoints"]>>()
+      .mockImplementation(() => new Promise(() => {}));
+    view.rerender(
+      <DesignSamplePointTable
+        repository={data}
+        session={session}
+        onListStateChange={vi.fn()}
+        refreshSequence={1}
+      />,
+    );
+    await act(() => Promise.resolve());
+    expect(
+      screen.getByLabelText<HTMLInputElement>("选择 XLSX 文件").files?.[0],
+    ).toBe(file);
+  });
   it("keeps the business sample-point management entry focused on design samples", async () => {
     render(
       <SamplePointGovernanceWorkspace

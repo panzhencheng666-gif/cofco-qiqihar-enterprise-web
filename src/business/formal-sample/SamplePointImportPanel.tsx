@@ -1,3 +1,7 @@
+import {
+  importFailureMessage,
+  importRefreshFailureMessage,
+} from "@/business/importing/businessImportPresentation";
 import { useRef, useState } from "react";
 
 import type {
@@ -67,12 +71,18 @@ export function SamplePointImportPanel({
           : await repository.importFormalSamplePoints?.(file, idempotencyKey);
       if (!next) throw new Error("import unavailable");
       setResult(next);
-      if (next.importedRows > 0) await onImported();
       setIdempotencyKey(crypto.randomUUID());
       setFile(undefined);
       if (inputRef.current) inputRef.current.value = "";
-    } catch {
-      setError("导入失败，请核对文件内容后重试。");
+      if (next.importedRows > 0) {
+        try {
+          await onImported();
+        } catch {
+          setError(importRefreshFailureMessage);
+        }
+      }
+    } catch (error) {
+      setError(importFailureMessage(error));
     } finally {
       setBusy(false);
     }
@@ -125,7 +135,7 @@ export function SamplePointImportPanel({
         {result ? (
           <div role="status">
             {result.failedRows > 0
-              ? `本次零条入库，${result.failedRows} 行需要修正。`
+              ? `本次零条入库，请下载错误明细查看具体原因（共 ${result.failedRows} 行）。`
               : `导入完成，已新增 ${result.importedRows} 条。`}
             {result.failedRows > 0 ? (
               <button type="button" onClick={() => void handleErrors()}>
@@ -166,7 +176,7 @@ export function SamplePointImportPanel({
       {result ? (
         <div className="sample-point-import__status" role="status">
           {result.failedRows > 0
-            ? `本次零条入库，${result.failedRows} 行需要修正。`
+            ? `本次零条入库，请下载错误明细查看具体原因（共 ${result.failedRows} 行）。`
             : `导入完成，已新增 ${result.importedRows} 条。`}
           {result.failedRows > 0 ? (
             <button type="button" onClick={() => void handleErrors()}>

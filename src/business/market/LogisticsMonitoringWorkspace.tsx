@@ -1,3 +1,4 @@
+import { importFailureMessage } from "@/business/importing/businessImportPresentation";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
@@ -353,8 +354,8 @@ export function LogisticsMonitoringWorkspace({
         setPageNumber(0);
         setRecordsRevision((value) => value + 1);
       }
-    } catch {
-      setImportMessage("物流记录导入失败，请核对模板和填报内容。");
+    } catch (error) {
+      setImportMessage(importFailureMessage(error));
     } finally {
       setImporting(false);
     }
