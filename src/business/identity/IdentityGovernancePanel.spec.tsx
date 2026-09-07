@@ -272,6 +272,43 @@ function repository() {
 }
 
 describe("IdentityGovernancePanel", () => {
+  it("shows only effective operations and refreshes them when session permissions change", async () => {
+    const api = repository() as unknown as RealtimeBusinessRepository;
+    const { rerender } = render(
+      <IdentityGovernancePanel
+        initialView="profile"
+        onClose={vi.fn()}
+        repository={api}
+        session={{
+          ...session,
+          permissions: ["IDENTITY_READ", "BUSINESS_READ", "BUSINESS_SUBMIT"],
+        }}
+      />,
+    );
+    const operations = screen.getByLabelText("当前可用操作");
+    expect(within(operations).getByText("提交业务记录")).toBeVisible();
+    expect(
+      within(operations).queryByText("审核业务记录"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("可访问地区")).toBeVisible();
+    rerender(
+      <IdentityGovernancePanel
+        initialView="profile"
+        onClose={vi.fn()}
+        repository={api}
+        session={{
+          ...session,
+          permissions: ["IDENTITY_READ", "BUSINESS_READ", "BUSINESS_APPROVE"],
+        }}
+      />,
+    );
+    expect(
+      within(operations).queryByText("提交业务记录"),
+    ).not.toBeInTheDocument();
+    expect(within(operations).getByText("审核业务记录")).toBeVisible();
+    await screen.findByText("齐齐哈尔市");
+  });
+
   it("opens the authenticated work unit as a real organization responsibility view", async () => {
     const user = userEvent.setup();
     render(
@@ -287,7 +324,7 @@ describe("IdentityGovernancePanel", () => {
       "aria-current",
       "page",
     );
-    const unit = screen.getByRole("region", { name: "当前单位责任范围" });
+    const unit = screen.getByRole("region", { name: "当前单位访问范围" });
     expect(
       within(unit).getByRole("heading", { name: "齐齐哈尔经营部" }),
     ).toBeVisible();
@@ -324,7 +361,7 @@ describe("IdentityGovernancePanel", () => {
       within(dialog).getByRole("heading", { name: "身份与任职" }),
     ).toBeVisible();
     expect(
-      within(dialog).getByRole("heading", { name: "权限与责任范围" }),
+      within(dialog).getByRole("heading", { name: "我能做什么" }),
     ).toBeVisible();
     expect(within(dialog).getAllByText("李主任")).toHaveLength(2);
     expect(within(dialog).getAllByText("齐齐哈尔经营部")).toHaveLength(2);
@@ -419,7 +456,9 @@ describe("IdentityGovernancePanel", () => {
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: "填报员" }));
     await user.click(
-      screen.getByRole("checkbox", { name: "责任地区 230202001" }),
+      screen.getByRole("checkbox", {
+        name: "可访问地区 齐齐哈尔市 / 龙沙区 / 测试乡镇",
+      }),
     );
     await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
     await waitFor(() =>
@@ -439,7 +478,11 @@ describe("IdentityGovernancePanel", () => {
     await waitFor(() =>
       expect(api.updateEmployee).toHaveBeenCalledWith(
         "employee-1",
-        expect.objectContaining({ version: 3, accountStatus: "SUSPENDED" }),
+        expect.objectContaining({
+          version: 3,
+          accountStatus: "SUSPENDED",
+          regionCodes: ["230202001"],
+        }),
       ),
     );
   });
@@ -531,7 +574,7 @@ describe("IdentityGovernancePanel", () => {
       />,
     );
     const employeeRow = await screen.findByRole("row", { name: /张敏/u });
-    expect(within(employeeRow).getByText("未分配责任地区")).toBeVisible();
+    expect(within(employeeRow).getByText("未分配负责地区")).toBeVisible();
     await user.click(
       within(employeeRow).getByRole("button", { name: "设置负责地区" }),
     );
@@ -679,7 +722,7 @@ describe("IdentityGovernancePanel", () => {
     );
 
     await user.click(await screen.findByRole("button", { name: "邀请员工" }));
-    expect(screen.getByRole("group", { name: "责任地区" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "可访问地区" })).toBeVisible();
     expect(screen.getByText("大兴安岭地区 / 加格达奇区")).toBeVisible();
     await user.type(screen.getByLabelText("员工账号"), "jagdaqi-operator");
     await user.type(screen.getByLabelText("员工姓名"), "加格达奇填报员");
@@ -688,7 +731,11 @@ describe("IdentityGovernancePanel", () => {
       "operator@example.test",
     );
     await user.click(screen.getByRole("radio", { name: "填报员" }));
-    await user.click(screen.getByRole("checkbox", { name: "责任地区 232761" }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "可访问地区 大兴安岭地区 / 加格达奇区",
+      }),
+    );
     await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
 
     expect(await screen.findByText(/邀请已进入送达队列/)).toBeVisible();
@@ -740,7 +787,7 @@ describe("IdentityGovernancePanel", () => {
 
     await user.click(await screen.findByRole("button", { name: "邀请员工" }));
     const responsibilityRegions = screen.getByRole("group", {
-      name: "责任地区",
+      name: "可访问地区",
     });
 
     expect(
@@ -1016,9 +1063,11 @@ describe("IdentityGovernancePanel", () => {
     await user.selectOptions(screen.getByLabelText("工作单位"), "NEHE_DEPOT");
 
     expect(
-      screen.queryByRole("checkbox", { name: "责任地区 230202001" }),
+      screen.queryByRole("checkbox", {
+        name: "可访问地区 齐齐哈尔市 / 龙沙区 / 测试乡镇",
+      }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("正在读取该单位的责任地区…")).toBeVisible();
+    expect(screen.getByText("正在读取该单位的可访问地区…")).toBeVisible();
     resolveNehe({
       workUnits: [
         { code: "QIQIHAR_BUSINESS", name: "齐齐哈尔经营部" },
@@ -1033,7 +1082,7 @@ describe("IdentityGovernancePanel", () => {
       regions: assignmentRegions(["230281101"]),
     });
     expect(
-      await screen.findByRole("checkbox", { name: "责任地区 230281101" }),
+      await screen.findByRole("checkbox", { name: "可访问地区 讷河责任乡镇" }),
     ).toBeVisible();
     expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith("NEHE_DEPOT");
   });
@@ -1082,7 +1131,7 @@ describe("IdentityGovernancePanel", () => {
     );
 
     expect(
-      await screen.findByRole("checkbox", { name: "责任地区 230281101" }),
+      await screen.findByRole("checkbox", { name: "可访问地区 讷河责任乡镇" }),
     ).toBeChecked();
     expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith("NEHE_DEPOT");
   });
@@ -1128,16 +1177,18 @@ describe("IdentityGovernancePanel", () => {
     await screen.findByRole("option", { name: "讷河库" });
     await user.selectOptions(screen.getByLabelText("工作单位"), "NEHE_DEPOT");
     expect(
-      await screen.findByRole("checkbox", { name: "责任地区 230281101" }),
+      await screen.findByRole("checkbox", { name: "可访问地区 讷河责任乡镇" }),
     ).toBeVisible();
 
     resolveEmployees([employee]);
     await waitFor(() => expect(api.listEmployees).toHaveBeenCalledTimes(2));
     expect(
-      screen.getByRole("checkbox", { name: "责任地区 230281101" }),
+      screen.getByRole("checkbox", { name: "可访问地区 讷河责任乡镇" }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("checkbox", { name: "责任地区 230202001" }),
+      screen.queryByRole("checkbox", {
+        name: "可访问地区 齐齐哈尔市 / 龙沙区 / 测试乡镇",
+      }),
     ).not.toBeInTheDocument();
   });
 
@@ -1174,7 +1225,7 @@ describe("IdentityGovernancePanel", () => {
     await user.click(await screen.findByRole("button", { name: "邀请员工" }));
     await user.selectOptions(screen.getByLabelText("工作单位"), "NEHE_DEPOT");
     expect(
-      await screen.findByRole("checkbox", { name: "责任地区 230281101" }),
+      await screen.findByRole("checkbox", { name: "可访问地区 讷河责任乡镇" }),
     ).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "我的账号" }));
@@ -1342,7 +1393,7 @@ describe("IdentityGovernancePanel", () => {
     await user.type(screen.getByLabelText("审计操作员工"), "identity-admin");
     await user.type(screen.getByLabelText("审计开始日期"), "2026-08-01");
     await user.type(screen.getByLabelText("审计结束日期"), "2026-08-10");
-    await user.click(screen.getByRole("button", { name: "查询审计记录" }));
+    await user.click(screen.getByRole("button", { name: "查询操作记录" }));
 
     await waitFor(() =>
       expect(api.listAuditEvents).toHaveBeenLastCalledWith(

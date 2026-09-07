@@ -39,6 +39,30 @@ const emptyOptions: IdentityAssignmentOptions = {
   regions: [],
 };
 
+const operationNames: Readonly<Record<string, string>> = {
+  BUSINESS_READ: "读取业务数据",
+  REPORT_PREVIEW: "生成报告预览",
+  REPORT_EXPORT: "导出报告",
+  REPORT_PUBLISH: "发布报告",
+  BUSINESS_CREATE: "新增业务记录",
+  BUSINESS_UPDATE: "修改业务记录",
+  BUSINESS_SUBMIT: "提交业务记录",
+  BUSINESS_APPROVE: "审核业务记录",
+  BUSINESS_RETURN: "退回业务记录",
+  BUSINESS_IMPORT: "导入业务记录",
+  IDENTITY_READ: "查看组织与员工",
+  IDENTITY_ADMIN: "维护组织、员工与授权",
+  ACCESS_REVIEW: "检查员工权限",
+  AUDIT_READ: "查看操作记录",
+  OBLIGATION_REPORT_READ: "查看个人填报履职记录",
+  OBLIGATION_REPORT_UNIT: "查看本单位填报履职记录",
+  OBLIGATION_REPORT_EXPORT: "导出填报履职周报",
+  MARKET_OBJECT_MANAGE: "维护市场监测对象",
+  BUSINESS_SELF_APPROVE: "审核本人提交的业务记录",
+  FORMAL_SAMPLE_MANAGE: "维护正式样本",
+  FORMAL_SAMPLE_DELETE: "删除正式样本",
+};
+
 function accountLabel(value: string): string {
   return (
     {
@@ -57,7 +81,7 @@ function employmentLabel(value: string): string {
 
 function grantTypeLabel(value: string): string {
   return (
-    { ROLE: "角色", POSITION: "历史授权", REGION: "责任地区" }[value] ?? value
+    { ROLE: "角色", POSITION: "历史授权", REGION: "可访问地区" }[value] ?? value
   );
 }
 
@@ -77,19 +101,21 @@ function displayRegion(
   regionNames: ReadonlyMap<string, string>,
 ): string {
   const name = regionNames.get(code);
-  return name ?? "责任地区名称待同步";
+  return name ?? "地区名称待同步";
 }
 
 function regionScopeSummary(
   codes: readonly string[],
   regionNames: ReadonlyMap<string, string>,
+  scopeLabel = "可访问地区",
 ): string {
-  if (codes.length === 0) return "未分配责任地区";
+  if (codes.length === 0) return `未分配${scopeLabel}`;
   const namedRegions = codes.flatMap((code) => {
     const name = regionNames.get(code);
     return name ? [name] : [];
   });
-  if (namedRegions.length === 0) return `已授权 ${codes.length} 个责任地区`;
+  if (namedRegions.length === 0)
+    return `已分配 ${codes.length} 个${scopeLabel}`;
   const visible = namedRegions.slice(0, 3);
   return codes.length > visible.length
     ? `${visible.join("、")} 等 ${codes.length} 个地区`
@@ -112,6 +138,9 @@ function auditObjectLabel(value: string): string {
 }
 
 function auditActionLabel(value: string): string {
+  if (value === "REGION_RESPONSIBILITY_CHANGED") return "调整负责地区：";
+  if (value === "FORMAL_SAMPLE_MAINTAINER_REASSIGNED")
+    return "交接样本负责人：";
   if (value.endsWith("_CREATED") || value.endsWith("_INVITED")) return "创建";
   if (value.endsWith("_UPDATED")) return "调整";
   if (value.endsWith("_SUBMITTED")) return "提交";
@@ -336,6 +365,9 @@ function AssignmentEditor({
       </div>
       <fieldset>
         <legend>业务角色</legend>
+        <p>
+          决定员工可以办理哪些操作；具体业务还会检查地区范围、负责分工和单据状态。
+        </p>
         <div className="identity-governance-choice-grid">
           {options.roles.map((option) => (
             <label key={option.code}>
@@ -356,26 +388,29 @@ function AssignmentEditor({
         </div>
       </fieldset>
       <fieldset>
-        <legend>责任地区</legend>
+        <legend>可访问地区</legend>
+        <p>
+          限制员工可以访问哪些地区的数据。填报分工请在员工列表中另行“设置负责地区”。
+        </p>
         <div className="identity-region-picker">
           <label>
-            搜索责任地区
+            搜索可访问地区
             <input
-              aria-label="搜索责任地区"
+              aria-label="搜索可访问地区"
               placeholder="输入地区名称"
               value={regionSearch}
               onChange={(event) => setRegionSearch(event.target.value)}
             />
           </label>
           <strong className="identity-region-summary">
-            已选择 {draft.regionCodes.length} 个责任地区
+            已选择 {draft.regionCodes.length} 个可访问地区
           </strong>
         </div>
         <div className="identity-governance-choice-grid identity-region-options">
           {visibleRegionCodes.map((code) => (
             <label key={code}>
               <input
-                aria-label={`责任地区 ${code}`}
+                aria-label={`可访问地区 ${displayRegion(code, regionNames)}`}
                 checked={draft.regionCodes.includes(code)}
                 type="checkbox"
                 onChange={() =>
@@ -389,9 +424,9 @@ function AssignmentEditor({
             </label>
           ))}
           {loadingOptions ? (
-            <p>正在读取该单位的责任地区…</p>
+            <p>正在读取该单位的可访问地区…</p>
           ) : (
-            visibleRegionCodes.length === 0 && <p>没有匹配的责任地区。</p>
+            visibleRegionCodes.length === 0 && <p>没有匹配的可访问地区。</p>
           )}
         </div>
       </fieldset>
@@ -671,7 +706,7 @@ export function IdentityGovernancePanel({
       }
     } catch {
       if (assignmentOptionsRequest.current === requestId) {
-        setError("责任地区读取失败，请重新选择工作单位。");
+        setError("可访问地区读取失败，请重新选择工作单位。");
       }
     } finally {
       if (assignmentOptionsRequest.current === requestId) {
@@ -825,7 +860,7 @@ export function IdentityGovernancePanel({
       return;
     }
     if (draft.regionCodes.length === 0) {
-      setError("请至少选择一个责任地区。");
+      setError("请至少选择一个可访问地区。");
       return;
     }
     setSaving(true);
@@ -869,7 +904,7 @@ export function IdentityGovernancePanel({
       await loadEmployees();
     } catch (caught) {
       setError(
-        businessError(caught, "保存失败，请检查账号、角色和责任地区后重试。"),
+        businessError(caught, "保存失败，请检查账号、角色和可访问地区后重试。"),
       );
     } finally {
       setSaving(false);
@@ -1002,7 +1037,7 @@ export function IdentityGovernancePanel({
               type="button"
               onClick={() => changeView("audit")}
             >
-              审计追溯
+              操作记录
             </button>
           )}
         </nav>
@@ -1075,7 +1110,7 @@ export function IdentityGovernancePanel({
               </section>
 
               <section className="identity-profile-section">
-                <h3>权限与责任范围</h3>
+                <h3>我能做什么</h3>
                 <dl
                   aria-label="权限资料"
                   className="identity-account-summary"
@@ -1088,21 +1123,44 @@ export function IdentityGovernancePanel({
                         {session.roleCodes.map(roleLabel).join("、") ||
                           "未分配业务角色"}
                       </strong>
-                      <small>具体操作同时受责任地区和数据状态约束</small>
+                      <small>
+                        角色说明操作类别，实际授权见下方“当前可用操作”
+                      </small>
                     </dd>
                   </div>
                   <div>
-                    <dt>责任地区</dt>
+                    <dt>可访问地区</dt>
                     <dd>
                       <strong>
                         {regionScopeSummary(session.regionCodes, regionNames)}
                       </strong>
                       <small>
-                        列表、填报、审核、分析、照片和导出均按此范围授权
+                        这是数据访问范围；能否填报还要看负责地区和单据状态
                       </small>
                     </dd>
                   </div>
                 </dl>
+                <div
+                  aria-label="当前可用操作"
+                  className="identity-current-operations"
+                >
+                  <h4>当前可用操作</h4>
+                  <p>
+                    以下为账号当前已获得的操作权限；办理业务时还会检查可访问地区、负责地区和单据状态。
+                  </p>
+                  {session.permissions.length === 0 ? (
+                    <p>当前没有业务操作权限，请联系管理员授权。</p>
+                  ) : (
+                    <ul>
+                      {[...new Set(session.permissions)].map((permission) => (
+                        <li key={permission}>
+                          {operationNames[permission] ??
+                            "其他已授权操作（名称待同步）"}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </section>
 
               <section className="identity-profile-section">
@@ -1119,7 +1177,7 @@ export function IdentityGovernancePanel({
                         <a href={identityManagementUrl}>账号安全与登录设备</a>
                       ) : (
                         <small>
-                          账号安全与登录设备由企业统一身份平台管理，当前入口尚未配置。
+                          修改密码和管理登录设备的入口尚未配置，请联系系统管理员。
                         </small>
                       )}
                       {logoutUrl && (
@@ -1140,7 +1198,7 @@ export function IdentityGovernancePanel({
           )}
           {view === "organization" && (
             <section
-              aria-label="当前单位责任范围"
+              aria-label="当前单位访问范围"
               className="identity-organization-view"
             >
               <div className="identity-governance-toolbar">
@@ -1148,7 +1206,7 @@ export function IdentityGovernancePanel({
                   <small>当前登录账号所属单位</small>
                   <h3>{session.workUnitName}</h3>
                   <p>
-                    展示本单位业务角色与责任地区；所有业务操作均按当前账号的有效授权执行。
+                    这里显示你在当前单位的角色与可访问地区，不代表全单位员工的权限。
                   </p>
                 </div>
                 {mayReadEmployees && (
@@ -1179,13 +1237,13 @@ export function IdentityGovernancePanel({
                   </dd>
                 </div>
                 <div>
-                  <dt>责任地区</dt>
+                  <dt>可访问地区</dt>
                   <dd>
                     <strong>
                       {regionScopeSummary(session.regionCodes, regionNames)}
                     </strong>
                     <small>
-                      填报、查询、审核、分析、照片和导出均受责任地区约束
+                      可访问地区决定数据范围；具体操作另受角色、负责地区和单据状态约束
                     </small>
                   </dd>
                 </div>
@@ -1234,6 +1292,9 @@ export function IdentityGovernancePanel({
                     </button>
                   )}
                 </div>
+                <p className="identity-region-note">
+                  新员工：邀请加入并完成登录激活，再设置负责地区。调整现有员工：编辑账号设置角色和可访问地区；设置负责地区安排填报与样本维护。
+                </p>
                 <div
                   className="identity-audit-filters identity-employee-filters"
                   role="search"
@@ -1334,6 +1395,7 @@ export function IdentityGovernancePanel({
                                 {regionScopeSummary(
                                   employee.responsibilityRegionCodes ?? [],
                                   regionNames,
+                                  "负责地区",
                                 )}
                               </span>
                             </td>
@@ -1530,7 +1592,7 @@ export function IdentityGovernancePanel({
                 <div>
                   <h3>权限复核</h3>
                   <p>
-                    定期确认其他员工的角色和责任乡镇；本人权限由其他管理员复核，撤销结论立即生效。
+                    定期检查其他员工的角色和可访问地区；撤销结论会立即收回对应权限。负责地区分工请在员工列表另行设置，本人权限由其他管理员检查。
                   </p>
                 </div>
               </div>
@@ -1701,11 +1763,11 @@ export function IdentityGovernancePanel({
             </section>
           )}
           {view === "audit" && mayReadAudit && (
-            <section aria-label="审计追溯">
+            <section aria-label="操作记录">
               <div className="identity-governance-toolbar">
                 <div>
-                  <h3>审计追溯</h3>
-                  <p>查询当前单位内不可篡改的账号、权限与业务操作记录。</p>
+                  <h3>操作记录</h3>
+                  <p>查看当前单位内谁在什么时间调整了账号、权限或业务数据。</p>
                 </div>
               </div>
               <div className="identity-audit-filters">
@@ -1759,7 +1821,7 @@ export function IdentityGovernancePanel({
                   type="button"
                   onClick={() => void loadAuditEvents(0)}
                 >
-                  查询审计记录
+                  查询操作记录
                 </button>
               </div>
               <p className="identity-audit-summary">

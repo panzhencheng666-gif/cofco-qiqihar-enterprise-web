@@ -8132,6 +8132,14 @@ body {
   }
 }
 
+.identity-current-operations ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 24px;
+  padding: 0 20px;
+  line-height: 1.5;
+}
+
 /* account-and-authorization final page cascade:start */
 .identity-governance-overlay {
   position: fixed;
