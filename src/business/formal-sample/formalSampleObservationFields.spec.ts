@@ -11,6 +11,50 @@ import {
 } from "./formalSampleObservationFields";
 
 describe("formal sample observation field contract", () => {
+  it.each([
+    ["PRODUCTION", "PROD"],
+    ["MARKET", "MKT"],
+    ["LOGISTICS", "LOG"],
+  ] as const)(
+    "keeps surveyor and phone editable in %s observations",
+    (domain, prefix) => {
+      const fields = ["SURVEYOR_NAME", "SURVEYOR_PHONE", "REPORTER_NAME"].map(
+        (suffix) => ({
+          code: `${prefix}_${suffix}`,
+          label: suffix,
+          displayed: true,
+          calculated: false,
+          readOnly: false,
+          controlType: "TEXT",
+          valueType: "STRING",
+          required: false,
+          unit: null,
+          precision: null,
+          scale: null,
+          sortOrder: 1,
+          groupLabel: "填报与定位",
+          groupOrder: 0,
+          options: [],
+        }),
+      );
+      const definition = {
+        fields,
+        coreFields: fields,
+        groups: [],
+      } as unknown as ProductionDefinition &
+        MarketDefinition &
+        LogisticsDefinition;
+      expect(
+        observationFields(domain, definition).map((field) => field.code),
+      ).toEqual(
+        expect.arrayContaining([
+          `${prefix}_SURVEYOR_NAME`,
+          `${prefix}_SURVEYOR_PHONE`,
+        ]),
+      );
+    },
+  );
+
   it("uses one market definition for both ledger columns and update inputs", () => {
     const definition: MarketDefinition = {
       productCode: "CORN",

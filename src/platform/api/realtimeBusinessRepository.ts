@@ -1689,6 +1689,7 @@ export interface RealtimeBusinessRepository {
         regionCode: string;
         longitude: string;
         latitude: string;
+        address?: string;
       };
     },
     idempotencyKey: string,

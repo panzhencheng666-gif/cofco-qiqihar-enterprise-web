@@ -917,7 +917,10 @@ export function ProductMarketCollectionWorkspace({
   const displayedObjectType: MarketBusinessObjectTypeId =
     objectType || rows[0]?.objectTypeId || objectTypes[0]?.id || "trader";
   const formalLedgerFields = ledgerDefinitions[0]
-    ? observationFields("MARKET", ledgerDefinitions[0])
+    ? observationFields("MARKET", ledgerDefinitions[0]).filter(
+        (field) =>
+          !["MKT_SURVEYOR_NAME", "MKT_SURVEYOR_PHONE"].includes(field.code),
+      )
     : [];
   const displayedGroups: readonly {
     id: string;

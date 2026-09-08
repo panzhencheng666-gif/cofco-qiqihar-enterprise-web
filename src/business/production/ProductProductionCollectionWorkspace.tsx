@@ -936,7 +936,10 @@ export function ProductProductionCollectionWorkspace({
       realtimeRepository || !objectType || row.objectTypeId === objectType,
   );
   const formalLedgerFields = ledgerDefinitions[0]
-    ? observationFields("PRODUCTION", ledgerDefinitions[0])
+    ? observationFields("PRODUCTION", ledgerDefinitions[0]).filter(
+        (field) =>
+          !["PROD_SURVEYOR_NAME", "PROD_SURVEYOR_PHONE"].includes(field.code),
+      )
     : [];
   const formalLedgerSections = [
     ...new Set(formalLedgerFields.map(({ section }) => section)),

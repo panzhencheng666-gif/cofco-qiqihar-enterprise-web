@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   BusinessNotificationRow,
   EligibleFormalSample,
+  MarketDefinition,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
 import { parseProductionDefinition } from "@/platform/api/realtimeBusinessRepository";
@@ -490,6 +491,7 @@ describe("ExistingSampleObservationPanel", () => {
             regionCode: sample.regionCode,
             longitude: "123.456789",
             latitude: sample.latitude,
+            address: sample.address,
           },
         }),
         expect.any(String),
@@ -501,6 +503,116 @@ describe("ExistingSampleObservationPanel", () => {
     expect(
       screen.queryByRole("button", { name: "编辑业务地区与定位坐标" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("prefills and atomically saves the detailed address with the observation", async () => {
+    const { api } = renderPanel();
+    await openCollectionData();
+    const address = await screen.findByRole("textbox", { name: "详细地址" });
+    expect(address).toHaveValue(sample.address);
+    expect(screen.getByText(sample.maintainerDisplayName!)).toBeVisible();
+    await userEvent.clear(address);
+    await userEvent.type(address, "龙江县测试路18号");
+    await userEvent.click(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+    await waitFor(() =>
+      expect(api.saveFormalSampleObservation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sampleLocation: expect.objectContaining({
+            expectedVersion: sample.version,
+            address: "龙江县测试路18号",
+          }) as unknown,
+        }),
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("refreshes the account-bound maintainer while the observation editor is open", async () => {
+    const { api } = renderPanel();
+    await openCollectionData();
+    await screen.findByRole("textbox", { name: "详细地址" });
+    api.listEligibleFormalSamples.mockResolvedValue([
+      { ...sample, maintainerDisplayName: "李维护", version: 3 },
+    ]);
+    const listener = api.subscribeBusinessEvents.mock.calls.at(-1)![1];
+    act(() =>
+      listener({
+        id: "responsibility-event",
+        sequence: 101,
+        aggregateType: "FORMAL_SAMPLE_POINT",
+        aggregateId: sample.samplePointId,
+        actionCode: "FORMAL_SAMPLE_MAINTAINER_REASSIGNED",
+        productCode: null,
+        regionCodes: [sample.regionCode],
+        occurredAt: "2026-09-08T07:00:00Z",
+        read: false,
+      }),
+    );
+    expect(await screen.findByText("李维护")).toBeVisible();
+    expect(screen.queryByText("王维护")).not.toBeInTheDocument();
+  });
+
+  it("prefills and saves market surveyor fields without dropping them", async () => {
+    const api = repository();
+    const definition = (await api.loadMarketDefinition()) as MarketDefinition;
+    api.loadMarketDefinition.mockResolvedValue({
+      ...definition,
+      coreFields: [
+        ...definition.coreFields,
+        ...[
+          { code: "MKT_SURVEYOR_NAME", label: "调研人" },
+          { code: "MKT_SURVEYOR_PHONE", label: "调研人联系方式" },
+        ].map((field) => ({
+          ...field,
+          controlType: "TEXT",
+          unit: null,
+          description: null,
+          capability: null,
+          required: false,
+          precision: null,
+          scale: null,
+          sortOrder: 1,
+          options: [],
+        })),
+      ],
+    });
+    api.listEligibleFormalSamples.mockResolvedValue([
+      {
+        ...sample,
+        latestValues: {
+          ...sample.latestValues,
+          MKT_SURVEYOR_NAME: "原调研人",
+          MKT_SURVEYOR_PHONE: "13800138000",
+        },
+      },
+    ]);
+    renderPanel(api);
+    await openCollectionData();
+    const surveyor = await screen.findByRole("textbox", { name: "调研人" });
+    expect(surveyor).toHaveValue("原调研人");
+    expect(screen.getByRole("textbox", { name: "调研人联系方式" })).toHaveValue(
+      "13800138000",
+    );
+    await userEvent.clear(surveyor);
+    await userEvent.type(surveyor, "新调研人");
+    await userEvent.click(
+      screen.getByRole("button", { name: "保存并正式入库" }),
+    );
+    await waitFor(() =>
+      expect(api.saveFormalSampleObservation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            coreValues: expect.objectContaining({
+              MKT_SURVEYOR_NAME: "新调研人",
+              MKT_SURVEYOR_PHONE: "13800138000",
+            }) as unknown,
+          }) as unknown,
+        }),
+        expect.any(String),
+      ),
+    );
   });
 
   it("does not coerce a cleared inline coordinate to zero or submit it", async () => {
@@ -560,6 +672,7 @@ describe("ExistingSampleObservationPanel", () => {
           longitude: "123.456789",
           latitude: sample.latitude,
           regionCode: sample.regionCode,
+          address: sample.address,
         },
       }),
       expect.any(String),
