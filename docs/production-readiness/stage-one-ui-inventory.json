@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 60,
-  "sourceDigest": "dcad5910f76c450ca153059b85712daca7d57c7ddc6c131fd399c28599f18821",
+  "sourceDigest": "abbcd54bfda2a5dfb80436e239cddcd6b59b25209e9ac8986a856b5631b823e7",
   "itemCount": 483,
   "countsByKind": {
     "BUTTON": 265,
@@ -966,10 +966,10 @@
       "sourceExcerpt": "<select aria-label=\"业务分类\" value={ classificationInvalid ? \"__invalid-classification__\" : (query.businessSubtype ?? \"\") } onChange={(event) => onScopeChange({ businessSubtypeId: event.target.value || undefined, selectedMetricId: undefined..."
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1005:29:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1006:29:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1005,
+      "line": 1006,
       "column": 29,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"详细地址\"",
@@ -980,10 +980,10 @@
       "sourceExcerpt": "<input aria-label=\"详细地址\" maxLength={500} required={Boolean(sample.address?.trim())} value={location.address} onChange={(event) => changeLocation(\"address\", event.target.value) } />"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1017:29:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1018:29:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1017,
+      "line": 1018,
       "column": 29,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"经度\"",
@@ -994,10 +994,10 @@
       "sourceExcerpt": "<input aria-label=\"经度\" type=\"number\" required min={-180} max={180} step=\"0.0000001\" value={location.longitude} onChange={(event) => changeLocation(\"longitude\", event.target.value) } />"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1032:29:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1033:29:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1032,
+      "line": 1033,
       "column": 29,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"纬度\"",
@@ -1008,10 +1008,10 @@
       "sourceExcerpt": "<input aria-label=\"纬度\" type=\"number\" required min={-90} max={90} step=\"0.0000001\" value={location.latitude} onChange={(event) => changeLocation(\"latitude\", event.target.value) } />"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1092:27:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1093:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1092,
+      "line": 1093,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1022,10 +1022,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={busy} onClick={closeObservation} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1099:27:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1100:27:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1099,
+      "line": 1100,
       "column": 27,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1036,10 +1036,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"submit\" disabled={busy} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1128:21:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1129:21:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1128,
+      "line": 1129,
       "column": 21,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"历史数据年份\"",
@@ -1050,10 +1050,10 @@
       "sourceExcerpt": "<select aria-label=\"历史数据年份\" value={historyYear} onChange={(event) => { const year = Number(event.target.value); setHistoryYear(year); void loadHistory(sample, 0, year); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1176:29:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1177:29:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1176,
+      "line": 1177,
       "column": 29,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1064,10 +1064,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => setHistoryDetail(item)} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1194:23:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1195:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1194,
+      "line": 1195,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1078,10 +1078,10 @@
       "sourceExcerpt": "<button type=\"button\" disabled={historyPage === 0} onClick={() => void loadHistory(sample, historyPage - 1) } >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1204:23:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:1205:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 1204,
+      "line": 1205,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1134,10 +1134,10 @@
       "sourceExcerpt": "<input aria-label={fieldLabel} data-field-code={field.code} required={field.required} type={number ? \"number\" : \"text\"} {...(number ? decimalInputConstraints(field.precision, field.scale) : {})} value={value} onChange={(event) => onChang..."
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:793:13:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:794:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 793,
+      "line": 794,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1148,10 +1148,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={closeWorkflow}>"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:809:13:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:810:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 809,
+      "line": 810,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1162,10 +1162,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={closeObservation}>"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:823:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:824:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 823,
+      "line": 824,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"实际观测时间\"",
@@ -1176,10 +1176,10 @@
       "sourceExcerpt": "<input aria-label=\"实际观测时间\" type=\"datetime-local\" max={localDateTimeValue()} value={observedAt} onChange={(event) => { setObservedAt(event.target.value); setHistoryYear(Number(event.target.value.slice(0, 4))); invalidateQuery(); }} />"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:838:17:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:839:17:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 838,
+      "line": 839,
       "column": 17,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"筛选对象类型\"",
@@ -1190,10 +1190,10 @@
       "sourceExcerpt": "<select aria-label=\"筛选对象类型\" value={objectTypeCode} onChange={(event) => { setObjectTypeCode(event.target.value); invalidateQuery(); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:857:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:858:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 857,
+      "line": 858,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"筛选业务地区\"",
@@ -1204,10 +1204,10 @@
       "sourceExcerpt": "<select aria-label=\"筛选业务地区\" value={regionCode} onChange={(event) => { setRegionCode(event.target.value); invalidateQuery(); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:875:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:876:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 875,
+      "line": 876,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"搜索样本企业\"",
@@ -1218,10 +1218,10 @@
       "sourceExcerpt": "<input type=\"search\" aria-label=\"搜索样本企业\" placeholder=\"输入名称关键字\" value={keyword} maxLength={100} onChange={(event) => { setKeyword(event.target.value); invalidateQuery(); }} />"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:888:15:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:889:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 888,
+      "line": 889,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1232,10 +1232,10 @@
       "sourceExcerpt": "<button className=\"is-primary\" type=\"button\" disabled={busy} onClick={() => void querySamples(sample?.samplePointId, Boolean(sample)) } >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:924:21:BUTTON",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:925:21:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 924,
+      "line": 925,
       "column": 21,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1246,10 +1246,10 @@
       "sourceExcerpt": "<button type=\"button\" key={item.samplePointId} className={ sampleId === item.samplePointId ? \"is-selected\" : \"\" } onClick={() => { if (sampleId !== item.samplePointId) void chooseSample(item); }} >"
     },
     {
-      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:979:29:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/ExistingSampleObservationPanel.tsx:980:29:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/ExistingSampleObservationPanel.tsx",
-      "line": 979,
+      "line": 980,
       "column": 29,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"样本业务地区\"",
