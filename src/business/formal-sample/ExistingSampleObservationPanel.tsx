@@ -239,7 +239,8 @@ export function ExistingSampleObservationPanel({
     activeSelection?.type === "formal-sample-list" && !onSelectionChange;
   const requestedSamplePointId = isObservationPage ? activeSelection.id : "";
   const canCollect = permissions.includes("BUSINESS_CREATE");
-  const canEditLocation = permissions.includes("FORMAL_SAMPLE_MANAGE");
+  // The eligibility endpoint restricts collection to the maintainer or an administrator.
+  const canEditLocation = canCollect;
   const navigate = (next: FormalSelection) => {
     setLocalSelection(next);
     onSelectionChange?.(next);

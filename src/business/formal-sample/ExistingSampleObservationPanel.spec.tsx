@@ -778,23 +778,28 @@ describe("ExistingSampleObservationPanel", () => {
     );
   });
 
-  it("keeps inline location read-only without master-data permission and submits only observation data", async () => {
+  it("allows eligible maintainers to edit location without master-data permission", async () => {
     const { api } = renderPanel(repository(), vi.fn(), ["BUSINESS_CREATE"]);
     await openCollectionData();
     expect(
       await screen.findByRole("spinbutton", { name: "经度" }),
-    ).toBeDisabled();
-    expect(screen.getByRole("spinbutton", { name: "纬度" })).toBeDisabled();
+    ).toBeEnabled();
+    expect(screen.getByRole("spinbutton", { name: "纬度" })).toBeEnabled();
     expect(
       screen.getByRole("combobox", { name: "样本业务地区" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
+    await userEvent.clear(screen.getByRole("spinbutton", { name: "经度" }));
+    await userEvent.type(
+      screen.getByRole("spinbutton", { name: "经度" }),
+      "123.456789",
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "保存并正式入库" }),
     );
     await waitFor(() =>
       expect(api.saveFormalSampleObservation).toHaveBeenCalledTimes(1),
     );
-    expect(api.saveFormalSampleObservation.mock.calls[0][0]).not.toHaveProperty(
+    expect(api.saveFormalSampleObservation.mock.calls[0][0]).toHaveProperty(
       "sampleLocation",
     );
   });
