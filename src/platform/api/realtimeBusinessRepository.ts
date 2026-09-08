@@ -638,6 +638,21 @@ export interface BusinessEventSource {
   close(): void;
 }
 
+export interface FormalSampleRetirementPreview {
+  id: string;
+  businessDate: string;
+  expiresAt: string;
+  candidateCount: number;
+  candidates: Array<{
+    id: string;
+    version: number;
+    regionCode: string;
+    name: string;
+  }>;
+  reason: string | null;
+  retiredCount: number | null;
+}
+
 export interface RealtimeBusinessRepositoryOptions {
   eventSourceFactory?: (url: string) => BusinessEventSource;
   eventStreamBaseUrl?: string;
@@ -1601,6 +1616,14 @@ export interface RealtimeBusinessRepository {
     id: string,
     input: FormalSampleMaintainerMutation,
   ): Promise<FormalSampleMaintainerView>;
+  previewFormalSampleRetirement?(): Promise<FormalSampleRetirementPreview>;
+  getFormalSampleRetirementPreview?(
+    id: string,
+  ): Promise<FormalSampleRetirementPreview>;
+  executeFormalSampleRetirement?(
+    id: string,
+    reason: string,
+  ): Promise<FormalSampleRetirementPreview>;
   retireFormalSamplePoint?(
     id: string,
     expectedVersion: number,
@@ -2150,6 +2173,20 @@ export function createRealtimeBusinessRepository(
       client.put<FormalSampleMaintainerView>(
         `/api/v1/formal-sample-points/${encodeURIComponent(id)}/maintainer`,
         input,
+      ),
+    previewFormalSampleRetirement: () =>
+      client.post<FormalSampleRetirementPreview>(
+        "/api/v1/formal-sample-points/retirement-previews",
+        {},
+      ),
+    getFormalSampleRetirementPreview: (id) =>
+      client.get<FormalSampleRetirementPreview>(
+        `/api/v1/formal-sample-points/retirement-previews/${encodeURIComponent(id)}`,
+      ),
+    executeFormalSampleRetirement: (id, reason) =>
+      client.put<FormalSampleRetirementPreview>(
+        `/api/v1/formal-sample-points/retirement-previews/${encodeURIComponent(id)}/execution`,
+        { reason },
       ),
     retireFormalSamplePoint: (id, expectedVersion, reason) =>
       client.put<void>(
