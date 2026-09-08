@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 59,
-  "sourceDigest": "abd75d63704fdad958d2ca1c77686b6a45a02be4ded4eb0786aae08f7e35b9fb",
+  "sourceDigest": "0112fa72d21f76b89aaef164ee0b2955bdd7016d7eb8dafc797611d03b69459c",
   "itemCount": 477,
   "countsByKind": {
     "BUTTON": 262,
@@ -5768,10 +5768,10 @@
       "sourceExcerpt": "<select aria-label=\"现有样本产品\" value={productCode} onChange={(event) => { setProductCode(event.target.value); resetSelection(); }} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:1010:7:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:1015:7:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 1010,
+      "line": 1015,
       "column": 7,
       "tag": "input",
       "accessibleNameSource": "aria-label={label}",
@@ -5950,10 +5950,10 @@
       "sourceExcerpt": "<button aria-label={`删除${point.name}`} className=\"enterprise-ledger-row-action\" onClick={() => void remove(point)} type=\"button\" >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:744:15:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:749:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 744,
+      "line": 749,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5964,10 +5964,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => navigate({ type: \"design-sample-edit\", id: viewPoint.id }) } >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:753:13:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:758:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 753,
+      "line": 758,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5978,10 +5978,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => { setViewPoint(undefined); navigate({ type: \"design-sample-list\", id: \"list\" }); }} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:835:11:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:840:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 835,
+      "line": 840,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -5992,10 +5992,10 @@
       "sourceExcerpt": "<button disabled={!contract || saving} type=\"button\" onClick={onSave}>"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:838:11:BUTTON",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:843:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 838,
+      "line": 843,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -6006,10 +6006,10 @@
       "sourceExcerpt": "<button onClick={onCancel} type=\"button\">"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:848:13:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:853:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 848,
+      "line": 853,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"参考类别\"",
@@ -6020,10 +6020,10 @@
       "sourceExcerpt": "<select aria-label=\"参考类别\" value={context.domainCode} onChange={(event) => onContextChange({ domainCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:866:13:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:871:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 866,
+      "line": 871,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"品种\"",
@@ -6034,10 +6034,10 @@
       "sourceExcerpt": "<select aria-label=\"品种\" value={context.productCode} onChange={(event) => onContextChange({ productCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:890:13:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:895:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 890,
+      "line": 895,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"参考对象类型\"",
@@ -6048,10 +6048,10 @@
       "sourceExcerpt": "<select aria-label=\"参考对象类型\" value={context.objectTypeCode} onChange={(event) => onContextChange({ objectTypeCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:967:9:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:972:9:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 967,
+      "line": 972,
       "column": 9,
       "tag": "select",
       "accessibleNameSource": "aria-label={businessLabel}",
@@ -6062,10 +6062,10 @@
       "sourceExcerpt": "<select aria-label={businessLabel} onChange={(event) => onChange(event.target.value)} required={field.required} value={value} >"
     },
     {
-      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:987:9:FILTER_OR_INPUT",
+      "id": "src/business/samplepoint/DesignSamplePointTable.tsx:992:9:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/samplepoint/DesignSamplePointTable.tsx",
-      "line": 987,
+      "line": 992,
       "column": 9,
       "tag": "select",
       "accessibleNameSource": "aria-label={label}",

@@ -185,6 +185,10 @@ export interface DesignSamplePointRow extends DesignSamplePointMutation {
   regionPath: string;
   longitude: number;
   latitude: number;
+  displayLongitude?: number;
+  displayLatitude?: number;
+  displayRegionCode?: string;
+  locationMode?: "REPORTED_COORDINATE" | "REGION_SCHEMATIC";
   version: number;
   updatedAt: string;
 }

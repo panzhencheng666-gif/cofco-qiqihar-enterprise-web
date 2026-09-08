@@ -733,12 +733,17 @@ export function DesignSamplePointTable({
               <dd>{displayValue(viewPoint.values.DSP_ADDRESS)}</dd>
             </div>
             <div>
-              <dt>坐标</dt>
+              <dt>填报经纬度</dt>
               <dd>
                 {viewPoint.longitude}，{viewPoint.latitude}
               </dd>
             </div>
           </dl>
+          {viewPoint.locationMode === "REGION_SCHEMATIC" && (
+            <p role="note">
+              地图使用所属行政区内的示意位置，原始填报经纬度已保留。
+            </p>
+          )}
           <div className="design-sample-point-page__actions">
             {canWrite ? (
               <button
