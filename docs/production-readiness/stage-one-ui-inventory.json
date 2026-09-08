@@ -3,13 +3,13 @@
   "scope": "src/business 下全部非测试 TSX 的按钮、链接、筛选/输入与弹框静态追踪清单",
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
-  "sourceFileCount": 59,
-  "sourceDigest": "92297d719dc12de96d6777a44b5c69a6a80e842a582eef27b08005126949e609",
-  "itemCount": 478,
+  "sourceFileCount": 60,
+  "sourceDigest": "dcad5910f76c450ca153059b85712daca7d57c7ddc6c131fd399c28599f18821",
+  "itemCount": 483,
   "countsByKind": {
-    "BUTTON": 262,
+    "BUTTON": 265,
     "LINK": 5,
-    "FILTER_OR_INPUT": 206,
+    "FILTER_OR_INPUT": 208,
     "DIALOG": 5
   },
   "items": [
@@ -1260,10 +1260,94 @@
       "sourceExcerpt": "<select aria-label=\"样本业务地区\" required value={location.regionCode} onChange={(event) => changeLocation(\"regionCode\", event.target.value) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1019:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSampleBatchRetirement.tsx:115:7:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "line": 115,
+      "column": 7,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button type=\"button\" disabled={ disabled || busy || (preview !== null && preview.retiredCount === null) } onClick={() => void open()} >"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSampleBatchRetirement.tsx:160:17:FILTER_OR_INPUT",
+      "kind": "FILTER_OR_INPUT",
+      "sourceFile": "src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "line": 160,
+      "column": 17,
+      "tag": "textarea",
+      "accessibleNameSource": "aria-label=\"批量淘汰原因\"",
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<textarea aria-label=\"批量淘汰原因\" maxLength={500} value={reason} disabled={busy || submittedReason !== null} onChange={(event) => setReason(event.target.value)} />"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSampleBatchRetirement.tsx:169:17:FILTER_OR_INPUT",
+      "kind": "FILTER_OR_INPUT",
+      "sourceFile": "src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "line": 169,
+      "column": 17,
+      "tag": "input",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<input type=\"checkbox\" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSampleBatchRetirement.tsx:177:15:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "line": 177,
+      "column": 15,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button className=\"is-danger\" type=\"button\" disabled={ busy || !confirmed || !reason.trim() || preview.candidateCount === 0 } onClick={() => void execute()} >"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSampleBatchRetirement.tsx:192:11:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "line": 192,
+      "column": 11,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSampleBatchRetirement.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button type=\"button\" disabled={ busy || (submittedReason !== null && preview.retiredCount === null) } onClick={() => setPreview(null)} >"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1006:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1019,
+      "line": 1006,
+      "column": 15,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button className=\"is-primary\" disabled={busy} type=\"button\" onClick={() => void query(0)} >"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1031:15:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "line": 1031,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1274,10 +1358,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void save()}>"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1022:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1034:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1022,
+      "line": 1034,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1288,10 +1372,10 @@
       "sourceExcerpt": "<button disabled={writeBusy} type=\"button\" onClick={() => { setEditor(null); navigate({ type: \"formal-sample-list\", id: \"list\" }); }} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1037:13:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1049:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1037,
+      "line": 1049,
       "column": 13,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"正式样本名称\"",
@@ -1302,10 +1386,10 @@
       "sourceExcerpt": "<input aria-label=\"正式样本名称\" maxLength={200} value={editor.canonicalName} onChange={(event) => setEditor({ ...editor, canonicalName: event.target.value }) } />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1048:13:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1060:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1048,
+      "line": 1060,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"正式样本地区\"",
@@ -1316,10 +1400,10 @@
       "sourceExcerpt": "<select aria-label=\"正式样本地区\" value={editor.regionCode} onChange={(event) => setEditor({ ...editor, regionCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1065:13:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1077:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1065,
+      "line": 1077,
       "column": 13,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"正式样本详细地址\"",
@@ -1330,10 +1414,10 @@
       "sourceExcerpt": "<input aria-label=\"正式样本详细地址\" maxLength={500} value={editor.address} onChange={(event) => setEditor({ ...editor, address: event.target.value }) } />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1076:13:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1088:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1076,
+      "line": 1088,
       "column": 13,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"正式样本经度\"",
@@ -1344,10 +1428,10 @@
       "sourceExcerpt": "<input aria-label=\"正式样本经度\" inputMode=\"decimal\" value={editor.longitude} onChange={(event) => setEditor({ ...editor, longitude: event.target.value }) } />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1087:13:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1099:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1087,
+      "line": 1099,
       "column": 13,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"正式样本纬度\"",
@@ -1358,10 +1442,10 @@
       "sourceExcerpt": "<input aria-label=\"正式样本纬度\" inputMode=\"decimal\" value={editor.latitude} onChange={(event) => setEditor({ ...editor, latitude: event.target.value }) } />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1098:13:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1110:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1098,
+      "line": 1110,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"正式样本对象分类\"",
@@ -1372,10 +1456,10 @@
       "sourceExcerpt": "<select aria-label=\"正式样本对象分类\" value={editor.objectTypeCode} onChange={(event) => setEditor({ ...editor, objectTypeCode: event.target.value }) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1115:13:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1127:13:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1115,
+      "line": 1127,
       "column": 13,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"正式样本维护人\"",
@@ -1386,10 +1470,10 @@
       "sourceExcerpt": "<select aria-label=\"正式样本维护人\" disabled={editor.mode === \"EDIT\"} required value={editor.maintainerSubjectId} onChange={(event) => setEditor({ ...editor, maintainerSubjectId: event.target.value, }) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1191:23:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1203:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1191,
+      "line": 1203,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1400,10 +1484,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => { if (onSelectionChange) { navigate({ type: \"formal-sample-view\", id: samplePoint.samplePointId, }); } else void loadDetail(samplePoint.samplePointId); }} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1206:25:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1218:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1206,
+      "line": 1218,
       "column": 25,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1414,10 +1498,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => { if (onSelectionChange) { navigate({ type: \"formal-sample-edit\", id: samplePoint.samplePointId, }); } else void loadDetail( samplePoint.samplePointId, \"EDIT\",..."
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1226:25:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1238:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1226,
+      "line": 1238,
       "column": 25,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1428,10 +1512,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => { if (onSelectionChange) { navigate({ type: \"formal-sample-view\", id: samplePoint.samplePointId, }); } else void loadDetail( samplePoint.samplePointId, \"DELETE..."
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1246:25:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1258:25:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1246,
+      "line": 1258,
       "column": 25,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1442,10 +1526,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" type=\"button\" onClick={() => void loadDetail(samplePoint.samplePointId, \"RETIRE\") } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1256:23:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1268:23:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1256,
+      "line": 1268,
       "column": 23,
       "tag": "button",
       "accessibleNameSource": "title={\n                          !canCollect\n                            ? \"当前账号没有填写正式采集数据的权限\"\n                            : undefined\n                        }",
@@ -1456,10 +1540,10 @@
       "sourceExcerpt": "<button className=\"enterprise-ledger-row-action\" disabled={!collectionAllowed} title={ !canCollect ? \"当前账号没有填写正式采集数据的权限\" : undefined } type=\"button\" onClick={() => { if (collectionAllowed) onCollectData(samplePoint.samplePointId); }} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1329:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1341:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1329,
+      "line": 1341,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1470,10 +1554,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => navigate({ type: \"formal-sample-list\", id: \"list\" }) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1338:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1350:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1338,
+      "line": 1350,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1484,10 +1568,10 @@
       "sourceExcerpt": "<button className=\"is-danger\" disabled={busy} type=\"button\" onClick={() => void retire()} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1395:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1407:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1395,
+      "line": 1407,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1498,10 +1582,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => { if (onSelectionChange) { navigate({ type: \"formal-sample-edit\", id: detail.id }); return; } pendingFocusTarget.current = \"EDITOR\"; setConfirmingId(null); setEditor(editEditor(detail)..."
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1418:17:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1430:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1418,
+      "line": 1430,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1512,10 +1596,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void retire()} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1425:17:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1437:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1425,
+      "line": 1437,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1524,20 +1608,6 @@
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
       "sourceExcerpt": "<button disabled={writeBusy} type=\"button\" onClick={() => { setRetiringId(null); }} >"
-    },
-    {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1436:15:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1436,
-      "column": 15,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => { setConfirmingId(null); setRetiringId(detail.id); }} >"
     },
     {
       "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1448:15:BUTTON",
@@ -1551,13 +1621,27 @@
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
+      "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => { setConfirmingId(null); setRetiringId(detail.id); }} >"
+    },
+    {
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1460:15:BUTTON",
+      "kind": "BUTTON",
+      "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "line": 1460,
+      "column": 15,
+      "tag": "button",
+      "accessibleNameSource": null,
+      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSamplePointLedger.tsx",
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三",
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => { setConfirmingId(null); setEditor(null); setMaintainerEditor({ pointId: detail.id, expectedVersion: detail.version, targetSubjectId: detail.maintainerSubjectId ?? \"\", reason: \"\", }); ..."
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1473:19:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1485:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1473,
+      "line": 1485,
       "column": 19,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"指派维护人\"",
@@ -1568,10 +1652,10 @@
       "sourceExcerpt": "<select aria-label=\"指派维护人\" value={maintainerEditor.targetSubjectId} onChange={(event) => setMaintainerEditor({ ...maintainerEditor, targetSubjectId: event.target.value, }) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1500:19:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1512:19:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1500,
+      "line": 1512,
       "column": 19,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"维护人变更原因\"",
@@ -1582,10 +1666,10 @@
       "sourceExcerpt": "<input aria-label=\"维护人变更原因\" maxLength={500} value={maintainerEditor.reason} onChange={(event) => setMaintainerEditor({ ...maintainerEditor, reason: event.target.value, }) } />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1513:19:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1525:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1513,
+      "line": 1525,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1596,10 +1680,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void assignMaintainer()} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1520:19:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1532:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1520,
+      "line": 1532,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1610,10 +1694,10 @@
       "sourceExcerpt": "<button disabled={writeBusy} type=\"button\" onClick={() => setMaintainerEditor(null)} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1533:17:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1545:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1533,
+      "line": 1545,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1624,10 +1708,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => void remove()} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1540:17:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1552:17:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1540,
+      "line": 1552,
       "column": 17,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1638,10 +1722,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={() => setConfirmingId(null)}>"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1545:15:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1557:15:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1545,
+      "line": 1557,
       "column": 15,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1652,10 +1736,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => setConfirmingId(detail.id)} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1553:13:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:1565:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 1553,
+      "line": 1565,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1666,10 +1750,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => navigate({ type: \"formal-sample-list\", id: \"list\" }) } >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:885:11:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:886:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 885,
+      "line": 886,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1680,10 +1764,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={onSelectionClear}>"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:902:19:BUTTON",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:914:19:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 902,
+      "line": 914,
       "column": 19,
       "tag": "button",
       "accessibleNameSource": null,
@@ -1694,10 +1778,10 @@
       "sourceExcerpt": "<button disabled={busy} type=\"button\" onClick={() => { if (onSelectionChange) { navigate({ type: \"formal-sample-create\", id: \"new\" }); return; } pendingFocusTarget.current = \"EDITOR\"; setDetail(null); setConfirmingId(null); setEditor(cre..."
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:934:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:946:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 934,
+      "line": 946,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"采集台账观测时间\"",
@@ -1708,10 +1792,10 @@
       "sourceExcerpt": "<input aria-label=\"采集台账观测时间\" type=\"datetime-local\" value={observedAt} onChange={(event) => { setObservedAt(event.target.value); setPageNumber(0); }} />"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:946:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:958:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 946,
+      "line": 958,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"采集台账对象类型\"",
@@ -1722,10 +1806,10 @@
       "sourceExcerpt": "<select aria-label=\"采集台账对象类型\" value={objectTypeCode} onChange={(event) => { setObjectTypeCode(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:964:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:976:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 964,
+      "line": 976,
       "column": 15,
       "tag": "select",
       "accessibleNameSource": "aria-label=\"采集台账业务地区\"",
@@ -1736,10 +1820,10 @@
       "sourceExcerpt": "<select aria-label=\"采集台账业务地区\" value={regionCode} onChange={(event) => { setRegionCode(event.target.value); setPageNumber(0); }} >"
     },
     {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:982:15:FILTER_OR_INPUT",
+      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:994:15:FILTER_OR_INPUT",
       "kind": "FILTER_OR_INPUT",
       "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 982,
+      "line": 994,
       "column": 15,
       "tag": "input",
       "accessibleNameSource": "aria-label=\"采集台账样本名称\"",
@@ -1748,20 +1832,6 @@
       "status": "IMPLEMENTED",
       "verificationStage": "阶段二/三",
       "sourceExcerpt": "<input aria-label=\"采集台账样本名称\" maxLength={200} type=\"search\" value={keyword} onChange={(event) => { setKeyword(event.target.value); setPageNumber(0); }} />"
-    },
-    {
-      "id": "src/business/formal-sample/FormalSamplePointLedger.tsx:994:15:BUTTON",
-      "kind": "BUTTON",
-      "sourceFile": "src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "line": 994,
-      "column": 15,
-      "tag": "button",
-      "accessibleNameSource": null,
-      "implementationLocation": "cofco-qiqihar-enterprise-web:src/business/formal-sample/FormalSamplePointLedger.tsx",
-      "ownerRepository": "cofco-qiqihar-enterprise-web",
-      "status": "IMPLEMENTED",
-      "verificationStage": "阶段二/三",
-      "sourceExcerpt": "<button className=\"is-primary\" disabled={busy} type=\"button\" onClick={() => void query(0)} >"
     },
     {
       "id": "src/business/formal-sample/SamplePointImportPanel.tsx:107:5:BUTTON",

@@ -15,6 +15,7 @@ import type {
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import type { FormalSelection } from "../formalEnterpriseModel";
+import { FormalSampleBatchRetirement } from "./FormalSampleBatchRetirement";
 import { SamplePointImportPanel } from "./SamplePointImportPanel";
 import {
   mergeObservationFields,
@@ -898,6 +899,17 @@ export function FormalSamplePointLedger({
                 count={`共 ${eligibleSamples.length} 个`}
                 variant="header"
               >
+                {canRetire && (
+                  <FormalSampleBatchRetirement
+                    repository={repository}
+                    regions={regions}
+                    disabled={busy}
+                    onCompleted={async () => {
+                      await query(0);
+                      onChanged();
+                    }}
+                  />
+                )}
                 {canCreate && (
                   <button
                     disabled={busy}
