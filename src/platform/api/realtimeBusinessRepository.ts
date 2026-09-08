@@ -232,7 +232,7 @@ export interface FormalSamplePointMutation {
   longitude: number;
   latitude: number;
   objectTypeCode: string;
-  maintainerSubjectId: string;
+  maintainerSubjectId?: string;
   maintainerChangeReason?: string;
 }
 

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   EligibleFormalSample,
-  EmployeeProfile,
   FormalSampleObservationDomain,
   FormalSamplePointMutation,
   FormalSamplePointRow,
@@ -67,23 +66,11 @@ function formalSampleWriteError(error: unknown, fallback: string): string {
     ADMIN_BOUNDARY_UNAVAILABLE: "所选行政区边界数据暂不可用。",
     INVALID_FORMAL_SAMPLE_POINT: "请完整填写正确的正式样本稳定信息。",
     INVALID_FORMAL_SAMPLE_MAINTAINER:
-      "请选择在岗、账号正常且有当前地区填报权限的维护人。",
+      "负责地区的维护人账号不可用，请在账号与授权中调整。",
+    FORMAL_SAMPLE_RESPONSIBILITY_ACCOUNT_ONLY:
+      "请在账号与授权中配置或改派负责地区。",
     FORMAL_SAMPLE_POINT_CONFLICT: "正式样本与现有记录冲突。",
     FORMAL_SAMPLE_POINT_NOT_FOUND: "正式样本不存在或已被删除。",
-  };
-  return messages[error.code] ?? error.clientMessage ?? fallback;
-}
-
-function formalSampleMaintainerError(error: unknown, fallback: string): string {
-  if (!(error instanceof RealtimeApiError)) return fallback;
-  const messages: Readonly<Record<string, string>> = {
-    ACCESS_PERMISSION_DENIED: "当前账号没有指派正式样本维护人的权限。",
-    ACCESS_REGION_DENIED: "该正式样本不在当前账号的授权地区内。",
-    INVALID_FORMAL_SAMPLE_MAINTAINER:
-      "所选人员无效、未在岗或没有该地区的填报权限。",
-    FORMAL_SAMPLE_POINT_NOT_FOUND: "正式样本不存在或已被删除。",
-    FORMAL_SAMPLE_POINT_VERSION_CONFLICT:
-      "正式样本已被其他人更新，请按最新版本重新指派。",
   };
   return messages[error.code] ?? error.clientMessage ?? fallback;
 }
@@ -177,13 +164,6 @@ function editEditor(point: FormalSamplePointRow): EditorState {
   };
 }
 
-interface MaintainerEditorState {
-  pointId: string;
-  expectedVersion: number;
-  targetSubjectId: string;
-  reason: string;
-}
-
 function decimalPlaces(value: string): number {
   const fraction = value.trim().split(".")[1];
   return fraction?.length ?? 0;
@@ -204,7 +184,6 @@ function mutation(editor: EditorState): FormalSamplePointMutation | null {
     !address ||
     address.length > 500 ||
     !objectTypeCode ||
-    !maintainerSubjectId ||
     !editor.longitude.trim() ||
     !editor.latitude.trim() ||
     !Number.isFinite(longitude) ||
@@ -225,21 +204,8 @@ function mutation(editor: EditorState): FormalSamplePointMutation | null {
     longitude,
     latitude,
     objectTypeCode,
-    maintainerSubjectId,
+    ...(maintainerSubjectId ? { maintainerSubjectId } : {}),
   };
-}
-
-function employeeCanMaintain(
-  employee: EmployeeProfile,
-  regionCode: string,
-): boolean {
-  return (
-    employee.accountStatus === "ACTIVE" &&
-    employee.employmentStatus === "ACTIVE" &&
-    (!regionCode ||
-      employee.regionCodes.includes("*") ||
-      employee.regionCodes.includes(regionCode))
-  );
 }
 
 export function FormalSamplePointLedger({
@@ -271,7 +237,6 @@ export function FormalSamplePointLedger({
   const [objectTypes, setObjectTypes] = useState<readonly MasterObjectType[]>(
     [],
   );
-  const [employees, setEmployees] = useState<readonly EmployeeProfile[]>([]);
   const [observedAt, setObservedAt] = useState(localDateTimeValue);
   const [objectTypeCode, setObjectTypeCode] = useState("");
   const [listDefinition, setListDefinition] = useState<
@@ -291,8 +256,6 @@ export function FormalSamplePointLedger({
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [retiringId, setRetiringId] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
-  const [maintainerEditor, setMaintainerEditor] =
-    useState<MaintainerEditorState | null>(null);
   const [listBusy, setListBusy] = useState(false);
   const [detailBusy, setDetailBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -360,12 +323,6 @@ export function FormalSamplePointLedger({
             domain: detail?.businessDomain ?? domain,
           },
         ];
-  const availableMaintainers = employees.filter((employee) =>
-    employeeCanMaintain(
-      employee,
-      editor?.regionCode ?? detail?.regionCode ?? "",
-    ),
-  );
   const showList =
     !overlayOnly &&
     (selection ? selection.type === "formal-sample-list" : true);
@@ -521,7 +478,6 @@ export function FormalSamplePointLedger({
           setConfirmingId(intent === "DELETE" ? next.id : null);
           setRetiringId(intent === "RETIRE" ? next.id : null);
           setEditor(intent === "EDIT" ? editEditor(next) : null);
-          setMaintainerEditor(null);
         }
       } catch (error) {
         if (version === detailRequestVersion.current) {
@@ -553,22 +509,6 @@ export function FormalSamplePointLedger({
         if (active) setObjectTypes(items);
       })
       .catch(() => undefined);
-    if (canManage) {
-      void repository
-        .listEmployees()
-        .then((items) => {
-          if (active) setEmployees(items);
-        })
-        .catch((error: unknown) => {
-          if (active)
-            setNotice(
-              formalSampleMaintainerError(
-                error,
-                "员工目录读取失败，暂时不能指派维护人。",
-              ),
-            );
-        });
-    }
     queueMicrotask(() => {
       if (active) void query(0);
     });
@@ -590,7 +530,6 @@ export function FormalSamplePointLedger({
       queueMicrotask(() => {
         setConfirmingId(null);
         setRetiringId(null);
-        setMaintainerEditor(null);
         setNotice("");
         setDetail(null);
         setEditor(null);
@@ -601,7 +540,6 @@ export function FormalSamplePointLedger({
       queueMicrotask(() => {
         setConfirmingId(null);
         setRetiringId(null);
-        setMaintainerEditor(null);
         setNotice("");
         pendingFocusTarget.current = "EDITOR";
         setDetail(null);
@@ -669,11 +607,6 @@ export function FormalSamplePointLedger({
         } = eventState.current;
         if (samplePointChanged && event.aggregateId === editedId)
           setEditor(null);
-        if (
-          samplePointChanged &&
-          event.aggregateId === maintainerEditor?.pointId
-        )
-          setMaintainerEditor(null);
         void refresh().then(() => {
           if (
             !samplePointChanged ||
@@ -697,55 +630,7 @@ export function FormalSamplePointLedger({
         });
       },
     );
-  }, [maintainerEditor?.pointId, productCode, repository]);
-
-  const assignMaintainer = async () => {
-    if (
-      !maintainerEditor ||
-      !repository.assignFormalSampleMaintainer ||
-      !maintainerEditor.targetSubjectId ||
-      !maintainerEditor.reason.trim()
-    ) {
-      setNotice("请选择维护人并填写指派或改派原因。");
-      return;
-    }
-    setWriteBusy(true);
-    setNotice("");
-    try {
-      const assigned = await repository.assignFormalSampleMaintainer(
-        maintainerEditor.pointId,
-        {
-          maintainerSubjectId: maintainerEditor.targetSubjectId,
-          maintainerChangeReason: maintainerEditor.reason.trim(),
-          expectedVersion: maintainerEditor.expectedVersion,
-        },
-      );
-      const authoritative = await repository.getFormalSamplePoint!(assigned.id);
-      setMaintainerEditor(null);
-      await query(pageNumber);
-      setDetail(authoritative);
-      onChanged();
-      setNotice("维护人已更新并重新查询。");
-    } catch (error) {
-      const conflict =
-        error instanceof RealtimeApiError &&
-        error.code === "FORMAL_SAMPLE_POINT_VERSION_CONFLICT";
-      const selectedId = maintainerEditor.pointId;
-      if (conflict) {
-        setMaintainerEditor(null);
-        await query(pageNumber);
-        await loadDetail(selectedId);
-      }
-      setNotice(
-        formalSampleMaintainerError(
-          error,
-          "维护人更新失败，请核对人员和权限后重试。",
-        ),
-      );
-    } finally {
-      setWriteBusy(false);
-    }
-  };
+  }, [productCode, repository]);
 
   const save = async () => {
     if (!editor || !repository.getFormalSamplePoint) return;
@@ -923,7 +808,6 @@ export function FormalSamplePointLedger({
                       setDetail(null);
                       setConfirmingId(null);
                       setEditor(createEditor());
-                      setMaintainerEditor(null);
                       setNotice("");
                     }}
                   >
@@ -1122,28 +1006,7 @@ export function FormalSamplePointLedger({
               ))}
             </select>
           </label>
-          <label>
-            <span>维护人</span>
-            <select
-              aria-label="正式样本维护人"
-              disabled={editor.mode === "EDIT"}
-              required
-              value={editor.maintainerSubjectId}
-              onChange={(event) =>
-                setEditor({
-                  ...editor,
-                  maintainerSubjectId: event.target.value,
-                })
-              }
-            >
-              <option value="">请选择维护人</option>
-              {availableMaintainers.map((employee) => (
-                <option key={employee.subjectId} value={employee.subjectId}>
-                  {employee.displayName} · {employee.workUnitName}
-                </option>
-              ))}
-            </select>
-          </label>
+          <p>维护人由账号与授权中的负责地区统一配置。</p>
         </SamplePointEditorForm>
       )}
       <div className="formal-sample-ledger__layout">
@@ -1456,89 +1319,7 @@ export function FormalSamplePointLedger({
                 淘汰为历史样本
               </button>
             ) : null}
-            {canManage && repository.assignFormalSampleMaintainer && (
-              <button
-                disabled={busy}
-                type="button"
-                onClick={() => {
-                  setConfirmingId(null);
-                  setEditor(null);
-                  setMaintainerEditor({
-                    pointId: detail.id,
-                    expectedVersion: detail.version,
-                    targetSubjectId: detail.maintainerSubjectId ?? "",
-                    reason: "",
-                  });
-                  setNotice("");
-                }}
-              >
-                {detail.maintainerSubjectId ? "改派维护人" : "指定维护人"}
-              </button>
-            )}
-            {maintainerEditor?.pointId === detail.id && (
-              <section
-                className="formal-sample-ledger__maintainer-editor"
-                aria-label="维护人指派"
-              >
-                <label>
-                  <span>维护人</span>
-                  <select
-                    aria-label="指派维护人"
-                    value={maintainerEditor.targetSubjectId}
-                    onChange={(event) =>
-                      setMaintainerEditor({
-                        ...maintainerEditor,
-                        targetSubjectId: event.target.value,
-                      })
-                    }
-                  >
-                    <option value="">请选择维护人</option>
-                    {employees
-                      .filter((employee) =>
-                        employeeCanMaintain(employee, detail.regionCode),
-                      )
-                      .map((employee) => (
-                        <option
-                          key={employee.subjectId}
-                          value={employee.subjectId}
-                        >
-                          {employee.displayName} · {employee.workUnitName}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label>
-                  <span>指派或改派原因</span>
-                  <input
-                    aria-label="维护人变更原因"
-                    maxLength={500}
-                    value={maintainerEditor.reason}
-                    onChange={(event) =>
-                      setMaintainerEditor({
-                        ...maintainerEditor,
-                        reason: event.target.value,
-                      })
-                    }
-                  />
-                </label>
-                <div>
-                  <button
-                    disabled={busy}
-                    type="button"
-                    onClick={() => void assignMaintainer()}
-                  >
-                    保存维护人
-                  </button>
-                  <button
-                    disabled={writeBusy}
-                    type="button"
-                    onClick={() => setMaintainerEditor(null)}
-                  >
-                    取消
-                  </button>
-                </div>
-              </section>
-            )}
+            <p>维护人由账号与授权中的负责地区统一配置。</p>
             {!canDelete ? null : confirmingId === detail.id ? (
               <div className="formal-sample-ledger__delete-confirmation">
                 <p>删除会同步清理该样本及其关联正式业务数据，且不可撤销。</p>
