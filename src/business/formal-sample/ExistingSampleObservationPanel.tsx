@@ -268,6 +268,7 @@ export function ExistingSampleObservationPanel({
     regionCode: "",
     longitude: "",
     latitude: "",
+    address: "",
   });
   const [history, setHistory] = useState<
     readonly FormalSampleObservationHistoryItem[]
@@ -300,11 +301,12 @@ export function ExistingSampleObservationPanel({
       regionCode: selected?.regionCode ?? "",
       longitude: selected?.longitude ?? "",
       latitude: selected?.latitude ?? "",
+      address: selected?.address ?? "",
     });
     locationDirty.current = false;
   }, []);
   const changeLocation = (
-    field: "regionCode" | "longitude" | "latitude",
+    field: "regionCode" | "longitude" | "latitude" | "address",
     value: string,
   ) => {
     valuesDirty.current = true;
@@ -564,9 +566,10 @@ export function ExistingSampleObservationPanel({
         const observationChanged =
           event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED" &&
           event.productCode === current.productCode;
-        const formalSampleChanged = event.actionCode.startsWith(
-          "FORMAL_SAMPLE_POINT_",
-        );
+        const formalSampleChanged =
+          event.actionCode.startsWith("FORMAL_SAMPLE_POINT_") ||
+          event.actionCode === "FORMAL_SAMPLE_MAINTAINER_REASSIGNED" ||
+          event.actionCode === "REGION_RESPONSIBILITY_CHANGED";
         if (!observationChanged && !formalSampleChanged) return;
         if (saving.current) {
           pendingRealtimeInvalidation.current.relevant = true;
@@ -690,7 +693,14 @@ export function ExistingSampleObservationPanel({
           samplePointId: sample.samplePointId,
           productCode,
           observedAt: new Date(observedAt).toISOString(),
-          ...(locationChanged ? { sampleLocation: location } : {}),
+          ...(locationChanged
+            ? {
+                sampleLocation: {
+                  ...location,
+                  address: location.address.trim() || undefined,
+                },
+              }
+            : {}),
           payload: buildPayload(
             domain,
             productCode,
@@ -949,7 +959,7 @@ export function ExistingSampleObservationPanel({
                   <div className="existing-observation__editor-heading">
                     <div>
                       <h3>本次正式观测</h3>
-                      <p>业务地区、经纬度与本次采集数据统一保存。</p>
+                      <p>业务地区、详细地址、经纬度与本次采集数据统一保存。</p>
                     </div>
                     <span>保存后立即生效</span>
                   </div>
@@ -989,6 +999,18 @@ export function ExistingSampleObservationPanel({
                                 </option>
                               ))}
                             </select>
+                          </label>
+                          <label>
+                            <span>详细地址</span>
+                            <input
+                              aria-label="详细地址"
+                              maxLength={500}
+                              required={Boolean(sample.address?.trim())}
+                              value={location.address}
+                              onChange={(event) =>
+                                changeLocation("address", event.target.value)
+                              }
+                            />
                           </label>
                           <label>
                             <span>经度</span>
@@ -1248,6 +1270,18 @@ function LockedSampleIdentity({ sample }: { sample: EligibleFormalSample }) {
       <div>
         <span>业务地区</span>
         <strong>{sample.regionName}</strong>
+      </div>
+      <div>
+        <span>样本点维护人</span>
+        <strong>{sample.maintainerDisplayName || "未绑定负责账号"}</strong>
+      </div>
+      <div>
+        <span>样本点联系方式</span>
+        <strong>
+          {sample.latestValues[
+            `${sample.domain === "PRODUCTION" ? "PROD" : sample.domain === "MARKET" ? "MKT" : "LOG"}_SAMPLE_CONTACT`
+          ] || "未填写"}
+        </strong>
       </div>
       <div>
         <span>定位坐标</span>

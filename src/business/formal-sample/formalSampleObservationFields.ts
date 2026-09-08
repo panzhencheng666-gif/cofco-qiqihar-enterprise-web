@@ -40,8 +40,6 @@ const lockedCodes: Readonly<
     "PROD_SAMPLE_LATITUDE",
     "PROD_SAMPLE_LONGITUDE",
     "PROD_REPORTER_NAME",
-    "PROD_SURVEYOR_NAME",
-    "PROD_SURVEYOR_PHONE",
   ]),
   MARKET: new Set([
     "MKT_OBJECT_TYPE",
@@ -55,8 +53,6 @@ const lockedCodes: Readonly<
     "MKT_SAMPLE_LATITUDE",
     "MKT_SAMPLE_LONGITUDE",
     "MKT_REPORTER_NAME",
-    "MKT_SURVEYOR_NAME",
-    "MKT_SURVEYOR_PHONE",
   ]),
   LOGISTICS: new Set([
     "surveyYear",
@@ -67,8 +63,6 @@ const lockedCodes: Readonly<
     "LOG_SAMPLE_NAME",
     "LOG_REGION",
     "LOG_REPORTER",
-    "LOG_SURVEYOR_NAME",
-    "LOG_SURVEYOR_PHONE",
     "LOG_SAMPLE_CONTACT",
     "LOG_SAMPLE_LATITUDE",
     "LOG_SAMPLE_LONGITUDE",
@@ -127,8 +121,10 @@ export function observationFields(
         required: field.required,
         readOnly: false,
         sortOrder: field.sortOrder,
-        section: "价格与交易基础",
-        sectionOrder: 0,
+        section: field.code.startsWith("MKT_SURVEYOR_")
+          ? "填报与定位"
+          : "价格与交易基础",
+        sectionOrder: field.code.startsWith("MKT_SURVEYOR_") ? -1 : 0,
         options: field.options.map(({ value, label }) => ({ value, label })),
       }));
     const facts = market.groups.flatMap((group) =>

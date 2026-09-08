@@ -569,10 +569,17 @@ export function LogisticsMonitoringWorkspace({
   const ledgerListFields = realtimeRepository
     ? [
         ...logisticsIdentityListFields,
-        ...observationFields("LOGISTICS", definition).map((field) => ({
-          code: field.code,
-          label: field.unit ? `${field.label}（${field.unit}）` : field.label,
-        })),
+        ...observationFields("LOGISTICS", definition)
+          .filter(
+            (field) =>
+              !logisticsIdentityListFields.some(
+                (identity) => identity.code === field.code,
+              ),
+          )
+          .map((field) => ({
+            code: field.code,
+            label: field.unit ? `${field.label}（${field.unit}）` : field.label,
+          })),
       ]
     : publicLogisticsListFields;
   const rows: readonly LogisticsRow[] = items.map((item, index) => {
