@@ -1031,124 +1031,28 @@ describe("ExistingSampleObservationPanel", () => {
     ).toBeDisabled();
   });
 
-  it("requires an employee-directory maintainer for creation and assigns a historical unowned sample with a reason", async () => {
-    const unassigned = formalPoint({
+  it("keeps maintainer assignment exclusively in account authorization", async () => {
+    const point = formalPoint({
       maintainerSubjectId: null,
       maintainerDisplayName: null,
-      version: 4,
-    });
-    const assigned = formalPoint({ version: 5 });
-    const assignFormalSampleMaintainer = vi.fn().mockResolvedValue({
-      id: assigned.id,
-      kindCode: assigned.kindCode,
-      canonicalName: assigned.canonicalName,
-      regionCode: assigned.regionCode,
-      maintainerSubjectId: maintainer.subjectId,
-      maintainerDisplayName: maintainer.displayName,
-      version: assigned.version,
     });
     const api = {
       ...repository(),
       listEligibleFormalSamples: vi
         .fn()
-        .mockResolvedValue([eligibleSampleFor(unassigned)]),
-      getFormalSamplePoint: vi
-        .fn()
-        .mockResolvedValueOnce(unassigned)
-        .mockResolvedValueOnce(assigned),
-      assignFormalSampleMaintainer,
+        .mockResolvedValue([eligibleSampleFor(point)]),
+      getFormalSamplePoint: vi.fn().mockResolvedValue(point),
+      assignFormalSampleMaintainer: vi.fn(),
     };
     renderPanel(api);
-
-    const row = await screen.findByRole("row", {
-      name: new RegExp(unassigned.canonicalName, "u"),
-    });
-    expect(row).toHaveTextContent("未指定维护人");
+    await userEvent.click(await screen.findByRole("button", { name: "查看" }));
+    await screen.findByRole("region", { name: "正式样本详情" });
     expect(
-      within(row).getByRole("button", { name: "填写采集数据" }),
-    ).toBeEnabled();
-    await userEvent.click(within(row).getByRole("button", { name: "查看" }));
-    await userEvent.click(
-      await screen.findByRole("button", { name: "指定维护人" }),
-    );
-    await userEvent.selectOptions(
-      screen.getByLabelText("指派维护人"),
-      maintainer.subjectId,
-    );
-    await userEvent.type(
-      screen.getByLabelText("维护人变更原因"),
-      "明确后续期间数据维护责任",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "保存维护人" }));
-
-    await waitFor(() =>
-      expect(assignFormalSampleMaintainer).toHaveBeenCalledWith(unassigned.id, {
-        maintainerSubjectId: maintainer.subjectId,
-        maintainerChangeReason: "明确后续期间数据维护责任",
-        expectedVersion: 4,
-      }),
-    );
-    expect(api.getFormalSamplePoint).toHaveBeenLastCalledWith(unassigned.id);
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "维护人已更新并重新查询",
-    );
-    expect(
-      screen.getByRole("region", { name: "正式样本详情" }),
-    ).toHaveTextContent(maintainer.displayName);
+      screen.queryByRole("button", { name: /指定维护人|改派维护人/u }),
+    ).not.toBeInTheDocument();
+    expect(api.listEmployees).not.toHaveBeenCalled();
+    expect(api.assignFormalSampleMaintainer).not.toHaveBeenCalled();
   });
-
-  it.each([
-    ["ACCESS_PERMISSION_DENIED", 403, "当前账号没有指派正式样本维护人的权限"],
-    [
-      "INVALID_FORMAL_SAMPLE_MAINTAINER",
-      400,
-      "所选人员无效、未在岗或没有该地区的填报权限",
-    ],
-    ["FORMAL_SAMPLE_POINT_NOT_FOUND", 404, "正式样本不存在或已被删除"],
-    [
-      "FORMAL_SAMPLE_POINT_VERSION_CONFLICT",
-      409,
-      "正式样本已被其他人更新，请按最新版本重新指派",
-    ],
-  ])(
-    "shows a clear maintainer assignment error for %s",
-    async (code, status, message) => {
-      const point = formalPoint({
-        maintainerSubjectId: null,
-        maintainerDisplayName: null,
-        version: 4,
-      });
-      const api = {
-        ...repository(),
-        listEligibleFormalSamples: vi
-          .fn()
-          .mockResolvedValue([eligibleSampleFor(point)]),
-        getFormalSamplePoint: vi.fn().mockResolvedValue(point),
-        assignFormalSampleMaintainer: vi.fn().mockRejectedValue(
-          new RealtimeApiError({
-            code,
-            message: "server message",
-            status,
-          }),
-        ),
-      };
-      renderPanel(api);
-      await userEvent.click(
-        await screen.findByRole("button", { name: "查看" }),
-      );
-      await userEvent.click(
-        await screen.findByRole("button", { name: "指定维护人" }),
-      );
-      await userEvent.selectOptions(
-        screen.getByLabelText("指派维护人"),
-        maintainer.subjectId,
-      );
-      await userEvent.type(screen.getByLabelText("维护人变更原因"), "工作调整");
-      await userEvent.click(screen.getByRole("button", { name: "保存维护人" }));
-
-      expect(await screen.findByRole("status")).toHaveTextContent(message);
-    },
-  );
 
   it("focuses the authoritative detail region after a row view action", async () => {
     renderPanel();
@@ -1277,10 +1181,7 @@ describe("ExistingSampleObservationPanel", () => {
       screen.getByLabelText("正式样本对象分类"),
       created.objectTypeCode,
     );
-    await userEvent.selectOptions(
-      screen.getByLabelText("正式样本维护人"),
-      maintainer.subjectId,
-    );
+    expect(screen.queryByLabelText("正式样本维护人")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "保存正式样本" }));
 
     await waitFor(() =>
@@ -1291,7 +1192,6 @@ describe("ExistingSampleObservationPanel", () => {
         longitude: 123.94,
         latitude: 47.31,
         objectTypeCode: created.objectTypeCode,
-        maintainerSubjectId: maintainer.subjectId,
       }),
     );
     expect(getFormalSamplePoint).toHaveBeenLastCalledWith(created.id);
@@ -1465,10 +1365,7 @@ describe("ExistingSampleObservationPanel", () => {
         screen.getByLabelText("正式样本对象分类"),
         "TRADER",
       );
-      await userEvent.selectOptions(
-        screen.getByLabelText("正式样本维护人"),
-        maintainer.subjectId,
-      );
+      expect(screen.queryByLabelText("正式样本维护人")).not.toBeInTheDocument();
       await userEvent.click(
         screen.getByRole("button", { name: "保存正式样本" }),
       );
@@ -1515,10 +1412,7 @@ describe("ExistingSampleObservationPanel", () => {
       screen.getByLabelText("正式样本对象分类"),
       "TRADER",
     );
-    await userEvent.selectOptions(
-      screen.getByLabelText("正式样本维护人"),
-      maintainer.subjectId,
-    );
+    expect(screen.queryByLabelText("正式样本维护人")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "保存正式样本" }));
 
     expect(createFormalSamplePoint).not.toHaveBeenCalled();
