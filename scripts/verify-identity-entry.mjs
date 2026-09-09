@@ -58,6 +58,7 @@ try {
     await expect(page).toHaveURL(origin + "/phone.html");
     await page.getByRole("link", { name: "员工注册", exact: true }).click();
     await expect(page.locator("#kc-register-form")).toBeVisible();
+    await expect(page.getByLabel("手机号", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText(
       "第一步：创建登录账号",
     );
@@ -74,6 +75,7 @@ try {
       throw new Error("Registration overflow");
     await page.goto(origin + "/register.html");
     await expect(page.locator("#kc-register-form")).toBeVisible();
+    await expect(page.getByLabel("手机号", { exact: true })).toBeVisible();
     for (let repeat = 0; repeat < 3; repeat++) {
       await page.goto(origin + "/oauth2/authorization/enterprise");
       await expect(page.locator("#kc-form-login")).toBeVisible();
