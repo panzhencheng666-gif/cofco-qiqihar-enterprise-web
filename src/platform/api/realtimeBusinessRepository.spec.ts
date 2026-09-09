@@ -1264,6 +1264,15 @@ describe("realtime business repository", () => {
     });
   });
 
+  it("retains the edited employee when loading exclusive region choices", async () => {
+    const { api, get } = client();
+    const repository = createRealtimeBusinessRepository(api);
+    await repository.loadAssignmentOptions("QIQIHAR_BUSINESS", "employee-88");
+    expect(get).toHaveBeenCalledWith("/api/v1/identity/employees/assignment-options", {
+      workUnitCode: "QIQIHAR_BUSINESS", subjectId: "employee-88",
+    });
+  });
+
   it("connects employee assignments and access reviews to governance APIs", async () => {
     const { api, get, post, put } = client();
     const repository = createRealtimeBusinessRepository(api);

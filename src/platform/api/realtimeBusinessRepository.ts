@@ -1520,6 +1520,7 @@ export interface RealtimeBusinessRepository {
   listEmployees(): Promise<readonly EmployeeProfile[]>;
   loadAssignmentOptions(
     workUnitCode: string,
+    subjectId?: string,
   ): Promise<IdentityAssignmentOptions>;
   inviteEmployee(input: EmployeeInvitation): Promise<IdentityInvitationReceipt>;
   updateEmployee(
@@ -2275,10 +2276,10 @@ export function createRealtimeBusinessRepository(
       ),
     listEmployees: () =>
       client.get<readonly EmployeeProfile[]>("/api/v1/identity/employees"),
-    loadAssignmentOptions: (workUnitCode) =>
+    loadAssignmentOptions: (workUnitCode, subjectId) =>
       client.get<IdentityAssignmentOptions>(
         "/api/v1/identity/employees/assignment-options",
-        { workUnitCode },
+        { workUnitCode, ...(subjectId ? { subjectId } : {}) },
       ),
     inviteEmployee: ({ idempotencyKey, ...input }) =>
       client.post<IdentityInvitationReceipt>(

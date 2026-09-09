@@ -672,6 +672,7 @@ export function IdentityGovernancePanel({
   const requestAssignmentOptions = async (
     workUnitCode: string,
     requestedRegionCodes: readonly string[],
+    subjectId?: string,
   ) => {
     const requestId = assignmentOptionsRequest.current + 1;
     assignmentOptionsRequest.current = requestId;
@@ -679,7 +680,7 @@ export function IdentityGovernancePanel({
     setLoadingAssignmentOptions(true);
     setOptions((current) => ({ ...current, regionCodes: [] }));
     try {
-      const nextOptions = await repository.loadAssignmentOptions(workUnitCode);
+      const nextOptions = await repository.loadAssignmentOptions(workUnitCode, subjectId);
       if (assignmentOptionsRequest.current === requestId) {
         const assignableRegions = new Set(nextOptions.regionCodes);
         setRegionNames((current) => {
@@ -720,7 +721,7 @@ export function IdentityGovernancePanel({
     setLoadingInvitation(false);
     setInvitationEditor(null);
     setEditor({ invite, draft: { ...draft, regionCodes: [] } });
-    void requestAssignmentOptions(draft.workUnitCode, draft.regionCodes);
+    void requestAssignmentOptions(draft.workUnitCode, draft.regionCodes, invite ? undefined : draft.subjectId);
   };
 
   const closeAssignmentEditor = () => {
@@ -849,7 +850,7 @@ export function IdentityGovernancePanel({
           }
         : current,
     );
-    void requestAssignmentOptions(workUnitCode, []);
+    void requestAssignmentOptions(workUnitCode, [], editor?.invite ? undefined : editor?.draft.subjectId);
   };
 
   const saveAssignment = async () => {
