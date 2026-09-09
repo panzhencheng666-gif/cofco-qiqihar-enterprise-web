@@ -392,6 +392,7 @@ export interface ReportPublication {
 }
 
 export interface CurrentSession {
+  rootAdministrator?: boolean;
   subjectId: string;
   displayName: string;
   workUnitCode: string;

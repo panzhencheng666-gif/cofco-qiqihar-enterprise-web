@@ -1084,7 +1084,10 @@ describe("IdentityGovernancePanel", () => {
     expect(
       await screen.findByRole("checkbox", { name: "可访问地区 讷河责任乡镇" }),
     ).toBeVisible();
-    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith("NEHE_DEPOT");
+    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith(
+      "NEHE_DEPOT",
+      undefined,
+    );
   });
 
   it("loads an existing employee's own work unit before editing responsibility townships", async () => {
@@ -1133,7 +1136,10 @@ describe("IdentityGovernancePanel", () => {
     expect(
       await screen.findByRole("checkbox", { name: "可访问地区 讷河责任乡镇" }),
     ).toBeChecked();
-    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith("NEHE_DEPOT");
+    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith(
+      "NEHE_DEPOT",
+      "employee-1",
+    );
   });
 
   it("does not let a slow employee-list request overwrite the selected unit townships", async () => {

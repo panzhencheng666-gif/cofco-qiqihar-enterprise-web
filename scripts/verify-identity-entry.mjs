@@ -31,7 +31,7 @@ try {
     await page.getByRole("link", { name: "进入统一身份认证" }).click();
     await expect(page.locator("#kc-form-login")).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "短信验证码", exact: true }),
+      page.getByRole("button", { name: "短信验证码", exact: true }),
     ).toBeVisible();
     await expect(page.locator("body")).not.toContainText("无效的参数");
     if (evidence)
@@ -39,10 +39,10 @@ try {
         path: `${evidence}/login-password-${size.width}.png`,
         fullPage: true,
       });
-    await page.getByRole("link", { name: "短信验证码", exact: true }).click();
-    await expect(page).toHaveURL(origin + "/phone.html");
-    await expect(page.locator("#phone")).toBeVisible();
-    await expect(page.locator("#modeLabel")).toBeHidden();
+    await page.getByRole("button", { name: "短信验证码", exact: true }).click();
+    await expect(page.locator("#cofco-sms-login")).toBeVisible();
+    await expect(page.locator("#cofco-login-phone")).toBeVisible();
+    await expect(page.locator("#kc-form-login")).toBeHidden();
     if (evidence)
       await page.screenshot({
         path: `${evidence}/login-sms-${size.width}.png`,
@@ -55,8 +55,8 @@ try {
     )
       throw new Error("Mobile overflow");
     await page.getByRole("button", { name: "登录", exact: true }).click();
-    await expect(page).toHaveURL(origin + "/phone.html");
-    await page.getByRole("link", { name: "员工注册", exact: true }).click();
+    await expect(page.locator("#cofco-sms-login")).toBeVisible();
+    await page.getByRole("link", { name: "注册", exact: true }).click();
     await expect(page.locator("#kc-register-form")).toBeVisible();
     await expect(page.getByLabel("手机号", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText(

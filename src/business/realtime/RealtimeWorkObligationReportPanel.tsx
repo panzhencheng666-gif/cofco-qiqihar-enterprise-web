@@ -72,7 +72,9 @@ export function RealtimeWorkObligationReportPanel({
     () => ({
       weekStart,
       ...(personScope === "__UNIT__"
-        ? { workUnitCode: session.workUnitCode }
+        ? session.rootAdministrator
+          ? {}
+          : { workUnitCode: session.workUnitCode }
         : { subjectId: personScope || session.subjectId }),
       ...(businessDomain
         ? {
@@ -109,7 +111,9 @@ export function RealtimeWorkObligationReportPanel({
         setRegions(master.regions);
         setEmployees(
           nextEmployees.filter(
-            (employee) => employee.workUnitCode === session.workUnitCode,
+            (employee) =>
+              session.rootAdministrator ||
+              employee.workUnitCode === session.workUnitCode,
           ),
         );
       })
@@ -125,7 +129,12 @@ export function RealtimeWorkObligationReportPanel({
     };
     // The authenticated employee determines the initial governed scope.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repository, session.subjectId, session.workUnitCode]);
+  }, [
+    repository,
+    session.subjectId,
+    session.workUnitCode,
+    session.rootAdministrator,
+  ]);
 
   async function exportReport(): Promise<void> {
     setExporting(true);
@@ -176,7 +185,11 @@ export function RealtimeWorkObligationReportPanel({
             <option value={session.subjectId}>
               {session.displayName}（本人）
             </option>
-            {mayReadUnit && <option value="__UNIT__">本单位全部人员</option>}
+            {mayReadUnit && (
+              <option value="__UNIT__">
+                {session.rootAdministrator ? "全部单位人员" : "本单位全部人员"}
+              </option>
+            )}
             {mayReadEmployees &&
               employees
                 .filter(({ subjectId }) => subjectId !== session.subjectId)

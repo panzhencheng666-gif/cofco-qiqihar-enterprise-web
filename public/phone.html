@@ -1,5 +1,16 @@
 <!doctype html>
 <html lang="zh-CN">
+  <script>
+    if (
+      !["BIND", "MERGE"].includes(
+        new URLSearchParams(location.search).get("mode"),
+      )
+    ) {
+      document.cookie =
+        "COFCO_LOGIN_MODE=sms; Path=/; Max-Age=120; Secure; SameSite=Strict";
+      location.replace("/oauth2/authorization/enterprise");
+    }
+  </script>
   <meta charset="utf-8" /><meta
     name="viewport"
     content="width=device-width,initial-scale=1"
