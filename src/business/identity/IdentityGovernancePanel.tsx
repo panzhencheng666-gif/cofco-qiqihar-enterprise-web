@@ -1181,6 +1181,8 @@ export function IdentityGovernancePanel({
                           修改密码和管理登录设备的入口尚未配置，请联系系统管理员。
                         </small>
                       )}
+                      <a href="/phone.html?mode=BIND">绑定手机号</a>
+                      <a href="/phone.html?mode=MERGE">合并手机账号</a>
                       {logoutUrl && (
                         <form action={logoutUrl} method="post">
                           <input

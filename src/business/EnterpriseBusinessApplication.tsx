@@ -227,7 +227,10 @@ function EnterpriseSessionBoundary({
             <small>企业统一身份认证入口尚未配置，请联系系统管理员。</small>
           )}
         {activationStatus === "none" && status === "unauthenticated" && loginUrl && (
-          <a href="/register.html">注册普通员工账号</a>
+          <>
+            <a href="/register.html">注册普通员工账号</a>
+            <a href="/phone.html">手机号验证码登录</a>
+          </>
         )}
       </section>
     </main>
