@@ -33,6 +33,51 @@ try {
   );
   if (units !== 6 || regions < 1)
     throw new Error("Registration catalog is incomplete");
+  const unitNames = await p.locator("#cofco-unit option").allTextContents();
+  expect(unitNames).toEqual([
+    "齐齐哈尔经营部",
+    "讷河库",
+    "克山库",
+    "克东库",
+    "龙镇库",
+    "成吉思汗库",
+  ]);
+  expect(await p.locator("#cofco-regions").evaluate((el) => el.multiple)).toBe(
+    false,
+  );
+  const catalog = await p.evaluate(
+    async (origin) =>
+      (
+        await (
+          await fetch(
+            origin +
+              "/api/v1/identity/registration-entry/options?workUnitCode=QIQIHAR_BUSINESS",
+            { credentials: "include" },
+          )
+        ).json()
+      ).data,
+    origin,
+  );
+  expect(catalog.regions.length).toBeGreaterThan(0);
+  expect(
+    catalog.regions.every((r) => r.administrativeLevel === "TOWNSHIP"),
+  ).toBe(true);
+  await p.locator("#cofco-regions").selectOption(catalog.regions[0].code);
+  await p.locator("#cofco-regions").selectOption(catalog.regions[1].code);
+  expect(
+    await p
+      .locator("#cofco-regions")
+      .evaluate((el) => Array.from(el.selectedOptions).map((o) => o.value)),
+  ).toEqual([catalog.regions[1].code]);
+  await p.locator("#cofco-unit").selectOption("NEHE_DEPOT");
+  await expect(p.locator("#cofco-regions")).toBeEnabled();
+  await expect(p.locator("#cofco-regions")).toHaveValue("");
+  await p.screenshot({
+    path:
+      process.env.REGISTRATION_SCREENSHOT ||
+      "/tmp/cofco-township-registration.png",
+    fullPage: true,
+  });
   await expect(p.locator('[name="phone_number"]')).toBeVisible();
   await expect(p.locator("#password")).toBeVisible();
   await p.setViewportSize({ width: 390, height: 844 });
