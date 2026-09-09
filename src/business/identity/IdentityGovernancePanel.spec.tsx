@@ -507,10 +507,28 @@ describe("IdentityGovernancePanel", () => {
         initialView="employees"
         onClose={vi.fn()}
         repository={api as unknown as RealtimeBusinessRepository}
-        session={session}
+        session={{
+          ...session,
+          rootAdministrator: true,
+          workUnitCode: "PLATFORM_ADMIN",
+          workUnitName: "平台系统管理",
+        }}
       />,
     );
     await screen.findByText("张敏");
+    expect(api.loadAssignmentOptions).toHaveBeenCalledWith("QIQIHAR_BUSINESS");
+    await userEvent.click(screen.getByRole("button", { name: "邀请员工" }));
+    const unitSelect = screen.getByLabelText("工作单位");
+    await waitFor(() =>
+      expect(within(unitSelect).getAllByRole("option")).toHaveLength(6),
+    );
+    expect(unitSelect).toHaveValue("QIQIHAR_BUSINESS");
+    expect(
+      within(unitSelect)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(units.map((unit) => unit.name));
+
     const unitsPanel = screen.getByRole("complementary", { name: "组织单位" });
     expect(within(unitsPanel).getAllByRole("button")).toHaveLength(7);
     await userEvent.click(

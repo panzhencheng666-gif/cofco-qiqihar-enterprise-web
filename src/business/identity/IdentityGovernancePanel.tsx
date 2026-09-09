@@ -185,13 +185,17 @@ interface AssignmentDraft {
   version: number;
 }
 
+function assignmentUnit(session: CurrentSession): string {
+  return session.rootAdministrator ? "QIQIHAR_BUSINESS" : session.workUnitCode;
+}
+
 function invitationDraft(session: CurrentSession): AssignmentDraft {
   return {
     idempotencyKey: `identity-invite-${globalThis.crypto.randomUUID()}`,
     subjectId: "",
     displayName: "",
     deliveryAddress: "",
-    workUnitCode: session.workUnitCode,
+    workUnitCode: assignmentUnit(session),
     accountStatus: "INVITED",
     employmentStatus: "ACTIVE",
     roleCodes: [],
@@ -499,7 +503,7 @@ export function IdentityGovernancePanel({
     Record<string, { decisionCode: "RETAIN" | "REVOKE"; reason: string }>
   >({});
   const [newReviewName, setNewReviewName] = useState("");
-  const [reviewWorkUnit, setReviewWorkUnit] = useState(session.workUnitCode);
+  const [reviewWorkUnit, setReviewWorkUnit] = useState(assignmentUnit(session));
   const [newReviewDueAt, setNewReviewDueAt] = useState("");
   const [auditRows, setAuditRows] = useState<readonly BusinessAuditRow[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
@@ -561,7 +565,7 @@ export function IdentityGovernancePanel({
     try {
       const [nextEmployees, nextOptions] = await Promise.all([
         repository.listEmployees(),
-        repository.loadAssignmentOptions(session.workUnitCode),
+        repository.loadAssignmentOptions(assignmentUnit(session)),
       ]);
       setEmployees(nextEmployees);
 
@@ -583,7 +587,7 @@ export function IdentityGovernancePanel({
     try {
       const units = session.rootAdministrator
         ? (
-            await repository.loadAssignmentOptions(session.workUnitCode)
+            await repository.loadAssignmentOptions(assignmentUnit(session))
           ).workUnits.map((unit) => unit.code)
         : [session.workUnitCode];
       setReviews(
