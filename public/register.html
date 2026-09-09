@@ -3,7 +3,7 @@
   <meta charset="utf-8" /><meta
     name="viewport"
     content="width=device-width,initial-scale=1"
-  /><title>员工注册</title>
+  /><title>完善员工资料</title>
   <style>
     body {
       font: 16px system-ui;
@@ -71,8 +71,8 @@
     }
   </style>
   <main>
-    <h1>员工注册</h1>
-    <p>创建普通员工账号，完成后即可使用授权范围内的业务功能。</p>
+    <h1>完善员工资料</h1>
+    <p>账号注册完成。请补充工作单位和授权地区，完成后即可使用业务功能。</p>
     <section id="login" hidden>
       <p>正在打开注册表单…</p>
       <a class="action" href="/oauth2/authorization/enterprise?register=1"
@@ -80,7 +80,7 @@
       >
     </section>
     <form id="form" hidden>
-      <h2>完善员工资料</h2>
+      <h2>第2步：员工资料与手机验证</h2>
       <p>账号类型：<strong>普通账号（填报员）</strong></p>
       <label
         >手机号<input
@@ -91,7 +91,7 @@
           pattern="1[3-9][0-9]{9}"
           maxlength="11"
           required /></label
-      ><button id="sendSms" type="button">获取短信验证码</button
+      ><button id="sendSms" type="button" disabled>获取短信验证码</button
       ><label
         >短信验证码<input
           id="smsCode"
@@ -105,6 +105,10 @@
         >姓名<input id="name" required maxlength="160" autocomplete="name"
       /></label>
       <label>工作单位<select id="unit" required></select></label>
+      <p id="catalogStatus" role="status" aria-live="polite">
+        正在加载工作单位和授权地区…
+      </p>
+      <button id="retryOptions" type="button" hidden>重新加载选项</button>
       <label id="positionsLabel" hidden
         >岗位<select id="positions" multiple size="4"></select
       ></label>
@@ -132,6 +136,8 @@
   </main>
   <script>
     const el = (id) => document.getElementById(id);
+    let catalogReady = false,
+      smsCooling = false;
     let generation = 0,
       busy = false,
       challengeId = null;
@@ -155,7 +161,12 @@
     }
     async function load(unit = "QIQIHAR_BUSINESS") {
       const current = ++generation;
+      catalogReady = false;
       el("submit").disabled = true;
+      el("sendSms").disabled = true;
+      el("regions").disabled = true;
+      el("retryOptions").hidden = true;
+      el("catalogStatus").textContent = "正在加载工作单位和授权地区…";
       try {
         const response = await fetch(
           "/api/v1/identity/registration/options?workUnitCode=" +
@@ -167,42 +178,69 @@
           return;
         }
         if (!response.ok) {
-          el("status").textContent = await message(response);
-          return;
+          throw new Error(await message(response));
         }
         const { data } = await response.json();
         if (current !== generation) return;
         el("login").hidden = true;
         el("form").hidden = false;
         populate(el("unit"), data.workUnits);
+        if (!data.workUnits.length) {
+          populate(el("regions"), []);
+          el("catalogStatus").textContent =
+            "暂无可用工作单位，注册暂不可用。请稍后重新加载选项或联系管理员。";
+          el("retryOptions").hidden = false;
+          return;
+        }
+        if (!data.workUnits.some((item) => item.code === unit)) {
+          return load(data.workUnits[0].code);
+        }
         el("unit").value = unit;
         populate(el("positions"), data.positions);
         el("positionsLabel").hidden = !data.positions.length;
         populate(el("regions"), data.regions);
         el("search").value = "";
-        el("submit").disabled = false;
-        el("status").textContent = "";
-      } catch {
-        if (current === generation)
-          el("status").textContent = "网络连接失败，请刷新页面重试。";
+        catalogReady = data.regions.length > 0;
+        el("regions").disabled = !catalogReady;
+        el("submit").disabled = !catalogReady;
+        el("sendSms").disabled = !catalogReady || smsCooling;
+        el("catalogStatus").textContent = catalogReady
+          ? "已加载 " + data.regions.length + " 个可选地区，请选择授权地区。"
+          : "该单位暂无可选授权地区，请切换工作单位或稍后重试。";
+        el("retryOptions").hidden = catalogReady;
+      } catch (error) {
+        if (current === generation) {
+          el("catalogStatus").textContent =
+            error.message || "选项加载失败，请重新加载选项。";
+          el("retryOptions").hidden = false;
+        }
       }
     }
-    // The IdP draft saves typing; SMS verification remains mandatory on submit.
-    fetch("/api/v1/identity/registration/phone")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => {
+    async function initialize() {
+      try {
+        // This registration endpoint accepts an OIDC identity before business binding.
+        const response = await fetch("/api/v1/identity/registration/phone");
+        const body = response.ok ? await response.json() : null;
+        if (body?.data?.registered) {
+          location.replace("/");
+          return;
+        }
         if (
           !el("phone").value &&
           /^1[3-9][0-9]{9}$/.test(body?.data?.phone || "")
         ) {
           el("phone").value = body.data.phone;
         }
-      })
-      .catch(() => {});
+        await load();
+      } catch {
+        await load();
+      }
+    }
     el("phone").oninput = () => {
       challengeId = null;
     };
     el("sendSms").onclick = async () => {
+      if (!catalogReady || smsCooling) return;
       if (!el("phone").checkValidity()) {
         el("phone").reportValidity();
         return;
@@ -228,14 +266,18 @@
         el("status").textContent = challengeId
           ? "验证码已发送，5分钟内有效。"
           : "手机号已更改，请为当前号码重新获取验证码。";
+        smsCooling = true;
         setTimeout(() => {
-          el("sendSms").disabled = false;
+          smsCooling = false;
+          el("sendSms").disabled = !catalogReady;
         }, 60000);
       } catch (e) {
         el("status").textContent = e.message;
-        el("sendSms").disabled = false;
+        el("sendSms").disabled = !catalogReady;
       }
     };
+    el("retryOptions").onclick = () =>
+      load(el("unit").value || "QIQIHAR_BUSINESS");
     el("unit").onchange = () => load(el("unit").value);
     el("search").oninput = () => {
       for (const o of el("regions").options)
@@ -243,7 +285,7 @@
     };
     el("form").onsubmit = async (event) => {
       event.preventDefault();
-      if (busy) return;
+      if (busy || !catalogReady) return;
       if (!challengeId) {
         el("status").textContent = "请先获取并填写短信验证码";
         return;
@@ -297,6 +339,6 @@
     };
     if (new URLSearchParams(location.search).has("reauthenticate"))
       location.replace("/oauth2/authorization/enterprise?reauthenticate=1");
-    else load();
+    else initialize();
   </script>
 </html>
