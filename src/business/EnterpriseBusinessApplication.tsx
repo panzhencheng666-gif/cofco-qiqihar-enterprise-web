@@ -228,8 +228,8 @@ function EnterpriseSessionBoundary({
           )}
         {activationStatus === "none" && status === "unauthenticated" && loginUrl && (
           <>
-            <a href="/register.html">注册普通员工账号</a>
-            <a href="/phone.html">手机号验证码登录</a>
+            <a href="/oauth2/authorization/enterprise?register=1">员工注册</a>
+            <a href="/phone.html">手机号登录</a>
           </>
         )}
       </section>
