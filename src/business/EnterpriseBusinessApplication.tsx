@@ -175,7 +175,7 @@ function EnterpriseSessionBoundary({
                 ? {
                     title: "登录企业账号",
                     detail:
-                      "本系统仅供已由管理员建档的员工使用，不提供公众自行注册。",
+                      "已有账号请登录；新员工可注册普通账号，完成资料后立即使用。",
                   }
                 : status === "forbidden"
                   ? {
@@ -226,6 +226,9 @@ function EnterpriseSessionBoundary({
           !loginUrl && (
             <small>企业统一身份认证入口尚未配置，请联系系统管理员。</small>
           )}
+        {activationStatus === "none" && status === "unauthenticated" && loginUrl && (
+          <a href="/register.html">注册普通员工账号</a>
+        )}
       </section>
     </main>
   );
