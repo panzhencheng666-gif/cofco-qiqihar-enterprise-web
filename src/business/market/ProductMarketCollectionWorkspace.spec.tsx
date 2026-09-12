@@ -125,7 +125,11 @@ describe("product market collection workspace", () => {
       section: "corn-collection" as const,
     };
     const { rerender } = render(
-      <ProductMarketCollectionWorkspace {...props} realtimeRefreshToken={0} />,
+      <ProductMarketCollectionWorkspace
+        readOnly={false}
+        {...props}
+        realtimeRefreshToken={0}
+      />,
     );
 
     const originalRow = await screen.findByRole("row", {
@@ -134,7 +138,11 @@ describe("product market collection workspace", () => {
     expect(within(originalRow).getByText("更新前地址")).toBeVisible();
 
     rerender(
-      <ProductMarketCollectionWorkspace {...props} realtimeRefreshToken={1} />,
+      <ProductMarketCollectionWorkspace
+        readOnly={false}
+        {...props}
+        realtimeRefreshToken={1}
+      />,
     );
     await waitFor(() =>
       expect(within(originalRow).getByText("更新后地址")).toBeVisible(),
@@ -184,6 +192,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -297,6 +306,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
         onSelectionChange={onSelectionChange}
@@ -415,6 +425,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -477,6 +488,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -525,6 +537,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -567,6 +580,7 @@ describe("product market collection workspace", () => {
     } as unknown as RealtimeBusinessRepository;
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -643,6 +657,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -823,6 +838,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onCreateRecord={onCreateRecord}
         onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
@@ -992,6 +1008,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -1054,6 +1071,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -1114,6 +1132,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -1166,6 +1185,7 @@ describe("product market collection workspace", () => {
 
       render(
         <ProductMarketCollectionWorkspace
+          readOnly={false}
           onScopeChange={vi.fn()}
           onSelectionChange={vi.fn()}
           queryAllowed
@@ -1205,6 +1225,7 @@ describe("product market collection workspace", () => {
 
     render(
       <ProductMarketCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed

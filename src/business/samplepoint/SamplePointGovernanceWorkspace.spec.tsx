@@ -38,7 +38,7 @@ const session: CurrentSession = {
   workUnitName: "齐齐哈尔经营部",
   accountStatus: "ACTIVE",
   employmentStatus: "ACTIVE",
-  roleCodes: ["BUSINESS_OPERATOR"],
+  roleCodes: ["ADMIN"],
   positions: [],
   permissions: ["BUSINESS_READ", "BUSINESS_IMPORT", "BUSINESS_APPROVE"],
   regionCodes: ["230200"],
@@ -613,7 +613,7 @@ describe("SamplePointGovernanceWorkspace", () => {
       <SamplePointGovernanceWorkspace
         currentYear={2026}
         repository={data}
-        session={session}
+        session={{ ...session, roleCodes: ["BUSINESS_OPERATOR"] }}
       />,
     );
 
@@ -1616,4 +1616,23 @@ describe("SamplePointGovernanceWorkspace", () => {
     expect(await screen.findByText("第 1 页")).toBeVisible();
     expect(screen.getByText("参考点55")).toBeVisible();
   });
+});
+
+it("keeps design samples read-only for ordinary accounts despite legacy update/import permissions", async () => {
+  render(
+    <DesignSamplePointTable
+      onListStateChange={vi.fn()}
+      refreshSequence={0}
+      repository={repository()}
+      session={{
+        ...session,
+        roleCodes: ["BUSINESS_OPERATOR"],
+        permissions: ["BUSINESS_UPDATE", "BUSINESS_IMPORT"],
+      }}
+    />,
+  );
+  expect(await screen.findByText("众兴村")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "新建设计样本" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "编辑" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "下载 XLSX 模板" })).toBeNull();
 });

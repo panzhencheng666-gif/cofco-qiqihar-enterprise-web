@@ -8721,3 +8721,52 @@ body {
     flex-direction: column;
   }
 }
+
+/* Soybean centered authentication layout, adapted to the enterprise theme. */
+.enterprise-session-boundary{box-sizing:border-box;display:grid;place-items:center;min-height:100svh;padding:32px 4%;background:radial-gradient(ellipse at 5% 95%, #cfbd9138, transparent 48%), radial-gradient(ellipse at 100% 0%, #9ab7cc55, transparent 55%), linear-gradient(135deg, #edf2f5 0%, #f8fafb 48%, #e1eaf0 100%)}
+.enterprise-auth-shell{width:100%;max-width:480px;min-width:0}
+.enterprise-session-card{box-sizing:border-box;width:100%;max-width:none;padding:36px 40px;border:1px solid white;border-radius:12px;background:white;box-shadow:0 16px 60px #173a5914;gap:24px;text-align:center;justify-items:stretch}
+.enterprise-auth-brand{display:flex;align-items:center;justify-content:center;gap:16px;text-align:left;color:#173a59}.enterprise-auth-brand p{margin:0;font-size:16px;line-height:1.6}.enterprise-auth-brand strong{font-size:23px;font-weight:600}
+.enterprise-session-brand{display:grid;place-items:center;flex:0 0 56px;width:56px;height:56px;background:#173a59;color:white;border-radius:14px;font-size:32px}
+.enterprise-session-card h1{font-size:18px;font-weight:500;color:#173a59;line-height:1.5}.enterprise-session-card>span{font-size:15px;line-height:1.8;color:#627581}
+.enterprise-session-card .enterprise-session-action{box-sizing:border-box;width:100%;min-height:44px;border:0;border-radius:24px;background:#173a59;color:white;font-size:16px;padding:11px 18px;cursor:pointer}
+.enterprise-session-card :is(a,button):focus-visible{outline:3px solid #7ba0b6;outline-offset:3px}
+@media(max-width:600px){.enterprise-session-card{padding:28px 7%}.enterprise-auth-brand{gap:12px}.enterprise-auth-brand strong{font-size:20px}.enterprise-session-brand{flex-basis:48px;width:48px;height:48px;font-size:28px}}
+
+.enterprise-auth-shell{max-width:500px}.enterprise-session-card{padding:28px 24px}.enterprise-auth-brand{justify-content:flex-start;gap:20px;white-space:nowrap}.enterprise-auth-brand strong{font-size:25px;color:#173a59;letter-spacing:-.6px}.enterprise-session-card h1{text-align:left;font-size:19px;font-weight:600}.enterprise-session-brand{flex-basis:52px;height:52px;width:52px}
+@media(max-width:600px){.enterprise-session-card{padding:28px 6%}.enterprise-auth-brand{gap:12px}.enterprise-session-brand{flex-basis:38px;width:38px;height:38px;font-size:25px}.enterprise-auth-brand strong{font-size:clamp(16px,4.5vw,22px);letter-spacing:-.5px}}
+
+/* Modern corporate portal: architectural color fields, no agricultural ornaments. */
+.enterprise-session-boundary{position:relative;isolation:isolate;overflow-x:clip;background:#e9eff4}
+.enterprise-session-boundary::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,#102f4a,#234f70);clip-path:polygon(0 0,39% 0,22% 100%,0 100%)}
+.enterprise-session-boundary::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(110deg,transparent 0 74%,#d7e2ec 74% 88%,#c8d8e5 88%);border-top:6px solid #173a59}
+@media(max-width:600px){.enterprise-session-boundary::before{clip-path:polygon(0 0,100% 0,100% 23%,0 34%)}.enterprise-session-boundary::after{background:linear-gradient(160deg,transparent 0 78%,#d7e2ec 78%);border-top:0}}
+
+.enterprise-login-redirect{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#f5f7fa;color:#173951;font:14px/1.6 sans-serif}
+
+/* Keep collapsible navigation headings legible on the existing dark sidebar. */
+.formal-nav-section > summary {
+  padding: 10px 8px;
+  color: #e7f1f6;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.formal-nav-section + .formal-nav-section {
+  margin-top: 8px;
+  border-top: 1px solid #34536a;
+}
+
+.formal-nav-group > summary {
+  padding: 7px 8px;
+  color: #afc6d5;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.formal-nav-section summary:focus-visible {
+  outline: 2px solid #61c9ed;
+  outline-offset: -2px;
+}

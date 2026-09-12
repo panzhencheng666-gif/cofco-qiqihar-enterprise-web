@@ -27,20 +27,20 @@ describe("BusinessNavigationTree", () => {
       name: "产情监测模块",
     });
     expect(
-      within(navigation).getByRole("button", { name: "玉米产情填报" }),
+      within(navigation).getByRole("button", { name: "玉米产情监测" }),
     ).toHaveAttribute("aria-current", "page");
-    expect(navigation).toHaveTextContent("大豆产情填报");
-    expect(navigation).toHaveTextContent("稻谷产情填报");
-    expect(navigation).toHaveTextContent("地区产情填报");
+    expect(navigation).toHaveTextContent("大豆产情监测");
+    expect(navigation).toHaveTextContent("稻谷产情监测");
+    expect(navigation).toHaveTextContent("地区产情信息");
 
-    within(navigation).getByRole("button", { name: "玉米产情填报" }).focus();
+    within(navigation).getByRole("button", { name: "玉米产情监测" }).focus();
     await user.keyboard("{Enter}");
     expect(onNavigate).toHaveBeenCalledWith(
       createFormalRoute("production", "corn-collection"),
     );
 
     await user.click(
-      within(navigation).getByRole("button", { name: "大豆产情填报" }),
+      within(navigation).getByRole("button", { name: "大豆产情监测" }),
     );
     expect(onNavigate).toHaveBeenLastCalledWith(
       createFormalRoute("production", "soybean-collection"),
@@ -91,4 +91,58 @@ describe("BusinessNavigationTree", () => {
     expect(screen.queryByRole("button", { name: "数据审核" })).toBeNull();
     expect(screen.queryByText("报表中心")).toBeNull();
   });
+});
+
+it("groups all browse modules and tasks under two independently collapsible sibling headings", async () => {
+  const onNavigate = vi.fn();
+  const { container } = render(
+    <BusinessNavigationTree
+      application={formalApplicationDefinitions[0]}
+      currentRoute={createFormalRoute("work", "task-market")}
+      onNavigate={onNavigate}
+      administrator
+    />,
+  );
+  const sections = container.querySelectorAll("nav > details");
+  expect(sections).toHaveLength(2);
+  expect(sections[0].querySelector("summary")?.textContent).toBe("总揽信息");
+  expect(sections[1].querySelector("summary")?.textContent).toBe("我的任务");
+  expect(sections[0]).toHaveTextContent("产情监测");
+  expect(sections[0]).toHaveTextContent("供需分析");
+  expect(sections[0]).not.toHaveTextContent("我的工作");
+  expect(sections[1]).toHaveTextContent("设计样本点维护");
+  await userEvent.click(
+    within(sections[1] as HTMLElement).getByRole("button", { name: "市场" }),
+  );
+  expect(onNavigate).toHaveBeenCalledWith(
+    createFormalRoute("work", "task-market"),
+  );
+  await userEvent.click(sections[0].querySelector("summary")!);
+  expect(sections[0]).not.toHaveAttribute("open");
+  expect(sections[1]).toHaveAttribute("open");
+});
+
+it("keeps historical sample browsing inside 总揽信息", async () => {
+  const onNavigate = vi.fn();
+  const { container } = render(
+    <BusinessNavigationTree
+      application={formalApplicationDefinitions[0]}
+      currentRoute={createFormalRoute("work", "sample-history")}
+      onNavigate={onNavigate}
+    />,
+  );
+  const sections = container.querySelectorAll("nav > details");
+  const history = within(sections[0] as HTMLElement).getByRole("button", {
+    name: "历史样本点",
+  });
+  expect(history).toHaveAttribute("aria-current", "page");
+  expect(
+    within(sections[1] as HTMLElement).queryByRole("button", {
+      name: "历史样本点",
+    }),
+  ).toBeNull();
+  await userEvent.click(history);
+  expect(onNavigate).toHaveBeenCalledWith(
+    createFormalRoute("work", "sample-history"),
+  );
 });

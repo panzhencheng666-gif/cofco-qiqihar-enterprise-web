@@ -333,6 +333,7 @@ export function ProductProductionCollectionWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken = 0,
+  readOnly = true,
   permissions = [],
 }: {
   section: ProductionSection;
@@ -356,6 +357,7 @@ export function ProductProductionCollectionWorkspace({
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  readOnly?: boolean;
   permissions?: readonly string[];
 }) {
   const context = requiredContext(section);
@@ -992,7 +994,7 @@ export function ProductProductionCollectionWorkspace({
       </div>
       <ExistingSampleObservationPanel
         domain="PRODUCTION"
-        permissions={permissions}
+        permissions={readOnly ? [] : permissions}
         productCode={productCode}
         repository={realtimeRepository}
         selection={selection}
@@ -1051,7 +1053,9 @@ export function ProductProductionCollectionWorkspace({
           </label>
           {realtimeRepository ? (
             <RealtimeRegionFilterSelect
-              authorizedRegionCodes={scope.authorization.authorizedRegionIds}
+              authorizedRegionCodes={
+                readOnly ? ["*"] : scope.authorization.authorizedRegionIds
+              }
               disabled={!masterData}
               onChange={(regionCode) => {
                 setRealtimeRegionCode(regionCode);
@@ -1207,72 +1211,76 @@ export function ProductProductionCollectionWorkspace({
                 ? "正在读取产情调查记录"
                 : `共 ${rowTotal} 个样本点，当前显示 ${rowStart}–${rowEnd}`}
             </strong>
-            <div className="enterprise-ledger-table__actions">
-              {realtimeRepository && (
-                <>
-                  <div
-                    aria-label="批量导入"
-                    className="enterprise-ledger-action-group"
-                    role="group"
-                  >
-                    <span className="enterprise-ledger-action-group__label">
-                      批量导入
-                    </span>
-                    <button
-                      disabled={
-                        importing ||
-                        !realtimeRepository.downloadProductionXlsxTemplate
-                      }
-                      type="button"
-                      onClick={() => void downloadTemplate()}
+            {!readOnly && (
+              <div className="enterprise-ledger-table__actions">
+                {realtimeRepository && (
+                  <>
+                    <div
+                      aria-label="批量导入"
+                      className="enterprise-ledger-action-group"
+                      role="group"
                     >
-                      下载 XLSX 模板
-                    </button>
-                    <label className="realtime-business-file-action">
-                      {importing ? "正在导入" : "批量导入 XLSX"}
-                      <input
-                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        aria-label="批量导入产情记录"
-                        disabled={!importObjectType || importing}
-                        type="file"
-                        onChange={(event) => {
-                          void importRecords(event.target.files?.[0]);
-                          event.target.value = "";
-                        }}
-                      />
-                    </label>
-                    <label className="realtime-business-file-action">
-                      随 XLSX 上传照片（{importPhotos.length} 张）
-                      <input
-                        accept="image/jpeg,image/png"
-                        aria-label="附加产情照片"
-                        disabled={importing}
-                        multiple
-                        type="file"
-                        onChange={(event) =>
-                          setImportPhotos(Array.from(event.target.files ?? []))
+                      <span className="enterprise-ledger-action-group__label">
+                        批量导入
+                      </span>
+                      <button
+                        disabled={
+                          importing ||
+                          !realtimeRepository.downloadProductionXlsxTemplate
                         }
-                      />
-                    </label>
-                  </div>
-                </>
-              )}
-              <div
-                aria-label="单条录入"
-                className="enterprise-ledger-action-group enterprise-ledger-action-group--primary"
-                role="group"
-              >
-                <span className="enterprise-ledger-action-group__label">
-                  单条录入
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onCreateRecord?.(productCode)}
+                        type="button"
+                        onClick={() => void downloadTemplate()}
+                      >
+                        下载 XLSX 模板
+                      </button>
+                      <label className="realtime-business-file-action">
+                        {importing ? "正在导入" : "批量导入 XLSX"}
+                        <input
+                          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                          aria-label="批量导入产情记录"
+                          disabled={!importObjectType || importing}
+                          type="file"
+                          onChange={(event) => {
+                            void importRecords(event.target.files?.[0]);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+                      <label className="realtime-business-file-action">
+                        随 XLSX 上传照片（{importPhotos.length} 张）
+                        <input
+                          accept="image/jpeg,image/png"
+                          aria-label="附加产情照片"
+                          disabled={importing}
+                          multiple
+                          type="file"
+                          onChange={(event) =>
+                            setImportPhotos(
+                              Array.from(event.target.files ?? []),
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+                  </>
+                )}
+                <div
+                  aria-label="单条录入"
+                  className="enterprise-ledger-action-group enterprise-ledger-action-group--primary"
+                  role="group"
                 >
-                  新建调查记录
-                </button>
+                  <span className="enterprise-ledger-action-group__label">
+                    单条录入
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onCreateRecord?.(productCode)}
+                  >
+                    新建调查记录
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <div className="enterprise-ledger-table__scroll" tabIndex={0}>
             <table aria-label={`${context.productLabel}产情调查表`}>
@@ -1463,6 +1471,7 @@ export function ProductProductionCollectionWorkspace({
                           查看记录
                         </button>
                         {row.samplePointId &&
+                          !readOnly &&
                           permissions.includes("FORMAL_SAMPLE_MANAGE") && (
                             <button
                               className="enterprise-ledger-row-action"
@@ -1478,6 +1487,7 @@ export function ProductProductionCollectionWorkspace({
                             </button>
                           )}
                         {row.samplePointId &&
+                          !readOnly &&
                           permissions.includes("FORMAL_SAMPLE_DELETE") && (
                             <button
                               className="enterprise-ledger-row-action"
@@ -1515,6 +1525,7 @@ export function ProductProductionCollectionWorkspace({
                             </button>
                           )}
                         {row.samplePointId &&
+                          !readOnly &&
                           permissions.includes("FORMAL_SAMPLE_DELETE") && (
                             <button
                               className="enterprise-ledger-row-action"
@@ -1566,21 +1577,24 @@ export function ProductProductionCollectionWorkspace({
           </footer>
         </section>
 
-        {!realtimeRepository && selectedItem && selectedDocument && (
-          <ProductionDocumentWorkbench
-            actor={{
-              userId: scope.identity.userId,
-              displayName: scope.identity.displayName ?? "当前登录人员",
-            }}
-            document={selectedDocument}
-            draft={documentDrafts[selectedItem.workId]}
-            item={selectedItem}
-            onDraftChange={(draft) =>
-              onDocumentDraftChange(selectedItem.workId, draft)
-            }
-            onItemChange={onWorkItemChange}
-          />
-        )}
+        {!readOnly &&
+          !realtimeRepository &&
+          selectedItem &&
+          selectedDocument && (
+            <ProductionDocumentWorkbench
+              actor={{
+                userId: scope.identity.userId,
+                displayName: scope.identity.displayName ?? "当前登录人员",
+              }}
+              document={selectedDocument}
+              draft={documentDrafts[selectedItem.workId]}
+              item={selectedItem}
+              onDraftChange={(draft) =>
+                onDocumentDraftChange(selectedItem.workId, draft)
+              }
+              onItemChange={onWorkItemChange}
+            />
+          )}
       </ExistingSampleObservationPanel>
     </div>
   );

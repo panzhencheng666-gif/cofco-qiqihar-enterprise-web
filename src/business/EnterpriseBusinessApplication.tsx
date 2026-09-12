@@ -1,3 +1,8 @@
+import { taskRepository } from "./taskRepository";
+import {
+  clearAutomaticLoginAttempt,
+  redirectToEnterpriseLogin,
+} from "./automaticLogin";
 import {
   lazy,
   Suspense,
@@ -78,6 +83,18 @@ import {
   clearInvitationActivationToken,
 } from "./identity/invitationActivationSession";
 
+const HistoricalSampleWorkspace = lazy(() =>
+  import("./formal-sample/HistoricalSampleWorkspace").then((module) => ({
+    default: module.HistoricalSampleWorkspace,
+  })),
+);
+
+const MyTasksWorkspace = lazy(() =>
+  import("./MyTasksWorkspace").then((module) => ({
+    default: module.MyTasksWorkspace,
+  })),
+);
+
 const FormalMarketMonitoringWorkspace = lazy(() =>
   import("./MarketMonitoringWorkspace").then((module) => ({
     default: module.FormalMarketMonitoringWorkspace,
@@ -144,6 +161,40 @@ function EnterpriseSessionBoundary({
   onActivationRetry: () => void;
   status: Exclude<SessionStatus, "not-required" | "authenticated">;
 }) {
+  const [redirectBlocked, setRedirectBlocked] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      status === "unauthenticated" &&
+      activationStatus === "none" &&
+      loginUrl
+    ) {
+      queueMicrotask(() => {
+        if (!cancelled && !redirectToEnterpriseLogin(loginUrl))
+          setRedirectBlocked(true);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [status, activationStatus, loginUrl]);
+  if (
+    activationStatus === "none" &&
+    (status === "loading" || (status === "unauthenticated" && loginUrl))
+  ) {
+    return (
+      <main className="enterprise-login-redirect" role="status">
+        <p>
+          {redirectBlocked ? "登录未能完成，请重新尝试。" : "正在进入登录界面…"}
+        </p>
+        {redirectBlocked && (
+          <a href={loginUrl} onClick={clearAutomaticLoginAttempt}>
+            重新登录
+          </a>
+        )}
+      </main>
+    );
+  }
   const content =
     activationStatus === "awaiting-login"
       ? {
@@ -175,7 +226,7 @@ function EnterpriseSessionBoundary({
                 ? {
                     title: "登录企业账号",
                     detail:
-                      "已有账号请登录；新员工可注册普通账号，完成资料后立即使用。",
+                      "通过统一身份认证登录；新用户可在认证页面注册账号。",
                   }
                 : status === "forbidden"
                   ? {
@@ -190,49 +241,49 @@ function EnterpriseSessionBoundary({
                     };
   return (
     <main className="enterprise-session-boundary">
-      <section aria-live="polite" className="enterprise-session-card">
-        <div className="enterprise-session-brand" aria-hidden="true">
-          齐
-        </div>
-        <p>齐齐哈尔粮食商情企业平台</p>
-        <h1>{content.title}</h1>
-        <span>{content.detail}</span>
-        {activationStatus === "awaiting-login" && loginUrl && (
-          <a className="enterprise-session-action" href={loginUrl}>
-            登录并激活账号
-          </a>
-        )}
-        {activationStatus === "awaiting-login" && !loginUrl && (
-          <small>企业统一身份认证入口尚未配置，请联系系统管理员。</small>
-        )}
-        {activationStatus === "retry" && (
-          <button
-            className="enterprise-session-action"
-            onClick={onActivationRetry}
-            type="button"
-          >
-            重新尝试激活
-          </button>
-        )}
-        {activationStatus === "none" &&
-          status === "unauthenticated" &&
-          loginUrl && (
+      <div className="enterprise-auth-shell">
+        <section aria-live="polite" className="enterprise-session-card">
+          <div className="enterprise-auth-brand">
+            <div className="enterprise-session-brand" aria-hidden="true">
+              齐
+            </div>
+            <p>
+              <strong>齐齐哈尔粮食商情平台</strong>
+            </p>
+          </div>
+          <h1>{content.title}</h1>
+          <span>{content.detail}</span>
+          {activationStatus === "awaiting-login" && loginUrl && (
             <a className="enterprise-session-action" href={loginUrl}>
-              进入统一身份认证
+              登录并激活账号
             </a>
           )}
-        {activationStatus === "none" &&
-          status === "unauthenticated" &&
-          !loginUrl && (
+          {activationStatus === "awaiting-login" && !loginUrl && (
             <small>企业统一身份认证入口尚未配置，请联系系统管理员。</small>
           )}
-        {activationStatus === "none" && status === "unauthenticated" && loginUrl && (
-          <>
-            <a href="/oauth2/authorization/enterprise?register=1">员工注册</a>
-            <a href="/phone.html">手机号登录</a>
-          </>
-        )}
-      </section>
+          {activationStatus === "retry" && (
+            <button
+              className="enterprise-session-action"
+              onClick={onActivationRetry}
+              type="button"
+            >
+              重新尝试激活
+            </button>
+          )}
+          {activationStatus === "none" &&
+            status === "unauthenticated" &&
+            loginUrl && (
+              <a className="enterprise-session-action" href={loginUrl}>
+                进入统一身份认证
+              </a>
+            )}
+          {activationStatus === "none" &&
+            status === "unauthenticated" &&
+            !loginUrl && (
+              <small>企业统一身份认证入口尚未配置，请联系系统管理员。</small>
+            )}
+        </section>
+      </div>
     </main>
   );
 }
@@ -488,6 +539,7 @@ export function EnterpriseBusinessApplication({
             setActivationStatus("none");
           }
           setCurrentSession(normalizeCurrentSession(session));
+          clearAutomaticLoginAttempt();
           setSessionStatus("authenticated");
         })
         .catch((error: unknown) => {
@@ -701,19 +753,18 @@ export function EnterpriseBusinessApplication({
     }
   }, [operationalState, persistenceBlocked, realtimeMode]);
 
+  const overviewMapActive =
+    location.route.application === "overview" &&
+    location.route.section === "map";
+  const activeWorkItemScope = realtimeWorkItemScope(
+    location.route.application === "work" ? location.route.section : "tasks",
+  );
   useEffect(() => {
-    if (!realtimeMode || !sessionReady) return;
+    if (!realtimeMode || !sessionReady || overviewMapActive) return;
     let cancelled = false;
     void Promise.all([
       repository.loadMasterData(),
-      loadAllWorkItems(
-        repository,
-        realtimeWorkItemScope(
-          location.route.application === "work"
-            ? location.route.section
-            : "tasks",
-        ),
-      ),
+      loadAllWorkItems(repository, activeWorkItemScope),
     ])
       .then(([masterData, workRows]) => {
         if (cancelled) return;
@@ -742,8 +793,8 @@ export function EnterpriseBusinessApplication({
       cancelled = true;
     };
   }, [
-    location.route.application,
-    location.route.section,
+    overviewMapActive,
+    activeWorkItemScope,
     realtimeMode,
     realtimeRefreshToken,
     repository,
@@ -757,6 +808,39 @@ export function EnterpriseBusinessApplication({
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     let pendingSampleNetworkYears = new Set<number>();
     let pendingBusinessRefresh = false;
+    const available = () =>
+      navigator.onLine !== false && document.visibilityState !== "hidden";
+    const flushRefresh = () => {
+      refreshTimer = undefined;
+      if (cancelled || !available()) return;
+      const years = pendingSampleNetworkYears;
+      pendingSampleNetworkYears = new Set<number>();
+      const refreshBusiness = pendingBusinessRefresh;
+      pendingBusinessRefresh = false;
+      if (refreshBusiness) {
+        setRealtimeRefreshToken((value) => value + 1);
+      }
+      if (years.size > 0) {
+        setSampleNetworkRefreshSequenceByYear((current) => {
+          const next = { ...current };
+          years.forEach((year) => {
+            next[year] = (next[year] ?? 0) + 1;
+          });
+          return next;
+        });
+      }
+    };
+    const scheduleRefresh = () => {
+      if (
+        !available() ||
+        refreshTimer !== undefined ||
+        (!pendingBusinessRefresh && pendingSampleNetworkYears.size === 0)
+      )
+        return;
+      refreshTimer = setTimeout(flushRefresh, 500);
+    };
+    document.addEventListener("visibilitychange", scheduleRefresh);
+    window.addEventListener("online", scheduleRefresh);
     const subscribeFrom = (afterSequence: number) => {
       if (cancelled) return;
       unsubscribe = repository.subscribeBusinessEvents(
@@ -770,27 +854,7 @@ export function EnterpriseBusinessApplication({
           } else if (shouldRefreshBusinessData(event)) {
             pendingBusinessRefresh = true;
           }
-          if (refreshTimer !== undefined) clearTimeout(refreshTimer);
-          refreshTimer = setTimeout(() => {
-            refreshTimer = undefined;
-            if (cancelled) return;
-            const years = pendingSampleNetworkYears;
-            pendingSampleNetworkYears = new Set<number>();
-            const refreshBusiness = pendingBusinessRefresh;
-            pendingBusinessRefresh = false;
-            if (refreshBusiness) {
-              setRealtimeRefreshToken((value) => value + 1);
-            }
-            if (years.size > 0) {
-              setSampleNetworkRefreshSequenceByYear((current) => {
-                const next = { ...current };
-                years.forEach((year) => {
-                  next[year] = (next[year] ?? 0) + 1;
-                });
-                return next;
-              });
-            }
-          }, 500);
+          scheduleRefresh();
         },
       );
     };
@@ -814,6 +878,8 @@ export function EnterpriseBusinessApplication({
         subscribeFrom(0);
       });
     return () => {
+      document.removeEventListener("visibilitychange", scheduleRefresh);
+      window.removeEventListener("online", scheduleRefresh);
       cancelled = true;
       if (refreshTimer !== undefined) clearTimeout(refreshTimer);
       unsubscribe?.();
@@ -914,6 +980,17 @@ export function EnterpriseBusinessApplication({
     setPersistenceMessage("");
   };
 
+  const entryRepository = useMemo(
+    () =>
+      location.route.application === "work" &&
+      ["my-tasks", "task-market", "task-production", "task-logistics"].includes(
+        location.route.section,
+      )
+        ? taskRepository(repository)
+        : repository,
+    [repository, location.route.application, location.route.section],
+  );
+
   const workspace = (() => {
     switch (location.route.application) {
       case "overview":
@@ -934,7 +1011,8 @@ export function EnterpriseBusinessApplication({
         if (realtimeMode && location.route.section === "regional-annual") {
           return (
             <RegionalAnnualProductionWorkspace
-              authorizedRegionCodes={currentSession?.regionCodes ?? ["*"]}
+              canWrite={false}
+              authorizedRegionCodes={["*"]}
               repository={repository}
             />
           );
@@ -1055,7 +1133,7 @@ export function EnterpriseBusinessApplication({
         if (realtimeMode) {
           return (
             <SupplyBalanceWorkspace
-              authorizedRegionCodes={currentSession?.regionCodes ?? ["*"]}
+              authorizedRegionCodes={["*"]}
               permissions={currentSession?.permissions ?? []}
               repository={repository}
             />
@@ -1074,14 +1152,103 @@ export function EnterpriseBusinessApplication({
           />
         );
       case "work":
+        if (location.route.section === "sample-history") {
+          return realtimeMode ? (
+            <HistoricalSampleWorkspace
+              repository={repository}
+              refreshToken={realtimeRefreshToken}
+              onViewRecord={(domain, product, id) => {
+                setRealtimeEntryProductCode(product);
+                setRealtimeEntryRecordId(id);
+                setRealtimeEntryMode("view");
+                setRealtimeEntryDomain(domain);
+              }}
+            />
+          ) : (
+            <p role="status">历史样本点需要连接业务服务后查看。</p>
+          );
+        }
+        if (
+          location.route.section === "task-regional" &&
+          realtimeMode &&
+          currentSession
+        ) {
+          return (
+            <RegionalAnnualProductionWorkspace
+              canWrite={
+                currentSession.rootAdministrator === true ||
+                currentSession.roleCodes.includes("ADMIN")
+              }
+              authorizedRegionCodes={["*"]}
+              repository={repository}
+            />
+          );
+        }
+
+        if (
+          [
+            "my-tasks",
+            "task-market",
+            "task-production",
+            "task-logistics",
+          ].includes(location.route.section) &&
+          realtimeMode &&
+          currentSession
+        ) {
+          return (
+            <MyTasksWorkspace
+              key={location.route.section}
+              initialDomain={
+                location.route.section === "task-production"
+                  ? "production"
+                  : location.route.section === "task-logistics"
+                    ? "logistics"
+                    : "market"
+              }
+              repository={repository}
+              session={currentSession}
+              scope={scope}
+              onScopeChange={updateCoordinates}
+              refreshToken={realtimeRefreshToken}
+              selection={location.selection}
+              onSelectionChange={(selection) =>
+                navigateAndCloseEntry(location.route, selection)
+              }
+              onSelectionClear={() => navigateAndCloseEntry(location.route)}
+              onCreateRecord={(domain, product) => {
+                setRealtimeEntryProductCode(product);
+                setRealtimeEntryRecordId(undefined);
+                setRealtimeEntryMode("entry");
+                setRealtimeEntryDomain(domain);
+              }}
+              onViewRecord={(domain, product, id) => {
+                setRealtimeEntryProductCode(product);
+                setRealtimeEntryRecordId(id);
+                setRealtimeEntryMode("view");
+                setRealtimeEntryDomain(domain);
+              }}
+            />
+          );
+        }
         if (realtimeMode && currentSession) {
           return (
             <SamplePointGovernanceWorkspace
+              key={location.route.section}
               mode="business"
               refreshSequence={realtimeRefreshToken}
               refreshSequenceByYear={sampleNetworkRefreshSequenceByYear}
               repository={repository}
-              session={currentSession}
+              session={
+                location.route.section === "task-design"
+                  ? currentSession
+                  : {
+                      ...currentSession,
+                      rootAdministrator: false,
+                      roleCodes: currentSession.roleCodes.filter(
+                        (role) => role !== "ADMIN",
+                      ),
+                    }
+              }
               selection={location.selection}
               onSelectionChange={(selection) =>
                 navigateAndCloseEntry(location.route, selection)
@@ -1118,7 +1285,7 @@ export function EnterpriseBusinessApplication({
             permissions={currentSession?.permissions ?? []}
             productCode={realtimeEntryProductCode}
             refreshToken={realtimeRefreshToken}
-            repository={repository}
+            repository={entryRepository}
             onCancel={closeRealtimeEntry}
             onRecordsChanged={() =>
               setRealtimeRefreshToken((value) => value + 1)
@@ -1158,7 +1325,7 @@ export function EnterpriseBusinessApplication({
           mode={realtimeEntryMode}
           permissions={currentSession?.permissions ?? []}
           refreshToken={realtimeRefreshToken}
-          repository={repository}
+          repository={entryRepository}
           onCancel={closeRealtimeEntry}
           onRecordsChanged={() => setRealtimeRefreshToken((value) => value + 1)}
           onSaved={closeRealtimeEntry}
@@ -1184,6 +1351,10 @@ export function EnterpriseBusinessApplication({
 
   return (
     <EnterpriseShell
+      administrator={
+        currentSession?.rootAdministrator === true ||
+        currentSession?.roleCodes.includes("ADMIN")
+      }
       location={location}
       marketObjects={marketRegistryObjects}
       onNavigate={navigateAndCloseEntry}
@@ -1256,28 +1427,33 @@ export function EnterpriseBusinessApplication({
           </button>
         </section>
       )}
-      {realtimeMode && realtimeStatus !== "connected" && (
-        <section
-          aria-label="业务数据状态"
-          className="formal-scope-recovery"
-          role={realtimeStatus === "error" ? "alert" : "status"}
-        >
-          <div>
-            <strong>
-              {realtimeStatus === "connecting"
-                ? "正在读取业务数据"
-                : realtimeStatus === "empty"
-                  ? "当前暂无可用业务数据"
-                  : "业务数据读取失败"}
-            </strong>
-            <span>
-              {realtimeStatus === "empty"
-                ? "请确认业务期间和责任范围后重试。"
-                : "请稍后重试或联系系统管理员。"}
-            </span>
-          </div>
-        </section>
-      )}
+      {realtimeMode &&
+        !(
+          location.route.application === "overview" &&
+          location.route.section === "map"
+        ) &&
+        realtimeStatus !== "connected" && (
+          <section
+            aria-label="业务数据状态"
+            className="formal-scope-recovery"
+            role={realtimeStatus === "error" ? "alert" : "status"}
+          >
+            <div>
+              <strong>
+                {realtimeStatus === "connecting"
+                  ? "正在读取业务数据"
+                  : realtimeStatus === "empty"
+                    ? "当前暂无可用业务数据"
+                    : "业务数据读取失败"}
+              </strong>
+              <span>
+                {realtimeStatus === "empty"
+                  ? "请确认业务期间和责任范围后重试。"
+                  : "请稍后重试或联系系统管理员。"}
+              </span>
+            </div>
+          </section>
+        )}
       <Suspense fallback={<div role="status">正在加载业务工作区</div>}>
         {workspace}
       </Suspense>

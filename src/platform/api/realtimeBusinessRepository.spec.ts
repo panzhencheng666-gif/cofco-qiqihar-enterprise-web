@@ -917,6 +917,21 @@ describe("realtime business repository", () => {
     expect(soybean).not.toBe(corn);
   });
 
+  it("revalidates long-lived form definitions after five minutes", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(0);
+    const {api,get} = client();
+    get.mockResolvedValue(productionDefinition() as never);
+    const repository = createRealtimeBusinessRepository(api);
+    try {
+      await repository.loadProductionDefinition("CORN", "FARMER");
+      await repository.loadProductionDefinition("CORN", "FARMER");
+      expect(get).toHaveBeenCalledTimes(1);
+      now.mockReturnValue(300_001);
+      await repository.loadProductionDefinition("CORN", "FARMER");
+      expect(get).toHaveBeenCalledTimes(2);
+    } finally { now.mockRestore(); }
+  });
+
   it("does not reuse a cached definition across product codes", async () => {
     const { api, get } = client();
     get.mockResolvedValueOnce(

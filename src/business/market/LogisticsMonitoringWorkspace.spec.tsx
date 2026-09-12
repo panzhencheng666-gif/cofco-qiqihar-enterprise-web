@@ -103,6 +103,7 @@ describe("logistics monitoring workspace", () => {
 
     render(
       <LogisticsMonitoringWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         productCode="CORN"
@@ -188,6 +189,7 @@ describe("logistics monitoring workspace", () => {
 
     render(
       <LogisticsMonitoringWorkspace
+        readOnly={false}
         onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
         onSelectionChange={onSelectionChange}
@@ -244,6 +246,7 @@ describe("logistics monitoring workspace", () => {
   it("keeps the fallback business table on the same public contract", () => {
     render(
       <LogisticsMonitoringWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         productCode="CORN"
@@ -363,6 +366,7 @@ describe("logistics monitoring workspace", () => {
 
     render(
       <LogisticsMonitoringWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         productCode="CORN"
@@ -424,6 +428,7 @@ describe("logistics monitoring workspace", () => {
     } as unknown as RealtimeBusinessRepository;
     render(
       <LogisticsMonitoringWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         productCode="CORN"
@@ -525,6 +530,7 @@ describe("logistics monitoring workspace", () => {
 
     render(
       <LogisticsMonitoringWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         productCode="CORN"
@@ -596,6 +602,7 @@ describe("logistics monitoring workspace", () => {
 
     render(
       <LogisticsMonitoringWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         productCode="CORN"
@@ -651,6 +658,7 @@ describe("logistics monitoring workspace", () => {
 
     render(
       <LogisticsMonitoringWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         productCode="CORN"

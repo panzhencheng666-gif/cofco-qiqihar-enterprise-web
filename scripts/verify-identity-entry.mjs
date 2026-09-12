@@ -28,21 +28,23 @@ try {
         errors.push(m.text());
     });
     await page.goto(origin);
-    await page.getByRole("link", { name: "进入统一身份认证" }).click();
+    await expect(page).toHaveURL(/\/realms\/cofco-local\//u);
     await expect(page.locator("#kc-form-login")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "短信验证码", exact: true }),
+      page.locator("#cofco-sms-tab"),
     ).toBeVisible();
     await expect(page.locator("body")).not.toContainText("无效的参数");
+    await page.waitForLoadState("networkidle");
     if (evidence)
       await page.screenshot({
         path: `${evidence}/login-password-${size.width}.png`,
         fullPage: true,
       });
-    await page.getByRole("button", { name: "短信验证码", exact: true }).click();
+    await page.locator("#cofco-sms-tab").click();
     await expect(page.locator("#cofco-sms-login")).toBeVisible();
     await expect(page.locator("#cofco-login-phone")).toBeVisible();
     await expect(page.locator("#kc-form-login")).toBeHidden();
+    await page.waitForLoadState("networkidle");
     if (evidence)
       await page.screenshot({
         path: `${evidence}/login-sms-${size.width}.png`,
@@ -56,12 +58,13 @@ try {
       throw new Error("Mobile overflow");
     await page.getByRole("button", { name: "登录", exact: true }).click();
     await expect(page.locator("#cofco-sms-login")).toBeVisible();
-    await page.getByRole("link", { name: "注册", exact: true }).click();
+    await page.getByRole("link", { name: "注册账号", exact: true }).click();
     await expect(page.locator("#kc-register-form")).toBeVisible();
     await expect(page.getByLabel("手机号", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText(
       "第一步：创建登录账号",
     );
+    await page.waitForLoadState("networkidle");
     if (evidence)
       await page.screenshot({
         path: `${evidence}/employee-register-${size.width}.png`,
@@ -73,9 +76,9 @@ try {
       )
     )
       throw new Error("Registration overflow");
-    await page.goto(origin + "/register.html");
-    await expect(page.locator("#kc-register-form")).toBeVisible();
-    await expect(page.getByLabel("手机号", { exact: true })).toBeVisible();
+    await page.goto(origin);
+    await expect(page.getByRole("link", { name: "员工注册", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "手机号登录", exact: true })).toHaveCount(0);
     for (let repeat = 0; repeat < 3; repeat++) {
       await page.goto(origin + "/oauth2/authorization/enterprise");
       await expect(page.locator("#kc-form-login")).toBeVisible();
@@ -87,7 +90,7 @@ try {
       identity: true,
       nonblank: true,
       forms: true,
-      registerDirect: true,
+      duplicateEntriesRemoved: true,
       repeatedLogin: 3,
       consoleErrors: errors,
     });

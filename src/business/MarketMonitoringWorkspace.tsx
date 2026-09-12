@@ -38,6 +38,7 @@ export interface MarketMonitoringWorkspaceProps {
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  readOnly?: boolean;
   permissions?: readonly string[];
   workItems?: readonly BusinessWorkItem[];
   documentDrafts?: Readonly<Record<string, MarketDocumentDraft>>;
@@ -66,6 +67,7 @@ export function MarketMonitoringWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken,
+  readOnly = true,
   permissions = [],
   workItems,
   documentDrafts,
@@ -109,6 +111,7 @@ export function MarketMonitoringWorkspace({
         workItems={workItems}
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
+        readOnly={readOnly}
         permissions={permissions}
       />
     );
@@ -135,6 +138,7 @@ export function MarketMonitoringWorkspace({
         workItems={workItems}
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
+        readOnly={readOnly}
         permissions={permissions}
       />
     );
@@ -186,6 +190,7 @@ export function FormalMarketMonitoringWorkspace({
   queryAllowed,
   realtimeRepository,
   realtimeRefreshToken,
+  readOnly = true,
   permissions = [],
 }: {
   section: MarketSection;
@@ -210,6 +215,7 @@ export function FormalMarketMonitoringWorkspace({
   queryAllowed: boolean;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  readOnly?: boolean;
   permissions?: readonly string[];
 }) {
   return (
@@ -239,6 +245,7 @@ export function FormalMarketMonitoringWorkspace({
         onRegistryObjectsChange={onRegistryObjectsChange}
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
+        readOnly={readOnly}
         permissions={permissions}
       />
     </FormalWorkspaceScopeProvider>

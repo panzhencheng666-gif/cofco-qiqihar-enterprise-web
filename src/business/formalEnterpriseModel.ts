@@ -8,7 +8,16 @@ import {
 import type { EnterpriseRegionId } from "./enterpriseRegions";
 
 export const formalSectionsByApplication = {
-  work: ["sample-governance"],
+  work: [
+    "sample-governance",
+    "sample-history",
+    "my-tasks",
+    "task-market",
+    "task-production",
+    "task-logistics",
+    "task-design",
+    "task-regional",
+  ],
   overview: ["operations", "risks", "duty", "releases", "map"],
   production: [
     "corn-collection",
@@ -73,6 +82,13 @@ const formalBusinessRouteNames = {
     application: "我的工作",
     sections: {
       "sample-governance": "样本点管理",
+      "sample-history": "历史样本点",
+      "my-tasks": "我的任务",
+      "task-market": "市场任务",
+      "task-production": "产情任务",
+      "task-logistics": "物流任务",
+      "task-design": "设计样本点维护",
+      "task-regional": "地区年度产情维护",
     },
   },
   overview: {
