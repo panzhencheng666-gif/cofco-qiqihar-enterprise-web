@@ -155,11 +155,33 @@
   "menuInventory": [
     {
       "application": "work",
+      "section": "my-tasks",
+      "label": "我的任务",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/MyTasksWorkspace.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "work",
       "section": "sample-governance",
       "label": "样本点管理",
       "implementationLocations": [
         "cofco-qiqihar-enterprise-web:src/business/samplepoint/SamplePointGovernanceWorkspace.tsx",
         "cofco-qiqihar-enterprise-web:src/business/samplepoint/DesignSamplePointTable.tsx"
+      ],
+      "ownerRepository": "cofco-qiqihar-enterprise-web",
+      "status": "IMPLEMENTED",
+      "verificationStage": "阶段二/三"
+    },
+    {
+      "application": "work",
+      "section": "sample-history",
+      "label": "历史样本点",
+      "implementationLocations": [
+        "cofco-qiqihar-enterprise-web:src/business/formal-sample/HistoricalSampleWorkspace.tsx"
       ],
       "ownerRepository": "cofco-qiqihar-enterprise-web",
       "status": "IMPLEMENTED",
@@ -390,7 +412,7 @@
   "uiInteractionInventory": {
     "path": "docs/production-readiness/stage-one-ui-inventory.json",
     "sourceBoundary": "src/business 下全部非测试 TSX",
-    "itemCount": 477,
+    "itemCount": 491,
     "ownerRepository": "cofco-qiqihar-enterprise-web",
     "status": "IMPLEMENTED",
     "verificationStage": "阶段二/三",
