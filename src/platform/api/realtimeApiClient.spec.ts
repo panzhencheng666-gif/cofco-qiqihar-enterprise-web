@@ -2,6 +2,49 @@ import { describe, expect, it, vi } from "vitest";
 import { RealtimeApiError, createRealtimeApiClient } from "./realtimeApiClient";
 
 describe("realtime API client", () => {
+  it("does not reuse an older in-flight read after a write", async () => {
+    let finishOld!: (response: Response) => void;
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            finishOld = resolve;
+          }),
+      )
+      .mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ data: { version: 2 } }))),
+      );
+    const client = createRealtimeApiClient({ baseUrl: "", fetcher });
+    const old = client.get("/api/v1/example");
+    await client.put("/api/v1/example", { version: 2 });
+    await expect(client.get("/api/v1/example")).resolves.toEqual({
+      version: 2,
+    });
+    finishOld(new Response(JSON.stringify({ data: { version: 1 } })));
+    await old;
+    await expect(client.get("/api/v1/example")).resolves.toEqual({
+      version: 2,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+
+  it("coalesces simultaneous reads without keeping settled business data", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ data: { value: 1 } }))),
+      );
+    const client = createRealtimeApiClient({ baseUrl: "", fetcher });
+    await Promise.all([
+      client.get("/api/v1/work-items", { page: 0 }),
+      client.get("/api/v1/work-items", { page: 0 }),
+    ]);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await client.get("/api/v1/work-items", { page: 0 });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it("waits for atomic file processing beyond the ordinary read timeout", async () => {
     vi.useFakeTimers();
     try {

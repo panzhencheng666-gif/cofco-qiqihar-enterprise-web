@@ -183,6 +183,30 @@ export function createRealtimeApiClient(
     options.cookieSource ??
     (() => (typeof document === "undefined" ? "" : document.cookie));
 
+  const pendingReads = new Map<string, Promise<unknown>>();
+  function sharedRead<T>(
+    path: string,
+    query?: Record<string, string | number | undefined>,
+    shape: "ENVELOPE" | "RAW" = "ENVELOPE",
+  ): Promise<T> {
+    const key = JSON.stringify([
+      shape,
+      path,
+      Object.entries(query ?? {})
+        .filter(([, value]) => value !== undefined)
+        .sort(([a], [b]) => a.localeCompare(b)),
+    ]);
+    const pending = pendingReads.get(key);
+    if (pending) return pending as Promise<T>;
+    const next = request<T>("GET", path, query, undefined, {}, shape).finally(
+      () => {
+        if (pendingReads.get(key) === next) pendingReads.delete(key);
+      },
+    );
+    pendingReads.set(key, next);
+    return next;
+  }
+
   function csrfHeaders(
     method: "GET" | "POST" | "PUT" | "DELETE",
   ): Record<string, string> {
@@ -199,6 +223,7 @@ export function createRealtimeApiClient(
     requestOptions: RealtimeApiRequestOptions = {},
     responseShape: "ENVELOPE" | "RAW" = "ENVELOPE",
   ): Promise<T> {
+    if (method !== "GET") pendingReads.clear();
     const controller = new AbortController();
     const requestTimeoutMs = requestOptions.timeoutMs ?? timeoutMs;
     const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
@@ -251,6 +276,7 @@ export function createRealtimeApiClient(
         details: error,
       });
     } finally {
+      if (method !== "GET") pendingReads.clear();
       clearTimeout(timeout);
     }
   }
@@ -260,6 +286,7 @@ export function createRealtimeApiClient(
     form: FormData,
     extraHeaders: Record<string, string> = {},
   ): Promise<T> {
+    pendingReads.clear();
     const controller = new AbortController();
     // File requests include server validation and atomic persistence after transfer.
     const timeout = setTimeout(
@@ -307,6 +334,7 @@ export function createRealtimeApiClient(
         details: error,
       });
     } finally {
+      pendingReads.clear();
       clearTimeout(timeout);
     }
   }
@@ -348,8 +376,8 @@ export function createRealtimeApiClient(
   }
 
   return {
-    get: (path, query) => request("GET", path, query),
-    getRaw: (path, query) => request("GET", path, query, undefined, {}, "RAW"),
+    get: (path, query) => sharedRead(path, query),
+    getRaw: (path, query) => sharedRead(path, query, "RAW"),
     post: (path, body, requestOptions) =>
       request("POST", path, undefined, body, requestOptions),
     put: (path, body, requestOptions) =>

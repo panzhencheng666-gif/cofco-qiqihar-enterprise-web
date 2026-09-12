@@ -185,13 +185,17 @@ interface AssignmentDraft {
   version: number;
 }
 
+function assignmentUnit(session: CurrentSession): string {
+  return session.rootAdministrator ? "QIQIHAR_BUSINESS" : session.workUnitCode;
+}
+
 function invitationDraft(session: CurrentSession): AssignmentDraft {
   return {
     idempotencyKey: `identity-invite-${globalThis.crypto.randomUUID()}`,
     subjectId: "",
     displayName: "",
     deliveryAddress: "",
-    workUnitCode: session.workUnitCode,
+    workUnitCode: assignmentUnit(session),
     accountStatus: "INVITED",
     employmentStatus: "ACTIVE",
     roleCodes: [],
@@ -499,6 +503,7 @@ export function IdentityGovernancePanel({
     Record<string, { decisionCode: "RETAIN" | "REVOKE"; reason: string }>
   >({});
   const [newReviewName, setNewReviewName] = useState("");
+  const [reviewWorkUnit, setReviewWorkUnit] = useState(assignmentUnit(session));
   const [newReviewDueAt, setNewReviewDueAt] = useState("");
   const [auditRows, setAuditRows] = useState<readonly BusinessAuditRow[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
@@ -560,7 +565,7 @@ export function IdentityGovernancePanel({
     try {
       const [nextEmployees, nextOptions] = await Promise.all([
         repository.listEmployees(),
-        repository.loadAssignmentOptions(session.workUnitCode),
+        repository.loadAssignmentOptions(assignmentUnit(session)),
       ]);
       setEmployees(nextEmployees);
 
@@ -580,7 +585,18 @@ export function IdentityGovernancePanel({
     setLoading(true);
     setError(null);
     try {
-      setReviews(await repository.listAccessReviews(session.workUnitCode));
+      const units = session.rootAdministrator
+        ? (
+            await repository.loadAssignmentOptions(assignmentUnit(session))
+          ).workUnits.map((unit) => unit.code)
+        : [session.workUnitCode];
+      setReviews(
+        (
+          await Promise.all(
+            units.map((unit) => repository.listAccessReviews(unit)),
+          )
+        ).flat(),
+      );
     } catch {
       setError("权限复核信息读取失败，请稍后重试。");
     } finally {
@@ -592,7 +608,9 @@ export function IdentityGovernancePanel({
     setError(null);
     try {
       const page = await repository.listAuditEvents({
-        workUnitCode: session.workUnitCode,
+        workUnitCode: session.rootAdministrator
+          ? undefined
+          : session.workUnitCode,
         aggregateType: auditType || undefined,
         actorSubjectId: auditActor.trim() || undefined,
         occurredFrom: auditFrom
@@ -672,6 +690,7 @@ export function IdentityGovernancePanel({
   const requestAssignmentOptions = async (
     workUnitCode: string,
     requestedRegionCodes: readonly string[],
+    subjectId?: string,
   ) => {
     const requestId = assignmentOptionsRequest.current + 1;
     assignmentOptionsRequest.current = requestId;
@@ -679,7 +698,10 @@ export function IdentityGovernancePanel({
     setLoadingAssignmentOptions(true);
     setOptions((current) => ({ ...current, regionCodes: [] }));
     try {
-      const nextOptions = await repository.loadAssignmentOptions(workUnitCode);
+      const nextOptions = await repository.loadAssignmentOptions(
+        workUnitCode,
+        subjectId,
+      );
       if (assignmentOptionsRequest.current === requestId) {
         const assignableRegions = new Set(nextOptions.regionCodes);
         setRegionNames((current) => {
@@ -720,7 +742,11 @@ export function IdentityGovernancePanel({
     setLoadingInvitation(false);
     setInvitationEditor(null);
     setEditor({ invite, draft: { ...draft, regionCodes: [] } });
-    void requestAssignmentOptions(draft.workUnitCode, draft.regionCodes);
+    void requestAssignmentOptions(
+      draft.workUnitCode,
+      draft.regionCodes,
+      invite ? undefined : draft.subjectId,
+    );
   };
 
   const closeAssignmentEditor = () => {
@@ -849,7 +875,11 @@ export function IdentityGovernancePanel({
           }
         : current,
     );
-    void requestAssignmentOptions(workUnitCode, []);
+    void requestAssignmentOptions(
+      workUnitCode,
+      [],
+      editor?.invite ? undefined : editor?.draft.subjectId,
+    );
   };
 
   const saveAssignment = async () => {
@@ -918,7 +948,7 @@ export function IdentityGovernancePanel({
     try {
       const created = await repository.createAccessReview({
         name: newReviewName.trim(),
-        workUnitCode: session.workUnitCode,
+        workUnitCode: reviewWorkUnit,
         dueAt: new Date(newReviewDueAt).toISOString(),
       });
       setSelectedReview(created);
@@ -1120,8 +1150,10 @@ export function IdentityGovernancePanel({
                     <dt>业务角色</dt>
                     <dd>
                       <strong>
-                        {session.roleCodes.map(roleLabel).join("、") ||
-                          "未分配业务角色"}
+                        {session.rootAdministrator
+                          ? "系统最高管理员"
+                          : session.roleCodes.map(roleLabel).join("、") ||
+                            "未分配业务角色"}
                       </strong>
                       <small>
                         角色说明操作类别，实际授权见下方“当前可用操作”
@@ -1135,7 +1167,9 @@ export function IdentityGovernancePanel({
                         {regionScopeSummary(session.regionCodes, regionNames)}
                       </strong>
                       <small>
-                        这是数据访问范围；能否填报还要看负责地区和单据状态
+                        {session.rootAdministrator
+                          ? "全部地区，不受单位、地区和负责人限制"
+                          : "这是数据访问范围；能否填报还要看负责地区和单据状态"}
                       </small>
                     </dd>
                   </div>
@@ -1146,7 +1180,9 @@ export function IdentityGovernancePanel({
                 >
                   <h4>当前可用操作</h4>
                   <p>
-                    以下为账号当前已获得的操作权限；办理业务时还会检查可访问地区、负责地区和单据状态。
+                    {session.rootAdministrator
+                      ? "可使用全部系统功能，业务记录仍按办理状态处理。"
+                      : "以下为账号当前已获得的操作权限；办理业务时还会检查可访问地区、负责地区和单据状态。"}
                   </p>
                   {session.permissions.length === 0 ? (
                     <p>当前没有业务操作权限，请联系管理员授权。</p>
@@ -1180,6 +1216,8 @@ export function IdentityGovernancePanel({
                           修改密码和管理登录设备的入口尚未配置，请联系系统管理员。
                         </small>
                       )}
+                      <a href="/account-phone.html?mode=BIND">绑定手机号</a>
+                      <a href="/account-phone.html?mode=MERGE">合并手机账号</a>
                       {logoutUrl && (
                         <form action={logoutUrl} method="post">
                           <input
@@ -1591,6 +1629,24 @@ export function IdentityGovernancePanel({
               <div className="identity-governance-toolbar">
                 <div>
                   <h3>权限复核</h3>
+                  {session.rootAdministrator && (
+                    <label>
+                      复核单位
+                      <select
+                        aria-label="复核单位"
+                        value={reviewWorkUnit}
+                        onChange={(event) =>
+                          setReviewWorkUnit(event.target.value)
+                        }
+                      >
+                        {options?.workUnits.map((unit) => (
+                          <option key={unit.code} value={unit.code}>
+                            {unit.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <p>
                     定期检查其他员工的角色和可访问地区；撤销结论会立即收回对应权限。负责地区分工请在员工列表另行设置，本人权限由其他管理员检查。
                   </p>

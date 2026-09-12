@@ -169,6 +169,31 @@ describe("RealtimeWorkObligationReportPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("root can query all units without inheriting its own unit filter", async () => {
+    const gateway = repository();
+    render(
+      <RealtimeWorkObligationReportPanel
+        repository={gateway as unknown as RealtimeBusinessRepository}
+        session={{ ...session, subjectId: "admin", rootAdministrator: true }}
+      />,
+    );
+    await screen.findByText("已逾期未完成");
+    expect(screen.getByRole("option", { name: "全部单位人员" })).toBeVisible();
+    fireEvent.change(screen.getByLabelText("统计人员"), {
+      target: { value: "__UNIT__" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "查询" }));
+    await waitFor(() => {
+      const input = (
+        gateway.loadWorkObligationWeeklyReport.mock.lastCall as unknown as
+          [Record<string, unknown>] | undefined
+      )?.[0];
+      expect(input).toBeDefined();
+      expect(input).not.toHaveProperty("workUnitCode");
+      expect(input).not.toHaveProperty("subjectId");
+    });
+  });
+
   it("allows a governed supervisor to query the whole work unit", async () => {
     const gateway = repository();
     render(

@@ -29,6 +29,7 @@ import {
   PRODUCTION_SURVEY_CONTRACT_DIGEST,
   PRODUCTION_SURVEY_CONTRACT_VERSION,
 } from "@/platform/api/productionSurveyContract";
+import * as automaticLogin from "./automaticLogin";
 import { invitationActivationStorageKey } from "./identity/invitationActivationSession";
 
 const fixtureBusinessReportStorageKey =
@@ -239,7 +240,10 @@ describe("formal enterprise prototype", () => {
     });
   });
 
-  it("fails closed at the enterprise login boundary when no session exists", async () => {
+  it("automatically enters unified login without an intermediate card when no session exists", async () => {
+    const redirect = vi
+      .spyOn(automaticLogin, "redirectToEnterpriseLogin")
+      .mockReturnValue(true);
     const loadMasterData = vi.fn();
     const listWorkItems = vi.fn();
     const repository = {
@@ -262,13 +266,20 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
+    await waitFor(() =>
+      expect(redirect).toHaveBeenCalledWith("/api/v1/session/login"),
+    );
     expect(
-      await screen.findByRole("heading", { name: "登录企业账号" }),
-    ).toBeVisible();
+      screen.queryByRole("heading", { name: "登录企业账号" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "进入统一身份认证" }),
-    ).toHaveAttribute("href", "/api/v1/session/login");
+      screen.queryByRole("link", { name: "进入统一身份认证" }),
+    ).not.toBeInTheDocument();
+    redirect.mockRestore();
     expect(screen.queryByText("产情监测")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "手机号登录" }),
+    ).not.toBeInTheDocument();
     expect(loadMasterData).not.toHaveBeenCalled();
     expect(listWorkItems).not.toHaveBeenCalled();
     expect(
@@ -791,6 +802,47 @@ describe("formal enterprise prototype", () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the shared work catalog when navigating between business sections", async () => {
+    const loadMasterData = vi.fn(() =>
+      Promise.resolve({
+        products: [],
+        periods: [],
+        regions: [],
+      }),
+    );
+    const listWorkItems = vi.fn(() =>
+      Promise.resolve({
+        items: [],
+        pageNumber: 0,
+        pageSize: 100,
+        totalElements: 0,
+        totalPages: 0,
+      }),
+    );
+    const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession()),
+      loadMasterData,
+      listWorkItems,
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: () => () => {},
+    } as unknown as RealtimeBusinessRepository;
+    render(
+      <EnterpriseBusinessApplication
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
+    await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      window.history.replaceState({}, "", "/#/产情监测/业务任务");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      await Promise.resolve();
+    });
+    expect(loadMasterData).toHaveBeenCalledTimes(1);
+    expect(listWorkItems).toHaveBeenCalledTimes(1);
+  });
+
   it("lets the embedded overview own realtime refresh without opening a duplicate outer stream", async () => {
     const loadMasterData = vi.fn(() =>
       Promise.resolve({ products: [], periods: [], regions: [] }),
@@ -825,13 +877,12 @@ describe("formal enterprise prototype", () => {
     expect(
       await screen.findByTitle("齐齐哈尔粮食商情总览监测地图"),
     ).toBeVisible();
-    await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(1));
+    expect(loadMasterData).not.toHaveBeenCalled();
     expect(listNotifications).not.toHaveBeenCalled();
     expect(subscribeBusinessEvents).not.toHaveBeenCalled();
   });
 
   it("shows the production ledger without mounting the entry form by default", async () => {
-    const user = userEvent.setup();
     const listObjectTypes = vi.fn(() =>
       Promise.resolve([{ code: "FARMER", name: "农户", domain: "PRODUCTION" }]),
     );
@@ -913,41 +964,12 @@ describe("formal enterprise prototype", () => {
       ).not.toBeInTheDocument();
     }
 
-    await user.click(screen.getByRole("button", { name: "新建调查记录" }));
     expect(
-      await screen.findByRole("dialog", { name: "新建产情填报" }),
-    ).toBeVisible();
-    expect(
-      await screen.findByRole("region", { name: "产情填报" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "玉米产情调查表" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "关闭新建产情填报" }),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole("combobox", { name: "品种" }),
+      screen.queryByRole("button", { name: "新建调查记录" }),
     ).not.toBeInTheDocument();
-    await waitFor(() =>
-      expect(listObjectTypes).toHaveBeenCalledWith("CORN", "PRODUCTION"),
-    );
-
-    await user.click(screen.getByRole("button", { name: "关闭新建产情填报" }));
-    expect(
-      screen.queryByRole("dialog", { name: "新建产情填报" }),
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "新建调查记录" }));
-
-    await user.click(screen.getByRole("button", { name: "取消并返回" }));
-    expect(
-      await screen.findByRole("heading", { name: "玉米产情调查表" }),
-    ).toBeVisible();
   });
 
-  it("keeps market collection in the ledger until the user starts a new record", async () => {
-    const user = userEvent.setup();
+  it("keeps market collection read-only in the overview ledger", async () => {
     const repository = {
       loadCurrentSession: () => Promise.resolve(apiSession()),
       loadMasterData: () =>
@@ -1033,31 +1055,12 @@ describe("formal enterprise prototype", () => {
       screen.queryByRole("button", { name: "保存常用条件" }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "新建采集记录" }));
     expect(
-      await screen.findByRole("dialog", { name: "新建市场填报" }),
-    ).toBeVisible();
-    expect(
-      await screen.findByRole("region", { name: "市场采集" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "玉米市场采集表" }),
-    ).toBeInTheDocument();
-
-    const save = screen.getByRole("button", { name: "保存并提交审核" });
-    await waitFor(() => expect(save).toBeEnabled());
-    await user.upload(
-      screen.getByLabelText("现场水印照片"),
-      new File(["market"], "market.png", { type: "image/png" }),
-    );
-    await user.click(save);
-    expect(
-      await screen.findByRole("heading", { name: "玉米市场采集表" }),
-    ).toBeVisible();
+      screen.queryByRole("button", { name: "新建采集记录" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("keeps logistics monitoring in the ledger until the user starts a new record", async () => {
-    const user = userEvent.setup();
+  it("keeps logistics monitoring read-only in the overview ledger", async () => {
     const repository = {
       loadCurrentSession: () => Promise.resolve(apiSession()),
       loadMasterData: () =>
@@ -1110,23 +1113,9 @@ describe("formal enterprise prototype", () => {
       screen.queryByRole("region", { name: "物流监测填报" }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "新建监测记录" }));
     expect(
-      await screen.findByRole("dialog", { name: "新建物流监测填报" }),
-    ).toBeVisible();
-    expect(
-      await screen.findByRole("region", { name: "物流监测填报" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "粮食物流监测表" }),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "取消并返回" }));
-    expect(
-      await screen.findByRole("heading", {
-        name: "粮食物流监测表",
-      }),
-    ).toBeVisible();
+      screen.queryByRole("button", { name: "新建监测记录" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps API empty data fail-closed and uses an authorization-pending identity", async () => {
@@ -1319,15 +1308,15 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(15);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(19);
     expect(within(navigation).queryByText("产情任务")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("数据审核")).not.toBeInTheDocument();
-    expect(within(navigation).getByText("玉米产情填报")).toBeVisible();
-    expect(within(navigation).getByText("大豆产情填报")).toBeVisible();
-    expect(within(navigation).getByText("稻谷产情填报")).toBeVisible();
-    expect(within(navigation).getByText("地区产情填报")).toBeVisible();
+    expect(within(navigation).getByText("玉米产情监测")).toBeVisible();
+    expect(within(navigation).getByText("大豆产情监测")).toBeVisible();
+    expect(within(navigation).getByText("稻谷产情监测")).toBeVisible();
+    expect(within(navigation).getByText("地区产情信息")).toBeVisible();
     expect(within(navigation).getByText("产情分析")).toBeVisible();
-    expect(within(navigation).getByText("玉米市场采集")).toBeVisible();
+    expect(within(navigation).getByText("玉米市场监测")).toBeVisible();
     expect(within(navigation).getByText("玉米物流监测")).toBeVisible();
     expect(within(navigation).getByText("大豆物流监测")).toBeVisible();
     expect(within(navigation).getByText("稻谷物流监测")).toBeVisible();

@@ -225,6 +225,34 @@ export interface FormalSamplePointRow {
   networkMembershipCount: number;
 }
 
+export interface HistoricalFormalSample {
+  samplePointId: string;
+  sampleName: string;
+  regionCode: string;
+  regionName: string;
+  address: string;
+  objectTypeCode: string;
+  objectTypeName: string;
+  productCode: string;
+  productName: string;
+  domain: FormalSampleObservationDomain;
+  retiredAt: string;
+  retirementYear: number;
+  retirementReason: string | null;
+  lastObservationId: string | null;
+  lastObservedAt: string | null;
+}
+
+export interface HistoricalFormalSampleQuery {
+  domain: FormalSampleObservationDomain;
+  productCode: string;
+  year?: number;
+  regionCode?: string;
+  keyword?: string;
+  pageNumber: number;
+  pageSize: number;
+}
+
 export interface FormalSamplePointMutation {
   canonicalName: string;
   regionCode: string;
@@ -392,6 +420,7 @@ export interface ReportPublication {
 }
 
 export interface CurrentSession {
+  rootAdministrator?: boolean;
   subjectId: string;
   displayName: string;
   workUnitCode: string;
@@ -1195,6 +1224,7 @@ export interface BusinessRecordListItem {
 }
 
 export interface BusinessRecordListInput {
+  scope?: "MY_TASKS";
   productCode: string;
   page?: number;
   pageSize?: number;
@@ -1520,6 +1550,7 @@ export interface RealtimeBusinessRepository {
   listEmployees(): Promise<readonly EmployeeProfile[]>;
   loadAssignmentOptions(
     workUnitCode: string,
+    subjectId?: string,
   ): Promise<IdentityAssignmentOptions>;
   inviteEmployee(input: EmployeeInvitation): Promise<IdentityInvitationReceipt>;
   updateEmployee(
@@ -1600,6 +1631,9 @@ export interface RealtimeBusinessRepository {
     idempotencyKey: string,
   ): Promise<SamplePointImportResult>;
   downloadDesignSamplePointImportErrors?(importId: string): Promise<Blob>;
+  listHistoricalFormalSamples?(
+    input: HistoricalFormalSampleQuery,
+  ): Promise<Page<HistoricalFormalSample>>;
   listFormalSamplePoints?(
     input: FormalSamplePointListInput,
   ): Promise<Page<FormalSamplePointRow>>;
@@ -1684,6 +1718,7 @@ export interface RealtimeBusinessRepository {
     objectTypeCode?: string,
   ): Promise<ProductionDefinition>;
   listEligibleFormalSamples?(input: {
+    scope?: "MY_TASKS";
     domain: FormalSampleObservationDomain;
     productCode: string;
     regionCode?: string;
@@ -1998,6 +2033,7 @@ function recordQuery(
   return {
     productCode: input.productCode,
     pageKind: "MONITORING",
+    scope: input.scope,
     pageNumber: input.page ?? 0,
     pageSize: input.pageSize ?? 100,
     ...Object.fromEntries(
@@ -2009,6 +2045,8 @@ function recordQuery(
   };
 }
 
+type DefinitionCacheEntry<T> = { value: T; expires: number };
+
 export function createRealtimeBusinessRepository(
   client: RealtimeApiClient = realtimeApiClient,
   options: RealtimeBusinessRepositoryOptions = {},
@@ -2017,14 +2055,23 @@ export function createRealtimeBusinessRepository(
   const eventSourceFactory =
     options.eventSourceFactory ??
     ((url: string) => new EventSource(url, { withCredentials: true }));
-  const productionDefinitionCache = new Map<string, ProductionDefinition>();
+  const productionDefinitionCache = new Map<
+    string,
+    DefinitionCacheEntry<ProductionDefinition>
+  >();
   const productionDefinitionRequests = new Map<
     string,
     Promise<ProductionDefinition>
   >();
-  const marketDefinitionCache = new Map<string, MarketDefinition>();
+  const marketDefinitionCache = new Map<
+    string,
+    DefinitionCacheEntry<MarketDefinition>
+  >();
   const marketDefinitionRequests = new Map<string, Promise<MarketDefinition>>();
-  const logisticsDefinitionCache = new Map<string, LogisticsDefinition>();
+  const logisticsDefinitionCache = new Map<
+    string,
+    DefinitionCacheEntry<LogisticsDefinition>
+  >();
   const logisticsDefinitionRequests = new Map<
     string,
     Promise<LogisticsDefinition>
@@ -2034,18 +2081,21 @@ export function createRealtimeBusinessRepository(
     Promise<ObservableAnalysisSnapshot>
   >();
   function cachedDefinitionRead<T>(
-    cache: Map<string, T>,
+    cache: Map<string, DefinitionCacheEntry<T>>,
     requests: Map<string, Promise<T>>,
     key: string,
     read: () => Promise<T>,
   ): Promise<T> {
     const cached = cache.get(key);
-    if (cached) return Promise.resolve(cached);
+    if (cached && cached.expires > Date.now())
+      return Promise.resolve(cached.value);
+    cache.delete(key);
     const active = requests.get(key);
     if (active) return active;
     const request = read()
       .then((value) => {
-        cache.set(key, value);
+        if (cache.size >= 128) cache.delete(cache.keys().next().value!);
+        cache.set(key, { value, expires: Date.now() + 300_000 });
         return value;
       })
       .finally(() => {
@@ -2150,6 +2200,11 @@ export function createRealtimeBusinessRepository(
     downloadDesignSamplePointImportErrors: (importId) =>
       client.download(
         `/api/v1/design-sample-points/imports/${encodeURIComponent(importId)}/errors`,
+      ),
+    listHistoricalFormalSamples: (input) =>
+      client.get<Page<HistoricalFormalSample>>(
+        "/api/v1/formal-sample-points/history",
+        { ...input },
       ),
     listFormalSamplePoints: (input) =>
       client.get<Page<FormalSamplePointRow>>("/api/v1/formal-sample-points", {
@@ -2275,10 +2330,10 @@ export function createRealtimeBusinessRepository(
       ),
     listEmployees: () =>
       client.get<readonly EmployeeProfile[]>("/api/v1/identity/employees"),
-    loadAssignmentOptions: (workUnitCode) =>
+    loadAssignmentOptions: (workUnitCode, subjectId) =>
       client.get<IdentityAssignmentOptions>(
         "/api/v1/identity/employees/assignment-options",
-        { workUnitCode },
+        { workUnitCode, ...(subjectId ? { subjectId } : {}) },
       ),
     inviteEmployee: ({ idempotencyKey, ...input }) =>
       client.post<IdentityInvitationReceipt>(

@@ -24,7 +24,16 @@ import type { FormalApplicationDefinition } from "./formalEnterpriseData";
 
 describe("formal enterprise route model", () => {
   it("retires only the requested empty-shell routes and preserves real ledgers", () => {
-    expect(formalSectionsByApplication.work).toEqual(["sample-governance"]);
+    expect(formalSectionsByApplication.work).toEqual([
+      "sample-governance",
+      "sample-history",
+      "my-tasks",
+      "task-market",
+      "task-production",
+      "task-logistics",
+      "task-design",
+      "task-regional",
+    ]);
     expect(formalSectionsByApplication.production).not.toEqual(
       expect.arrayContaining(["tasks", "review"]),
     );
@@ -392,6 +401,11 @@ describe("formal enterprise sample data", () => {
         route: createFormalRoute("work", "sample-governance"),
         label: "样本点管理",
       },
+      {
+        route: createFormalRoute("work", "sample-history"),
+        label: "历史样本点",
+      },
+      { route: createFormalRoute("work", "my-tasks"), label: "我的任务" },
     ]);
   });
 

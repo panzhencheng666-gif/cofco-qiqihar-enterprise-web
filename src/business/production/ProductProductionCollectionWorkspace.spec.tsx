@@ -239,6 +239,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
         onSelectionChange={onSelectionChange}
@@ -357,6 +358,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -396,6 +398,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -437,6 +440,7 @@ describe("product production collection workspace", () => {
       });
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -506,6 +510,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -574,6 +579,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -669,6 +675,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onCreateRecord={onCreateRecord}
         onEditRecord={onEditRecord}
         onScopeChange={vi.fn()}
@@ -816,6 +823,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -858,6 +866,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -901,6 +910,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -945,6 +955,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed
@@ -977,6 +988,7 @@ describe("product production collection workspace", () => {
 
     render(
       <ProductProductionCollectionWorkspace
+        readOnly={false}
         onScopeChange={vi.fn()}
         onSelectionChange={vi.fn()}
         queryAllowed

@@ -228,6 +228,14 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           route: createFormalRoute("work", "sample-governance"),
           label: "样本点管理",
         },
+        {
+          route: createFormalRoute("work", "sample-history"),
+          label: "历史样本点",
+        },
+        {
+          route: createFormalRoute("work", "my-tasks"),
+          label: "我的任务",
+        },
       ],
     },
     {

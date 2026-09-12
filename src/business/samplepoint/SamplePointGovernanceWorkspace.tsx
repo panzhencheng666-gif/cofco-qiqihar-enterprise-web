@@ -179,7 +179,7 @@ export function SamplePointGovernanceWorkspace({
     >
       {mode === "all" ? (
         <WorkspaceHeader
-          eyebrow="平台运营管理部 / 数据治理"
+          eyebrow="样本点管理 / 数据治理"
           title="样本点管理"
           summary="分别维护稳定样本身份、年度启用关系和设计参考基准；治理变更独立审核并全程留痕。"
         />

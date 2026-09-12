@@ -47,6 +47,7 @@ export interface ProductionMonitoringWorkspaceProps {
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  readOnly?: boolean;
   permissions?: readonly string[];
 }
 
@@ -75,6 +76,7 @@ export function ProductionMonitoringWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken,
+  readOnly = true,
   permissions = [],
 }: ProductionMonitoringWorkspaceProps) {
   const [localSelection, setLocalSelection] = useState(selection);
@@ -110,6 +112,7 @@ export function ProductionMonitoringWorkspace({
         workItems={workItems}
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
+        readOnly={readOnly}
         permissions={permissions}
       />
     );
@@ -161,6 +164,7 @@ export function FormalProductionMonitoringWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken,
+  readOnly = true,
   permissions = [],
 }: {
   section: ProductionSection;
@@ -187,6 +191,7 @@ export function FormalProductionMonitoringWorkspace({
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  readOnly?: boolean;
   permissions?: readonly string[];
 }) {
   return (
@@ -210,6 +215,7 @@ export function FormalProductionMonitoringWorkspace({
         onEditRecord={onEditRecord}
         realtimeRepository={realtimeRepository}
         realtimeRefreshToken={realtimeRefreshToken}
+        readOnly={readOnly}
         permissions={permissions}
         workItems={workItems}
         scope={scope}

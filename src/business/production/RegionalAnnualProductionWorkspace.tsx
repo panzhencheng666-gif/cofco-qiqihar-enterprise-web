@@ -79,10 +79,12 @@ function previewTotalOutputKg(draft: CountyDraft): string | null {
 }
 
 export function RegionalAnnualProductionWorkspace({
+  canWrite = false,
   api = realtimeApiClient,
   authorizedRegionCodes,
   repository,
 }: {
+  canWrite?: boolean;
   api?: RealtimeApiClient;
   authorizedRegionCodes: readonly string[];
   repository: RealtimeBusinessRepository;
@@ -230,6 +232,7 @@ export function RegionalAnnualProductionWorkspace({
   }
 
   async function save(county: MasterRegion) {
+    if (!canWrite) return;
     const draft = drafts[county.code];
     if (!draft?.areaWanMu) {
       setIssue("播种面积必须填写；单产可在正式数据出来后补填。");
@@ -405,7 +408,7 @@ export function RegionalAnnualProductionWorkspace({
                   <td>
                     <input
                       aria-label={`${county.name}播种面积`}
-                      disabled={!scopeLoaded}
+                      disabled={!canWrite || !scopeLoaded}
                       min="0"
                       step="0.0001"
                       type="number"
@@ -420,7 +423,7 @@ export function RegionalAnnualProductionWorkspace({
                   <td>
                     <input
                       aria-label={`${county.name}单产`}
-                      disabled={!scopeLoaded}
+                      disabled={!canWrite || !scopeLoaded}
                       min="0"
                       step="0.0001"
                       type="number"
@@ -449,14 +452,20 @@ export function RegionalAnnualProductionWorkspace({
                           ? "已保存"
                           : "未填写"}
                     </span>
-                    <button
-                      aria-label={`保存${county.name}`}
-                      disabled={!scopeLoaded || savingRegionCode !== undefined}
-                      type="button"
-                      onClick={() => void save(county)}
-                    >
-                      {savingRegionCode === county.code ? "保存中" : "保存"}
-                    </button>
+                    {canWrite && (
+                      <button
+                        aria-label={`保存${county.name}`}
+                        disabled={
+                          !canWrite ||
+                          !scopeLoaded ||
+                          savingRegionCode !== undefined
+                        }
+                        type="button"
+                        onClick={() => void save(county)}
+                      >
+                        {savingRegionCode === county.code ? "保存中" : "保存"}
+                      </button>
+                    )}
                   </td>
                 </tr>
               );

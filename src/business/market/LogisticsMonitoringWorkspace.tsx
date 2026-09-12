@@ -264,6 +264,7 @@ export function LogisticsMonitoringWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken = 0,
+  readOnly = true,
   permissions = [],
 }: {
   productCode: "CORN" | "SOYBEAN" | "RICE";
@@ -284,6 +285,7 @@ export function LogisticsMonitoringWorkspace({
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  readOnly?: boolean;
   permissions?: readonly string[];
 }) {
   const [nodeType, setNodeType] = useState("");
@@ -672,7 +674,7 @@ export function LogisticsMonitoringWorkspace({
       </div>
       <ExistingSampleObservationPanel
         domain="LOGISTICS"
-        permissions={permissions}
+        permissions={readOnly ? [] : permissions}
         productCode={productCode}
         repository={realtimeRepository}
         selection={selection}
@@ -723,7 +725,9 @@ export function LogisticsMonitoringWorkspace({
           </label>
           {realtimeRepository ? (
             <RealtimeRegionFilterSelect
-              authorizedRegionCodes={scope.authorization.authorizedRegionIds}
+              authorizedRegionCodes={
+                readOnly ? ["*"] : scope.authorization.authorizedRegionIds
+              }
               disabled={!masterData}
               onChange={(regionCode) => {
                 setRealtimeRegionCode(regionCode);
@@ -834,75 +838,77 @@ export function LogisticsMonitoringWorkspace({
                 ? "正在读取物流监测记录"
                 : `共 ${rowTotal} 条物流记录，当前显示 ${rowStart}–${rowEnd}`}
             </strong>
-            <div className="enterprise-ledger-table__actions">
-              {(realtimeRepository?.downloadLogisticsXlsxTemplate ||
-                realtimeRepository?.importLogisticsWorkbook) && (
+            {!readOnly && (
+              <div className="enterprise-ledger-table__actions">
+                {(realtimeRepository?.downloadLogisticsXlsxTemplate ||
+                  realtimeRepository?.importLogisticsWorkbook) && (
+                  <div
+                    aria-label="批量导入"
+                    className="enterprise-ledger-action-group"
+                    role="group"
+                  >
+                    <span className="enterprise-ledger-action-group__label">
+                      批量导入
+                    </span>
+                    {realtimeRepository.downloadLogisticsXlsxTemplate && (
+                      <button
+                        type="button"
+                        onClick={() => void downloadTemplate()}
+                      >
+                        下载 XLSX 模板
+                      </button>
+                    )}
+                    {realtimeRepository.importLogisticsWorkbook && (
+                      <>
+                        <label className="realtime-business-file-action">
+                          {importing ? "正在导入" : "批量导入 XLSX"}
+                          <input
+                            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            aria-label="批量导入物流记录"
+                            disabled={importing}
+                            type="file"
+                            onChange={(event) => {
+                              void importWorkbook(event.target.files?.[0]);
+                              event.target.value = "";
+                            }}
+                          />
+                        </label>
+                        <label className="realtime-business-file-action">
+                          随 XLSX 上传照片（{importPhotos.length} 张）
+                          <input
+                            accept="image/jpeg,image/png"
+                            aria-label="附加物流照片"
+                            disabled={importing}
+                            multiple
+                            type="file"
+                            onChange={(event) =>
+                              setImportPhotos(
+                                Array.from(event.target.files ?? []),
+                              )
+                            }
+                          />
+                        </label>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div
-                  aria-label="批量导入"
-                  className="enterprise-ledger-action-group"
+                  aria-label="单条录入"
+                  className="enterprise-ledger-action-group enterprise-ledger-action-group--primary"
                   role="group"
                 >
                   <span className="enterprise-ledger-action-group__label">
-                    批量导入
+                    单条录入
                   </span>
-                  {realtimeRepository.downloadLogisticsXlsxTemplate && (
-                    <button
-                      type="button"
-                      onClick={() => void downloadTemplate()}
-                    >
-                      下载 XLSX 模板
-                    </button>
-                  )}
-                  {realtimeRepository.importLogisticsWorkbook && (
-                    <>
-                      <label className="realtime-business-file-action">
-                        {importing ? "正在导入" : "批量导入 XLSX"}
-                        <input
-                          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                          aria-label="批量导入物流记录"
-                          disabled={importing}
-                          type="file"
-                          onChange={(event) => {
-                            void importWorkbook(event.target.files?.[0]);
-                            event.target.value = "";
-                          }}
-                        />
-                      </label>
-                      <label className="realtime-business-file-action">
-                        随 XLSX 上传照片（{importPhotos.length} 张）
-                        <input
-                          accept="image/jpeg,image/png"
-                          aria-label="附加物流照片"
-                          disabled={importing}
-                          multiple
-                          type="file"
-                          onChange={(event) =>
-                            setImportPhotos(
-                              Array.from(event.target.files ?? []),
-                            )
-                          }
-                        />
-                      </label>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => onCreateRecord?.(productCode)}
+                  >
+                    新建监测记录
+                  </button>
                 </div>
-              )}
-              <div
-                aria-label="单条录入"
-                className="enterprise-ledger-action-group enterprise-ledger-action-group--primary"
-                role="group"
-              >
-                <span className="enterprise-ledger-action-group__label">
-                  单条录入
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onCreateRecord?.(productCode)}
-                >
-                  新建监测记录
-                </button>
               </div>
-            </div>
+            )}
           </div>
           <div className="enterprise-ledger-table__scroll" tabIndex={0}>
             <table aria-label="粮食物流监测表">
@@ -962,6 +968,7 @@ export function LogisticsMonitoringWorkspace({
                             查看记录
                           </button>
                           {record.values.__FORMAL_SAMPLE_ID &&
+                            !readOnly &&
                             permissions.includes("FORMAL_SAMPLE_MANAGE") && (
                               <button
                                 className="enterprise-ledger-row-action"
@@ -977,6 +984,7 @@ export function LogisticsMonitoringWorkspace({
                               </button>
                             )}
                           {record.values.__FORMAL_SAMPLE_ID &&
+                            !readOnly &&
                             permissions.includes("FORMAL_SAMPLE_DELETE") && (
                               <button
                                 className="enterprise-ledger-row-action"

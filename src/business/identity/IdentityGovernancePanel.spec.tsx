@@ -507,10 +507,28 @@ describe("IdentityGovernancePanel", () => {
         initialView="employees"
         onClose={vi.fn()}
         repository={api as unknown as RealtimeBusinessRepository}
-        session={session}
+        session={{
+          ...session,
+          rootAdministrator: true,
+          workUnitCode: "PLATFORM_ADMIN",
+          workUnitName: "平台系统管理",
+        }}
       />,
     );
     await screen.findByText("张敏");
+    expect(api.loadAssignmentOptions).toHaveBeenCalledWith("QIQIHAR_BUSINESS");
+    await userEvent.click(screen.getByRole("button", { name: "邀请员工" }));
+    const unitSelect = screen.getByLabelText("工作单位");
+    await waitFor(() =>
+      expect(within(unitSelect).getAllByRole("option")).toHaveLength(6),
+    );
+    expect(unitSelect).toHaveValue("QIQIHAR_BUSINESS");
+    expect(
+      within(unitSelect)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(units.map((unit) => unit.name));
+
     const unitsPanel = screen.getByRole("complementary", { name: "组织单位" });
     expect(within(unitsPanel).getAllByRole("button")).toHaveLength(7);
     await userEvent.click(
@@ -1084,7 +1102,10 @@ describe("IdentityGovernancePanel", () => {
     expect(
       await screen.findByRole("checkbox", { name: "可访问地区 讷河责任乡镇" }),
     ).toBeVisible();
-    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith("NEHE_DEPOT");
+    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith(
+      "NEHE_DEPOT",
+      undefined,
+    );
   });
 
   it("loads an existing employee's own work unit before editing responsibility townships", async () => {
@@ -1133,7 +1154,10 @@ describe("IdentityGovernancePanel", () => {
     expect(
       await screen.findByRole("checkbox", { name: "可访问地区 讷河责任乡镇" }),
     ).toBeChecked();
-    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith("NEHE_DEPOT");
+    expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith(
+      "NEHE_DEPOT",
+      "employee-1",
+    );
   });
 
   it("does not let a slow employee-list request overwrite the selected unit townships", async () => {

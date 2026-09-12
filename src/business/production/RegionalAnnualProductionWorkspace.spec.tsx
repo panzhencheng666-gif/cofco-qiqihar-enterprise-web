@@ -89,6 +89,7 @@ describe("RegionalAnnualProductionWorkspace", () => {
 
     render(
       <RegionalAnnualProductionWorkspace
+        canWrite
         api={api}
         authorizedRegionCodes={["*"]}
         repository={repository}
@@ -180,6 +181,7 @@ describe("RegionalAnnualProductionWorkspace", () => {
 
     render(
       <RegionalAnnualProductionWorkspace
+        canWrite
         api={{ get, put } as unknown as RealtimeApiClient}
         authorizedRegionCodes={["*"]}
         repository={repository}
@@ -260,6 +262,7 @@ describe("RegionalAnnualProductionWorkspace", () => {
 
     render(
       <RegionalAnnualProductionWorkspace
+        canWrite
         api={{ get, put } as unknown as RealtimeApiClient}
         authorizedRegionCodes={["*"]}
         repository={repository}
@@ -329,6 +332,7 @@ describe("RegionalAnnualProductionWorkspace", () => {
 
     render(
       <RegionalAnnualProductionWorkspace
+        canWrite
         api={{ get, put } as unknown as RealtimeApiClient}
         authorizedRegionCodes={["*"]}
         repository={repository}
@@ -431,6 +435,7 @@ describe("RegionalAnnualProductionWorkspace", () => {
 
     render(
       <RegionalAnnualProductionWorkspace
+        canWrite
         api={{ get, put } as unknown as RealtimeApiClient}
         authorizedRegionCodes={["*"]}
         repository={repository}
@@ -509,6 +514,7 @@ describe("RegionalAnnualProductionWorkspace", () => {
 
     render(
       <RegionalAnnualProductionWorkspace
+        canWrite
         api={{ get, put } as unknown as RealtimeApiClient}
         authorizedRegionCodes={["*"]}
         repository={repository}
@@ -588,6 +594,7 @@ describe("RegionalAnnualProductionWorkspace", () => {
 
     render(
       <RegionalAnnualProductionWorkspace
+        canWrite
         api={{ get, put: vi.fn() } as unknown as RealtimeApiClient}
         authorizedRegionCodes={["*"]}
         repository={repository}

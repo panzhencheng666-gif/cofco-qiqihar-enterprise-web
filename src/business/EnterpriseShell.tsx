@@ -254,6 +254,7 @@ function isPrimaryApplicationActive(
 }
 
 export function EnterpriseShell({
+  administrator = false,
   location,
   onNavigate,
   shellIdentity,
@@ -270,6 +271,7 @@ export function EnterpriseShell({
 }: {
   location: FormalLocation;
   onNavigate: (route: FormalRoute, selection?: FormalSelection) => void;
+  administrator?: boolean;
   shellIdentity: FormalShellIdentity;
   workItems?: readonly BusinessWorkItem[];
   productionObjects?: readonly MonitoringObject[];
@@ -633,6 +635,7 @@ export function EnterpriseShell({
       <div className="formal-enterprise-shell">
         <aside className="formal-sidebar">
           <BusinessNavigationTree
+            administrator={administrator}
             application={currentApplication}
             currentRoute={location.route}
             onNavigate={(route) => {

@@ -442,6 +442,7 @@ export function ProductMarketCollectionWorkspace({
   onEditRecord,
   realtimeRepository,
   realtimeRefreshToken = 0,
+  readOnly = true,
   permissions = [],
 }: {
   section: MarketSection;
@@ -462,6 +463,7 @@ export function ProductMarketCollectionWorkspace({
   ) => void;
   realtimeRepository?: RealtimeBusinessRepository;
   realtimeRefreshToken?: number;
+  readOnly?: boolean;
   permissions?: readonly string[];
 }) {
   const context = requiredContext(section);
@@ -1059,7 +1061,7 @@ export function ProductMarketCollectionWorkspace({
       </div>
       <ExistingSampleObservationPanel
         domain="MARKET"
-        permissions={permissions}
+        permissions={readOnly ? [] : permissions}
         productCode={productCode}
         repository={realtimeRepository}
         selection={selection}
@@ -1110,7 +1112,9 @@ export function ProductMarketCollectionWorkspace({
           </label>
           {realtimeRepository ? (
             <RealtimeRegionFilterSelect
-              authorizedRegionCodes={scope.authorization.authorizedRegionIds}
+              authorizedRegionCodes={
+                readOnly ? ["*"] : scope.authorization.authorizedRegionIds
+              }
               disabled={!masterData}
               onChange={(regionCode) => {
                 setRealtimeRegionCode(regionCode);
@@ -1242,74 +1246,79 @@ export function ProductMarketCollectionWorkspace({
                 ? "正在读取市场采集记录"
                 : `共 ${rowTotal} 个样本点，当前显示 ${rowStart}–${rowEnd}`}
             </strong>
-            <div className="enterprise-ledger-table__actions">
-              {realtimeRepository && (
-                <>
-                  <div
-                    aria-label="批量导入"
-                    className="enterprise-ledger-action-group"
-                    role="group"
-                  >
-                    <span className="enterprise-ledger-action-group__label">
-                      批量导入
-                    </span>
-                    <button
-                      disabled={
-                        importing ||
-                        !realtimeRepository.downloadMarketXlsxTemplate
-                      }
-                      type="button"
-                      onClick={() => void downloadTemplate()}
+            {!readOnly && (
+              <div className="enterprise-ledger-table__actions">
+                {realtimeRepository && (
+                  <>
+                    <div
+                      aria-label="批量导入"
+                      className="enterprise-ledger-action-group"
+                      role="group"
                     >
-                      下载 XLSX 模板
-                    </button>
-                    <label className="realtime-business-file-action">
-                      {importing ? "正在导入" : "批量导入 XLSX"}
-                      <input
-                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        aria-label="批量导入市场采集记录"
+                      <span className="enterprise-ledger-action-group__label">
+                        批量导入
+                      </span>
+                      <button
                         disabled={
-                          importing || !realtimeRepository.importMarketWorkbook
+                          importing ||
+                          !realtimeRepository.downloadMarketXlsxTemplate
                         }
-                        type="file"
-                        onChange={(event) => {
-                          void importRecords(event.target.files?.[0]);
-                          event.target.value = "";
-                        }}
-                      />
-                    </label>
-                    <label className="realtime-business-file-action">
-                      随 XLSX 上传照片（{importPhotos.length} 张）
-                      <input
-                        accept="image/jpeg,image/png"
-                        aria-label="附加市场照片"
-                        disabled={importing}
-                        multiple
-                        type="file"
-                        onChange={(event) =>
-                          setImportPhotos(Array.from(event.target.files ?? []))
-                        }
-                      />
-                    </label>
-                  </div>
-                </>
-              )}
-              <div
-                aria-label="单条录入"
-                className="enterprise-ledger-action-group enterprise-ledger-action-group--primary"
-                role="group"
-              >
-                <span className="enterprise-ledger-action-group__label">
-                  单条录入
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onCreateRecord?.(productCode)}
+                        type="button"
+                        onClick={() => void downloadTemplate()}
+                      >
+                        下载 XLSX 模板
+                      </button>
+                      <label className="realtime-business-file-action">
+                        {importing ? "正在导入" : "批量导入 XLSX"}
+                        <input
+                          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                          aria-label="批量导入市场采集记录"
+                          disabled={
+                            importing ||
+                            !realtimeRepository.importMarketWorkbook
+                          }
+                          type="file"
+                          onChange={(event) => {
+                            void importRecords(event.target.files?.[0]);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+                      <label className="realtime-business-file-action">
+                        随 XLSX 上传照片（{importPhotos.length} 张）
+                        <input
+                          accept="image/jpeg,image/png"
+                          aria-label="附加市场照片"
+                          disabled={importing}
+                          multiple
+                          type="file"
+                          onChange={(event) =>
+                            setImportPhotos(
+                              Array.from(event.target.files ?? []),
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+                  </>
+                )}
+                <div
+                  aria-label="单条录入"
+                  className="enterprise-ledger-action-group enterprise-ledger-action-group--primary"
+                  role="group"
                 >
-                  新建采集记录
-                </button>
+                  <span className="enterprise-ledger-action-group__label">
+                    单条录入
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onCreateRecord?.(productCode)}
+                  >
+                    新建采集记录
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <div className="enterprise-ledger-table__scroll" tabIndex={0}>
             <table aria-label={`${context.productLabel}市场采集表`}>
@@ -1401,6 +1410,7 @@ export function ProductMarketCollectionWorkspace({
                         查看记录
                       </button>
                       {row.samplePointId &&
+                        !readOnly &&
                         permissions.includes("FORMAL_SAMPLE_MANAGE") && (
                           <button
                             className="enterprise-ledger-row-action"
@@ -1416,6 +1426,7 @@ export function ProductMarketCollectionWorkspace({
                           </button>
                         )}
                       {row.samplePointId &&
+                        !readOnly &&
                         permissions.includes("FORMAL_SAMPLE_DELETE") && (
                           <button
                             className="enterprise-ledger-row-action"
@@ -1451,6 +1462,7 @@ export function ProductMarketCollectionWorkspace({
                           </button>
                         )}
                       {row.samplePointId &&
+                        !readOnly &&
                         permissions.includes("FORMAL_SAMPLE_DELETE") && (
                           <button
                             className="enterprise-ledger-row-action"
@@ -1497,23 +1509,26 @@ export function ProductMarketCollectionWorkspace({
           </footer>
         </section>
 
-        {!realtimeRepository && selectedItem && selectedDocument && (
-          <MarketDocumentWorkbench
-            actor={{
-              userId: scope.identity.userId,
-              displayName: scope.identity.displayName ?? "当前登录人员",
-              canRelease:
-                scope.authorization.permissionKeys.includes("market:release"),
-            }}
-            document={selectedDocument}
-            draft={documentDrafts[selectedItem.workId]}
-            item={selectedItem}
-            onDraftChange={(draft) =>
-              onDocumentDraftChange(selectedItem.workId, draft)
-            }
-            onItemChange={onWorkItemChange}
-          />
-        )}
+        {!readOnly &&
+          !realtimeRepository &&
+          selectedItem &&
+          selectedDocument && (
+            <MarketDocumentWorkbench
+              actor={{
+                userId: scope.identity.userId,
+                displayName: scope.identity.displayName ?? "当前登录人员",
+                canRelease:
+                  scope.authorization.permissionKeys.includes("market:release"),
+              }}
+              document={selectedDocument}
+              draft={documentDrafts[selectedItem.workId]}
+              item={selectedItem}
+              onDraftChange={(draft) =>
+                onDocumentDraftChange(selectedItem.workId, draft)
+              }
+              onItemChange={onWorkItemChange}
+            />
+          )}
       </ExistingSampleObservationPanel>
     </div>
   );

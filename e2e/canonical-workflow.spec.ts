@@ -5,6 +5,7 @@ import {
   setControlledApiMode,
   test,
 } from "./fixtures";
+import type { Page } from "@playwright/test";
 
 test.beforeEach(async ({ request }) => {
   await resetControlledApi(request);
@@ -40,10 +41,17 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
   await expect(row).toContainText("龙江县龙江镇通齐村");
   await expect(row).toContainText("验收填报员");
   await expect(row.getByRole("button", { name: "查看记录" })).toBeVisible();
-  await expect(row.getByRole("button", { name: "编辑" })).toBeVisible();
-  await expect(row.getByRole("button", { name: "删除" })).toBeVisible();
+  await expect(row.getByRole("button", { name: "编辑" })).toHaveCount(0);
+  await expect(row.getByRole("button", { name: "删除" })).toHaveCount(0);
+
+  await page.goto("/#/我的工作/我的任务");
+  await expect(page.getByRole("heading", { name: "我的任务" })).toBeVisible();
+  const taskRow = page.getByRole("row", { name: /龙江县粮食贸易样本一号/ });
+  await expect(taskRow.getByRole("button", { name: "查看记录" })).toBeVisible();
+  await expect(taskRow.getByRole("button", { name: "编辑" })).toBeVisible();
+  await expect(taskRow.getByRole("button", { name: "删除" })).toBeVisible();
   expect(
-    await row
+    await taskRow
       .locator("button")
       .evaluateAll(
         (buttons) =>
@@ -63,7 +71,7 @@ test("uses one unified existing-sample ledger and persists row-owned collection"
   ).toBe(true);
   await page.setViewportSize({ width: 1600, height: 900 });
 
-  await row.getByRole("button", { name: "编辑" }).click();
+  await taskRow.getByRole("button", { name: "编辑" }).click();
   await expect(
     page.getByRole("heading", { name: "填写或更新采集数据" }),
   ).toBeVisible();
@@ -147,7 +155,8 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
   request,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/#/我的工作/样本点管理");
+  await installAdministratorSession(page);
+  await page.goto("/#/我的工作/设计样本点维护");
 
   const filters = page.getByRole("search", { name: "设计参考点筛选" });
   const controls = filters.locator("input, select, button");
@@ -306,6 +315,35 @@ test("keeps design-sample filters aligned and persists controlled CRUD", async (
     ]),
   );
 });
+
+async function installAdministratorSession(page: Page) {
+  await page.route("**/api/v1/session/me", (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          accountStatus: "ACTIVE",
+          displayName: "验收管理员",
+          employmentStatus: "ACTIVE",
+          permissions: [
+            "BUSINESS_READ",
+            "BUSINESS_CREATE",
+            "BUSINESS_UPDATE",
+            "BUSINESS_IMPORT",
+            "FORMAL_SAMPLE_MANAGE",
+            "FORMAL_SAMPLE_DELETE",
+          ],
+          positions: [],
+          regionCodes: [],
+          roleCodes: ["ADMIN"],
+          rootAdministrator: false,
+          subjectId: "e2e-administrator",
+          workUnitCode: "QIQIHAR_BUSINESS",
+          workUnitName: "齐齐哈尔业务组",
+        },
+      },
+    }),
+  );
+}
 
 test("keeps an empty API store empty without loading browser fixtures", async ({
   page,

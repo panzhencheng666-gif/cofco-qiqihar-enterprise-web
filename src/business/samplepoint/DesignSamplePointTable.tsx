@@ -102,8 +102,9 @@ export function DesignSamplePointTable({
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
   const hydratedSelection = useRef("");
-  const canWrite = session.permissions.includes("BUSINESS_UPDATE");
-  const canImport = session.permissions.includes("BUSINESS_IMPORT");
+  const canWrite =
+    session.rootAdministrator === true || session.roleCodes.includes("ADMIN");
+  const canImport = canWrite;
   const showList = true;
   const navigate = (next: FormalSelection) => onSelectionChange?.(next);
 
@@ -274,7 +275,7 @@ export function DesignSamplePointTable({
       });
       return;
     }
-    if (selection.type === "design-sample-create") {
+    if (selection.type === "design-sample-create" && canWrite) {
       queueMicrotask(() => {
         setActionError("");
         setViewPoint(undefined);
@@ -294,7 +295,7 @@ export function DesignSamplePointTable({
         if (selection.type === "design-sample-view") {
           setEditor(undefined);
           setViewPoint(point);
-        } else if (selection.type === "design-sample-edit") {
+        } else if (selection.type === "design-sample-edit" && canWrite) {
           setViewPoint(undefined);
           void loadEditor({ mode: "edit", point });
         }
@@ -304,12 +305,12 @@ export function DesignSamplePointTable({
           errorMessage(error, "最新点位信息暂不可用，请稍后重试。"),
         ),
       );
-  }, [loadEditor, repository, selection]);
+  }, [canWrite, loadEditor, repository, selection]);
 
   const reload = () => setRefresh((value) => value + 1);
 
   const save = async () => {
-    if (!editor || !editorContract || saving) return;
+    if (!canWrite || !editor || !editorContract || saving) return;
     if (!repository.getDesignSamplePoint) {
       setEditorError("最新点位信息暂不可用，请稍后重试。");
       return;
@@ -363,6 +364,7 @@ export function DesignSamplePointTable({
   };
 
   const remove = async (point: DesignSamplePointRow) => {
+    if (!canWrite) return;
     if (
       !repository.deleteDesignSamplePoint ||
       !window.confirm(`确认删除“${point.name}”？`)
@@ -768,7 +770,7 @@ export function DesignSamplePointTable({
         </section>
       ) : null}
 
-      {editor ? (
+      {editor && canWrite ? (
         <DesignSamplePointEditor
           catalog={catalog ?? editorContract}
           contract={editorContract}
