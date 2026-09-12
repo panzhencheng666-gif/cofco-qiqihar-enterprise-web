@@ -919,7 +919,7 @@ describe("realtime business repository", () => {
 
   it("revalidates long-lived form definitions after five minutes", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(0);
-    const {api,get} = client();
+    const { api, get } = client();
     get.mockResolvedValue(productionDefinition() as never);
     const repository = createRealtimeBusinessRepository(api);
     try {
@@ -929,7 +929,9 @@ describe("realtime business repository", () => {
       now.mockReturnValue(300_001);
       await repository.loadProductionDefinition("CORN", "FARMER");
       expect(get).toHaveBeenCalledTimes(2);
-    } finally { now.mockRestore(); }
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it("does not reuse a cached definition across product codes", async () => {
@@ -1283,9 +1285,13 @@ describe("realtime business repository", () => {
     const { api, get } = client();
     const repository = createRealtimeBusinessRepository(api);
     await repository.loadAssignmentOptions("QIQIHAR_BUSINESS", "employee-88");
-    expect(get).toHaveBeenCalledWith("/api/v1/identity/employees/assignment-options", {
-      workUnitCode: "QIQIHAR_BUSINESS", subjectId: "employee-88",
-    });
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/identity/employees/assignment-options",
+      {
+        workUnitCode: "QIQIHAR_BUSINESS",
+        subjectId: "employee-88",
+      },
+    );
   });
 
   it("connects employee assignments and access reviews to governance APIs", async () => {

@@ -30,9 +30,7 @@ try {
     await page.goto(origin);
     await expect(page).toHaveURL(/\/realms\/cofco-local\//u);
     await expect(page.locator("#kc-form-login")).toBeVisible();
-    await expect(
-      page.locator("#cofco-sms-tab"),
-    ).toBeVisible();
+    await expect(page.locator("#cofco-sms-tab")).toBeVisible();
     await expect(page.locator("body")).not.toContainText("无效的参数");
     await page.waitForLoadState("networkidle");
     if (evidence)
@@ -77,8 +75,12 @@ try {
     )
       throw new Error("Registration overflow");
     await page.goto(origin);
-    await expect(page.getByRole("link", { name: "员工注册", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "手机号登录", exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "员工注册", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "手机号登录", exact: true }),
+    ).toHaveCount(0);
     for (let repeat = 0; repeat < 3; repeat++) {
       await page.goto(origin + "/oauth2/authorization/enterprise");
       await expect(page.locator("#kc-form-login")).toBeVisible();

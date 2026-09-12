@@ -241,7 +241,9 @@ describe("formal enterprise prototype", () => {
   });
 
   it("automatically enters unified login without an intermediate card when no session exists", async () => {
-    const redirect = vi.spyOn(automaticLogin, "redirectToEnterpriseLogin").mockReturnValue(true);
+    const redirect = vi
+      .spyOn(automaticLogin, "redirectToEnterpriseLogin")
+      .mockReturnValue(true);
     const loadMasterData = vi.fn();
     const listWorkItems = vi.fn();
     const repository = {
@@ -264,12 +266,20 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
-    await waitFor(() => expect(redirect).toHaveBeenCalledWith("/api/v1/session/login"));
-    expect(screen.queryByRole("heading", { name: "登录企业账号" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "进入统一身份认证" })).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(redirect).toHaveBeenCalledWith("/api/v1/session/login"),
+    );
+    expect(
+      screen.queryByRole("heading", { name: "登录企业账号" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "进入统一身份认证" }),
+    ).not.toBeInTheDocument();
     redirect.mockRestore();
     expect(screen.queryByText("产情监测")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "手机号登录" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "手机号登录" }),
+    ).not.toBeInTheDocument();
     expect(loadMasterData).not.toHaveBeenCalled();
     expect(listWorkItems).not.toHaveBeenCalled();
     expect(
@@ -793,11 +803,32 @@ describe("formal enterprise prototype", () => {
   });
 
   it("keeps the shared work catalog when navigating between business sections", async () => {
-    const loadMasterData = vi.fn(async () => ({products:[],periods:[],regions:[]}));
-    const listWorkItems = vi.fn(async () => ({items:[],pageNumber:0,pageSize:100,totalElements:0,totalPages:0}));
-    const repository = {loadCurrentSession: async () => apiSession(), loadMasterData, listWorkItems,
-      listNotifications:async () => ({items:[],unreadCount:0}),subscribeBusinessEvents:()=>()=>{}} as unknown as RealtimeBusinessRepository;
-    render(<EnterpriseBusinessApplication dataMode="api" initialSearch="?page=work&section=tasks" repository={repository} />);
+    const loadMasterData = vi.fn(async () => ({
+      products: [],
+      periods: [],
+      regions: [],
+    }));
+    const listWorkItems = vi.fn(async () => ({
+      items: [],
+      pageNumber: 0,
+      pageSize: 100,
+      totalElements: 0,
+      totalPages: 0,
+    }));
+    const repository = {
+      loadCurrentSession: async () => apiSession(),
+      loadMasterData,
+      listWorkItems,
+      listNotifications: async () => ({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: () => () => {},
+    } as unknown as RealtimeBusinessRepository;
+    render(
+      <EnterpriseBusinessApplication
+        dataMode="api"
+        initialSearch="?page=work&section=tasks"
+        repository={repository}
+      />,
+    );
     await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(1));
     await act(async () => {
       window.history.replaceState({}, "", "/#/产情监测/业务任务");

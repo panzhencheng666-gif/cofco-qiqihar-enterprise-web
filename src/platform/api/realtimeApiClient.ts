@@ -184,13 +184,25 @@ export function createRealtimeApiClient(
     (() => (typeof document === "undefined" ? "" : document.cookie));
 
   const pendingReads = new Map<string, Promise<unknown>>();
-  function sharedRead<T>(path: string, query?: Record<string, string | number | undefined>, shape: "ENVELOPE" | "RAW" = "ENVELOPE"): Promise<T> {
-    const key = JSON.stringify([shape, path, Object.entries(query ?? {}).filter(([, value]) => value !== undefined).sort(([a], [b]) => a.localeCompare(b))]);
+  function sharedRead<T>(
+    path: string,
+    query?: Record<string, string | number | undefined>,
+    shape: "ENVELOPE" | "RAW" = "ENVELOPE",
+  ): Promise<T> {
+    const key = JSON.stringify([
+      shape,
+      path,
+      Object.entries(query ?? {})
+        .filter(([, value]) => value !== undefined)
+        .sort(([a], [b]) => a.localeCompare(b)),
+    ]);
     const pending = pendingReads.get(key);
     if (pending) return pending as Promise<T>;
-    const next = request<T>("GET", path, query, undefined, {}, shape).finally(() => {
-      if (pendingReads.get(key) === next) pendingReads.delete(key);
-    });
+    const next = request<T>("GET", path, query, undefined, {}, shape).finally(
+      () => {
+        if (pendingReads.get(key) === next) pendingReads.delete(key);
+      },
+    );
     pendingReads.set(key, next);
     return next;
   }

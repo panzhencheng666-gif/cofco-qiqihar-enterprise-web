@@ -299,8 +299,10 @@
       el("title").textContent = el("mode").selectedOptions[0].textContent;
       el("originalLogin").hidden = false;
       el("modeLabel").hidden = false;
-      el("submit").textContent = el("mode").value === "BIND" ? "验证并绑定" : "验证并预览合并";
-      el("intro").textContent = "请先使用需要保留的原账号密码重新登录，再验证手机号。";
+      el("submit").textContent =
+        el("mode").value === "BIND" ? "验证并绑定" : "验证并预览合并";
+      el("intro").textContent =
+        "请先使用需要保留的原账号密码重新登录，再验证手机号。";
     }
     el("mode").onchange = reset;
     el("phone").oninput = () => {
@@ -347,10 +349,10 @@
       el("mode").disabled = true;
       try {
         const mode = el("mode").value;
-        const d = await api(
-          mode === "BIND" ? "bind" : "merge-preview",
-          { challengeId, code: el("code").value },
-        );
+        const d = await api(mode === "BIND" ? "bind" : "merge-preview", {
+          challengeId,
+          code: el("code").value,
+        });
         challengeId = null;
         if (mode === "BIND") {
           el("status").textContent = "手机号绑定成功，可用于验证码登录。";
