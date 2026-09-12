@@ -12,8 +12,8 @@ describe("realtime API client", () => {
             finishOld = resolve;
           }),
       )
-      .mockImplementation(
-        async () => new Response(JSON.stringify({ data: { version: 2 } })),
+      .mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ data: { version: 2 } }))),
       );
     const client = createRealtimeApiClient({ baseUrl: "", fetcher });
     const old = client.get("/api/v1/example");
@@ -32,8 +32,8 @@ describe("realtime API client", () => {
   it("coalesces simultaneous reads without keeping settled business data", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
-      .mockImplementation(
-        async () => new Response(JSON.stringify({ data: { value: 1 } })),
+      .mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ data: { value: 1 } }))),
       );
     const client = createRealtimeApiClient({ baseUrl: "", fetcher });
     await Promise.all([

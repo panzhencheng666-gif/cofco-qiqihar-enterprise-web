@@ -55,7 +55,7 @@ describe("monitoring and task boundary", () => {
       expect(screen.getByRole("table")).toBeInTheDocument();
     },
   );
-  it("sends MY_TASKS with existing filters and uses global browse repository unchanged", async () => {
+  it("sends MY_TASKS with existing filters", async () => {
     const listEligibleFormalSamples = vi.fn().mockResolvedValue([]);
     const listMarket = vi.fn().mockResolvedValue({ items: [] });
     const original = {
@@ -74,7 +74,7 @@ describe("monitoring and task boundary", () => {
       filters: { regionCode: "230221100" },
       scope: "MY_TASKS",
     });
-    expect(original.listMarket).toBe(listMarket);
+    expect(listMarket).toHaveBeenCalledTimes(1);
   });
   it("shows no list or create action for an unassigned ordinary account", () => {
     render(

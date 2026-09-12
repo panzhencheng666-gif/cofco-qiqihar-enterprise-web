@@ -803,23 +803,27 @@ describe("formal enterprise prototype", () => {
   });
 
   it("keeps the shared work catalog when navigating between business sections", async () => {
-    const loadMasterData = vi.fn(async () => ({
-      products: [],
-      periods: [],
-      regions: [],
-    }));
-    const listWorkItems = vi.fn(async () => ({
-      items: [],
-      pageNumber: 0,
-      pageSize: 100,
-      totalElements: 0,
-      totalPages: 0,
-    }));
+    const loadMasterData = vi.fn(() =>
+      Promise.resolve({
+        products: [],
+        periods: [],
+        regions: [],
+      }),
+    );
+    const listWorkItems = vi.fn(() =>
+      Promise.resolve({
+        items: [],
+        pageNumber: 0,
+        pageSize: 100,
+        totalElements: 0,
+        totalPages: 0,
+      }),
+    );
     const repository = {
-      loadCurrentSession: async () => apiSession(),
+      loadCurrentSession: () => Promise.resolve(apiSession()),
       loadMasterData,
       listWorkItems,
-      listNotifications: async () => ({ items: [], unreadCount: 0 }),
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
       subscribeBusinessEvents: () => () => {},
     } as unknown as RealtimeBusinessRepository;
     render(

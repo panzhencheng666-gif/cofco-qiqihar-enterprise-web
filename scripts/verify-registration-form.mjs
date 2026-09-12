@@ -1,3 +1,5 @@
+/* global document, innerWidth */
+
 import { chromium, expect } from "@playwright/test";
 const origin = process.argv[2];
 if (

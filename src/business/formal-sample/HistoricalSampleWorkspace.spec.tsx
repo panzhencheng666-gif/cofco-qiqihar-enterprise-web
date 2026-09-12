@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   HistoricalFormalSample,
+  HistoricalFormalSampleQuery,
   Page,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
@@ -109,14 +110,16 @@ describe("historical samples read-only ledger", () => {
     }
   });
   it("uses server totals for paging and applies retirement year and keyword on query", async () => {
-    const list = vi.fn().mockImplementation((input) =>
-      Promise.resolve({
-        ...page(),
-        pageNumber: input.pageNumber,
-        totalElements: 21,
-        totalPages: 2,
-      }),
-    );
+    const list = vi
+      .fn()
+      .mockImplementation((input: HistoricalFormalSampleQuery) =>
+        Promise.resolve({
+          ...page(),
+          pageNumber: input.pageNumber,
+          totalElements: 21,
+          totalPages: 2,
+        }),
+      );
     render(
       <HistoricalSampleWorkspace
         repository={repository(list)}

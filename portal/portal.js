@@ -1,3 +1,5 @@
+/* global document, location, scrollTo, window */
+
 const main = document.querySelector("main");
 const applicationCatalog = Object.freeze([
   Object.freeze({

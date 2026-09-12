@@ -1,3 +1,5 @@
+/* global document, innerWidth */
+
 import { chromium, expect } from "@playwright/test";
 import fs from "node:fs";
 const origin = process.argv[2];

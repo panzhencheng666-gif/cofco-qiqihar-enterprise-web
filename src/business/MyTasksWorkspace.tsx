@@ -51,7 +51,7 @@ export function MyTasksWorkspace({
   const [product, setProduct] = useState<"CORN" | "SOYBEAN" | "RICE">("CORN");
   const scopedRepository = useMemo(
     () => taskRepository(repository),
-    [repository, session],
+    [repository],
   );
   const assigned =
     session.roleCodes.includes("ADMIN") ||
