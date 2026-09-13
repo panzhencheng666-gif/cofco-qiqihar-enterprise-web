@@ -1495,6 +1495,70 @@ describe("IdentityGovernancePanel", () => {
 });
 
 describe("platform account assignment targets", () => {
+  it("requires an explicit business unit before assigning a platform employee", async () => {
+    const api = repository();
+    const employees = await api.listEmployees();
+    api.listEmployees.mockResolvedValue([
+      { ...employees[0]!, workUnitCode: "PLATFORM_ADMIN" },
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        session={{
+          ...session,
+          rootAdministrator: true,
+          workUnitCode: "PLATFORM_ADMIN",
+        }}
+        repository={api as unknown as RealtimeBusinessRepository}
+      />,
+    );
+    await screen.findByText("张敏");
+    await userEvent.click(screen.getByRole("button", { name: "设置负责地区" }));
+    expect(await screen.findByText(/该账号尚未归属业务单位/)).toBeVisible();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "保存授权调整" }),
+      ).toBeDisabled(),
+    );
+    expect(screen.getByLabelText("工作单位")).toHaveValue("PLATFORM_ADMIN");
+    expect(api.updateEmployee).not.toHaveBeenCalled();
+    expect(api.loadAssignmentOptions).not.toHaveBeenCalledWith(
+      "PLATFORM_ADMIN",
+      expect.anything(),
+    );
+  });
+
+  it("does not let another platform employee poison review options", async () => {
+    const api = repository();
+    const employees = await api.listEmployees();
+    api.listEmployees.mockResolvedValue([
+      {
+        ...employees[0]!,
+        subjectId: "platform-user",
+        workUnitCode: "PLATFORM_ADMIN",
+      },
+      ...employees,
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="reviews"
+        onClose={vi.fn()}
+        session={{
+          ...session,
+          rootAdministrator: true,
+          workUnitCode: "PLATFORM_ADMIN",
+        }}
+        repository={api as unknown as RealtimeBusinessRepository}
+      />,
+    );
+    await waitFor(() => expect(api.listAccessReviews).toHaveBeenCalled());
+    expect(api.loadAssignmentOptions).not.toHaveBeenCalledWith(
+      "PLATFORM_ADMIN",
+    );
+    expect(api.loadAssignmentOptions).toHaveBeenCalledWith("QIQIHAR_BUSINESS");
+  });
+
   it("loads reviews using server-scoped business units instead of the platform account unit", async () => {
     const api = repository();
     const businessEmployees = await api.listEmployees();

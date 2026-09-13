@@ -43,7 +43,10 @@ export function SampleResponsibilityEditor({
       repository.loadRegionResponsibility(employee.subjectId),
       readOnly
         ? Promise.resolve(null)
-        : repository.loadAssignmentOptions(employee.workUnitCode),
+        : repository.loadAssignmentOptions(
+            employee.workUnitCode,
+            employee.subjectId,
+          ),
     ])
       .then(async ([current, assignment]) => {
         if (!active) return;

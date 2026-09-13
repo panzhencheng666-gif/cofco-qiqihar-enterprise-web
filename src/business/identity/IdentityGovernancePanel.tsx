@@ -190,7 +190,10 @@ interface AssignmentDraft {
 }
 
 function assignmentUnit(session: CurrentSession): string {
-  return session.rootAdministrator ? "QIQIHAR_BUSINESS" : session.workUnitCode;
+  return session.rootAdministrator ||
+    session.workUnitCode.startsWith("PLATFORM_")
+    ? "QIQIHAR_BUSINESS"
+    : session.workUnitCode;
 }
 
 function invitationDraft(session: CurrentSession): AssignmentDraft {
@@ -329,6 +332,13 @@ function AssignmentEditor({
             value={draft.workUnitCode}
             onChange={(event) => onWorkUnitChange(event.target.value)}
           >
+            {!options.workUnits.some(
+              (unit) => unit.code === draft.workUnitCode,
+            ) && (
+              <option value={draft.workUnitCode} disabled>
+                请选择员工所属的业务单位
+              </option>
+            )}
             {options.workUnits.map((option) => (
               <option key={option.code} value={option.code}>
                 {option.name}
@@ -447,6 +457,9 @@ function AssignmentEditor({
           disabled={
             saving ||
             loadingOptions ||
+            !options.workUnits.some(
+              (unit) => unit.code === draft.workUnitCode,
+            ) ||
             !draft.subjectId.trim() ||
             !draft.displayName.trim() ||
             (invite && !draft.deliveryAddress.trim())
@@ -583,6 +596,7 @@ export function IdentityGovernancePanel({
     const businessEmployees = visibleEmployees.filter(
       (employee) =>
         employee.subjectId !== session.subjectId &&
+        !employee.workUnitCode.startsWith("PLATFORM_") &&
         employee.roles.some((role) =>
           ["BUSINESS_OPERATOR", "BUSINESS_REVIEWER"].includes(role.code),
         ),
@@ -821,7 +835,9 @@ export function IdentityGovernancePanel({
     setInvitationEditor(null);
     setEditor({ invite, draft: { ...draft, regionCodes: [] } });
     void requestAssignmentOptions(
-      draft.workUnitCode,
+      draft.workUnitCode.startsWith("PLATFORM_")
+        ? assignmentUnit(session)
+        : draft.workUnitCode,
       draft.regionCodes,
       invite ? undefined : draft.subjectId,
     );
@@ -1645,11 +1661,22 @@ export function IdentityGovernancePanel({
                                     ) && (
                                       <button
                                         type="button"
-                                        onClick={() =>
-                                          setResponsibilityEditor({
-                                            employee,
-                                          })
-                                        }
+                                        onClick={() => {
+                                          if (
+                                            !options.workUnits.some(
+                                              (unit) =>
+                                                unit.code ===
+                                                employee.workUnitCode,
+                                            )
+                                          ) {
+                                            openAssignmentEditor(
+                                              false,
+                                              employeeDraft(employee),
+                                            );
+                                            return;
+                                          }
+                                          setResponsibilityEditor({ employee });
+                                        }}
                                       >
                                         设置负责地区
                                       </button>
@@ -1720,6 +1747,13 @@ export function IdentityGovernancePanel({
                     rootClassName="identity-settings-drawer"
                     destroyOnHidden
                   >
+                    {!options.workUnits.some(
+                      (unit) => unit.code === editor.draft.workUnitCode,
+                    ) && (
+                      <p role="status" className="identity-governance-info">
+                        该账号尚未归属业务单位。请先选择实际工作单位并保存，再设置负责地区。系统不会自动更改单位或授权。
+                      </p>
+                    )}
                     {error && (
                       <p role="alert" className="identity-governance-error">
                         {error}
