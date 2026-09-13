@@ -1,3 +1,4 @@
+import { workbenchReturn } from "../workbenchNavigation";
 import { useEffect, useState } from "react";
 import {
   realtimeBusinessRepository,
@@ -144,7 +145,7 @@ export function IdentityWorkspaceApplication({
             initialView={view}
             onViewChange={openView}
             onClose={() => {
-              window.location.assign("/");
+              window.location.assign(workbenchReturn(window.location));
             }}
             session={session}
             repository={repository}

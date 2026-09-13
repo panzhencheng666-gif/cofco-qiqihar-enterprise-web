@@ -1,3 +1,4 @@
+import { WORKBENCH_URL, identityNavigationUrl } from "./workbenchNavigation";
 import type { ReactNode } from "react";
 import type { CurrentSession } from "@/platform/api/realtimeBusinessRepository";
 import { EnterpriseIcon } from "./EnterpriseIcon";
@@ -61,14 +62,18 @@ export function EnterprisePlatformHeader({
   );
   return (
     <div className="enterprise-platform-header">
-      <a className="platform-brand" href="/">
-        <img className="platform-rice-mark" src="/brand/rice-emblem.png" alt="金色双稻穗与田垄徽标" />
+      <a className="platform-brand" href={WORKBENCH_URL}>
+        <img
+          className="platform-rice-mark"
+          src="/brand/rice-emblem.png"
+          alt="金色双稻穗与田垄徽标"
+        />
         <strong>{platformName}</strong>
         <small>粮安天下 · 服务产业 · 数智赋能</small>
       </a>
       <nav aria-label="平台应用">
         <a
-          href="/"
+          href={WORKBENCH_URL}
           aria-current={activeSection === "business" ? "page" : undefined}
         >
           <svg
@@ -83,7 +88,7 @@ export function EnterprisePlatformHeader({
           业务工作台
         </a>
         <a
-          href="/?page=work&section=my-tasks"
+          href={`${WORKBENCH_URL}?page=work&section=my-tasks`}
           aria-current={activeSection === "tasks" ? "page" : undefined}
         >
           <EnterpriseIcon name="task" />
@@ -91,7 +96,7 @@ export function EnterprisePlatformHeader({
         </a>
         {canManage && (
           <a
-            href={managementHref}
+            href={identityNavigationUrl(managementHref, window.location)}
             aria-label={managementLabel}
             aria-current={activeSection === "management" ? "page" : undefined}
           >
@@ -113,7 +118,7 @@ export function EnterprisePlatformHeader({
       {notification ?? (
         <a
           className="platform-bell"
-          href="/?panel=notifications"
+          href={`${WORKBENCH_URL}?panel=notifications`}
           aria-label="业务通知"
         >
           <EnterpriseIcon name="bell" />
@@ -131,7 +136,7 @@ export function EnterprisePlatformHeader({
       ) : (
         <a
           className="platform-person"
-          href={accountHref}
+          href={identityNavigationUrl(accountHref, window.location)}
           aria-label={`当前用户：${displayName}`}
         >
           {person}
