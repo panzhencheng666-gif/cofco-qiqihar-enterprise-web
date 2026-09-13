@@ -931,7 +931,9 @@ export function RealtimeBusinessOperationsPanel({
           <header>
             <strong>
               {selected
-                ? `${businessRecordLabel(values)} · ${statusLabel(selected.status)}`
+                ? mode === "view"
+                  ? businessRecordLabel(values)
+                  : `${businessRecordLabel(values)} · ${statusLabel(selected.status)}`
                 : recordLoadState === "loading"
                   ? "正在读取原业务记录"
                   : recordLoadState === "failed"

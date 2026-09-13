@@ -1,3 +1,4 @@
+import { collectionColumnWidths } from "../collectionTableLayout";
 import { importFailureMessage } from "@/business/importing/businessImportPresentation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -1054,6 +1055,8 @@ export function ProductMarketCollectionWorkspace({
     }
   };
 
+  const columnWidths = collectionColumnWidths(displayedFields.length);
+
   return (
     <div className="enterprise-ledger-workbench">
       <div className="enterprise-ledger-workbench__breadcrumb">
@@ -1069,6 +1072,23 @@ export function ProductMarketCollectionWorkspace({
         onSelectionClear={onSelectionClear}
         onSaved={() => setRecordsRevision((value) => value + 1)}
       >
+        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
+          <div className="business-page-intro">
+            <h1>{context.productLabel}市场采集表</h1>
+            <p>
+              {sourceItem
+                ? businessDate(sourceItem)
+                : `${surveyYear}年${surveyMonth ? `${Number(surveyMonth)}月` : "全年"}`}{" "}
+              · 价格、购销与库存采集记录
+            </p>
+            <p className="enterprise-ledger-title__sample-note">
+              {annualSampleStatusNote(surveyYear)}
+            </p>
+          </div>
+          <span className="business-page-mode">
+            {readOnly ? "数据查看" : "业务办理"}
+          </span>
+        </header>
         <section
           aria-label={`${context.productLabel}市场查询条件`}
           className="enterprise-ledger-query enterprise-ledger-query--market"
@@ -1228,13 +1248,6 @@ export function ProductMarketCollectionWorkspace({
           onDownloadErrors={() => void downloadImportErrors()}
           onRetry={() => void retryImport()}
         />
-        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
-          <h1>{context.productLabel}市场采集表</h1>
-          <p>当前业务对象 · {businessDate(sourceItem)} · 当前授权地区</p>
-          <p className="enterprise-ledger-title__sample-note">
-            {annualSampleStatusNote(surveyYear)}
-          </p>
-        </header>
 
         <section
           className="enterprise-ledger-table enterprise-ledger-table--market"
@@ -1321,7 +1334,19 @@ export function ProductMarketCollectionWorkspace({
             )}
           </div>
           <div className="enterprise-ledger-table__scroll" tabIndex={0}>
-            <table aria-label={`${context.productLabel}市场采集表`}>
+            <table
+              aria-label={`${context.productLabel}市场采集表`}
+              className="collection-table-standard"
+              style={{
+                width: columnWidths.reduce((total, width) => total + width, 0),
+                minWidth: "100%",
+              }}
+            >
+              <colgroup>
+                {columnWidths.map((width, index) => (
+                  <col key={index} style={{ width }} />
+                ))}
+              </colgroup>
               <thead>
                 <tr>
                   <th rowSpan={2}>序号</th>
@@ -1364,10 +1389,12 @@ export function ProductMarketCollectionWorkspace({
                     <td>{row.number}</td>
                     <td>{row.collectionDate}</td>
                     <td>{row.submittedAt}</td>
-                    <th scope="row">{row.subject}</th>
+                    <th scope="row" title={row.subject}>
+                      {row.subject}
+                    </th>
                     <td>{row.objectType}</td>
-                    <td>{row.county}</td>
-                    <td>{row.address}</td>
+                    <td title={row.county}>{row.county}</td>
+                    <td title={row.address}>{row.address}</td>
                     <td>{row.maintainer}</td>
                     <td>{row.reporter}</td>
                     <td>{row.surveyor}</td>
@@ -1495,8 +1522,9 @@ export function ProductMarketCollectionWorkspace({
           </div>
           <footer>
             <span>
-              本页已填 {completedFields} 项，缺失 {missingFields} 项，异常{" "}
-              {abnormalRows} 项
+              {realtimeRepository
+                ? `每页 ${collectionPageSize} 条`
+                : `本页已填 ${completedFields} 项，缺失 ${missingFields} 项，异常 ${abnormalRows} 项`}
             </span>
             <WorkspacePagination
               end={rowEnd}

@@ -682,6 +682,18 @@ export function LogisticsMonitoringWorkspace({
         onSelectionClear={onSelectionClear}
         onSaved={() => setRecordsRevision((value) => value + 1)}
       >
+        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
+          <div className="business-page-intro">
+            <h1>粮食物流监测表</h1>
+            <p>
+              物流运输业务 · {surveyYear}年
+              {surveyMonth ? `${Number(surveyMonth)}月` : "全年"} · 当前授权地区
+            </p>
+          </div>
+          <span className="business-page-mode">
+            {readOnly ? "数据查看" : "业务办理"}
+          </span>
+        </header>
         <section
           aria-label="物流业务查询条件"
           className="enterprise-ledger-query enterprise-ledger-query--logistics"
@@ -819,14 +831,6 @@ export function LogisticsMonitoringWorkspace({
           onDownloadErrors={() => void downloadImportErrors()}
           onRetry={() => void retryImport()}
         />
-
-        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
-          <h1>粮食物流监测表</h1>
-          <p>
-            物流运输业务 · {surveyYear}年
-            {surveyMonth ? `${Number(surveyMonth)}月` : "全年"} · 当前授权地区
-          </p>
-        </header>
 
         <section
           aria-label="粮食物流监测表区域"

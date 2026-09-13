@@ -1,0 +1,700 @@
+/* Business workspace presentation. The standalone identity app keeps its own layout. */
+.reference-enterprise-shell {
+  --business-ink: #203650;
+  --business-muted: #65778d;
+  --business-line: #dfe6ef;
+  --business-blue: #225eaa;
+  --business-soft: #f4f7fb;
+  --business-focus: #357bd0;
+}
+.reference-enterprise-shell .formal-main {
+  background: #f1f4f9;
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-workbench,
+    .regional-data-workspace,
+    .analysis-workbench-page
+  ) {
+  color: var(--business-ink);
+  background: transparent;
+  min-width: 0;
+}
+.reference-enterprise-shell .enterprise-ledger-workbench__breadcrumb {
+  height: auto;
+  min-height: 36px;
+  padding: 8px 2px;
+  color: var(--business-muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-title--collection,
+    .observable-analysis-dashboard__masthead[data-layout] > header,
+    .regional-data-workspace > header
+  ) {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  min-height: 104px;
+  margin: 0 0 14px;
+  padding: 22px 24px 22px 28px;
+  border: 1px solid var(--business-line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 5px #18395d04;
+  text-align: left;
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-title--collection,
+    .observable-analysis-dashboard__masthead[data-layout] > header,
+    .regional-data-workspace > header
+  )::before {
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 3px 3px 0;
+  background: var(--business-blue);
+  content: "";
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-title--collection,
+    .observable-analysis-dashboard__masthead[data-layout] > header,
+    .regional-data-workspace > header
+  )
+  :is(h1, h2) {
+  margin: 0;
+  color: var(--business-ink);
+  font-size: 25px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-title--collection,
+    .observable-analysis-dashboard__masthead[data-layout] > header,
+    .regional-data-workspace > header
+  )
+  :is(p, div > span) {
+  margin: 5px 0 0;
+  color: var(--business-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.65;
+}
+.reference-enterprise-shell .business-page-mode {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 5px 11px;
+  border: 1px solid #d7e5f5;
+  border-radius: 5px;
+  color: #42668b;
+  background: #f3f7fd;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.reference-enterprise-shell
+  :is(.enterprise-ledger-query, .regional-data-workspace__filters) {
+  gap: 14px;
+  margin: 0 0 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--business-line);
+  border-radius: 9px;
+  background: #fff;
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-query,
+    .observable-analysis-filters,
+    .regional-data-workspace__filters
+  )
+  :is(label, label > span, .realtime-region-cascade label > span) {
+  min-width: 0;
+  color: #5c6f86;
+  font-size: 12px;
+  font-weight: 500;
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-query,
+    .observable-analysis-filters,
+    .regional-data-workspace
+  )
+  :is(input:not([type="checkbox"]), select) {
+  box-sizing: border-box;
+  height: 38px;
+  min-height: 38px;
+  padding: 6px 11px;
+  border: 1px solid #cfd9e6;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--business-ink);
+  font: inherit;
+  font-size: 13px;
+  box-shadow: none;
+}
+.reference-enterprise-shell
+  :is(.enterprise-ledger-workbench, .regional-data-workspace)
+  :is(input, select, button):focus-visible {
+  outline: 2px solid var(--business-focus);
+  outline-offset: 2px;
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-query__actions,
+    .enterprise-ledger-table__toolbar,
+    .formal-sample-ledger__pagination,
+    .observable-analysis-filter-actions,
+    .regional-data-workspace
+  )
+  button {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid #cfd9e6;
+  border-radius: 5px;
+  color: #365373;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-query__actions button.is-primary,
+    .enterprise-ledger-action-group--primary button,
+    .regional-data-workspace td button
+  ) {
+  border-color: var(--business-blue);
+  background: var(--business-blue);
+  color: white;
+}
+.reference-enterprise-shell
+  :is(
+    .enterprise-ledger-query__actions,
+    .enterprise-ledger-table__toolbar,
+    .formal-sample-ledger__pagination,
+    .regional-data-workspace
+  )
+  button:hover:not(:disabled) {
+  box-shadow: 0 0 0 2px #357bd018;
+  border-color: var(--business-focus);
+}
+.reference-enterprise-shell
+  :is(.enterprise-ledger-workbench, .regional-data-workspace)
+  button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.reference-enterprise-shell .enterprise-ledger-table {
+  border: 1px solid var(--business-line);
+  border-radius: 9px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 2px 5px #18395d04;
+}
+.reference-enterprise-shell .enterprise-ledger-table__toolbar {
+  height: auto;
+  min-height: 62px;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--business-line);
+  background: #fff;
+  flex-wrap: wrap;
+}
+.reference-enterprise-shell .enterprise-ledger-table__toolbar > strong {
+  color: var(--business-ink);
+  font-size: 13px;
+  font-weight: 550;
+}
+.reference-enterprise-shell .enterprise-ledger-table__scroll {
+  max-height: max(220px, calc(100dvh - 485px));
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #b4c4d7 #f5f7fa;
+}
+.reference-enterprise-shell .enterprise-ledger-table table {
+  font-size: 13px;
+  color: #344c67;
+}
+.reference-enterprise-shell .enterprise-ledger-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+.reference-enterprise-shell .enterprise-ledger-table thead th {
+  position: static;
+  top: auto;
+  z-index: auto;
+  height: 46px;
+  padding: 10px 14px;
+  border-color: #c4d5df;
+  background: #1895cb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.reference-enterprise-shell .enterprise-ledger-table :is(tbody td, tbody th) {
+  height: 44px;
+  padding: 10px 14px;
+  border-color: #c4d5df;
+  color: #173652;
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.reference-enterprise-shell
+  .enterprise-ledger-table
+  tbody
+  tr:nth-child(even)
+  > :is(td, th) {
+  background: #f1f7fb;
+}
+.reference-enterprise-shell
+  .enterprise-ledger-table
+  tbody
+  tr:hover
+  > :is(td, th) {
+  background: #e9f3fa;
+}
+.reference-enterprise-shell .enterprise-ledger-table__footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--business-line);
+  background: #fff;
+}
+.reference-enterprise-shell .formal-sample-ledger__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 62px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--business-line);
+  color: var(--business-muted);
+  background: #fff;
+  font-size: 12px;
+}
+.reference-enterprise-shell .business-pagination-total {
+  order: -1;
+  margin-right: auto;
+}
+.reference-enterprise-shell
+  .sample-point-governance-workspace__table-scroll--bounded {
+  height: auto;
+  min-height: 180px;
+  max-height: max(220px, calc(100dvh - 425px));
+  overflow: auto;
+  scrollbar-gutter: auto;
+}
+.reference-enterprise-shell
+  .sample-point-governance-workspace__table-scroll--bounded.is-empty {
+  min-height: 0;
+  height: auto;
+}
+.reference-enterprise-shell .sample-point-governance-workspace__main {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.reference-enterprise-shell .design-sample-ledger.formal-sample-ledger {
+  background: transparent;
+}
+.reference-enterprise-shell .regional-data-workspace {
+  gap: 0;
+  padding: 18px;
+}
+.reference-enterprise-shell .regional-data-workspace__filters label {
+  flex: 0 1 230px;
+}
+.reference-enterprise-shell .business-reporting-guide {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 12px 16px;
+  margin: 0 0 16px;
+  border-left: 3px solid #84a7d0;
+  border-radius: 3px;
+  background: #eaf1fa;
+  color: #4b6685;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.reference-enterprise-shell .business-reporting-guide small {
+  margin-left: auto;
+  color: #6a7f99;
+  font-size: 12px;
+}
+.reference-enterprise-shell .regional-data-workspace__table-wrap {
+  max-height: max(320px, calc(100dvh - 330px));
+  border: 1px solid var(--business-line);
+  border-radius: 9px;
+  background: #fff;
+  scrollbar-width: thin;
+  scrollbar-color: #b4c4d7 #f5f7fa;
+}
+.reference-enterprise-shell .regional-data-workspace :is(th, td) {
+  padding: 12px 18px;
+  border-color: #e5ebf2;
+  color: var(--business-ink);
+  font-size: 13px;
+}
+.reference-enterprise-shell .regional-data-workspace thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #1895cb;
+  color: #fff;
+}
+.reference-enterprise-shell .regional-data-workspace__summary-row {
+  background: #eaf2fd;
+}
+.reference-enterprise-shell .regional-data-workspace input:disabled {
+  opacity: 1;
+  color: #344c67;
+  background: #f6f8fb;
+  border-color: #e5eaf1;
+}
+/* Analysis keeps its real metrics and all chart sections, with a shared reading hierarchy. */
+.reference-enterprise-shell .analysis-workbench-page {
+  --analysis-workbench-border: var(--business-line);
+  --analysis-workbench-accent: var(--business-blue);
+  gap: 16px;
+}
+.reference-enterprise-shell
+  .observable-analysis-dashboard__masthead[data-layout] {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+}
+.reference-enterprise-shell
+  .observable-analysis-dashboard__masthead[data-layout]
+  > header {
+  margin-bottom: 0;
+  border-radius: 10px 10px 0 0;
+}
+.reference-enterprise-shell
+  .analysis-workbench-page
+  .observable-analysis-filters {
+  grid-template-columns: minmax(320px, 3fr) auto minmax(340px, 4fr) auto;
+  gap: 14px;
+  padding: 18px 22px;
+  border: 1px solid var(--business-line);
+  border-top: 0;
+  border-radius: 0;
+  background: #fff;
+}
+.reference-enterprise-shell
+  .analysis-workbench-page
+  .observable-analysis-report__scope-strip {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: #fff;
+  color: #647991;
+  font-size: 12px;
+}
+.reference-enterprise-shell
+  .analysis-workbench-page
+  .observable-analysis-report__metric-band {
+  gap: 14px;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+.reference-enterprise-shell
+  .analysis-workbench-page
+  .observable-analysis-report__metric-band
+  > div {
+  min-height: 112px;
+  padding: 18px 20px;
+  border: 1px solid var(--business-line);
+  border-radius: 9px;
+  background: #fff;
+}
+.reference-enterprise-shell .observable-analysis-report__metric-band-card > dd {
+  display: block;
+  margin: 8px 0;
+  color: #204f83;
+  font-size: 24px;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.reference-enterprise-shell
+  .observable-analysis-report__metric-band-card
+  :is(span, small) {
+  color: var(--business-muted);
+}
+.reference-enterprise-shell
+  .analysis-workbench-page
+  .observable-analysis-dashboard__grid {
+  gap: 16px;
+}
+.reference-enterprise-shell
+  .analysis-workbench-page
+  .observable-analysis-report__section {
+  border: 1px solid var(--business-line);
+  border-radius: 9px;
+}
+.reference-enterprise-shell
+  .analysis-workbench-page
+  .observable-analysis-report__section
+  > header {
+  min-height: 64px;
+  padding: 16px 20px;
+  border-color: var(--business-line);
+  background: #fff;
+}
+.reference-enterprise-shell
+  .analysis-workbench-page
+  .observable-analysis-report__section
+  > header
+  h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.reference-enterprise-shell
+  .analysis-workbench-page
+  .observable-analysis-report__section
+  > header
+  p {
+  font-size: 12px;
+  margin-top: 5px;
+}
+.reference-enterprise-shell .observable-analysis-report__vertical-bars {
+  padding-bottom: 12px;
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0,
+    transparent 49px,
+    #edf1f6 49px,
+    #edf1f6 50px
+  );
+}
+.reference-enterprise-shell
+  .observable-analysis-report__vertical-bars
+  > div
+  > i {
+  width: 38px;
+  background: #f1f4f8;
+}
+.reference-enterprise-shell
+  .observable-analysis-report__vertical-bars
+  > div
+  > i
+  > b {
+  border-radius: 4px 4px 0 0;
+}
+.reference-enterprise-shell .observable-analysis-report__vertical-bars strong {
+  color: #345d86;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 1450px) {
+  .reference-enterprise-shell
+    .analysis-workbench-page
+    .observable-analysis-filters {
+    grid-template-columns: minmax(280px, 1fr) auto;
+  }
+  .reference-enterprise-shell
+    .analysis-workbench-page
+    .observable-analysis-filters
+    > .realtime-region-cascade {
+    grid-column: 1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .reference-enterprise-shell
+    .analysis-workbench-page
+    .observable-analysis-filter-actions {
+    grid-column: 2;
+  }
+}
+@media (max-width: 760px) {
+  .reference-enterprise-shell
+    :is(
+      .enterprise-ledger-title--collection,
+      .observable-analysis-dashboard__masthead[data-layout] > header,
+      .regional-data-workspace > header
+    ) {
+    padding: 18px;
+    min-height: 96px;
+  }
+  .reference-enterprise-shell
+    :is(
+      .enterprise-ledger-title--collection,
+      .observable-analysis-dashboard__masthead[data-layout] > header,
+      .regional-data-workspace > header
+    )
+    :is(h1, h2) {
+    font-size: 21px;
+  }
+  .reference-enterprise-shell
+    .analysis-workbench-page
+    .observable-analysis-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .reference-enterprise-shell
+    .analysis-workbench-page
+    .observable-analysis-filters
+    > .realtime-region-cascade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .reference-enterprise-shell
+    .analysis-workbench-page
+    .observable-analysis-filter-actions {
+    grid-column: 1;
+  }
+  .reference-enterprise-shell
+    .analysis-workbench-page
+    .observable-analysis-report__metric-band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .reference-enterprise-shell
+    .observable-analysis-report__metric-band-card
+    > dd {
+    font-size: 21px;
+    overflow-wrap: anywhere;
+  }
+  .reference-enterprise-shell .regional-data-workspace {
+    padding: 12px;
+  }
+  .reference-enterprise-shell .regional-data-workspace__filters label {
+    flex: 1 1 130px;
+  }
+}
+
+/* Keep the primary query on one row when there is room; actions never occupy an empty row. */
+.reference-enterprise-shell
+  .enterprise-ledger-query:is(
+    .enterprise-ledger-query--production,
+    .enterprise-ledger-query--market
+  ) {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+.reference-enterprise-shell .enterprise-ledger-query--design {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+}
+.reference-enterprise-shell
+  .enterprise-ledger-query
+  > .enterprise-ledger-query__actions {
+  grid-column: auto;
+  align-self: end;
+  padding: 0;
+  margin: 0;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+.reference-enterprise-shell .enterprise-ledger-table > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 56px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--business-line);
+  background: #fff;
+  color: var(--business-muted);
+  font-size: 12px;
+}
+.reference-enterprise-shell .enterprise-ledger-table thead th {
+  height: 36px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+@media (max-width: 1000px) {
+  .reference-enterprise-shell
+    .enterprise-ledger-query:is(
+      .enterprise-ledger-query--production,
+      .enterprise-ledger-query--market,
+      .enterprise-ledger-query--design
+    ) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .reference-enterprise-shell .enterprise-ledger-table > footer {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 560px) {
+  .reference-enterprise-shell
+    .enterprise-ledger-query:is(
+      .enterprise-ledger-query--production,
+      .enterprise-ledger-query--market,
+      .enterprise-ledger-query--design
+    ) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Shared physical dimensions for the production and market collection tables. */
+.reference-enterprise-shell
+  .enterprise-ledger-table
+  .collection-table-standard {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.reference-enterprise-shell .collection-table-standard :is(th, td) {
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reference-enterprise-shell
+  .enterprise-ledger-table
+  .collection-table-standard
+  thead
+  th {
+  height: 44px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.reference-enterprise-shell
+  .enterprise-ledger-table
+  .collection-table-standard
+  tbody
+  :is(th, td) {
+  height: 44px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+.reference-enterprise-shell
+  .enterprise-ledger-table
+  .collection-table-standard
+  tbody
+  th {
+  min-width: 0;
+}
+/* Reserve the same space for multi-line field units and price-basis notes. */
+.reference-enterprise-shell
+  .enterprise-ledger-table
+  .collection-table-standard
+  thead
+  th {
+  height: 32px;
+  padding: 6px 12px;
+  line-height: 16px;
+}
+.reference-enterprise-shell
+  .enterprise-ledger-table
+  .collection-table-standard
+  thead
+  tr:nth-child(2)
+  th {
+  height: 64px;
+}
