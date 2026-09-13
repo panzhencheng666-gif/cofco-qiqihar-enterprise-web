@@ -1,0 +1,380 @@
+/* Scoped management workspace; the existing enterprise shell stays intact. */
+.identity-workspace-v4 .identity-governance-panel {
+  background: #f4f6fa;
+  color: #24334a;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0;
+}
+.identity-workspace-v4 .identity-governance-header {
+  padding: 24px 30px 20px;
+  border: 0;
+  background: white;
+}
+.identity-workspace-v4 .identity-governance-header small {
+  color: #7a879b;
+  font-size: 12px;
+}
+.identity-workspace-v4 .identity-governance-header h2 {
+  color: #162c4b;
+  font-size: 26px;
+  font-weight: 650;
+  margin-top: 9px;
+}
+.identity-workspace-v4 .identity-page-description {
+  margin: 7px 0 0;
+  color: #748096;
+  font-size: 13px;
+}
+.identity-workspace-v4 .identity-header-actions {
+  display: flex;
+  gap: 10px;
+}
+.identity-workspace-v4 .identity-header-actions button {
+  border: 1px solid #dce3ed;
+  border-radius: 6px;
+  padding: 9px 16px;
+  background: white;
+  color: #38506f;
+  cursor: pointer;
+}
+.identity-workspace-v4 .identity-governance-panel > nav {
+  padding: 0 30px;
+  gap: 28px;
+  border-color: #e3e8f0;
+}
+.identity-workspace-v4 .identity-governance-panel > nav button {
+  padding: 13px 3px;
+  min-width: 80px;
+  color: #607087;
+  font-size: 14px;
+  font-weight: 500;
+}
+.identity-workspace-v4
+  .identity-governance-panel
+  > nav
+  button[aria-current="page"] {
+  color: #185bba;
+  border-bottom-color: #2467c3;
+  font-weight: 650;
+}
+.identity-workspace-v4 .identity-governance-content {
+  padding: 22px 28px;
+  background: #f4f6fa;
+}
+.identity-workspace-v4 .identity-employee-workspace {
+  margin: 0;
+  grid-template-columns: 210px minmax(0, 1fr);
+  border: 1px solid #e0e6ee;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 3px 14px #182e4b06;
+  min-height: 530px;
+}
+.identity-workspace-v4 .identity-unit-sidebar {
+  border-color: #e7ecf2;
+  border-radius: 10px 0 0 10px;
+  padding: 12px 10px;
+  background: #fbfcfe;
+}
+.identity-workspace-v4 .identity-unit-sidebar h3 {
+  padding: 12px 10px 6px;
+  background: none;
+  font-size: 14px;
+  color: #293f5d;
+}
+.identity-workspace-v4 .identity-sidebar-caption {
+  font-size: 11px;
+  color: #8a95a5;
+  margin: 0 10px 22px;
+}
+.identity-workspace-v4 .identity-unit-sidebar button {
+  border: 0;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.identity-workspace-v4 .identity-unit-sidebar button[aria-pressed="true"] {
+  background: #eaf1fc;
+  color: #185bba;
+  font-weight: 600;
+}
+.identity-workspace-v4 .identity-region-directory {
+  border-top: 1px solid #e4eaf2;
+  margin-top: 22px;
+  padding-top: 8px;
+}
+.identity-workspace-v4 .identity-region-directory input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #dce3ec;
+  border-radius: 6px;
+  margin: 10px 0;
+}
+.identity-workspace-v4 .identity-region-directory > p {
+  font-size: 12px;
+  color: #7b8798;
+}
+.identity-workspace-v4 .identity-employee-body {
+  min-width: 0;
+  padding: 22px;
+}
+.identity-workspace-v4 .identity-governance-toolbar h3 {
+  color: #253b59;
+  font-size: 17px;
+  font-weight: 600;
+}
+.identity-workspace-v4 .identity-governance-toolbar p {
+  margin-top: 8px;
+  color: #7b8799;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.identity-workspace-v4 .identity-region-note {
+  padding: 12px 16px;
+  margin: 20px 0;
+  background: #f2f6fd;
+  border: 1px solid #e5edf9;
+  border-radius: 6px;
+  color: #546d91;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.identity-workspace-v4 .identity-audit-filters {
+  padding: 0 0 18px;
+  border: 0;
+  background: transparent;
+  gap: 12px;
+}
+.identity-workspace-v4 .identity-audit-filters label {
+  color: #607087;
+  font-size: 12px;
+  font-weight: 400;
+}
+.identity-workspace-v4 .identity-audit-filters :is(input, select) {
+  min-height: 36px;
+  border-color: #dce3ed;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.identity-workspace-v4 .identity-list-count {
+  margin: 0;
+  padding: 10px 0 14px;
+  color: #7d899a;
+  font-size: 12px;
+}
+.identity-workspace-v4 .identity-data-table {
+  font-size: 13px;
+}
+.identity-workspace-v4 .identity-data-table thead th {
+  padding: 14px 12px;
+  background: #f5f7fb;
+  color: #64748b;
+  font-weight: 500;
+  border-color: #e7ecf3;
+}
+.identity-workspace-v4 .identity-data-table :is(td, tbody th) {
+  padding: 20px 12px;
+  border-color: #edf0f5;
+  color: #41536b;
+  font-weight: 400;
+  line-height: 1.7;
+  vertical-align: middle;
+}
+.identity-workspace-v4 .identity-data-table tbody th strong {
+  color: #213b5b;
+  font-weight: 600;
+}
+.identity-workspace-v4 .identity-data-table tbody tr:hover {
+  background: #f9fbff;
+}
+.identity-workspace-v4 .identity-data-table button {
+  background: transparent;
+  border: 0;
+  padding: 3px 0;
+  min-height: 28px;
+  color: #2467bd;
+  font-size: 12px;
+}
+.identity-workspace-v4 .identity-employee-actions {
+  gap: 8px 14px;
+}
+.identity-workspace-v4 button.is-primary,
+.identity-settings-drawer button.is-primary {
+  padding: 9px 18px;
+  border: 1px solid #2467c3;
+  border-radius: 6px;
+  background: #2467c3;
+  color: white;
+  font-size: 13px;
+}
+.identity-workspace-v4 .identity-audit-filters button {
+  padding: 8px 14px;
+  min-height: 36px;
+  border-radius: 6px;
+  border-color: #dce3ed;
+  background: white;
+  color: #526985;
+  font-size: 12px;
+}
+.identity-workspace-v4 .identity-profile-view {
+  max-width: 1100px;
+  margin: auto;
+  display: grid;
+  gap: 18px;
+}
+.identity-workspace-v4 .identity-profile-hero {
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #e0e6ee;
+  border-radius: 10px;
+}
+.identity-workspace-v4 .identity-profile-avatar {
+  background: #225ea9;
+  border-radius: 12px;
+}
+.identity-workspace-v4 .identity-profile-section {
+  margin: 0;
+  background: white;
+  border: 1px solid #e0e6ee;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.identity-workspace-v4 .identity-profile-section > h3 {
+  padding: 18px 22px;
+  background: white;
+  border-bottom: 1px solid #edf0f5;
+  color: #284263;
+}
+.identity-workspace-v4 .identity-account-summary > div {
+  grid-template-columns: 150px 1fr;
+  border-color: #edf0f5;
+}
+.identity-workspace-v4 .identity-account-summary dt {
+  background: #fafbfd;
+  color: #6b7b90;
+}
+.identity-workspace-v4 .identity-current-operations {
+  padding: 0 22px 18px;
+}
+.identity-workspace-v4
+  .identity-governance-content
+  > section:not(.identity-employee-workspace):not(.identity-profile-view) {
+  padding: 24px;
+  border: 1px solid #e0e6ee;
+  border-radius: 10px;
+  background: white;
+}
+.identity-workspace-v4 .identity-review-create {
+  margin: 20px 0;
+  border-radius: 8px;
+  background: #f5f8fc;
+  padding: 18px;
+}
+.identity-settings-drawer .ant-drawer-header {
+  padding: 22px 24px;
+  border-bottom: 1px solid #e7edf5;
+}
+.identity-settings-drawer .ant-drawer-body {
+  padding: 0 24px 24px;
+}
+.identity-settings-drawer .identity-governance-editor {
+  border: 0;
+  background: white;
+  padding: 0;
+  margin: 20px 0 0;
+  color: #2b405f;
+}
+.identity-settings-drawer .identity-governance-editor header {
+  display: block;
+  margin-bottom: 24px;
+}
+.identity-settings-drawer .identity-governance-editor h3 {
+  font-size: 18px;
+  color: #233d60;
+}
+.identity-settings-drawer .identity-governance-editor p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #7a889c;
+  margin-top: 8px;
+}
+.identity-settings-drawer .identity-governance-form-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.identity-settings-drawer
+  .identity-governance-editor
+  :is(input:not([type="checkbox"]):not([type="radio"]), select) {
+  border-radius: 6px;
+  border: 1px solid #dce4ef;
+  padding: 9px 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.identity-settings-drawer fieldset {
+  border: 0;
+  border-top: 1px solid #e5ebf3;
+  padding: 18px 0;
+  margin-top: 24px;
+}
+.identity-settings-drawer legend {
+  font-weight: 600;
+  color: #344e70;
+}
+.identity-settings-drawer .identity-governance-choice-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.identity-settings-drawer .identity-region-options {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.identity-settings-drawer .identity-governance-editor footer {
+  position: sticky;
+  bottom: -24px;
+  padding: 16px 0;
+  background: white;
+  border-top: 1px solid #e4eaf2;
+  z-index: 1;
+}
+.identity-workspace-v4 button:focus-visible {
+  outline: 3px solid #95bdf2;
+  outline-offset: 2px;
+}
+@media (max-width: 1100px) {
+  .identity-workspace-v4 .identity-governance-content {
+    padding: 16px;
+  }
+  .identity-workspace-v4 .identity-employee-workspace {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+  .identity-workspace-v4 .identity-employee-body {
+    padding: 16px;
+  }
+}
+@media (max-width: 700px) {
+  .identity-workspace-v4 .identity-employee-workspace {
+    grid-template-columns: 1fr;
+  }
+  .identity-workspace-v4 .identity-unit-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #e3e9f1;
+  }
+  .identity-workspace-v4 .identity-region-directory {
+    max-height: 220px;
+    overflow: auto;
+  }
+  .identity-workspace-v4 .identity-governance-header {
+    padding: 16px;
+  }
+  .identity-workspace-v4 .identity-governance-panel > nav {
+    padding: 0 16px;
+    gap: 16px;
+  }
+  .identity-workspace-v4 .identity-account-summary > div {
+    grid-template-columns: 95px 1fr;
+  }
+}

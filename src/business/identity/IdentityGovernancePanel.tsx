@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Drawer } from "antd";
 import type {
   AccessReviewCampaign,
   AccessReviewDecision,
@@ -18,9 +19,10 @@ const SampleResponsibilityEditor = lazy(() =>
   })),
 );
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+import "./identity-workspace.css";
 
 type GovernanceView =
-  "profile" | "organization" | "employees" | "reviews" | "audit";
+  "profile" | "organization" | "employees" | "regions" | "reviews" | "audit";
 
 interface IdentityGovernancePanelProps {
   identityManagementUrl?: string;
@@ -469,7 +471,15 @@ export function IdentityGovernancePanel({
   const mayAdminister = session.permissions.includes("IDENTITY_ADMIN");
   const mayReview = session.permissions.includes("ACCESS_REVIEW");
   const mayReadAudit = session.permissions.includes("AUDIT_READ");
-  const [view, setView] = useState<GovernanceView>(initialView);
+  const [view, setView] = useState<GovernanceView>(
+    initialView === "organization"
+      ? mayReadEmployees
+        ? "employees"
+        : "profile"
+      : initialView,
+  );
+  const [regionSearch, setRegionSearch] = useState("");
+  const [selectedRegion, setSelectedRegion] = useState("");
   const [employees, setEmployees] = useState<readonly EmployeeProfile[]>([]);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [employeeUnit, setEmployeeUnit] = useState("");
@@ -585,10 +595,13 @@ export function IdentityGovernancePanel({
     setLoading(true);
     setError(null);
     try {
+      const reviewOptions = await repository.loadAssignmentOptions(
+        assignmentUnit(session),
+      );
+      setOptions(reviewOptions);
+      if (mayReadEmployees) setEmployees(await repository.listEmployees());
       const units = session.rootAdministrator
-        ? (
-            await repository.loadAssignmentOptions(assignmentUnit(session))
-          ).workUnits.map((unit) => unit.code)
+        ? reviewOptions.workUnits.map((unit) => unit.code)
         : [session.workUnitCode];
       setReviews(
         (
@@ -635,7 +648,8 @@ export function IdentityGovernancePanel({
 
   useEffect(() => {
     queueMicrotask(() => {
-      if (view === "employees" && mayReadEmployees) void loadEmployees();
+      if ((view === "employees" || view === "regions") && mayReadEmployees)
+        void loadEmployees();
       if (view === "reviews" && mayReview) void loadReviews();
       if (view === "audit" && mayReadAudit) void loadAuditEvents();
     });
@@ -652,7 +666,7 @@ export function IdentityGovernancePanel({
 
   useEffect(() => {
     if (
-      view !== "employees" ||
+      (view !== "employees" && view !== "regions") ||
       !mayReadEmployees ||
       typeof repository.subscribeBusinessEvents !== "function"
     )
@@ -675,8 +689,30 @@ export function IdentityGovernancePanel({
       (!employeeUnit || employee.workUnitCode === employeeUnit) &&
       (!employeeRole ||
         employee.roles.some(({ code }) => code === employeeRole)) &&
-      (!employeeStatus || employee.accountStatus === employeeStatus),
+      (!employeeStatus || employee.accountStatus === employeeStatus) &&
+      (view !== "regions" ||
+        !selectedRegion ||
+        (employee.responsibilityRegionCodes ?? []).includes(selectedRegion)),
   );
+
+  const assignedRegions = [
+    ...new Set(
+      employees
+        .filter(
+          (employee) => !employeeUnit || employee.workUnitCode === employeeUnit,
+        )
+        .flatMap((employee) => employee.responsibilityRegionCodes ?? []),
+    ),
+  ]
+    .filter((code) =>
+      displayRegion(code, regionNames).includes(regionSearch.trim()),
+    )
+    .sort((a, b) =>
+      displayRegion(a, regionNames).localeCompare(
+        displayRegion(b, regionNames),
+        "zh-CN",
+      ),
+    );
 
   const pendingItems = useMemo(
     () =>
@@ -1012,7 +1048,7 @@ export function IdentityGovernancePanel({
   };
 
   return (
-    <div className="identity-governance-overlay">
+    <div className="identity-governance-overlay identity-workspace-v4">
       <section
         aria-label="账号与授权"
         aria-modal="true"
@@ -1021,28 +1057,28 @@ export function IdentityGovernancePanel({
       >
         <header className="identity-governance-header">
           <div>
-            <small>企业身份与访问治理</small>
-            <h2>账号与授权</h2>
+            <small>
+              企业管理 / {view === "profile" ? "个人中心" : "人员与权限"}
+            </small>
+            <h2>{view === "profile" ? "个人中心" : "人员与权限"}</h2>
+            <p className="identity-page-description">
+              {view === "profile"
+                ? "查看身份、工作单位与已获得的权限，管理登录安全。"
+                : "管理人员、明确地区责任，检查授权并追溯操作。"}
+            </p>
           </div>
-          <button aria-label="返回业务页面" type="button" onClick={onClose}>
-            返回
-          </button>
+          <div className="identity-header-actions">
+            {view !== "profile" && (
+              <button type="button" onClick={() => changeView("profile")}>
+                我的账号
+              </button>
+            )}
+            <button aria-label="返回业务页面" type="button" onClick={onClose}>
+              返回
+            </button>
+          </div>
         </header>
         <nav aria-label="账号与授权功能">
-          <button
-            aria-current={view === "profile" ? "page" : undefined}
-            type="button"
-            onClick={() => changeView("profile")}
-          >
-            我的账号
-          </button>
-          <button
-            aria-current={view === "organization" ? "page" : undefined}
-            type="button"
-            onClick={() => changeView("organization")}
-          >
-            当前单位
-          </button>
           {mayReadEmployees && (
             <button
               aria-current={view === "employees" ? "page" : undefined}
@@ -1052,13 +1088,22 @@ export function IdentityGovernancePanel({
               员工管理
             </button>
           )}
+          {mayReadEmployees && (
+            <button
+              aria-current={view === "regions" ? "page" : undefined}
+              type="button"
+              onClick={() => changeView("regions")}
+            >
+              地区分工
+            </button>
+          )}
           {mayReview && (
             <button
               aria-current={view === "reviews" ? "page" : undefined}
               type="button"
               onClick={() => changeView("reviews")}
             >
-              权限复核
+              授权检查
             </button>
           )}
           {mayReadAudit && (
@@ -1067,7 +1112,7 @@ export function IdentityGovernancePanel({
               type="button"
               onClick={() => changeView("audit")}
             >
-              操作记录
+              操作日志
             </button>
           )}
         </nav>
@@ -1077,7 +1122,7 @@ export function IdentityGovernancePanel({
               {message}
             </p>
           )}
-          {error && (
+          {error && !editor && (
             <p className="identity-governance-error" role="alert">
               {error}
             </p>
@@ -1164,7 +1209,12 @@ export function IdentityGovernancePanel({
                     <dt>可访问地区</dt>
                     <dd>
                       <strong>
-                        {regionScopeSummary(session.regionCodes, regionNames)}
+                        {session.rootAdministrator
+                          ? "全部地区"
+                          : regionScopeSummary(
+                              session.regionCodes,
+                              regionNames,
+                            )}
                       </strong>
                       <small>
                         {session.rootAdministrator
@@ -1288,24 +1338,59 @@ export function IdentityGovernancePanel({
               </dl>
             </section>
           )}
-          {view === "employees" && mayReadEmployees && (
+          {(view === "employees" || view === "regions") && mayReadEmployees && (
             <section
               aria-label="员工与授权"
               className="identity-employee-workspace"
             >
               <aside className="identity-unit-sidebar" aria-label="组织单位">
                 <h3>组织单位</h3>
+                <p className="identity-sidebar-caption">按单位查看人员与分工</p>
                 {[{ code: "", name: "全部单位" }, ...options.workUnits].map(
                   ({ code, name }) => (
                     <button
                       type="button"
                       key={code}
                       aria-pressed={employeeUnit === code}
-                      onClick={() => setEmployeeUnit(code)}
+                      onClick={() => {
+                        setEmployeeUnit(code);
+                        setSelectedRegion("");
+                      }}
                     >
                       {name}
                     </button>
                   ),
+                )}
+                {view === "regions" && (
+                  <div className="identity-region-directory">
+                    <h3>已分工地区</h3>
+                    <input
+                      aria-label="查找已分工地区"
+                      placeholder="搜索地区名称"
+                      value={regionSearch}
+                      onChange={(event) => setRegionSearch(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      aria-pressed={!selectedRegion}
+                      onClick={() => setSelectedRegion("")}
+                    >
+                      全部人员
+                    </button>
+                    {assignedRegions.map((code) => (
+                      <button
+                        key={code}
+                        type="button"
+                        aria-pressed={selectedRegion === code}
+                        onClick={() => setSelectedRegion(code)}
+                      >
+                        {displayRegion(code, regionNames)}
+                      </button>
+                    ))}
+                    {!loading && assignedRegions.length === 0 && (
+                      <p>没有符合条件的已分工地区</p>
+                    )}
+                  </div>
                 )}
               </aside>
               <div className="identity-employee-body">
@@ -1315,8 +1400,15 @@ export function IdentityGovernancePanel({
                       {options.workUnits.find(
                         ({ code }) => code === employeeUnit,
                       )?.name ?? "全部单位"}{" "}
-                      / 员工管理
+                      / {view === "regions" ? "地区分工" : "员工管理"}
                     </h3>
+                    <p>
+                      {view === "regions"
+                        ? selectedRegion
+                          ? displayRegion(selectedRegion, regionNames)
+                          : "选择地区查看负责人，也可直接为员工安排负责地区"
+                        : "先找到员工，再调整角色、账号状态或地区责任"}
+                    </p>
                   </div>
                   {mayAdminister && (
                     <button
@@ -1331,7 +1423,9 @@ export function IdentityGovernancePanel({
                   )}
                 </div>
                 <p className="identity-region-note">
-                  新员工：邀请加入并完成登录激活，再设置负责地区。调整现有员工：编辑账号设置角色和可访问地区；设置负责地区安排填报与样本维护。
+                  {view === "regions"
+                    ? "地区分工决定填报与样本维护责任。修改后同时更新员工分工和样本责任；管理员按现有权限管理。"
+                    : "入职办理：邀请员工 → 员工登录激活 → 设置负责地区。已有员工直接点击“编辑账号”调整。"}
                 </p>
                 <div
                   className="identity-audit-filters identity-employee-filters"
@@ -1401,6 +1495,9 @@ export function IdentityGovernancePanel({
                   <p>正在读取员工信息…</p>
                 ) : (
                   <div className="identity-data-table-scroll">
+                    <p className="identity-list-count">
+                      当前筛选：{visibleEmployees.length} 位员工
+                    </p>
                     <table
                       aria-label="员工授权清单"
                       className="identity-data-table identity-employee-table"
@@ -1519,20 +1616,34 @@ export function IdentityGovernancePanel({
                   </div>
                 )}
                 {editor && (
-                  <AssignmentEditor
-                    draft={editor.draft}
-                    invite={editor.invite}
-                    onCancel={closeAssignmentEditor}
-                    onChange={(draft) => setEditor({ ...editor, draft })}
-                    onWorkUnitChange={(workUnitCode) =>
-                      void changeAssignmentWorkUnit(workUnitCode)
-                    }
-                    onSubmit={() => void saveAssignment()}
-                    options={options}
-                    regionNames={regionNames}
-                    saving={saving}
-                    loadingOptions={loadingAssignmentOptions}
-                  />
+                  <Drawer
+                    open
+                    title={editor.invite ? "邀请员工" : "员工设置"}
+                    width={540}
+                    onClose={closeAssignmentEditor}
+                    rootClassName="identity-settings-drawer"
+                    destroyOnHidden
+                  >
+                    {error && (
+                      <p role="alert" className="identity-governance-error">
+                        {error}
+                      </p>
+                    )}
+                    <AssignmentEditor
+                      draft={editor.draft}
+                      invite={editor.invite}
+                      onCancel={closeAssignmentEditor}
+                      onChange={(draft) => setEditor({ ...editor, draft })}
+                      onWorkUnitChange={(workUnitCode) =>
+                        void changeAssignmentWorkUnit(workUnitCode)
+                      }
+                      onSubmit={() => void saveAssignment()}
+                      options={options}
+                      regionNames={regionNames}
+                      saving={saving}
+                      loadingOptions={loadingAssignmentOptions}
+                    />
+                  </Drawer>
                 )}
               </div>
               {responsibilityEditor && (
@@ -1628,7 +1739,7 @@ export function IdentityGovernancePanel({
             <section aria-label="权限复核">
               <div className="identity-governance-toolbar">
                 <div>
-                  <h3>权限复核</h3>
+                  <h3>授权检查</h3>
                   {session.rootAdministrator && (
                     <label>
                       复核单位
@@ -1749,9 +1860,24 @@ export function IdentityGovernancePanel({
                     return (
                       <article key={key}>
                         <div>
-                          <strong>{item.subjectId}</strong>
+                          <strong>
+                            {employees.find(
+                              (employee) =>
+                                employee.subjectId === item.subjectId,
+                            )?.displayName ??
+                              (item.subjectId === session.subjectId
+                                ? session.displayName
+                                : "员工姓名待同步")}
+                          </strong>
                           <span>
-                            {grantTypeLabel(item.grantType)} · {item.grantKey}
+                            {grantTypeLabel(item.grantType)} ·{" "}
+                            {item.grantType === "ROLE"
+                              ? (options.roles.find(
+                                  (role) => role.code === item.grantKey,
+                                )?.name ?? roleLabel(item.grantKey))
+                              : item.grantType === "REGION"
+                                ? displayRegion(item.grantKey, regionNames)
+                                : "历史授权项目"}
                           </span>
                         </div>
                         {item.decisionCode === "PENDING" &&

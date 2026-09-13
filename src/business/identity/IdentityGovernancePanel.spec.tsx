@@ -309,8 +309,7 @@ describe("IdentityGovernancePanel", () => {
     await screen.findByText("齐齐哈尔市");
   });
 
-  it("opens the authenticated work unit as a real organization responsibility view", async () => {
-    const user = userEvent.setup();
+  it("opens employee management from the former organization entry", async () => {
     render(
       <IdentityGovernancePanel
         initialView="organization"
@@ -320,27 +319,46 @@ describe("IdentityGovernancePanel", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "当前单位" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    const unit = screen.getByRole("region", { name: "当前单位访问范围" });
     expect(
-      within(unit).getByRole("heading", { name: "齐齐哈尔经营部" }),
-    ).toBeVisible();
-    expect(within(unit).queryByText("单位负责人")).not.toBeInTheDocument();
-    expect(await within(unit).findByText("齐齐哈尔市")).toBeVisible();
-    expect(within(unit).queryByText("230200")).not.toBeInTheDocument();
-    expect(within(unit).getByText("李主任")).toBeVisible();
-
-    await user.click(
-      within(unit).getByRole("button", { name: "管理员工与授权" }),
-    );
+      screen.queryByRole("button", { name: "当前单位" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "员工管理" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(await screen.findByText("张敏")).toBeVisible();
+  });
+
+  it("filters region responsibility using employee assignments without separate writes", async () => {
+    const user = userEvent.setup();
+    const repo = repository();
+    const rows = await repo.listEmployees();
+    repo.listEmployees.mockResolvedValue([
+      { ...rows[0], responsibilityRegionCodes: ["230202001"] },
+      {
+        ...rows[0],
+        subjectId: "employee-2",
+        displayName: "未分工员工",
+        responsibilityRegionCodes: [],
+      },
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="regions"
+        onClose={vi.fn()}
+        repository={repo as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    expect(await screen.findByText("未分工员工")).toBeVisible();
+    const directory = screen.getByRole("complementary", { name: "组织单位" });
+    await user.click(
+      await within(directory).findByRole("button", { name: /测试乡镇/ }),
+    );
+    expect(screen.getByText("张敏")).toBeVisible();
+    expect(screen.queryByText("未分工员工")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "设置负责地区" })).toBeVisible();
+    expect(repo.updateEmployee).not.toHaveBeenCalled();
   });
 
   it("shows the authenticated account, organization and responsibility scope without obsolete positions", async () => {
