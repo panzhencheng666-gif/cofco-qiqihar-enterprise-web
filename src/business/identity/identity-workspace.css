@@ -561,3 +561,212 @@
     grid-template-columns: 95px 1fr;
   }
 }
+
+/* Employee identity and authorization editor share the same visual hierarchy. */
+.identity-person-avatar {
+  display: inline-flex;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e7f0fe;
+  color: #2866b8;
+  font-size: 15px;
+  font-weight: 600;
+}
+.identity-employee-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.identity-employee-person small,
+.identity-employment-caption {
+  display: block;
+  color: #8491a4;
+  font-size: 11px;
+  font-weight: 400;
+  margin-top: 3px;
+}
+.identity-account-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #f0f2f5;
+  color: #627087;
+  font-size: 12px;
+}
+.identity-account-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.identity-account-badge[data-status="ACTIVE"] {
+  background: #e9f8f1;
+  color: #16825e;
+}
+.identity-account-badge[data-status="INVITED"] {
+  background: #fff5e2;
+  color: #a26a08;
+}
+.identity-account-badge[data-status="LOCKED"],
+.identity-account-badge[data-status="SUSPENDED"] {
+  background: #fff0ed;
+  color: #b44939;
+}
+.identity-workspace-v4.identity-standalone
+  .identity-employee-table
+  tbody
+  tr[data-selected="true"] {
+  background: #eaf3ff;
+  box-shadow: inset 3px 0 #2873d5;
+}
+.identity-workspace-v4.identity-standalone
+  .identity-employee-table
+  th:first-child {
+  min-width: 175px;
+}
+.identity-workspace-v4.identity-standalone
+  .identity-employee-table
+  th:last-child {
+  min-width: 150px;
+}
+.identity-workspace-v4.identity-standalone .identity-employee-workspace {
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 20px;
+}
+.identity-workspace-v4.identity-standalone .identity-unit-sidebar {
+  background: #f8fafd;
+  border-radius: 6px;
+}
+.identity-settings-drawer .ant-drawer-body {
+  padding: 0 20px 20px;
+  background: #fafbfd;
+}
+.identity-settings-drawer .identity-governance-editor {
+  background: transparent;
+}
+.identity-settings-drawer
+  .identity-governance-editor
+  header.identity-editor-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 0;
+  margin-bottom: 12px;
+  background: transparent;
+  border-bottom: 1px solid #e1e8f2;
+  border-radius: 0;
+}
+.identity-settings-drawer .identity-editor-person > div {
+  flex: 1;
+  min-width: 0;
+}
+.identity-settings-drawer .identity-editor-person h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.identity-settings-drawer .identity-editor-person p {
+  margin: 4px 0 0;
+}
+.identity-settings-drawer .identity-editor-person .identity-person-avatar {
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+  font-size: 20px;
+}
+.identity-editor-section-title {
+  font-size: 14px;
+  padding-left: 9px;
+  border-left: 3px solid #286dca;
+  margin: 18px 0 12px;
+}
+.identity-settings-drawer .identity-governance-form-grid {
+  padding: 16px;
+  gap: 14px;
+  background: white;
+  border: 1px solid #e1e8f2;
+  border-radius: 6px;
+}
+.identity-settings-drawer .identity-governance-editor fieldset {
+  margin: 20px 0 0;
+  background: white;
+  padding: 12px 14px 16px;
+}
+.identity-settings-drawer .identity-governance-choice-grid > label {
+  padding: 8px;
+  background: #f8fafd;
+  border: 1px solid #e7edf5;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.identity-settings-drawer
+  .identity-governance-choice-grid
+  > label:has(input:checked) {
+  background: #eef5ff;
+  border-color: #99bff1;
+  color: #245fac;
+}
+.identity-access-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+.identity-settings-drawer .identity-access-columns .identity-region-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  padding-right: 4px;
+}
+.identity-selected-regions {
+  border: 1px solid #e2e9f2;
+  border-radius: 4px;
+  background: #f8fafd;
+  padding: 10px;
+  max-height: 260px;
+  overflow: auto;
+}
+.identity-selected-regions h4 {
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+.identity-selected-regions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 3px;
+  background: #eaf2ff;
+  color: #2965b5;
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.identity-selected-regions button span {
+  font-size: 17px;
+}
+.identity-settings-drawer .identity-governance-editor footer {
+  bottom: -20px;
+  margin: 20px -20px -20px;
+  padding: 14px 20px;
+  box-shadow: 0 -5px 16px #263d5b08;
+}
+@media (max-width: 700px) {
+  .identity-workspace-v4.identity-standalone .identity-employee-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .identity-settings-drawer .identity-governance-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

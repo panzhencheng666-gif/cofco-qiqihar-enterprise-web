@@ -329,6 +329,36 @@ describe("IdentityGovernancePanel", () => {
     expect(await screen.findByText("张敏")).toBeVisible();
   });
 
+  it("removes a selected access region from the editor without writing before save", async () => {
+    const user = userEvent.setup();
+    const repo = repository();
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={repo as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "管理张敏的授权" }),
+    );
+    const selected = await screen.findByRole("complementary", {
+      name: "已选可访问地区",
+    });
+    await user.click(
+      within(selected).getByRole("button", { name: /移除可访问地区/ }),
+    );
+    expect(within(selected).getByText("尚未选择地区")).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", {
+        name: /可访问地区.*测试乡镇$/,
+        exact: false,
+      }),
+    ).not.toBeChecked();
+    expect(repo.updateEmployee).not.toHaveBeenCalled();
+  });
+
   it("filters region responsibility using employee assignments without separate writes", async () => {
     const user = userEvent.setup();
     const repo = repository();

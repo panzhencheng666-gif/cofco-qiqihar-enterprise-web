@@ -283,12 +283,30 @@ function AssignmentEditor({
       className="identity-governance-editor"
       aria-label={invite ? "邀请员工" : "调整员工授权"}
     >
-      <header>
-        <h3>
-          {invite ? "邀请员工加入系统" : `调整 ${draft.displayName} 的授权`}
-        </h3>
-        <p>账号由管理员建档；员工首次完成企业身份认证后才能进入系统。</p>
+      <header className="identity-editor-person">
+        <span className="identity-person-avatar" aria-hidden="true">
+          {draft.displayName.slice(0, 1) || "+"}
+        </span>
+        <div>
+          <h3>{invite ? "邀请员工加入系统" : draft.displayName}</h3>
+          <p>
+            {options.workUnits.find((unit) => unit.code === draft.workUnitCode)
+              ?.name ?? "待设置业务单位"}
+          </p>
+        </div>
+        {!invite && (
+          <span
+            className="identity-account-badge"
+            data-status={draft.accountStatus}
+          >
+            {accountLabel(draft.accountStatus)}
+          </span>
+        )}
       </header>
+      {invite && (
+        <p>账号由管理员建档；员工首次完成企业身份认证后才能进入系统。</p>
+      )}
+      <h4 className="identity-editor-section-title">基本资料</h4>
       <div className="identity-governance-form-grid">
         <label>
           员工账号
@@ -424,28 +442,53 @@ function AssignmentEditor({
             已选择 {draft.regionCodes.length} 个可访问地区
           </strong>
         </div>
-        <div className="identity-governance-choice-grid identity-region-options">
-          {visibleRegionCodes.map((code) => (
-            <label key={code}>
-              <input
-                aria-label={`可访问地区 ${displayRegion(code, regionNames)}`}
-                checked={draft.regionCodes.includes(code)}
-                type="checkbox"
-                onChange={() =>
+        <div className="identity-access-columns">
+          <div className="identity-governance-choice-grid identity-region-options">
+            {visibleRegionCodes.map((code) => (
+              <label key={code}>
+                <input
+                  aria-label={`可访问地区 ${displayRegion(code, regionNames)}`}
+                  checked={draft.regionCodes.includes(code)}
+                  type="checkbox"
+                  onChange={() =>
+                    onChange({
+                      ...draft,
+                      regionCodes: toggle(draft.regionCodes, code),
+                    })
+                  }
+                />
+                {displayRegion(code, regionNames)}
+              </label>
+            ))}
+            {loadingOptions ? (
+              <p>正在读取该单位的可访问地区…</p>
+            ) : (
+              visibleRegionCodes.length === 0 && <p>没有匹配的可访问地区。</p>
+            )}
+          </div>
+          <aside
+            className="identity-selected-regions"
+            aria-label="已选可访问地区"
+          >
+            <h4>已选地区 · {draft.regionCodes.length}</h4>
+            {draft.regionCodes.map((code) => (
+              <button
+                key={code}
+                type="button"
+                aria-label={`移除可访问地区 ${displayRegion(code, regionNames)}`}
+                onClick={() =>
                   onChange({
                     ...draft,
                     regionCodes: toggle(draft.regionCodes, code),
                   })
                 }
-              />
-              {displayRegion(code, regionNames)}
-            </label>
-          ))}
-          {loadingOptions ? (
-            <p>正在读取该单位的可访问地区…</p>
-          ) : (
-            visibleRegionCodes.length === 0 && <p>没有匹配的可访问地区。</p>
-          )}
+              >
+                {displayRegion(code, regionNames)}{" "}
+                <span aria-hidden="true">×</span>
+              </button>
+            ))}
+            {draft.regionCodes.length === 0 && <p>尚未选择地区</p>}
+          </aside>
         </div>
       </fieldset>
       <footer>
@@ -1600,9 +1643,25 @@ export function IdentityGovernancePanel({
                       </thead>
                       <tbody>
                         {displayedEmployees.map((employee) => (
-                          <tr key={employee.subjectId}>
+                          <tr
+                            key={employee.subjectId}
+                            data-selected={
+                              editor?.draft.subjectId === employee.subjectId
+                            }
+                          >
                             <th scope="row">
-                              <strong>{employee.displayName}</strong>
+                              <div className="identity-employee-person">
+                                <span
+                                  className="identity-person-avatar"
+                                  aria-hidden="true"
+                                >
+                                  {employee.displayName.slice(0, 1)}
+                                </span>
+                                <div>
+                                  <strong>{employee.displayName}</strong>
+                                  <small>{employee.workUnitName}</small>
+                                </div>
+                              </div>
                             </th>
                             <td>
                               <strong>
@@ -1634,8 +1693,15 @@ export function IdentityGovernancePanel({
                               </button>
                             </td>
                             <td>
-                              {employmentLabel(employee.employmentStatus)} ·{" "}
-                              {accountLabel(employee.accountStatus)}
+                              <span
+                                className="identity-account-badge"
+                                data-status={employee.accountStatus}
+                              >
+                                {accountLabel(employee.accountStatus)}
+                              </span>
+                              <small className="identity-employment-caption">
+                                {employmentLabel(employee.employmentStatus)}
+                              </small>
                             </td>
                             <td>
                               {employee.subjectId === session.subjectId ? (
@@ -1742,7 +1808,7 @@ export function IdentityGovernancePanel({
                   <Drawer
                     open
                     title={editor.invite ? "邀请员工" : "员工设置"}
-                    width={440}
+                    width="min(560px, 100vw)"
                     onClose={closeAssignmentEditor}
                     rootClassName="identity-settings-drawer"
                     destroyOnHidden
