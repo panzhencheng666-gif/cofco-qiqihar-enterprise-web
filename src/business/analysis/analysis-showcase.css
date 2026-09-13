@@ -1,551 +1,312 @@
-/* Read-first analytical canvas: charts and their authoritative sources share one view. */
+/* Compact analytical workspace. One spacing system; no decorative fixed-height panels. */
 .reference-enterprise-shell .analysis-showcase-page {
-  padding: 22px 24px 32px;
-  background: #edf2f7;
-  --analysis-ink: #183b59;
+  padding: 16px 20px 24px;
+  background: #f0f3f6;
+  color: #2b485e;
 }
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .analysis-showcase-masthead {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-.reference-enterprise-shell .analysis-showcase-page .analysis-showcase-title {
-  padding: 12px 0 18px;
-  min-height: 80px;
-  background: transparent;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .analysis-showcase-title
-  h1 {
-  font-size: 30px;
-  letter-spacing: 2px;
-  color: #173c59;
-}
-.reference-enterprise-shell .analysis-showcase-page .analysis-scope-disclosure {
-  background: #fff;
-  border: 1px solid #dce5ed;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  padding: 26px 12px;
-  margin: 18px 0 22px;
-  background: linear-gradient(112deg, #173a59, #245e80 65%, #287c8c);
-  border: 0;
-  border-radius: 6px;
-  color: #fff;
-  box-shadow: 0 10px 24px #224f7314;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band-card {
-  background: transparent;
-  border: 0;
-  border-right: 1px solid #ffffff29;
-  border-radius: 0;
-  padding: 4px 24px;
-  box-shadow: none;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band-card:last-child {
-  border: 0;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band-card
-  dt {
-  color: #c4e0ef;
-  font-size: 14px;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band-card
-  dd {
-  color: white;
-  font-size: clamp(20px, 1.7vw, 32px);
-  font-weight: 650;
-  letter-spacing: -0.6px;
-  margin: 14px 0 8px;
-  font-variant-numeric: tabular-nums;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band-card
-  small {
-  color: #b8d3e2;
+.analysis-showcase-page .enterprise-ledger-workbench__breadcrumb {
+  margin: 0 0 12px;
   font-size: 11px;
+  color: #8b9ba8;
 }
-.analysis-exhibition {
+.reference-enterprise-shell .analysis-showcase-masthead {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 22px;
-  align-items: start;
-}
-.analysis-exhibition__charts {
-  min-width: 0;
-  display: grid;
-  gap: 20px;
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-dashboard__grid {
-  margin: 0;
-  gap: 20px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-dashboard__stack {
-  display: contents;
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-dashboard__grid[data-layout="primary"]
-  > .observable-analysis-report__section:first-child,
-.reference-enterprise-shell
-  .analysis-exhibition
-  [data-business-flow="production-outcomes"]
-  > .observable-analysis-report__section:first-child {
-  grid-column: 1 / -1;
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__section {
-  margin: 0;
-  border: 1px solid #dce5ec;
-  border-radius: 6px;
-  background: #fff;
-  overflow: hidden;
-  box-shadow: 0 3px 10px #284e6b05;
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__section
-  > header {
-  background: #fff;
-  padding: 20px 24px 12px;
-  border: 0;
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__section
-  > header
-  h2 {
-  font-size: 18px;
-  color: #183c58;
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__section
-  > header
-  p {
-  font-size: 12px;
-  color: #788d9e;
-  margin-top: 6px;
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__vertical-bar-chart {
-  padding: 18px 24px 22px;
+  grid-template-columns: minmax(250px, 1fr) minmax(300px, 1fr);
+  gap: 16px;
+  align-items: center;
   margin: 0;
 }
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__vertical-bars
-  > div
-  > i
-  > b {
-  border-radius: 5px 5px 0 0;
-  background: linear-gradient(#32a6c9, #2475a6);
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__vertical-bars
-  > div[data-tone="1"]
-  > i
-  > b {
-  background: linear-gradient(#6eb7b1, #34887f);
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__vertical-bars
-  > div[data-tone="2"]
-  > i
-  > b {
-  background: linear-gradient(#ebc17a, #c39544);
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__vertical-bars
-  > div[data-tone="3"]
-  > i
-  > b {
-  background: linear-gradient(#a7b4dc, #657cab);
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__vertical-bars
-  small {
-  font-size: 10px;
-  color: #8a9baa;
-}
-.reference-enterprise-shell
-  .analysis-exhibition
-  .observable-analysis-report__chart-grid {
+.reference-enterprise-shell .analysis-showcase-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 18px;
 }
-.analysis-source-panel {
-  position: sticky;
-  top: 92px;
-  background: #fff;
-  border: 1px solid #d9e3eb;
-  border-radius: 6px;
-  padding: 22px;
-  max-height: calc(100dvh - 115px);
-  overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #a9becb transparent;
-}
-.analysis-source-panel header > span {
-  font-size: 11px;
-  letter-spacing: 3px;
-  color: #2b8c9f;
-  font-weight: 700;
-}
-.analysis-source-panel h2 {
-  font-size: 19px;
-  color: #203f59;
-  margin: 9px 0;
-}
-.analysis-source-panel p {
-  font-size: 12px;
-  color: #7b8f9e;
-  line-height: 1.6;
-  margin: 6px 0;
-}
-.analysis-source-totals {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin: 22px 0;
-  padding-bottom: 22px;
-  border-bottom: 1px solid #e4ecf2;
-}
-.analysis-source-totals strong {
-  display: block;
-  font-size: 32px;
-  color: #236d8b;
-  font-weight: 600;
-}
-.analysis-source-totals span {
-  font-size: 12px;
-  color: #8193a2;
-}
-.analysis-source-panel h3 {
-  font-size: 13px;
-  color: #35536a;
+.reference-enterprise-shell .analysis-showcase-title h1 {
+  font-size: 23px;
   margin: 0;
+  color: #1f3c52;
+  letter-spacing: 0.5px;
 }
-.analysis-source-region-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.analysis-source-region-title > span {
+.reference-enterprise-shell .analysis-showcase-title p {
+  margin: 6px 0 0;
   font-size: 11px;
-  color: #8a99a5;
+  color: #899ba9;
 }
-.analysis-source-regions {
-  max-height: 280px;
-  overflow: auto;
-  margin: 14px -6px 20px;
-  padding: 0 6px;
-  scrollbar-width: thin;
-}
-.reference-enterprise-shell .analysis-source-regions button {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 5px;
-  background: transparent;
-  border: 0;
+.reference-enterprise-shell .analysis-showcase-title button {
+  border: 1px solid #cbd9e3;
   border-radius: 3px;
-  text-align: left;
-  color: #506c80;
+  padding: 8px 12px;
   font-size: 12px;
+  color: #356681;
+  background: #fff;
   cursor: pointer;
 }
-.reference-enterprise-shell .analysis-source-regions button:hover,
-.reference-enterprise-shell
-  .analysis-source-regions
-  button[aria-pressed="true"] {
-  background: #edf6fa;
+.analysis-showcase-page .analysis-scope-disclosure {
+  border: 1px solid #d8e2e9;
+  border-radius: 3px;
+  background: #fff;
 }
-.analysis-source-regions i {
-  grid-column: 1 / -1;
-  background: #edf3f6;
-  height: 5px;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.analysis-source-regions b {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #3c80ae, #59b3b7);
-  border-radius: 4px;
-}
-.analysis-source-records {
-  border-top: 1px solid #e1e9ef;
-  padding-top: 18px;
-}
-.analysis-source-records > div {
-  padding: 12px 0;
-  border-bottom: 1px solid #edf2f5;
-}
-.analysis-source-records > div strong {
-  display: block;
+.analysis-showcase-page .analysis-scope-disclosure > summary {
+  padding: 11px 14px;
   font-size: 12px;
-  line-height: 1.6;
-  color: #405f75;
-  font-weight: 500;
+  color: #59798e;
+  cursor: pointer;
 }
-.analysis-source-records > div span {
-  display: block;
-  font-size: 11px;
-  color: #8c9daa;
-  margin-top: 4px;
+.analysis-showcase-page .analysis-scope-disclosure > summary span {
+  float: right;
+  color: #337499;
 }
-@media (max-width: 1250px) {
-  .analysis-exhibition {
-    grid-template-columns: minmax(0, 1fr) 260px;
-    gap: 16px;
-  }
-  .analysis-source-panel {
-    padding: 16px;
-  }
-  .reference-enterprise-shell
-    .analysis-exhibition
-    .observable-analysis-dashboard__grid {
-    grid-template-columns: 1fr;
-  }
-}
-@media (max-width: 950px) {
-  .analysis-exhibition {
-    grid-template-columns: 1fr;
-  }
-  .analysis-source-panel {
-    position: static;
-    max-height: none;
-  }
-  .reference-enterprise-shell
-    .analysis-showcase-page
-    .observable-analysis-report__metric-band {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: 20px;
-  }
-}
-.reference-enterprise-shell .analysis-showcase-page .analysis-showcase-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  border: 0;
-  box-shadow: none;
-  border-radius: 0;
-}
-.reference-enterprise-shell .analysis-showcase-page .analysis-showcase-title p {
-  color: #7c90a0;
-  font-size: 12px;
-  margin: 8px 0 0;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .analysis-showcase-title
-  h1 {
-  margin: 0;
+.analysis-showcase-page .analysis-scope-disclosure[open] {
+  grid-column: 1/-1;
 }
 .reference-enterprise-shell
   .analysis-showcase-page
   .observable-analysis-status {
-  padding: 10px 12px;
-  font-size: 11px;
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  margin: 12px 0 0;
+  gap: 12px;
+  padding: 10px 0;
+  margin: 6px 0 0;
   border: 0;
+  background: none;
   box-shadow: none;
+  font-size: 10px;
+  color: #8498a7;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-status
+  strong {
+  color: #537b94;
+  background: #e1eaf1;
+  border-radius: 2px;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-status
+  span
+  + span {
+  border: 0;
+  padding-left: 0;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  > .observable-analysis-report__metric-band {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 1px solid #dbe4eb;
+  border-radius: 3px;
+  background: #fff;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  > .observable-analysis-report__metric-band
+  > div {
+  margin: 0;
+  padding: 14px 18px;
+  min-height: 0;
+  border: 0;
+  border-right: 1px solid #e7edf2;
+  border-radius: 0;
   background: transparent;
+  box-shadow: none;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  > .observable-analysis-report__metric-band
+  > div:last-child {
+  border-right: 0;
 }
 .reference-enterprise-shell
   .analysis-showcase-page
   .observable-analysis-report__metric-band-card::after {
   display: none;
 }
-.analysis-harvest-focus {
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__metric-band-card
+  dt {
+  font-size: 11px;
+  color: #7790a3;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__metric-band-card
+  dd {
+  font-size: clamp(18px, 1.55vw, 25px);
+  font-weight: 600;
+  color: #245c80;
+  margin: 8px 0 4px;
+  letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__metric-band-card
+  small {
+  font-size: 10px;
+  color: #98a9b5;
+}
+.analysis-exhibition {
+  display: block;
+}
+.analysis-exhibition__charts {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
-  gap: 24px;
+  gap: 14px;
+  min-width: 0;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-dashboard__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  align-items: start;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-dashboard__stack {
+  display: contents;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__section {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid #dce5ec;
+  border-radius: 3px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: none;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__section
+  > header {
+  padding: 16px 18px 10px;
+  border: 0;
+  background: transparent;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__section
+  > header
+  h2 {
+  font-size: 15px;
+  color: #34586f;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__section
+  > header
+  p {
+  font-size: 10px;
+  color: #93a3b0;
+  margin: 5px 0 0;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__chart-grid[data-layout="stacked"] {
+  grid-template-columns: 1fr;
+}
+.analysis-harvest-focus {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(160px, 1fr);
+  gap: 20px;
   align-items: center;
-  padding: 12px 30px 26px;
+  padding: 0 18px 16px;
 }
 .analysis-harvest-focus figure {
   margin: 0;
   text-align: center;
 }
 .analysis-harvest-focus svg {
+  display: block;
   width: 100%;
-  max-width: 310px;
+  max-height: 200px;
 }
 .analysis-harvest-focus figcaption {
-  font-size: 12px;
-  color: #8a9ba8;
+  font-size: 10px;
+  color: #8a9eac;
 }
 .focus-number {
+  fill: #2d738f;
   font-size: 30px;
-  fill: #235674;
   font-weight: 600;
 }
 .focus-caption {
-  font-size: 13px;
-  fill: #7b91a1;
+  fill: #8a9eac;
+  font-size: 12px;
 }
 .analysis-harvest-focus dl {
   margin: 0;
 }
 .analysis-harvest-focus dl > div {
-  padding: 16px 0;
-  border-bottom: 1px solid #e7eef3;
+  padding: 9px 0;
+  border-bottom: 1px solid #edf2f5;
 }
 .analysis-harvest-focus dt {
-  font-size: 12px;
-  color: #738a9c;
+  font-size: 11px;
+  color: #7792a4;
 }
 .analysis-harvest-focus dd {
-  margin: 7px 0;
-  font-size: 24px;
-  color: #2b637e;
+  font-size: 18px;
   font-weight: 600;
+  color: #376c87;
+  margin: 5px 0;
 }
 .analysis-harvest-focus small {
   font-size: 10px;
-  color: #96a6b2;
+  color: #a0afba;
 }
 .analysis-price-focus {
+  position: relative;
+  padding: 0 18px 14px;
   margin: 0;
-  padding: 12px 24px 22px;
 }
 .analysis-price-focus figcaption {
-  font-size: 13px;
-  color: #49687d;
-}
-.analysis-price-focus figcaption span {
-  float: right;
   font-size: 11px;
-  color: #8d9eaa;
+  color: #7893a4;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
 }
 .analysis-price-focus svg {
+  display: block;
   width: 100%;
-  max-height: 260px;
+  max-height: 190px;
 }
 .analysis-price-spread {
   display: flex;
-  gap: 16px;
-  align-items: center;
-  background: #f0f7f9;
-  padding: 14px 18px;
-  color: #3d647a;
-  font-size: 12px;
+  gap: 12px;
+  align-items: baseline;
   flex-wrap: wrap;
-}
-.analysis-price-spread strong {
-  font-size: 22px;
-  color: #24818f;
-}
-.analysis-price-spread small {
-  margin-left: auto;
-  color: #8198a7;
+  border-top: 1px solid #e9f0f4;
+  padding-top: 10px;
+  color: #7290a4;
   font-size: 11px;
 }
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__distribution-layout {
-  display: grid;
-  grid-template-columns: 130px minmax(0, 1fr);
-  gap: 20px;
-  align-items: center;
+.analysis-price-spread strong {
+  font-size: 19px;
+  color: #297d92;
 }
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__donut {
-  width: 130px;
-  height: 130px;
-}
-@media (max-width: 1000px) {
-  .analysis-harvest-focus {
-    grid-template-columns: 1fr;
-  }
-  .analysis-harvest-focus dl {
-    display: flex;
-    gap: 16px;
-    justify-content: space-between;
-  }
-  .analysis-harvest-focus dd {
-    font-size: 18px;
-  }
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .analysis-showcase-masthead {
-  display: block;
-  margin: 0;
-  padding: 0;
-}
-.reference-enterprise-shell .analysis-showcase-page .analysis-showcase-title {
-  display: flex;
-  flex-direction: row;
-  padding: 6px 0 18px;
-  min-height: 0;
-  background: transparent;
-  border: 0;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .analysis-showcase-title
-  button {
-  border: 1px solid #bdcfdd;
-  border-radius: 4px;
-  padding: 8px 16px;
-  background: #fff;
-  color: #386786;
-  font-size: 12px;
-  cursor: pointer;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band {
-  padding: 18px 8px;
-  margin: 12px 0 20px;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band-card {
-  min-height: 0;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-status
-  strong {
-  background: #e9f0f5;
-  color: #456d86;
-  border-radius: 3px;
+.analysis-price-spread small {
+  font-size: 10px;
+  color: #9aaab6;
 }
 .analysis-harvest-focus > .observable-analysis-report__trend-table,
 .analysis-price-focus > .observable-analysis-report__trend-table {
@@ -559,145 +320,329 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin: 8px 22px;
-  padding: 14px 0;
-  border-bottom: 1px solid #e1ebf1;
-  font-size: 12px;
-  color: #607e92;
+  margin: 0 18px;
+  padding: 9px 0;
+  border-bottom: 1px solid #e7eff4;
+  font-size: 11px;
+  color: #7e99a9;
 }
 .analysis-cost-total strong {
-  color: #285e7a;
+  color: #356e88;
   font-size: 18px;
+  font-weight: 600;
 }
-/* Keep the analytical content above the fold at normal desktop sizes. */
-.reference-enterprise-shell .analysis-showcase-page {
-  padding: 18px 24px 28px;
+/* Source diagram and table align within the same resizable evidence workspace. */
+.analysis-source-panel {
+  margin-top: 14px;
+  padding: 0;
+  background: #fff;
+  border: 1px solid #dce5ec;
+  border-radius: 3px;
 }
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .enterprise-ledger-workbench__breadcrumb {
-  margin-bottom: 12px;
-  font-size: 11px;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .analysis-showcase-masthead {
-  display: grid;
-  grid-template-columns: minmax(230px, 1fr) minmax(320px, 1.1fr);
+.analysis-source-panel > header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 20px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e6edf2;
 }
-.reference-enterprise-shell .analysis-showcase-page .analysis-showcase-title {
-  padding: 0;
+.analysis-source-panel h2 {
+  font-size: 15px;
+  color: #34586f;
+  margin: 0;
 }
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .analysis-showcase-title
-  h1 {
-  font-size: 27px;
-  letter-spacing: 1px;
-}
-.reference-enterprise-shell .analysis-showcase-page .analysis-showcase-title p {
+.analysis-source-panel p {
+  font-size: 11px;
+  color: #91a5b3;
   margin: 6px 0 0;
+}
+.analysis-source-panel > header label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6c899d;
   font-size: 11px;
 }
-.reference-enterprise-shell .analysis-showcase-page .analysis-scope-disclosure {
-  border-radius: 4px;
-  background: #f7fafc;
+.analysis-source-panel > header input {
+  width: 230px;
+  max-width: 100%;
+  border: 1px solid #cbdbe6;
+  border-radius: 3px;
+  height: 32px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #426b84;
+}
+.analysis-source-body {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  align-items: start;
+}
+.analysis-source-breakdown {
+  padding: 14px 16px;
+  min-width: 0;
+}
+.analysis-source-breakdown h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #5a7b91;
+  display: flex;
+  justify-content: space-between;
+}
+.analysis-source-breakdown h3 span {
+  font-size: 10px;
+  color: #98aab7;
+}
+.analysis-source-regions {
+  display: grid;
+  gap: 3px;
+  max-height: 320px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #b7cbd8 transparent;
+}
+.reference-enterprise-shell .analysis-source-regions button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: #6b899d;
+  font-size: 11px;
+  padding: 8px 6px;
+  cursor: pointer;
+}
+.reference-enterprise-shell .analysis-source-regions button:hover,
+.reference-enterprise-shell
+  .analysis-source-regions
+  button[aria-pressed="true"] {
+  background: #ecf5fa;
+  color: #28678b;
+}
+.analysis-source-regions i {
+  grid-column: 1/-1;
+  height: 4px;
+  background: #edf3f6;
+}
+.analysis-source-regions b {
+  display: block;
+  height: 100%;
+  background: #5b9bbb;
+}
+.analysis-source-records {
+  min-width: 0;
+  border-left: 1px solid #e5edf3;
+}
+.analysis-source-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  color: #6f8da1;
+  font-size: 11px;
+  min-height: 44px;
+}
+.analysis-source-caption button {
+  border: 0;
+  padding: 0;
+  color: #2e7a9e;
+  font-size: 11px;
+  background: transparent;
+  cursor: pointer;
+}
+.reference-enterprise-shell
+  .analysis-source-records
+  .observable-analysis-report__lineage-viewport {
+  max-height: 320px;
+  overflow: auto;
+  border: 0;
+  margin: 0;
+}
+.reference-enterprise-shell .analysis-source-records table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 12px;
+}
+.reference-enterprise-shell .analysis-source-records th {
+  position: sticky;
+  top: 0;
+  background: #eaf2f7;
+  color: #577b91;
+  font-weight: 600;
+  text-align: left;
+}
+.reference-enterprise-shell .analysis-source-records :is(th, td) {
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid #e6eef3;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.reference-enterprise-shell .analysis-source-records td {
+  color: #6e8a9c;
+}
+.reference-enterprise-shell .analysis-source-records tr:nth-child(even) {
+  background: #f8fbfd;
+}
+.analysis-source-empty {
+  padding: 20px;
+}
+@media (max-width: 1050px) {
+  .reference-enterprise-shell .analysis-showcase-masthead {
+    grid-template-columns: 1fr;
+  }
+  .reference-enterprise-shell
+    .analysis-showcase-page
+    .observable-analysis-dashboard__grid {
+    grid-template-columns: 1fr;
+  }
+  .analysis-source-body {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+  .reference-enterprise-shell
+    .analysis-showcase-page
+    > .observable-analysis-report__metric-band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .analysis-source-panel > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .analysis-source-body {
+    grid-template-columns: 1fr;
+  }
+  .analysis-source-records {
+    border-left: 0;
+  }
+  .analysis-source-regions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 160px;
+  }
+  .reference-enterprise-shell
+    .analysis-showcase-page
+    .observable-analysis-report__chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* A lone final module uses the complete row instead of leaving a vacant half. */
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  > .observable-analysis-report__section:last-child {
+  grid-column: 1 / -1;
 }
 .reference-enterprise-shell
   .analysis-showcase-page
-  .analysis-scope-disclosure[open] {
+  .observable-analysis-dashboard__grid[data-card-count="1"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.reference-enterprise-shell
+  .analysis-source-records
+  .observable-analysis-report__lineage-viewport {
+  max-height: 320px !important;
+}
+/* Avoid nested half-width quality grids: values and units stay on one baseline. */
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__grouped-ranges {
+  grid-template-columns: minmax(0, 1fr);
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__ranges {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__range-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__range-values
+  small {
+  white-space: nowrap;
+  font-size: 10px;
+}
+/* Pair compact topics together; give the longer cost analysis its own complete row. */
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-outcomes"]
+  > .observable-analysis-report__section:nth-child(1) {
+  order: 1;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-outcomes"]
+  > .observable-analysis-report__section:nth-child(2) {
+  order: 2;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-outcomes"]
+  > .observable-analysis-report__section:nth-child(3) {
+  order: 3;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  > .observable-analysis-report__section:last-child {
+  order: 4;
+  grid-column: auto;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  > .observable-analysis-report__section:has(.analysis-cost-total) {
+  order: 5;
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  > .observable-analysis-report__section:has(.analysis-cost-total)
+  > :is(header, .analysis-cost-total) {
   grid-column: 1/-1;
 }
 .reference-enterprise-shell
   .analysis-showcase-page
-  .analysis-scope-disclosure
-  > summary {
-  padding: 12px 16px;
-  font-size: 12px;
+  [data-business-flow="production-resources"]
+  .observable-analysis-report__distribution-layout {
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: center;
 }
 .reference-enterprise-shell
   .analysis-showcase-page
-  .observable-analysis-status {
-  margin: 14px 0 0;
-  padding: 8px 0;
-  gap: 12px;
-  min-height: 0;
+  [data-business-flow="production-resources"]
+  .observable-analysis-report__distribution-layout
+  dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
 }
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band {
-  margin: 10px 0 20px;
-  padding: 18px 8px;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band-card
-  dt {
-  font-size: 12px;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band-card
-  dd {
-  margin: 10px 0 6px;
-  font-size: clamp(19px, 1.55vw, 29px);
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .observable-analysis-report__metric-band-card
-  small {
-  font-size: 10px;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .analysis-exhibition
-  .observable-analysis-report__section
-  > header {
-  padding: 20px 24px 8px;
-}
-.reference-enterprise-shell
-  .analysis-showcase-page
-  .analysis-exhibition
-  .observable-analysis-report__section
-  > header
-  h2 {
-  font-size: 17px;
-}
-.analysis-price-focus {
-  padding-top: 8px;
-}
-.analysis-price-focus svg {
-  max-height: 220px;
-}
-.analysis-harvest-focus {
-  padding-top: 0;
-  padding-bottom: 20px;
-}
-.analysis-harvest-focus svg {
-  max-width: 260px;
-}
-.analysis-source-panel {
-  padding: 20px;
-}
-.analysis-source-totals {
-  margin: 18px 0;
-  padding-bottom: 18px;
-}
-.analysis-source-totals strong {
-  font-size: 29px;
-}
-@media (max-width: 1050px) {
+@media (max-width: 1000px) {
   .reference-enterprise-shell
     .analysis-showcase-page
-    .analysis-showcase-masthead {
+    [data-business-flow="production-resources"]
+    > .observable-analysis-report__section:has(.analysis-cost-total) {
     grid-template-columns: 1fr;
-    gap: 14px;
   }
   .reference-enterprise-shell
     .analysis-showcase-page
-    .observable-analysis-report__metric-band-card {
-    padding: 4px 14px;
+    [data-business-flow="production-resources"]
+    .observable-analysis-report__distribution-layout
+    dl {
+    grid-template-columns: 1fr;
   }
 }

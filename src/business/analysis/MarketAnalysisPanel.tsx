@@ -7,10 +7,7 @@ import type {
   ObservableAnalysisQuery,
   ObservableAnalysisSnapshot,
 } from "@/platform/api/observableAnalysisContract";
-import {
-  ALL_AUTHORIZED_REGION_CODE,
-  observableAnalysisLineageKey,
-} from "@/platform/api/observableAnalysisContract";
+import { ALL_AUTHORIZED_REGION_CODE } from "@/platform/api/observableAnalysisContract";
 import {
   realtimeBusinessRepository,
   type MasterDataSnapshot,
@@ -404,47 +401,12 @@ function MarketResult({
                   ) : null}
                 </AnalysisDashboardGrid>
               ) : null}
-
-              <AnalysisReportSection
-                analysisVersion={version}
-                description="明细仅列出本次结果实际采用的市场与物流核定记录。"
-                title="核定数据来源"
-              >
-                <div
-                  className="realtime-supply-table-wrap observable-analysis-report__lineage-viewport"
-                  data-layout="business-ledger"
-                >
-                  <table aria-label="市场地区与主体来源">
-                    <thead>
-                      <tr>
-                        <th>业务来源</th>
-                        <th>调查对象</th>
-                        <th>地区</th>
-                        <th>期间</th>
-                        <th>核定时间</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {adoptedSources.map((item) => (
-                        <tr key={observableAnalysisLineageKey(item)}>
-                          <td>
-                            {item.sourceDomain === "MARKET"
-                              ? "市场填报"
-                              : "物流填报"}
-                          </td>
-                          <td>{item.subjectLabel}</td>
-                          <td>{item.regionLabel}</td>
-                          <td>{item.periodLabel}</td>
-                          <td>{formatDate(item.approvedAt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </AnalysisReportSection>
             </div>
-            <AnalysisSourcePanel sources={adoptedSources} />
           </div>
+          <AnalysisSourcePanel
+            sources={adoptedSources}
+            tableLabel="市场地区与主体来源"
+          />
         </>
       ) : (
         <Empty>当前范围暂无可用于分析的市场或物流数据。</Empty>

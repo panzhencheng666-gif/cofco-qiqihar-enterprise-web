@@ -7,10 +7,7 @@ import type {
   ObservableAnalysisQuery,
   ObservableAnalysisSnapshot,
 } from "@/platform/api/observableAnalysisContract";
-import {
-  ALL_AUTHORIZED_REGION_CODE,
-  observableAnalysisLineageKey,
-} from "@/platform/api/observableAnalysisContract";
+import { ALL_AUTHORIZED_REGION_CODE } from "@/platform/api/observableAnalysisContract";
 import {
   realtimeBusinessRepository,
   type MasterDataSnapshot,
@@ -444,41 +441,12 @@ function ProductionResult({
                   </div>
                 </AnalysisReportSection>
               ) : null}
-
-              <AnalysisReportSection
-                analysisVersion={version}
-                description="本页结论仅来自当前范围实际采用的产情记录。"
-                title="核定数据来源"
-              >
-                <div
-                  className="realtime-supply-table-wrap observable-analysis-report__lineage-viewport"
-                  data-layout="business-ledger"
-                >
-                  <table aria-label="产情核定数据来源">
-                    <thead>
-                      <tr>
-                        <th>调查对象</th>
-                        <th>地区</th>
-                        <th>期间</th>
-                        <th>核定时间</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {productionSources.map((item) => (
-                        <tr key={observableAnalysisLineageKey(item)}>
-                          <td>{item.subjectLabel}</td>
-                          <td>{item.regionLabel}</td>
-                          <td>{item.periodLabel}</td>
-                          <td>{formatDate(item.approvedAt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </AnalysisReportSection>
             </div>
-            <AnalysisSourcePanel sources={productionSources} />
           </div>
+          <AnalysisSourcePanel
+            sources={productionSources}
+            tableLabel="产情核定数据来源"
+          />
         </>
       ) : (
         <Empty>当前范围暂无已审核的产情分析数据。</Empty>
