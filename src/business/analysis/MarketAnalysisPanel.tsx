@@ -1,3 +1,6 @@
+import { PriceFocus } from "./AnalysisFocusCharts";
+import { AnalysisSourcePanel } from "./AnalysisSourcePanel";
+import "./analysis-showcase.css";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
@@ -23,7 +26,6 @@ import {
   AnalysisGroupedRangeCharts,
   AnalysisGroupedVerticalBarCharts,
   AnalysisMetricBand,
-  AnalysisPriceDifferenceChart,
   AnalysisReportSection,
   AnalysisScopeStrip,
   AnalysisTrendChart,
@@ -102,7 +104,7 @@ export function MarketAnalysisPanel({
 
   return (
     <div
-      className="enterprise-ledger-workbench observable-analysis-page analysis-workbench-page"
+      className="observable-analysis-page analysis-showcase-page"
       data-dashboard="market"
     >
       <div className="enterprise-ledger-workbench__breadcrumb">
@@ -110,10 +112,10 @@ export function MarketAnalysisPanel({
       </div>
       <section
         aria-label="市场分析范围"
-        className="observable-analysis-dashboard__masthead"
-        data-layout="linear-workbench"
+        className="analysis-showcase-masthead"
+        data-layout="analytical-canvas"
       >
-        <header className="enterprise-ledger-title observable-analysis-title">
+        <header className="analysis-showcase-title">
           <div>
             <h1>市场分析</h1>
             <p>核定价格、购销、库存与流通结构</p>
@@ -126,28 +128,40 @@ export function MarketAnalysisPanel({
             刷新分析
           </button>
         </header>
-        {masterData ? (
-          <ObservableAnalysisFilters
-            authorizedRegionCodes={authorizedRegionCodes}
-            defaultQuery={resolvedDefaultQuery}
-            masterData={masterData}
-            query={query}
-            onChange={setQuery}
+        <details className="analysis-scope-disclosure">
+          <summary>
+            分析范围：{query.surveyYear}年 ·{" "}
+            {query.productCode === "CORN"
+              ? "玉米"
+              : query.productCode === "SOYBEAN"
+                ? "大豆"
+                : "稻谷"}{" "}
+            · {query.surveyMonth ? `${query.surveyMonth}月` : "全年"}{" "}
+            <span>调整筛选</span>
+          </summary>
+          {masterData ? (
+            <ObservableAnalysisFilters
+              authorizedRegionCodes={authorizedRegionCodes}
+              defaultQuery={resolvedDefaultQuery}
+              masterData={masterData}
+              query={query}
+              onChange={setQuery}
+            />
+          ) : (
+            <p>正在读取分析范围…</p>
+          )}
+          <SampleNetworkCoverageStrip
+            productCode={query.productCode}
+            refreshKey={
+              snapshot
+                ? `${snapshot.analysisVersion}|${snapshot.generatedAt}`
+                : status
+            }
+            regionCode={query.regionCode}
+            repository={repository}
+            year={query.surveyYear}
           />
-        ) : (
-          <p>正在读取分析范围…</p>
-        )}
-        <SampleNetworkCoverageStrip
-          productCode={query.productCode}
-          refreshKey={
-            snapshot
-              ? `${snapshot.analysisVersion}|${snapshot.generatedAt}`
-              : status
-          }
-          regionCode={query.regionCode}
-          repository={repository}
-          year={query.surveyYear}
-        />
+        </details>
       </section>
       {masterError ? <p role="alert">{masterError}</p> : null}
       {error ? <p role="alert">{error.message}</p> : null}
@@ -287,150 +301,153 @@ function MarketResult({
       snapshot.logistics.metrics.length ? (
         <>
           <AnalysisMetricBand metrics={core} />
+          <div className="analysis-exhibition">
+            <div className="analysis-exhibition__charts">
+              {hasPrimaryAnalysis ? (
+                <AnalysisDashboardGrid variant="primary">
+                  {hasPriceAndActivity ? (
+                    <AnalysisReportSection
+                      analysisVersion={version}
+                      description="购销价格与数量均直接取自本期市场核定字段。"
+                      title="价格与购销"
+                    >
+                      <div
+                        className="observable-analysis-report__chart-grid"
+                        data-layout="stacked"
+                      >
+                        <PriceFocus
+                          purchase={purchasePrice}
+                          sale={salePrice}
+                          spread={purchaseSaleSpread}
+                        />
+                        <AnalysisGroupedVerticalBarCharts
+                          metrics={activity}
+                          title="购销数量对比"
+                        />
+                      </div>
+                    </AnalysisReportSection>
+                  ) : null}
 
-          {hasPrimaryAnalysis ? (
-            <AnalysisDashboardGrid variant="primary">
-              {hasPriceAndActivity ? (
-                <AnalysisReportSection
-                  analysisVersion={version}
-                  description="购销价格与数量均直接取自本期市场核定字段。"
-                  title="价格与购销"
-                >
-                  <div
-                    className="observable-analysis-report__chart-grid"
-                    data-layout="stacked"
-                  >
-                    <AnalysisPriceDifferenceChart
-                      differenceMetric={purchaseSaleSpread}
-                      endMetric={salePrice}
-                      startMetric={purchasePrice}
-                      title="购销价格差异"
-                    />
-                    <AnalysisGroupedVerticalBarCharts
-                      metrics={activity}
-                      title="购销数量对比"
-                    />
-                  </div>
-                </AnalysisReportSection>
+                  {hasInventoryAndCosts ? (
+                    <AnalysisReportSection
+                      analysisVersion={version}
+                      description="库存变化与流通费用按单位分组呈现。"
+                      title="库存与流通费用"
+                    >
+                      <AnalysisGroupedBarCharts
+                        metrics={inventory}
+                        title="市场库存变化"
+                      />
+                      <AnalysisBarChart metrics={costs} title="流通成本构成" />
+                    </AnalysisReportSection>
+                  ) : null}
+                </AnalysisDashboardGrid>
               ) : null}
 
-              {hasInventoryAndCosts ? (
+              {hasMonthlyTrend ? (
                 <AnalysisReportSection
                   analysisVersion={version}
-                  description="库存变化与流通费用按单位分组呈现。"
-                  title="库存与流通费用"
-                >
-                  <AnalysisGroupedBarCharts
-                    metrics={inventory}
-                    title="市场库存变化"
-                  />
-                  <AnalysisBarChart metrics={costs} title="流通成本构成" />
-                </AnalysisReportSection>
-              ) : null}
-            </AnalysisDashboardGrid>
-          ) : null}
-
-          {hasMonthlyTrend ? (
-            <AnalysisReportSection
-              analysisVersion={version}
-              aside={
-                series.failedMonthCount > 0
-                  ? `${series.failedMonthCount} 个月数据暂缺`
-                  : undefined
-              }
-              description="仅当同一市场字段至少有两个有效月份时展示；缺失月份不补零。"
-              title="跨月变化"
-            >
-              <div className="observable-analysis-report__chart-grid">
-                <AnalysisTrendChart
-                  lines={priceTrendLines}
-                  points={series.points}
-                  title="市场价格趋势"
-                />
-                <AnalysisTrendChart
-                  lines={inventoryTrendLines}
-                  points={series.points}
-                  title="企业库存趋势"
-                />
-              </div>
-            </AnalysisReportSection>
-          ) : null}
-
-          {hasSupportingAnalysis ? (
-            <AnalysisDashboardGrid variant="supporting">
-              {hasPackaging ? (
-                <AnalysisReportSection
-                  analysisVersion={version}
-                  description="按核定包装数量与占比分组。"
-                  title="包装结构"
+                  aside={
+                    series.failedMonthCount > 0
+                      ? `${series.failedMonthCount} 个月数据暂缺`
+                      : undefined
+                  }
+                  description="仅当同一市场字段至少有两个有效月份时展示；缺失月份不补零。"
+                  title="跨月变化"
                 >
                   <div className="observable-analysis-report__chart-grid">
-                    <AnalysisGroupedVerticalBarCharts
-                      metrics={packagingCounts}
-                      title="包装数量"
+                    <AnalysisTrendChart
+                      lines={priceTrendLines}
+                      points={series.points}
+                      title="市场价格趋势"
                     />
-                    <AnalysisDonutChart
-                      metrics={packagingShares}
-                      title="包装占比"
+                    <AnalysisTrendChart
+                      lines={inventoryTrendLines}
+                      points={series.points}
+                      title="企业库存趋势"
                     />
                   </div>
                 </AnalysisReportSection>
               ) : null}
-              {hasQuality ? (
-                <AnalysisReportSection
-                  analysisVersion={version}
-                  description="显示本期实际存在的质量字段。"
-                  title="质量区间"
-                >
-                  <AnalysisGroupedRangeCharts
-                    series={qualityRanges}
-                    title="市场质量区间"
-                  />
-                </AnalysisReportSection>
-              ) : null}
-            </AnalysisDashboardGrid>
-          ) : null}
 
-          <AnalysisReportSection
-            analysisVersion={version}
-            description="明细仅列出本次结果实际采用的市场与物流核定记录。"
-            title="核定数据来源"
-          >
-            <div
-              className="realtime-supply-table-wrap observable-analysis-report__lineage-viewport"
-              data-layout="business-ledger"
-            >
-              <table aria-label="市场地区与主体来源">
-                <thead>
-                  <tr>
-                    <th>业务来源</th>
-                    <th>调查对象</th>
-                    <th>地区</th>
-                    <th>期间</th>
-                    <th>核定时间</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adoptedSources.map((item) => (
-                    <tr key={observableAnalysisLineageKey(item)}>
-                      <td>
-                        {item.sourceDomain === "MARKET"
-                          ? "市场填报"
-                          : "物流填报"}
-                      </td>
-                      <td>{item.subjectLabel}</td>
-                      <td>{item.regionLabel}</td>
-                      <td>{item.periodLabel}</td>
-                      <td>{formatDate(item.approvedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {hasSupportingAnalysis ? (
+                <AnalysisDashboardGrid variant="supporting">
+                  {hasPackaging ? (
+                    <AnalysisReportSection
+                      analysisVersion={version}
+                      description="按核定包装数量与占比分组。"
+                      title="包装结构"
+                    >
+                      <div className="observable-analysis-report__chart-grid">
+                        <AnalysisGroupedVerticalBarCharts
+                          metrics={packagingCounts}
+                          title="包装数量"
+                        />
+                        <AnalysisDonutChart
+                          metrics={packagingShares}
+                          title="包装占比"
+                        />
+                      </div>
+                    </AnalysisReportSection>
+                  ) : null}
+                  {hasQuality ? (
+                    <AnalysisReportSection
+                      analysisVersion={version}
+                      description="显示本期实际存在的质量字段。"
+                      title="质量区间"
+                    >
+                      <AnalysisGroupedRangeCharts
+                        series={qualityRanges}
+                        title="市场质量区间"
+                      />
+                    </AnalysisReportSection>
+                  ) : null}
+                </AnalysisDashboardGrid>
+              ) : null}
+
+              <AnalysisReportSection
+                analysisVersion={version}
+                description="明细仅列出本次结果实际采用的市场与物流核定记录。"
+                title="核定数据来源"
+              >
+                <div
+                  className="realtime-supply-table-wrap observable-analysis-report__lineage-viewport"
+                  data-layout="business-ledger"
+                >
+                  <table aria-label="市场地区与主体来源">
+                    <thead>
+                      <tr>
+                        <th>业务来源</th>
+                        <th>调查对象</th>
+                        <th>地区</th>
+                        <th>期间</th>
+                        <th>核定时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adoptedSources.map((item) => (
+                        <tr key={observableAnalysisLineageKey(item)}>
+                          <td>
+                            {item.sourceDomain === "MARKET"
+                              ? "市场填报"
+                              : "物流填报"}
+                          </td>
+                          <td>{item.subjectLabel}</td>
+                          <td>{item.regionLabel}</td>
+                          <td>{item.periodLabel}</td>
+                          <td>{formatDate(item.approvedAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </AnalysisReportSection>
             </div>
-          </AnalysisReportSection>
+            <AnalysisSourcePanel sources={adoptedSources} />
+          </div>
         </>
       ) : (
-        <Empty>当前范围暂无已审核的市场或物流分析数据。</Empty>
+        <Empty>当前范围暂无可用于分析的市场或物流数据。</Empty>
       )}
     </>
   );

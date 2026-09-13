@@ -1,3 +1,6 @@
+import { HarvestFocus } from "./AnalysisFocusCharts";
+import { AnalysisSourcePanel } from "./AnalysisSourcePanel";
+import "./analysis-showcase.css";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
@@ -16,7 +19,7 @@ import {
 import { ObservableAnalysisFilters } from "./ObservableAnalysisFilters";
 import { SampleNetworkCoverageStrip } from "./SampleNetworkCoverageStrip";
 import {
-  AnalysisBarChart,
+  AnalysisDonutChart,
   AnalysisDashboardGrid,
   AnalysisGroupedBarCharts,
   AnalysisGroupedRangeCharts,
@@ -25,6 +28,7 @@ import {
   AnalysisReportSection,
   AnalysisScopeStrip,
   AnalysisTrendChart,
+  formatMetric,
   buildAnalysisRangeSeries,
   hasAvailableMetrics,
   type AnalysisMetric,
@@ -109,7 +113,7 @@ export function ProductionAnalysisPanel({
 
   return (
     <div
-      className="enterprise-ledger-workbench observable-analysis-page analysis-workbench-page"
+      className="observable-analysis-page analysis-showcase-page"
       data-dashboard="production"
     >
       <div className="enterprise-ledger-workbench__breadcrumb">
@@ -117,13 +121,13 @@ export function ProductionAnalysisPanel({
       </div>
       <section
         aria-label="产情分析范围"
-        className="observable-analysis-dashboard__masthead"
-        data-layout="linear-workbench"
+        className="analysis-showcase-masthead"
+        data-layout="analytical-canvas"
       >
-        <header className="enterprise-ledger-title observable-analysis-title">
+        <header className="analysis-showcase-title">
           <div>
             <h1>产情分析</h1>
-            <p>核定产情结果与生产结构</p>
+            <p>生产规模 · 收获预期 · 投入结构</p>
           </div>
           <button
             disabled={status === "loading"}
@@ -134,28 +138,40 @@ export function ProductionAnalysisPanel({
           </button>
         </header>
 
-        {masterData ? (
-          <ObservableAnalysisFilters
-            authorizedRegionCodes={authorizedRegionCodes}
-            defaultQuery={resolvedDefaultQuery}
-            masterData={masterData}
-            query={query}
-            onChange={setQuery}
+        <details className="analysis-scope-disclosure">
+          <summary>
+            分析范围：{query.surveyYear}年 ·{" "}
+            {query.productCode === "CORN"
+              ? "玉米"
+              : query.productCode === "SOYBEAN"
+                ? "大豆"
+                : "稻谷"}{" "}
+            · {query.surveyMonth ? `${query.surveyMonth}月` : "全年"}{" "}
+            <span>调整筛选</span>
+          </summary>
+          {masterData ? (
+            <ObservableAnalysisFilters
+              authorizedRegionCodes={authorizedRegionCodes}
+              defaultQuery={resolvedDefaultQuery}
+              masterData={masterData}
+              query={query}
+              onChange={setQuery}
+            />
+          ) : (
+            <p>正在读取分析范围…</p>
+          )}
+          <SampleNetworkCoverageStrip
+            productCode={query.productCode}
+            refreshKey={
+              snapshot
+                ? `${snapshot.analysisVersion}|${snapshot.generatedAt}`
+                : status
+            }
+            regionCode={query.regionCode}
+            repository={repository}
+            year={query.surveyYear}
           />
-        ) : (
-          <p>正在读取分析范围…</p>
-        )}
-        <SampleNetworkCoverageStrip
-          productCode={query.productCode}
-          refreshKey={
-            snapshot
-              ? `${snapshot.analysisVersion}|${snapshot.generatedAt}`
-              : status
-          }
-          regionCode={query.regionCode}
-          repository={repository}
-          year={query.surveyYear}
-        />
+        </details>
       </section>
       {masterError ? <p role="alert">{masterError}</p> : null}
       {error ? <p role="alert">{error.message}</p> : null}
@@ -293,151 +309,176 @@ function ProductionResult({
       {productionSources.length || snapshot.production.metrics.length ? (
         <>
           <AnalysisMetricBand metrics={overview} />
-
-          {hasProductionOutcomes || hasProductionResources ? (
-            <AnalysisDashboardGrid variant="primary">
-              {hasProductionOutcomes ? (
-                <div
-                  className="observable-analysis-dashboard__stack"
-                  data-business-flow="production-outcomes"
-                >
-                  {hasAreaStructure ? (
-                    <AnalysisReportSection
-                      analysisVersion={version}
-                      description="播种、收获、灾损和下年意向采用同一面积口径。"
-                      title="面积与产出"
+          <div className="analysis-exhibition">
+            <div className="analysis-exhibition__charts">
+              {hasProductionOutcomes || hasProductionResources ? (
+                <AnalysisDashboardGrid variant="primary">
+                  {hasProductionOutcomes ? (
+                    <div
+                      className="observable-analysis-dashboard__stack"
+                      data-business-flow="production-outcomes"
                     >
-                      <AnalysisGroupedVerticalBarCharts
-                        metrics={areaStructure}
-                        title="面积结构对比"
-                      />
-                    </AnalysisReportSection>
+                      {hasAreaStructure ? (
+                        <AnalysisReportSection
+                          analysisVersion={version}
+                          description="播种、收获、灾损和下年意向采用同一面积口径。"
+                          title="面积与产出"
+                        >
+                          <HarvestFocus
+                            rate={metrics.get("EXPECTED_HARVEST_RATE")}
+                            area={metrics.get("CULTIVATED_AREA")}
+                            harvest={metrics.get("HARVEST_AREA")}
+                            output={metrics.get("EXPECTED_OUTPUT")}
+                          />
+                        </AnalysisReportSection>
+                      ) : null}
+
+                      {hasDamageAndIntention ? (
+                        <AnalysisReportSection
+                          analysisVersion={version}
+                          description="按亩数和比例分别对照灾损与下年度种植意向。"
+                          title="灾损与下年意向"
+                        >
+                          <AnalysisGroupedVerticalBarCharts
+                            metrics={[...damage, ...intention]}
+                            title="灾损与意向"
+                          />
+                        </AnalysisReportSection>
+                      ) : null}
+
+                      {hasQuality ? (
+                        <AnalysisReportSection
+                          analysisVersion={version}
+                          description="显示本期核定质量字段的最低、平均与最高值。"
+                          title="质量区间"
+                        >
+                          <AnalysisGroupedRangeCharts
+                            series={qualityRanges}
+                            title="产情质量区间"
+                          />
+                        </AnalysisReportSection>
+                      ) : null}
+                    </div>
                   ) : null}
 
-                  {hasDamageAndIntention ? (
-                    <AnalysisReportSection
-                      analysisVersion={version}
-                      description="按亩数和比例分别对照灾损与下年度种植意向。"
-                      title="灾损与下年意向"
+                  {hasProductionResources ? (
+                    <div
+                      className="observable-analysis-dashboard__stack"
+                      data-business-flow="production-resources"
                     >
-                      <AnalysisGroupedVerticalBarCharts
-                        metrics={[...damage, ...intention]}
-                        title="灾损与意向"
-                      />
-                    </AnalysisReportSection>
-                  ) : null}
+                      {hasCosts ? (
+                        <AnalysisReportSection
+                          analysisVersion={version}
+                          description="各项投入均按本期核定成本字段汇总。"
+                          title="成本与保障"
+                        >
+                          {unitCost
+                            .filter(
+                              ({ code }) => code === "COMPLETE_COST_PER_MU",
+                            )
+                            .map((metric) => (
+                              <p
+                                className="analysis-cost-total"
+                                key={metric.code}
+                              >
+                                {metric.label}
+                                <strong>
+                                  {formatMetric(metric.value, metric.unit)}
+                                </strong>
+                              </p>
+                            ))}
+                          <AnalysisDonutChart
+                            metrics={unitCost.filter(({ code }) =>
+                              code.startsWith("COST_"),
+                            )}
+                            title="已知亩均成本构成"
+                          />
+                          <AnalysisGroupedBarCharts
+                            metrics={costs.filter(
+                              ({ unit }) => unit !== "元/亩",
+                            )}
+                            title="成本与保障"
+                          />
+                        </AnalysisReportSection>
+                      ) : null}
 
-                  {hasQuality ? (
-                    <AnalysisReportSection
-                      analysisVersion={version}
-                      description="显示本期核定质量字段的最低、平均与最高值。"
-                      title="质量区间"
-                    >
-                      <AnalysisGroupedRangeCharts
-                        series={qualityRanges}
-                        title="产情质量区间"
-                      />
-                    </AnalysisReportSection>
+                      {hasInventoryAndUse ? (
+                        <AnalysisReportSection
+                          analysisVersion={version}
+                          description="库存和自用取自本次核定结果。"
+                          title="库存与自用"
+                        >
+                          <AnalysisGroupedVerticalBarCharts
+                            metrics={inventoryAndUse}
+                            title="库存与自用数量"
+                          />
+                        </AnalysisReportSection>
+                      ) : null}
+                    </div>
                   ) : null}
-                </div>
+                </AnalysisDashboardGrid>
               ) : null}
 
-              {hasProductionResources ? (
-                <div
-                  className="observable-analysis-dashboard__stack"
-                  data-business-flow="production-resources"
+              {hasMonthlyTrend ? (
+                <AnalysisReportSection
+                  analysisVersion={version}
+                  aside={
+                    series.failedMonthCount > 0
+                      ? `${series.failedMonthCount} 个月数据暂缺`
+                      : undefined
+                  }
+                  description="仅当同一字段至少有两个有效月份时展示；缺失月份不补零。"
+                  title="跨月变化"
                 >
-                  {hasCosts ? (
-                    <AnalysisReportSection
-                      analysisVersion={version}
-                      description="各项投入均按本期核定成本字段汇总。"
-                      title="成本与保障"
-                    >
-                      <AnalysisBarChart
-                        metrics={unitCost}
-                        title="亩均成本构成"
-                      />
-                      <AnalysisGroupedBarCharts
-                        metrics={costs.filter(({ unit }) => unit !== "元/亩")}
-                        title="成本与保障"
-                      />
-                    </AnalysisReportSection>
-                  ) : null}
-
-                  {hasInventoryAndUse ? (
-                    <AnalysisReportSection
-                      analysisVersion={version}
-                      description="库存和自用取自本次核定结果。"
-                      title="库存与自用"
-                    >
-                      <AnalysisGroupedVerticalBarCharts
-                        metrics={inventoryAndUse}
-                        title="库存与自用数量"
-                      />
-                    </AnalysisReportSection>
-                  ) : null}
-                </div>
+                  <div className="observable-analysis-report__chart-grid">
+                    <AnalysisTrendChart
+                      lines={areaTrendLines}
+                      points={series.points}
+                      title="播种与收获面积变化"
+                    />
+                    <AnalysisTrendChart
+                      lines={outputTrendLines}
+                      points={series.points}
+                      title="预计总产变化"
+                    />
+                  </div>
+                </AnalysisReportSection>
               ) : null}
-            </AnalysisDashboardGrid>
-          ) : null}
 
-          {hasMonthlyTrend ? (
-            <AnalysisReportSection
-              analysisVersion={version}
-              aside={
-                series.failedMonthCount > 0
-                  ? `${series.failedMonthCount} 个月数据暂缺`
-                  : undefined
-              }
-              description="仅当同一字段至少有两个有效月份时展示；缺失月份不补零。"
-              title="跨月变化"
-            >
-              <div className="observable-analysis-report__chart-grid">
-                <AnalysisTrendChart
-                  lines={areaTrendLines}
-                  points={series.points}
-                  title="播种与收获面积变化"
-                />
-                <AnalysisTrendChart
-                  lines={outputTrendLines}
-                  points={series.points}
-                  title="预计总产变化"
-                />
-              </div>
-            </AnalysisReportSection>
-          ) : null}
-
-          <AnalysisReportSection
-            analysisVersion={version}
-            description="本页结论仅来自当前范围实际采用的产情记录。"
-            title="核定数据来源"
-          >
-            <div
-              className="realtime-supply-table-wrap observable-analysis-report__lineage-viewport"
-              data-layout="business-ledger"
-            >
-              <table aria-label="产情核定数据来源">
-                <thead>
-                  <tr>
-                    <th>调查对象</th>
-                    <th>地区</th>
-                    <th>期间</th>
-                    <th>核定时间</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productionSources.map((item) => (
-                    <tr key={observableAnalysisLineageKey(item)}>
-                      <td>{item.subjectLabel}</td>
-                      <td>{item.regionLabel}</td>
-                      <td>{item.periodLabel}</td>
-                      <td>{formatDate(item.approvedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <AnalysisReportSection
+                analysisVersion={version}
+                description="本页结论仅来自当前范围实际采用的产情记录。"
+                title="核定数据来源"
+              >
+                <div
+                  className="realtime-supply-table-wrap observable-analysis-report__lineage-viewport"
+                  data-layout="business-ledger"
+                >
+                  <table aria-label="产情核定数据来源">
+                    <thead>
+                      <tr>
+                        <th>调查对象</th>
+                        <th>地区</th>
+                        <th>期间</th>
+                        <th>核定时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productionSources.map((item) => (
+                        <tr key={observableAnalysisLineageKey(item)}>
+                          <td>{item.subjectLabel}</td>
+                          <td>{item.regionLabel}</td>
+                          <td>{item.periodLabel}</td>
+                          <td>{formatDate(item.approvedAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </AnalysisReportSection>
             </div>
-          </AnalysisReportSection>
+            <AnalysisSourcePanel sources={productionSources} />
+          </div>
         </>
       ) : (
         <Empty>当前范围暂无已审核的产情分析数据。</Empty>

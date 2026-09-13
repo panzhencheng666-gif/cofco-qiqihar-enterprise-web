@@ -606,3 +606,110 @@
   background: #1895cb;
   color: #fff;
 }
+/* Compact groups flow side by side, without turning the document back into cards. */
+.reference-enterprise-shell
+  :is(
+    .business-document .existing-observation__form,
+    .business-document-entry .realtime-business-sections
+  ) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 28px;
+}
+.reference-enterprise-shell
+  :is(
+    .business-document .existing-observation__form,
+    .business-document-entry .realtime-business-sections
+  )
+  > * {
+  grid-column: 1 / -1;
+}
+.reference-enterprise-shell
+  :is(
+    .business-document .existing-observation__form,
+    .business-document-entry .realtime-business-sections
+  )
+  > fieldset[data-compact] {
+  grid-column: auto;
+}
+.reference-enterprise-shell
+  :is(
+    .business-document .existing-observation__form,
+    .business-document-entry .realtime-business-sections
+  )
+  fieldset {
+  padding: 18px 0 22px;
+}
+.reference-enterprise-shell
+  :is(
+    .business-document .existing-observation__form,
+    .business-document-entry .realtime-business-sections
+  )
+  legend {
+  margin-bottom: 14px;
+}
+.reference-enterprise-shell
+  fieldset[data-compact]
+  :is(.existing-observation__field-grid, .realtime-business-fields) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.reference-enterprise-shell .existing-observation__field-grid,
+.reference-enterprise-shell .business-document-entry .realtime-business-fields {
+  gap: 16px 24px;
+}
+.analysis-scope-disclosure {
+  border-top: 1px solid #e1e7ee;
+}
+.analysis-scope-disclosure > summary {
+  padding: 13px 22px;
+  cursor: pointer;
+  color: #526c83;
+  font-size: 13px;
+}
+.analysis-scope-disclosure > summary span {
+  float: right;
+  color: #2865aa;
+}
+.reference-enterprise-shell
+  .observable-analysis-dashboard__masthead
+  .enterprise-ledger-title {
+  min-height: 88px;
+  padding: 18px 22px;
+}
+.reference-enterprise-shell .observable-analysis-status {
+  margin-top: 10px;
+}
+@media (max-width: 900px) {
+  .reference-enterprise-shell
+    :is(
+      .business-document .existing-observation__form,
+      .business-document-entry .realtime-business-sections
+    )
+    > fieldset[data-compact] {
+    grid-column: 1 / -1;
+  }
+}
+/* Keep the outline rail continuous all the way down the document. */
+.reference-enterprise-shell .business-document__body,
+.reference-enterprise-shell
+  .business-document-entry
+  .realtime-business-layout.is-editor-only {
+  background: linear-gradient(to right, #f6f8fb 0 224px, #fff 224px);
+}
+.reference-enterprise-shell .business-document__outline {
+  min-height: calc(100dvh - var(--enterprise-header-height, 64px) - 100px);
+  scrollbar-width: thin;
+  scrollbar-color: #b6c7d8 transparent;
+}
+@media (max-width: 900px) {
+  .reference-enterprise-shell .business-document__body,
+  .reference-enterprise-shell
+    .business-document-entry
+    .realtime-business-layout.is-editor-only {
+    background: #fff;
+  }
+  .reference-enterprise-shell .business-document__outline {
+    min-height: 0;
+  }
+}

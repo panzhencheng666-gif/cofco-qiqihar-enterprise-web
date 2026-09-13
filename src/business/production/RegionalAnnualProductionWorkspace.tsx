@@ -309,9 +309,11 @@ export function RegionalAnnualProductionWorkspace({
           <h2>地区产情填报</h2>
           <span>按地区管理年度播种面积、单产与总产，市级数据自动汇总。</span>
         </div>
-        <span className="business-page-mode">
-          {canWrite ? "年度填报" : "数据查看"}
-        </span>
+        {!canWrite && (
+          <p className="regional-readonly-note">
+            当前账号仅可查看；地区年度数据由管理员维护。
+          </p>
+        )}
       </header>
       <div className="regional-data-workspace__filters">
         <label>

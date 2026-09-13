@@ -1107,9 +1107,6 @@ export function ProductProductionCollectionWorkspace({
               {annualSampleStatusNote(surveyYear)}
             </p>
           </div>
-          <span className="business-page-mode">
-            {readOnly ? "数据查看" : "业务办理"}
-          </span>
         </header>
         <section
           aria-label={`${context.productLabel}产情查询条件`}

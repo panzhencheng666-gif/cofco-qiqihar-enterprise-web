@@ -792,3 +792,24 @@
     font-size: 14px;
   }
 }
+/* Shared platform chrome: rice-land contours stay behind the navigation text. */
+.enterprise-platform-header {
+  background:
+    radial-gradient(ellipse at 12% 0%, #6286b44d, transparent 55%),
+    linear-gradient(108deg, #315d93 0%, #204d7e 46%, #123454 100%);
+  position: relative;
+  isolation: isolate;
+}
+.enterprise-platform-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: repeating-radial-gradient(
+    ellipse at 85% 180%,
+    transparent 0 65px,
+    #c5d8ed10 66px 67px,
+    transparent 68px 106px
+  );
+}

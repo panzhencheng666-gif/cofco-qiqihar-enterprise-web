@@ -1,3 +1,4 @@
+import { useDocumentSection } from "../useDocumentSection";
 import {
   lazy,
   Suspense,
@@ -228,7 +229,6 @@ export function ExistingSampleObservationPanel({
 }) {
   const documentId = useId();
   const formRef = useRef<HTMLFormElement>(null);
-  const [activeSection, setActiveSection] = useState(0);
   const domainLabel =
     domain === "PRODUCTION" ? "产情" : domain === "MARKET" ? "市场" : "物流";
   const productLabel =
@@ -753,6 +753,8 @@ export function ExistingSampleObservationPanel({
     }
   };
 
+  const activeSection = useDocumentSection(formRef, sections.join("|"));
+
   if (
     !repository?.listEligibleFormalSamples ||
     !repository.saveFormalSampleObservation
@@ -936,7 +938,6 @@ export function ExistingSampleObservationPanel({
                           activeSection === index ? "location" : undefined
                         }
                         onClick={() => {
-                          setActiveSection(index);
                           formRef.current
                             ?.querySelectorAll("fieldset")
                             .item(index)
@@ -1075,7 +1076,15 @@ export function ExistingSampleObservationPanel({
                           </div>
                         </fieldset>
                         {sections.map((section) => (
-                          <fieldset key={section} disabled={busy}>
+                          <fieldset
+                            key={section}
+                            disabled={busy}
+                            data-compact={
+                              fields.filter(
+                                (field) => field.section === section,
+                              ).length <= 2 || undefined
+                            }
+                          >
                             <legend>{section}</legend>
                             <div className="existing-observation__field-grid">
                               {fields

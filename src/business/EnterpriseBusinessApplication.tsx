@@ -997,7 +997,10 @@ export function EnterpriseBusinessApplication({
         if (realtimeMode && location.route.section === "regional-annual") {
           return (
             <RegionalAnnualProductionWorkspace
-              canWrite={false}
+              canWrite={
+                currentSession?.rootAdministrator === true ||
+                currentSession?.roleCodes.includes("ADMIN") === true
+              }
               authorizedRegionCodes={["*"]}
               repository={repository}
             />

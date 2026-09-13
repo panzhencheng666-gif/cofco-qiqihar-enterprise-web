@@ -1,3 +1,4 @@
+import { useDocumentSection } from "../useDocumentSection";
 import {
   importFailureMessage,
   importRefreshFailureMessage,
@@ -193,7 +194,6 @@ export function RealtimeBusinessOperationsPanel({
   const selectedRecordId = useRef<string | undefined>(initialRecordId);
   const formDirty = useRef(false);
   const documentFormRef = useRef<HTMLFormElement>(null);
-  const [activeSection, setActiveSection] = useState(0);
   const [recordLoadState, setRecordLoadState] = useState<
     "new" | "loading" | "loaded" | "failed"
   >(initialRecordId ? "loading" : "new");
@@ -799,6 +799,11 @@ export function RealtimeBusinessOperationsPanel({
     recordLoadState === "loading" || recordLoadState === "failed";
   const definitionReady = definitionState === "loaded" && definition !== null;
   const visibleError = definitionError || error;
+  const activeSection = useDocumentSection(
+    documentFormRef,
+    fieldSections.map(([name]) => name).join("|"),
+  );
+
   return (
     <section
       aria-label={
@@ -961,7 +966,6 @@ export function RealtimeBusinessOperationsPanel({
                 type="button"
                 aria-current={activeSection === index ? "location" : undefined}
                 onClick={() => {
-                  setActiveSection(index);
                   documentFormRef.current
                     ?.querySelectorAll("fieldset")
                     .item(index)
@@ -996,6 +1000,16 @@ export function RealtimeBusinessOperationsPanel({
               <fieldset
                 disabled={existingRecordUnavailable || readOnlyMode}
                 key={section}
+                data-compact={
+                  (sectionFields.length <= 2 &&
+                    sectionFields.every(
+                      (field) =>
+                        field.type !== "region" &&
+                        field.code !== "regionCode" &&
+                        field.code !== "MKT_REGION",
+                    )) ||
+                  undefined
+                }
               >
                 <legend>{section}</legend>
                 <div className="realtime-business-fields">

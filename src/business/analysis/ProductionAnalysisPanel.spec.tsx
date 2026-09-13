@@ -194,10 +194,10 @@ describe("ProductionAnalysisPanel", () => {
       "data-dashboard",
       "production",
     );
-    expect(container.firstElementChild).toHaveClass("analysis-workbench-page");
+    expect(container.firstElementChild).toHaveClass("analysis-showcase-page");
     expect(
       screen.getByRole("region", { name: "产情分析范围" }),
-    ).toHaveAttribute("data-layout", "linear-workbench");
+    ).toHaveAttribute("data-layout", "analytical-canvas");
     for (const heading of [
       "面积与产出",
       "成本与保障",
@@ -210,14 +210,11 @@ describe("ProductionAnalysisPanel", () => {
     }
     expect(screen.queryByLabelText("分析指标")).not.toBeInTheDocument();
     expect(screen.queryByText("产情年度对比分析")).not.toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "面积结构对比" })).toBeVisible();
+    expect(screen.getByRole("img", { name: /预计收获率：/u })).toBeVisible();
     expect(screen.getAllByText("加权预计单产")[0]).toBeVisible();
     expect(screen.getAllByText("预计总产")[0]).toBeVisible();
     expect(screen.getAllByText("预计收获率")[0]).toBeVisible();
-    expect(screen.getByRole("img", { name: "面积结构对比" })).toHaveAttribute(
-      "data-chart-type",
-      "vertical-bar",
-    );
+
     const damageAreaChart = screen.getByRole("img", {
       name: "灾损与意向（亩）",
     });
@@ -255,7 +252,7 @@ describe("ProductionAnalysisPanel", () => {
     expect(screen.getByText("统计范围")).toBeVisible();
     expect(screen.getByText("1 个地区")).toBeVisible();
     expect(screen.getByText("1 个调查对象")).toBeVisible();
-    expect(screen.getByText("1 条采用记录")).toBeVisible();
+    expect(screen.getAllByText("1 条采用记录")[0]).toBeVisible();
     expect(screen.queryByText("1 条产情核定记录")).not.toBeInTheDocument();
 
     const versions = [
@@ -268,7 +265,7 @@ describe("ProductionAnalysisPanel", () => {
     ).toBeVisible();
     expect(
       container.querySelectorAll('[data-chart-type="vertical-bar"]').length,
-    ).toBe(4);
+    ).toBe(3);
     expect(container.querySelector('[data-chart-type="range"]')).toBeVisible();
     expect(
       container.querySelector(
@@ -309,11 +306,11 @@ describe("ProductionAnalysisPanel", () => {
       ),
     ).toHaveLength(4);
     expect(
-      container.querySelector(".observable-analysis-dashboard__masthead"),
+      container.querySelector(".analysis-showcase-masthead"),
     ).toBeVisible();
     expect(
       container.querySelector(
-        '.observable-analysis-dashboard__masthead[data-layout="linear-workbench"]',
+        '.analysis-showcase-masthead[data-layout="analytical-canvas"]',
       ),
     ).toBeVisible();
     expect(

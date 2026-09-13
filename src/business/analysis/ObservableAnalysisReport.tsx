@@ -936,7 +936,7 @@ function groupAvailableMetricsByUnit(
   return [...groups.entries()];
 }
 
-function ChartDataTable({
+export function ChartDataTable({
   metrics,
   title,
 }: {
