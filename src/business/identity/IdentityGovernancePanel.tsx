@@ -1990,7 +1990,10 @@ export function IdentityGovernancePanel({
             </section>
           )}
           {view === "reviews" && mayReview && (
-            <section aria-label="权限复核">
+            <section
+              aria-label="权限复核"
+              className="identity-review-workspace"
+            >
               <div className="identity-governance-toolbar">
                 <div>
                   <h3>授权检查</h3>
@@ -2017,6 +2020,32 @@ export function IdentityGovernancePanel({
                   </p>
                 </div>
               </div>
+              {!loading && !error && (
+                <div className="identity-review-overview">
+                  <div>
+                    <strong>
+                      {
+                        reviews.filter((review) => review.statusCode === "OPEN")
+                          .length
+                      }
+                    </strong>
+                    <span>进行中的复核</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {
+                        reviews.filter(
+                          (review) => review.statusCode === "COMPLETED",
+                        ).length
+                      }
+                    </strong>
+                    <span>已完成的复核</span>
+                  </div>
+                  <p>
+                    核对角色与可访问地区 → 填写保留或撤销依据 → 提交复核结论
+                  </p>
+                </div>
+              )}
               <div className="identity-review-create">
                 <label>
                   复核名称
@@ -2064,9 +2093,18 @@ export function IdentityGovernancePanel({
                           {new Date(review.dueAt).toLocaleString("zh-CN")}
                         </td>
                         <td>
-                          {review.statusCode === "COMPLETED"
-                            ? "已完成"
-                            : "进行中"}
+                          <span
+                            className="identity-account-badge"
+                            data-status={
+                              review.statusCode === "COMPLETED"
+                                ? "ACTIVE"
+                                : "INVITED"
+                            }
+                          >
+                            {review.statusCode === "COMPLETED"
+                              ? "已完成"
+                              : "进行中"}
+                          </span>
                         </td>
                         <td>
                           <button
@@ -2092,114 +2130,125 @@ export function IdentityGovernancePanel({
                 </table>
               </div>
               {selectedReview && (
-                <section
-                  className="identity-review-detail"
-                  aria-label={`${selectedReview.name}明细`}
+                <Drawer
+                  open
+                  width="min(800px, 100vw)"
+                  title="权限复核明细"
+                  rootClassName="identity-review-drawer"
+                  onClose={() => setSelectedReview(null)}
+                  closable={!saving}
+                  maskClosable={!saving}
+                  keyboard={!saving}
                 >
-                  <header>
-                    <h4>{selectedReview.name}</h4>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedReview(null)}
-                    >
-                      关闭明细
-                    </button>
-                  </header>
-                  {selectedReview.items.map((item) => {
-                    const key = `${item.subjectId}:${item.grantType}:${item.grantKey}`;
-                    const draft = reviewDecisions[key] ?? {
-                      decisionCode: "RETAIN" as const,
-                      reason: "",
-                    };
-                    return (
-                      <article key={key}>
-                        <div>
-                          <strong>
-                            {employees.find(
-                              (employee) =>
-                                employee.subjectId === item.subjectId,
-                            )?.displayName ??
-                              (item.subjectId === session.subjectId
-                                ? session.displayName
-                                : "员工姓名待同步")}
-                          </strong>
-                          <span>
-                            {grantTypeLabel(item.grantType)} ·{" "}
-                            {item.grantType === "ROLE"
-                              ? (options.roles.find(
-                                  (role) => role.code === item.grantKey,
-                                )?.name ?? roleLabel(item.grantKey))
-                              : item.grantType === "REGION"
-                                ? displayRegion(item.grantKey, regionNames)
-                                : "历史授权项目"}
-                          </span>
-                        </div>
-                        {item.decisionCode === "PENDING" &&
-                        item.subjectId === session.subjectId ? (
-                          <span className="identity-review-delegated">
-                            本人权限由其他管理员复核
-                          </span>
-                        ) : item.decisionCode === "PENDING" ? (
-                          <>
-                            <select
-                              aria-label={`${item.grantKey} 的复核结论`}
-                              value={draft.decisionCode}
-                              onChange={(event) =>
-                                setReviewDecisions((current) => ({
-                                  ...current,
-                                  [key]: {
-                                    ...draft,
-                                    decisionCode: event.target.value as
-                                      "RETAIN" | "REVOKE",
-                                  },
-                                }))
-                              }
-                            >
-                              <option value="RETAIN">保留</option>
-                              <option value="REVOKE">撤销</option>
-                            </select>
-                            <input
-                              aria-label={`${item.grantKey} 的复核说明`}
-                              placeholder="填写复核依据"
-                              value={draft.reason}
-                              onChange={(event) =>
-                                setReviewDecisions((current) => ({
-                                  ...current,
-                                  [key]: {
-                                    ...draft,
-                                    reason: event.target.value,
-                                  },
-                                }))
-                              }
-                            />
-                          </>
-                        ) : (
-                          <span>
-                            {item.decisionCode === "RETAIN"
-                              ? "已保留"
-                              : "已撤销"}{" "}
-                            · {item.reason}
-                          </span>
-                        )}
-                      </article>
-                    );
-                  })}
-                  {pendingItems.length > 0 && (
-                    <button
-                      className="is-primary"
-                      disabled={saving}
-                      type="button"
-                      onClick={() => void submitReview()}
-                    >
-                      提交复核结论
-                    </button>
-                  )}
-                </section>
+                  <section
+                    className="identity-review-detail"
+                    aria-label={`${selectedReview.name}明细`}
+                  >
+                    <header>
+                      <h4>{selectedReview.name}</h4>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReview(null)}
+                      >
+                        关闭明细
+                      </button>
+                    </header>
+                    {selectedReview.items.map((item) => {
+                      const key = `${item.subjectId}:${item.grantType}:${item.grantKey}`;
+                      const draft = reviewDecisions[key] ?? {
+                        decisionCode: "RETAIN" as const,
+                        reason: "",
+                      };
+                      return (
+                        <article key={key}>
+                          <div>
+                            <strong>
+                              {employees.find(
+                                (employee) =>
+                                  employee.subjectId === item.subjectId,
+                              )?.displayName ??
+                                (item.subjectId === session.subjectId
+                                  ? session.displayName
+                                  : "员工姓名待同步")}
+                            </strong>
+                            <span>
+                              {grantTypeLabel(item.grantType)} ·{" "}
+                              {item.grantType === "ROLE"
+                                ? (options.roles.find(
+                                    (role) => role.code === item.grantKey,
+                                  )?.name ?? roleLabel(item.grantKey))
+                                : item.grantType === "REGION"
+                                  ? displayRegion(item.grantKey, regionNames)
+                                  : "历史授权项目"}
+                            </span>
+                          </div>
+                          {item.decisionCode === "PENDING" &&
+                          item.subjectId === session.subjectId ? (
+                            <span className="identity-review-delegated">
+                              本人权限由其他管理员复核
+                            </span>
+                          ) : item.decisionCode === "PENDING" ? (
+                            <>
+                              <select
+                                aria-label={`${item.grantKey} 的复核结论`}
+                                value={draft.decisionCode}
+                                onChange={(event) =>
+                                  setReviewDecisions((current) => ({
+                                    ...current,
+                                    [key]: {
+                                      ...draft,
+                                      decisionCode: event.target.value as
+                                        "RETAIN" | "REVOKE",
+                                    },
+                                  }))
+                                }
+                              >
+                                <option value="RETAIN">保留</option>
+                                <option value="REVOKE">撤销</option>
+                              </select>
+                              <input
+                                aria-label={`${item.grantKey} 的复核说明`}
+                                placeholder="填写复核依据"
+                                value={draft.reason}
+                                onChange={(event) =>
+                                  setReviewDecisions((current) => ({
+                                    ...current,
+                                    [key]: {
+                                      ...draft,
+                                      reason: event.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                            </>
+                          ) : (
+                            <span>
+                              {item.decisionCode === "RETAIN"
+                                ? "已保留"
+                                : "已撤销"}{" "}
+                              · {item.reason}
+                            </span>
+                          )}
+                        </article>
+                      );
+                    })}
+                    {pendingItems.length > 0 && (
+                      <button
+                        className="is-primary"
+                        disabled={saving}
+                        type="button"
+                        onClick={() => void submitReview()}
+                      >
+                        提交复核结论
+                      </button>
+                    )}
+                  </section>
+                </Drawer>
               )}
             </section>
           )}
           {view === "audit" && mayReadAudit && (
-            <section aria-label="操作记录">
+            <section aria-label="操作记录" className="identity-audit-workspace">
               <div className="identity-governance-toolbar">
                 <div>
                   <h3>操作记录</h3>
@@ -2260,9 +2309,16 @@ export function IdentityGovernancePanel({
                   查询操作记录
                 </button>
               </div>
-              <p className="identity-audit-summary">
-                共 {auditTotal} 条操作记录
-              </p>
+              <div className="identity-audit-summary">
+                <strong>
+                  {loading
+                    ? "正在读取操作记录…"
+                    : error
+                      ? "操作记录暂未读取成功"
+                      : `共 ${auditTotal} 条操作记录`}
+                </strong>
+                <span>记录由实际业务操作生成，支持按对象、账号及日期查询</span>
+              </div>
               <div className="identity-data-table-scroll">
                 <table aria-label="审计记录" className="identity-data-table">
                   <thead>
@@ -2300,7 +2356,7 @@ export function IdentityGovernancePanel({
                         </td>
                       </tr>
                     ))}
-                    {!loading && auditRows.length === 0 && (
+                    {!loading && !error && auditRows.length === 0 && (
                       <tr>
                         <td colSpan={4}>当前查询范围内暂无操作记录。</td>
                       </tr>
