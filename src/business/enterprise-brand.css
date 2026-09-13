@@ -813,3 +813,17 @@
     transparent 68px 106px
   );
 }
+
+/* Restrained rice-land engraving on the shared platform header. */
+.enterprise-platform-header::before {
+  background-image: url("/brand/header-rice-land.svg");
+  background-size: cover;
+  background-position: center;
+  opacity: .22;
+}
+.enterprise-platform-header .platform-rice-mark {
+  width: 48px;
+  height: 56px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px #0a23384d);
+}
