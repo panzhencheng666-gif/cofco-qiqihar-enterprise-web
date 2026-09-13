@@ -63,55 +63,32 @@ export function EnterprisePlatformHeader({
     <div className="enterprise-platform-header">
       <a className="platform-brand" href="/">
         <svg
-          className="platform-wheat"
-          viewBox="0 0 54 64"
+          className="platform-rice-mark"
+          viewBox="0 0 64 64"
           role="img"
           aria-label="金色稻穗"
         >
-          <defs>
-            <linearGradient id="rice-gold" x1="0" y1="0" x2="1" y2="1">
-              <stop stopColor="#fff0b9" />
-              <stop offset=".55" stopColor="#e4c778" />
-              <stop offset="1" stopColor="#b99543" />
-            </linearGradient>
-          </defs>
-          <g
+          <g fill="none" stroke="currentColor" strokeLinecap="round">
+            <path d="M14 57C23 44 25 25 37 14c9-8 18-3 18 6" strokeWidth="2" />
+            <path
+              d="M23 42C14 39 10 31 11 24c6 4 11 9 12 18ZM26 35c7-7 13-9 20-8-5 6-11 10-21 11"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M32 20c-7-2-11 1-13 7M37 15c-7-5-13-2-15 1M43 12c-5-7-10-6-13-3M48 13c6 3 8 8 6 12M41 16c6 3 8 8 6 13M35 22c5 3 7 6 5 12"
+              strokeWidth="1.3"
+            />
+          </g>
+          <g fill="currentColor">
+            <path d="M20 23c3 4 2 9-2 12-3-4-3-9 2-12ZM23 12c4 2 5 7 2 11-4-2-5-7-2-11ZM30 5c5 0 8 4 7 8-5 0-8-3-7-8ZM53 20c4 3 4 8 0 12-4-3-4-8 0-12ZM47 25c4 3 4 8 0 12-4-3-4-8 0-12ZM40 30c4 3 3 8-1 11-3-4-3-8 1-11Z" />
+          </g>
+          <path
+            d="M8 53a29 29 0 0 1 0-38M57 40a29 29 0 0 1-27 19"
             fill="none"
-            stroke="#d9bc71"
-            strokeWidth="1.25"
-            strokeLinecap="round"
-          >
-            <path d="M8 61C16 42 25 15 39 8c9-4 13 2 11 11" />
-            <path d="M14 48C3 38 4 28 7 22c1 12 8 15 10 19M19 38c7-6 16-7 22-4-9 0-15 5-22 9" />
-            <path d="M26 23c-7-2-11 0-14 6M30 17c-7-4-12-3-15 0M35 12c-3-7-7-8-12-7M39 9c1-6 5-7 8-7M42 9c8 1 10 6 8 12M36 12c8 3 10 7 8 14M31 17c7 3 9 7 7 13M27 23c5 3 6 7 4 12" />
-          </g>
-          <g fill="url(#rice-gold)" stroke="#f2dea0" strokeWidth=".35">
-            {[
-              [12, 30, -30],
-              [15, 19, -35],
-              [23, 6, -55],
-              [47, 3, 45],
-              [50, 22, 12],
-              [45, 28, 10],
-              [39, 31, 18],
-              [32, 36, 16],
-              [19, 25, -35],
-              [24, 18, -35],
-              [30, 11, -35],
-              [45, 15, 8],
-              [38, 22, 15],
-              [33, 28, 15],
-            ].map(([x, y, angle], i) => (
-              <ellipse
-                key={i}
-                cx={x}
-                cy={y}
-                rx="2.1"
-                ry="4.1"
-                transform={`rotate(${angle} ${x} ${y})`}
-              />
-            ))}
-          </g>
+            stroke="currentColor"
+            strokeWidth=".8"
+            opacity=".45"
+          />
         </svg>
         <strong>{platformName}</strong>
         <small>粮安天下 · 服务产业 · 数智赋能</small>

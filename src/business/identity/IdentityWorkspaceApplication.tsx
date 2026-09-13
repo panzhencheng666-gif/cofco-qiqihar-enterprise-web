@@ -112,7 +112,7 @@ export function IdentityWorkspaceApplication({
               aria-current={view !== "profile" ? "page" : undefined}
               onClick={() => openView("employees")}
             >
-              <EnterpriseIcon name="settings" />
+              <EnterpriseIcon name="people" />
               人员与权限
             </button>
           )}
