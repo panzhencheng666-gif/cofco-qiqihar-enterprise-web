@@ -875,6 +875,12 @@ export function IdentityGovernancePanel({
   };
 
   const openAssignmentEditor = (invite: boolean, draft: AssignmentDraft) => {
+    if (draft.workUnitCode === "DATABASE_AUTOMATION") {
+      setMessage(
+        "系统自动化账号用于记录受控数据操作，不通过员工授权办理业务分工。",
+      );
+      return;
+    }
     invitationEditorSubject.current = null;
     setLoadingInvitation(false);
     setInvitationEditor(null);
@@ -1562,7 +1568,10 @@ export function IdentityGovernancePanel({
                     <p role="status">正在读取地区责任…</p>
                   ) : (
                     <RegionResponsibilityDirectory
-                      employees={visibleEmployees}
+                      employees={visibleEmployees.filter(
+                        (employee) =>
+                          employee.workUnitCode !== "DATABASE_AUTOMATION",
+                      )}
                       regionNames={regionNames}
                       selectedRegion={selectedRegion}
                       canManage={(employee) =>
@@ -1729,17 +1738,22 @@ export function IdentityGovernancePanel({
                                   </span>
                                 </td>
                                 <td>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setResponsibilityEditor({
-                                        employee,
-                                        readOnly: true,
-                                      })
-                                    }
-                                  >
-                                    查看明细
-                                  </button>
+                                  {employee.workUnitCode ===
+                                  "DATABASE_AUTOMATION" ? (
+                                    <span>不参与员工分工</span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setResponsibilityEditor({
+                                          employee,
+                                          readOnly: true,
+                                        })
+                                      }
+                                    >
+                                      查看明细
+                                    </button>
+                                  )}
                                 </td>
                                 <td>
                                   <span
@@ -1753,7 +1767,11 @@ export function IdentityGovernancePanel({
                                   </small>
                                 </td>
                                 <td>
-                                  {employee.subjectId === session.subjectId ? (
+                                  {employee.workUnitCode ===
+                                  "DATABASE_AUTOMATION" ? (
+                                    <span>系统自动化账号 · 只读</span>
+                                  ) : employee.subjectId ===
+                                    session.subjectId ? (
                                     <span>本人账号</span>
                                   ) : mayAdminister ? (
                                     <div className="identity-profile-actions identity-employee-actions">

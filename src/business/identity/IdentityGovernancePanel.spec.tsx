@@ -358,6 +358,41 @@ describe("IdentityGovernancePanel", () => {
     expect(repo.updateEmployee).not.toHaveBeenCalled();
   });
 
+  it("keeps database automation read-only and outside employee responsibility assignment", async () => {
+    const api = repository();
+    const rows = await api.listEmployees();
+    api.listEmployees.mockResolvedValue([
+      {
+        ...rows[0],
+        subjectId: "database-master-data-automation",
+        displayName: "主数据受控自动化",
+        workUnitCode: "DATABASE_AUTOMATION",
+        workUnitName: "数据库受控自动化",
+        roles: [],
+      },
+      ...rows,
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    const name = await screen.findByText("主数据受控自动化");
+    const row = name.closest("tr")!;
+    expect(within(row).getByText("系统自动化账号 · 只读")).toBeVisible();
+    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+    expect(api.loadAssignmentOptions).not.toHaveBeenCalledWith(
+      "DATABASE_AUTOMATION",
+      expect.anything(),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "地区分工" }));
+    expect(screen.queryByText("主数据受控自动化")).not.toBeInTheDocument();
+    expect(api.updateEmployee).not.toHaveBeenCalled();
+  });
+
   it("filters region responsibility using employee assignments without separate writes", async () => {
     const user = userEvent.setup();
     const repo = repository();
