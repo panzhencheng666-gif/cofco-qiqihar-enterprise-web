@@ -814,16 +814,18 @@
   );
 }
 
-/* Restrained rice-land engraving on the shared platform header. */
+/* Photographic paddy-field watermark; preview replaces the former line engraving. */
 .enterprise-platform-header::before {
-  background-image: url("/brand/header-rice-land.svg");
+  background-image:
+    linear-gradient(90deg, rgba(17, 49, 83, .65), rgba(17, 49, 83, .36) 55%, rgba(10, 36, 63, .74)),
+    url("/brand/rice-field-panorama.png");
   background-size: cover;
-  background-position: center;
-  opacity: .22;
+  background-position: center, center 56%;
+  opacity: .46;
 }
 .enterprise-platform-header .platform-rice-mark {
-  width: 48px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
   filter: drop-shadow(0 1px 2px #0a23384d);
 }

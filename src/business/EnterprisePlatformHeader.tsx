@@ -62,7 +62,7 @@ export function EnterprisePlatformHeader({
   return (
     <div className="enterprise-platform-header">
       <a className="platform-brand" href="/">
-        <img className="platform-rice-mark" src="/brand/rice-panicle.svg" alt="金色稻穗" />
+        <img className="platform-rice-mark" src="/brand/rice-emblem.png" alt="金色双稻穗与田垄徽标" />
         <strong>{platformName}</strong>
         <small>粮安天下 · 服务产业 · 数智赋能</small>
       </a>
