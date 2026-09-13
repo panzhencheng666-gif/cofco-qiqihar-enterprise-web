@@ -358,6 +358,65 @@ describe("IdentityGovernancePanel", () => {
     expect(repo.updateEmployee).not.toHaveBeenCalled();
   });
 
+  it("blocks saving after option load failure and supports retry without losing existing regions", async () => {
+    const api = repository();
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    const edit = await screen.findByRole("button", { name: "管理张敏的授权" });
+    api.loadAssignmentOptions.mockRejectedValueOnce(new Error("offline"));
+    await userEvent.click(edit);
+    expect(
+      await screen.findByText("可访问地区读取失败，请重新选择工作单位。"),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "保存授权调整" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /移除可访问地区/ }),
+    ).toBeVisible();
+    expect(api.updateEmployee).not.toHaveBeenCalled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "重新读取授权选项" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "保存授权调整" }),
+      ).toBeEnabled(),
+    );
+    expect(
+      screen.getByRole("checkbox", { name: /可访问地区.*测试乡镇$/ }),
+    ).toBeChecked();
+  });
+
+  it("preserves an existing region omitted by the options response and blocks accidental revocation", async () => {
+    const api = repository();
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    const edit = await screen.findByRole("button", { name: "管理张敏的授权" });
+    const options = await api.loadAssignmentOptions("QIQIHAR_BUSINESS");
+    api.loadAssignmentOptions.mockResolvedValueOnce({
+      ...options,
+      regionCodes: [],
+    });
+    await userEvent.click(edit);
+    expect(await screen.findByText(/原有授权包含当前不可选地区/)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /移除可访问地区/ }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "保存授权调整" })).toBeDisabled();
+    expect(api.updateEmployee).not.toHaveBeenCalled();
+  });
+
   it("keeps database automation read-only and outside employee responsibility assignment", async () => {
     const api = repository();
     const rows = await api.listEmployees();
@@ -1387,7 +1446,7 @@ describe("IdentityGovernancePanel", () => {
     expect(await screen.findByText("复核已完成")).toBeVisible();
   });
 
-  it("normalizes legacy broad region grants to the assignable township anchors", async () => {
+  it("requires explicit removal before replacing legacy broad region grants", async () => {
     const user = userEvent.setup();
     const api = repository();
     const [employee] = await api.listEmployees();
@@ -1413,6 +1472,9 @@ describe("IdentityGovernancePanel", () => {
     await user.click(
       await screen.findByRole("button", { name: "管理张敏的授权" }),
     );
+    expect(screen.getByRole("button", { name: "保存授权调整" })).toBeDisabled();
+    const removals = screen.getAllByRole("button", { name: /移除可访问地区/ });
+    for (const index of [0, 1, 3]) await user.click(removals[index]);
     await user.click(screen.getByRole("button", { name: "保存授权调整" }));
 
     await waitFor(() =>
@@ -1565,7 +1627,7 @@ describe("platform account assignment targets", () => {
     const api = repository();
     const employees = await api.listEmployees();
     api.listEmployees.mockResolvedValue([
-      { ...employees[0]!, workUnitCode: "PLATFORM_ADMIN" },
+      { ...employees[0], workUnitCode: "PLATFORM_ADMIN" },
     ]);
     render(
       <IdentityGovernancePanel
@@ -1600,7 +1662,7 @@ describe("platform account assignment targets", () => {
     const employees = await api.listEmployees();
     api.listEmployees.mockResolvedValue([
       {
-        ...employees[0]!,
+        ...employees[0],
         subjectId: "platform-user",
         workUnitCode: "PLATFORM_ADMIN",
       },
@@ -1635,7 +1697,7 @@ describe("platform account assignment targets", () => {
     };
     api.listEmployees.mockResolvedValue([
       {
-        ...businessEmployees[0]!,
+        ...businessEmployees[0],
         subjectId: platformSession.subjectId,
         workUnitCode: "PLATFORM_SYSTEM",
         roles: [{ code: "BUSINESS_REVIEWER", name: "管理员" }],

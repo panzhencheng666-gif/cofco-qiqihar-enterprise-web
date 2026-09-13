@@ -259,6 +259,7 @@ function AssignmentEditor({
   regionNames,
   saving,
   loadingOptions,
+  optionsReady,
 }: {
   draft: AssignmentDraft;
   invite: boolean;
@@ -270,6 +271,7 @@ function AssignmentEditor({
   regionNames: ReadonlyMap<string, string>;
   saving: boolean;
   loadingOptions: boolean;
+  optionsReady: boolean;
 }) {
   const [regionSearch, setRegionSearch] = useState("");
   const normalizedSearch = regionSearch.trim().toLocaleLowerCase("zh-CN");
@@ -501,6 +503,10 @@ function AssignmentEditor({
           disabled={
             saving ||
             loadingOptions ||
+            !optionsReady ||
+            draft.regionCodes.some(
+              (code) => !options.regionCodes.includes(code),
+            ) ||
             !options.workUnits.some(
               (unit) => unit.code === draft.workUnitCode,
             ) ||
@@ -570,6 +576,7 @@ export function IdentityGovernancePanel({
     readOnly?: boolean;
   } | null>(null);
   const [loadingInvitation, setLoadingInvitation] = useState(false);
+  const [assignmentOptionsReady, setAssignmentOptionsReady] = useState(false);
   const [reviews, setReviews] = useState<readonly AccessReviewCampaign[]>([]);
   const [selectedReview, setSelectedReview] =
     useState<AccessReviewCampaign | null>(null);
@@ -641,6 +648,7 @@ export function IdentityGovernancePanel({
       (employee) =>
         employee.subjectId !== session.subjectId &&
         !employee.workUnitCode.startsWith("PLATFORM_") &&
+        employee.workUnitCode !== "DATABASE_AUTOMATION" &&
         employee.roles.some((role) =>
           ["BUSINESS_OPERATOR", "BUSINESS_REVIEWER"].includes(role.code),
         ),
@@ -833,6 +841,7 @@ export function IdentityGovernancePanel({
     assignmentOptionsRequest.current = requestId;
     setError(null);
     setLoadingAssignmentOptions(true);
+    setAssignmentOptionsReady(false);
     setOptions((current) => ({ ...current, regionCodes: [] }));
     try {
       const nextOptions = await repository.loadAssignmentOptions(
@@ -849,15 +858,19 @@ export function IdentityGovernancePanel({
           return merged;
         });
         setOptions(nextOptions);
+        setAssignmentOptionsReady(true);
+        if (requestedRegionCodes.some((code) => !assignableRegions.has(code))) {
+          setError(
+            "原有授权包含当前不可选地区，已保留原值。请核对已选地区并明确移除不再适用的授权后保存。",
+          );
+        }
         setEditor((current) =>
           current && current.draft.workUnitCode === workUnitCode
             ? {
                 ...current,
                 draft: {
                   ...current.draft,
-                  regionCodes: requestedRegionCodes.filter((code) =>
-                    assignableRegions.has(code),
-                  ),
+                  regionCodes: [...requestedRegionCodes],
                 },
               }
             : current,
@@ -884,7 +897,7 @@ export function IdentityGovernancePanel({
     invitationEditorSubject.current = null;
     setLoadingInvitation(false);
     setInvitationEditor(null);
-    setEditor({ invite, draft: { ...draft, regionCodes: [] } });
+    setEditor({ invite, draft });
     void requestAssignmentOptions(
       draft.workUnitCode.startsWith("PLATFORM_")
         ? assignmentUnit(session)
@@ -1029,8 +1042,22 @@ export function IdentityGovernancePanel({
   };
 
   const saveAssignment = async () => {
-    if (!editor) return;
+    if (
+      !editor ||
+      saving ||
+      loadingAssignmentOptions ||
+      !assignmentOptionsReady
+    )
+      return;
     const draft = editor.draft;
+    if (
+      draft.workUnitCode === "DATABASE_AUTOMATION" ||
+      !options.workUnits.some((unit) => unit.code === draft.workUnitCode) ||
+      draft.regionCodes.some((code) => !options.regionCodes.includes(code))
+    ) {
+      setError("当前授权选项与员工资料不一致，请重新读取并核对后保存。");
+      return;
+    }
     if (draft.roleCodes.length !== 1) {
       setError("请选择一个业务角色。");
       return;
@@ -1901,6 +1928,23 @@ export function IdentityGovernancePanel({
                         {error}
                       </p>
                     )}
+                    {error && !loadingAssignmentOptions && (
+                      <button
+                        type="button"
+                        className="identity-retry-options"
+                        onClick={() =>
+                          void requestAssignmentOptions(
+                            editor.draft.workUnitCode.startsWith("PLATFORM_")
+                              ? assignmentUnit(session)
+                              : editor.draft.workUnitCode,
+                            editor.draft.regionCodes,
+                            editor.invite ? undefined : editor.draft.subjectId,
+                          )
+                        }
+                      >
+                        重新读取授权选项
+                      </button>
+                    )}
                     <AssignmentEditor
                       draft={editor.draft}
                       invite={editor.invite}
@@ -1914,6 +1958,7 @@ export function IdentityGovernancePanel({
                       regionNames={regionNames}
                       saving={saving}
                       loadingOptions={loadingAssignmentOptions}
+                      optionsReady={assignmentOptionsReady}
                     />
                   </Drawer>
                 )}
