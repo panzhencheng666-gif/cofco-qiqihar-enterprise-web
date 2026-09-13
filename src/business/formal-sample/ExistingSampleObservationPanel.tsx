@@ -2,6 +2,7 @@ import {
   lazy,
   Suspense,
   useCallback,
+  useId,
   useEffect,
   useMemo,
   useRef,
@@ -225,6 +226,17 @@ export function ExistingSampleObservationPanel({
   onSelectionClear?: () => void;
   children?: ReactNode;
 }) {
+  const documentId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [activeSection, setActiveSection] = useState(0);
+  const domainLabel =
+    domain === "PRODUCTION" ? "产情" : domain === "MARKET" ? "市场" : "物流";
+  const productLabel =
+    productCode === "CORN"
+      ? "玉米"
+      : productCode === "SOYBEAN"
+        ? "大豆"
+        : "稻谷";
   const [localSelection, setLocalSelection] = useState<
     FormalSelection | undefined
   >(selection);
@@ -799,318 +811,413 @@ export function ExistingSampleObservationPanel({
       )}
       {isObservationPage && canCollect && (
         <section
-          className="existing-observation__page"
+          className="existing-observation__page business-document"
           aria-label="采集数据填写工作台"
         >
           <header className="existing-observation__header">
             <div className="existing-observation__header-copy">
-              <h2>填写或更新采集数据</h2>
-              <p>更新当前样本的采集数据，保存后仍为同一样本。</p>
+              <span className="business-document__eyebrow">
+                我的任务 / {domainLabel}填报
+              </span>
+              <h2>
+                {productLabel}
+                {domainLabel}数据填报
+              </h2>
+              <p>
+                {sample
+                  ? `当前对象：${sample.sampleName}。保存本次数据，原有历史记录保留。`
+                  : "先选择填报对象，再填写本次调查数据。"}
+              </p>
             </div>
             <button type="button" onClick={closeObservation}>
               返回业务列表
             </button>
           </header>
 
-          {sample ? <LockedSampleIdentity sample={sample} /> : null}
-
-          <section
-            className="existing-observation__filters enterprise-ledger-query enterprise-ledger-query--design"
-            role="region"
-            aria-label="已有正式样本查询"
-          >
-            <label>
-              <span>实际观测时间</span>
-              <input
-                aria-label="实际观测时间"
-                type="datetime-local"
-                max={localDateTimeValue()}
-                value={observedAt}
-                onChange={(event) => {
-                  setObservedAt(event.target.value);
-                  setHistoryYear(Number(event.target.value.slice(0, 4)));
-                  invalidateQuery();
-                }}
-              />
-            </label>
-            {domain !== "LOGISTICS" && (
+          {(!requestedSamplePointId || !onSelectionChange) && (
+            <section
+              className="existing-observation__filters enterprise-ledger-query enterprise-ledger-query--design"
+              role="region"
+              aria-label="已有正式样本查询"
+            >
               <label>
-                <span>对象类型</span>
-                <select
-                  aria-label="筛选对象类型"
-                  value={objectTypeCode}
+                <span>实际观测时间</span>
+                <input
+                  aria-label="实际观测时间"
+                  type="datetime-local"
+                  max={localDateTimeValue()}
+                  value={observedAt}
                   onChange={(event) => {
-                    setObjectTypeCode(event.target.value);
+                    setObservedAt(event.target.value);
+                    setHistoryYear(Number(event.target.value.slice(0, 4)));
+                    invalidateQuery();
+                  }}
+                />
+              </label>
+              {domain !== "LOGISTICS" && (
+                <label>
+                  <span>对象类型</span>
+                  <select
+                    aria-label="筛选对象类型"
+                    value={objectTypeCode}
+                    onChange={(event) => {
+                      setObjectTypeCode(event.target.value);
+                      invalidateQuery();
+                    }}
+                  >
+                    <option value="">全部对象类型</option>
+                    {objectTypes.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label>
+                <span>业务地区</span>
+                <select
+                  aria-label="筛选业务地区"
+                  value={regionCode}
+                  onChange={(event) => {
+                    setRegionCode(event.target.value);
                     invalidateQuery();
                   }}
                 >
-                  <option value="">全部对象类型</option>
-                  {objectTypes.map((item) => (
+                  <option value="">全部授权地区</option>
+                  {regions.map((item) => (
                     <option key={item.code} value={item.code}>
                       {item.name}
                     </option>
                   ))}
                 </select>
               </label>
-            )}
-            <label>
-              <span>业务地区</span>
-              <select
-                aria-label="筛选业务地区"
-                value={regionCode}
-                onChange={(event) => {
-                  setRegionCode(event.target.value);
-                  invalidateQuery();
-                }}
-              >
-                <option value="">全部授权地区</option>
-                {regions.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="existing-observation__keyword">
-              <span>样本点或企业名称</span>
-              <input
-                type="search"
-                aria-label="搜索样本企业"
-                placeholder="输入名称关键字"
-                value={keyword}
-                maxLength={100}
-                onChange={(event) => {
-                  setKeyword(event.target.value);
-                  invalidateQuery();
-                }}
-              />
-            </label>
-            <div className="enterprise-ledger-query__actions">
-              <button
-                className="is-primary"
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void querySamples(sample?.samplePointId, Boolean(sample))
-                }
-              >
-                查询正式样本
-              </button>
-            </div>
-          </section>
+              <label className="existing-observation__keyword">
+                <span>样本点或企业名称</span>
+                <input
+                  type="search"
+                  aria-label="搜索样本企业"
+                  placeholder="输入名称关键字"
+                  value={keyword}
+                  maxLength={100}
+                  onChange={(event) => {
+                    setKeyword(event.target.value);
+                    invalidateQuery();
+                  }}
+                />
+              </label>
+              <div className="enterprise-ledger-query__actions">
+                <button
+                  className="is-primary"
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void querySamples(sample?.samplePointId, Boolean(sample))
+                  }
+                >
+                  查询正式样本
+                </button>
+              </div>
+            </section>
+          )}
 
-          <div
-            className={`existing-observation__workspace${
-              requestedSamplePointId && onSelectionChange
-                ? " existing-observation__workspace--full"
-                : ""
-            }`}
-          >
-            {(!requestedSamplePointId || !onSelectionChange) && (
-              <aside
-                className="existing-observation__samples"
-                aria-label="正式样本查询结果"
-              >
-                <div className="existing-observation__section-title">
-                  <h3>正式样本</h3>
-                  <span>共 {samples.length} 个</span>
-                </div>
-                <div className="existing-observation__sample-list">
-                  {samples.length === 0 && (
-                    <p className="existing-observation__empty">
-                      当前条件下没有可更新的正式样本
-                    </p>
+          <div className="business-document__body">
+            {sample && (
+              <aside className="business-document__outline">
+                <LockedSampleIdentity sample={sample} />
+                <nav aria-label="填报栏目">
+                  <strong>填写内容</strong>
+                  {["填报时间", ...sections, "业务地区与定位"].map(
+                    (label, index) => (
+                      <button
+                        key={label}
+                        type="button"
+                        aria-current={
+                          activeSection === index ? "location" : undefined
+                        }
+                        onClick={() => {
+                          setActiveSection(index);
+                          formRef.current
+                            ?.querySelectorAll("fieldset")
+                            .item(index)
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
+                        }}
+                      >
+                        <span>{String(index + 1).padStart(2, "0")}</span>
+                        {label}
+                      </button>
+                    ),
                   )}
-                  {samples.map((item) => (
-                    <button
-                      type="button"
-                      key={item.samplePointId}
-                      className={
-                        sampleId === item.samplePointId ? "is-selected" : ""
-                      }
-                      onClick={() => {
-                        if (sampleId !== item.samplePointId)
-                          void chooseSample(item);
-                      }}
-                    >
-                      <strong>{item.sampleName}</strong>
-                      <span>
-                        {item.objectTypeName ?? "物流样本"} · {item.regionName}
-                      </span>
-                      <small>
-                        最近观测 {dateTimeLabel(item.latestObservedAt)}
-                      </small>
-                    </button>
-                  ))}
-                </div>
+                </nav>
               </aside>
             )}
-
-            <main className="existing-observation__editor">
-              {!sample && (
-                <div className="existing-observation__placeholder">
-                  <strong>请选择左侧正式样本</strong>
-                  <span>
-                    选择样本后填写本次数据，业务地区与经纬度可在表单中维护。
-                  </span>
-                </div>
-              )}
-              {sample && (
-                <>
-                  <div className="existing-observation__editor-heading">
-                    <div>
-                      <h3>本次正式观测</h3>
-                      <p>业务地区、详细地址、经纬度与本次采集数据统一保存。</p>
-                    </div>
-                    <span>保存后立即生效</span>
+            <div
+              className={`existing-observation__workspace${
+                requestedSamplePointId && onSelectionChange
+                  ? " existing-observation__workspace--full"
+                  : ""
+              }`}
+            >
+              {(!requestedSamplePointId || !onSelectionChange) && (
+                <aside
+                  className="existing-observation__samples"
+                  aria-label="正式样本查询结果"
+                >
+                  <div className="existing-observation__section-title">
+                    <h3>正式样本</h3>
+                    <span>共 {samples.length} 个</span>
                   </div>
-                  {definition && (
-                    <form
-                      className="existing-observation__form"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void save();
-                      }}
-                    >
-                      <fieldset disabled={busy || !canEditLocation}>
-                        <legend>业务地区与定位</legend>
-                        <div className="existing-observation__field-grid">
-                          <label>
-                            <span>业务地区</span>
-                            <select
-                              aria-label="样本业务地区"
-                              required
-                              value={location.regionCode}
-                              onChange={(event) =>
-                                changeLocation("regionCode", event.target.value)
-                              }
-                            >
-                              <option value="">请选择业务地区</option>
-                              {!regions.some(
-                                (item) => item.code === location.regionCode,
-                              ) &&
-                                location.regionCode && (
-                                  <option value={location.regionCode}>
-                                    {sample.regionName}
-                                  </option>
-                                )}
-                              {regions.map((item) => (
-                                <option key={item.code} value={item.code}>
-                                  {item.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label>
-                            <span>详细地址</span>
-                            <input
-                              aria-label="详细地址"
-                              maxLength={500}
-                              required={Boolean(sample.address?.trim())}
-                              value={location.address}
-                              onChange={(event) =>
-                                changeLocation("address", event.target.value)
-                              }
-                            />
-                          </label>
-                          <label>
-                            <span>经度</span>
-                            <input
-                              aria-label="经度"
-                              type="number"
-                              required
-                              min={-180}
-                              max={180}
-                              step="0.0000001"
-                              value={location.longitude}
-                              onChange={(event) =>
-                                changeLocation("longitude", event.target.value)
-                              }
-                            />
-                          </label>
-                          <label>
-                            <span>纬度</span>
-                            <input
-                              aria-label="纬度"
-                              type="number"
-                              required
-                              min={-90}
-                              max={90}
-                              step="0.0000001"
-                              value={location.latitude}
-                              onChange={(event) =>
-                                changeLocation("latitude", event.target.value)
-                              }
-                            />
-                          </label>
-                        </div>
-                      </fieldset>
-                      {!canEditLocation && (
+                  <div className="existing-observation__sample-list">
+                    {samples.length === 0 && (
+                      <p className="existing-observation__empty">
+                        当前条件下没有可更新的正式样本
+                      </p>
+                    )}
+                    {samples.map((item) => (
+                      <button
+                        type="button"
+                        key={item.samplePointId}
+                        className={
+                          sampleId === item.samplePointId ? "is-selected" : ""
+                        }
+                        onClick={() => {
+                          if (sampleId !== item.samplePointId)
+                            void chooseSample(item);
+                        }}
+                      >
+                        <strong>{item.sampleName}</strong>
+                        <span>
+                          {item.objectTypeName ?? "物流样本"} ·{" "}
+                          {item.regionName}
+                        </span>
+                        <small>
+                          最近观测 {dateTimeLabel(item.latestObservedAt)}
+                        </small>
+                      </button>
+                    ))}
+                  </div>
+                </aside>
+              )}
+
+              <main className="existing-observation__editor">
+                {!sample && (
+                  <div className="existing-observation__placeholder">
+                    <strong>
+                      {requestedSamplePointId
+                        ? busy
+                          ? "正在读取样本与填报内容"
+                          : "未能读取当前样本"
+                        : "请选择正式样本"}
+                    </strong>
+                    <span>
+                      选择样本后填写本次数据，业务地区与经纬度可在表单中维护。
+                    </span>
+                  </div>
+                )}
+                {sample && (
+                  <>
+                    <div className="existing-observation__editor-heading">
+                      <div>
+                        <h3>本次调查内容</h3>
                         <p>
-                          当前账号无权修改业务地区与经纬度，可继续填写采集数据。
+                          业务地区、详细地址、经纬度与本次采集数据统一保存。
                         </p>
-                      )}
-                      {sections.map((section) => (
-                        <fieldset key={section} disabled={busy}>
-                          <legend>{section}</legend>
+                      </div>
+                      <span>保存后立即生效</span>
+                    </div>
+                    {definition && (
+                      <form
+                        ref={formRef}
+                        id={documentId}
+                        className="existing-observation__form"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void save();
+                        }}
+                      >
+                        <fieldset disabled={busy}>
+                          <legend>填报时间</legend>
                           <div className="existing-observation__field-grid">
-                            {fields
-                              .filter((field) => field.section === section)
-                              .sort((a, b) => a.sortOrder - b.sortOrder)
-                              .map((field) => (
-                                <label key={field.code}>
-                                  <span>
-                                    {observationFieldLabel(field)}
-                                    {field.required && (
-                                      <em aria-hidden="true">*</em>
-                                    )}
-                                  </span>
-                                  <FieldControl
-                                    field={field}
-                                    value={values[field.code] ?? ""}
-                                    onChange={(value) => {
-                                      valuesDirty.current = true;
-                                      setValues((current) => ({
-                                        ...current,
-                                        [field.code]: value,
-                                      }));
-                                      setIdempotencyKey(crypto.randomUUID());
-                                    }}
-                                  />
-                                </label>
-                              ))}
+                            <label>
+                              <span>
+                                实际观测时间 <em aria-hidden="true">*</em>
+                              </span>
+                              <input
+                                aria-label={
+                                  requestedSamplePointId
+                                    ? "实际观测时间"
+                                    : "本次实际观测时间"
+                                }
+                                type="datetime-local"
+                                required
+                                max={localDateTimeValue()}
+                                value={observedAt}
+                                onChange={(event) => {
+                                  setObservedAt(event.target.value);
+                                  setHistoryYear(
+                                    Number(event.target.value.slice(0, 4)),
+                                  );
+                                }}
+                              />
+                            </label>
+                            <div className="business-document__field-note">
+                              <span>最近一次观测</span>
+                              <strong>
+                                {sample.latestObservedAt
+                                  ? dateTimeLabel(sample.latestObservedAt)
+                                  : "尚无观测记录"}
+                              </strong>
+                              <small>本次保存会保留历史，可在下方查看。</small>
+                            </div>
                           </div>
                         </fieldset>
-                      ))}
-                      <div className="existing-observation__actions">
-                        <div>
-                          <strong>保存后立即生效</strong>
-                          <span>
-                            写入正式历史，并联动总揽、对应分析和报表。
-                          </span>
+                        {sections.map((section) => (
+                          <fieldset key={section} disabled={busy}>
+                            <legend>{section}</legend>
+                            <div className="existing-observation__field-grid">
+                              {fields
+                                .filter((field) => field.section === section)
+                                .sort((a, b) => a.sortOrder - b.sortOrder)
+                                .map((field) => (
+                                  <label key={field.code}>
+                                    <span>
+                                      {observationFieldLabel(field)}
+                                      {field.required && (
+                                        <em aria-hidden="true">*</em>
+                                      )}
+                                    </span>
+                                    <FieldControl
+                                      field={field}
+                                      value={values[field.code] ?? ""}
+                                      onChange={(value) => {
+                                        valuesDirty.current = true;
+                                        setValues((current) => ({
+                                          ...current,
+                                          [field.code]: value,
+                                        }));
+                                        setIdempotencyKey(crypto.randomUUID());
+                                      }}
+                                    />
+                                  </label>
+                                ))}
+                            </div>
+                          </fieldset>
+                        ))}
+                        <fieldset disabled={busy || !canEditLocation}>
+                          <legend>业务地区与定位</legend>
+                          <div className="existing-observation__field-grid">
+                            <label>
+                              <span>业务地区</span>
+                              <select
+                                aria-label="样本业务地区"
+                                required
+                                value={location.regionCode}
+                                onChange={(event) =>
+                                  changeLocation(
+                                    "regionCode",
+                                    event.target.value,
+                                  )
+                                }
+                              >
+                                <option value="">请选择业务地区</option>
+                                {!regions.some(
+                                  (item) => item.code === location.regionCode,
+                                ) &&
+                                  location.regionCode && (
+                                    <option value={location.regionCode}>
+                                      {sample.regionName}
+                                    </option>
+                                  )}
+                                {regions.map((item) => (
+                                  <option key={item.code} value={item.code}>
+                                    {item.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              <span>详细地址</span>
+                              <input
+                                aria-label="详细地址"
+                                maxLength={500}
+                                required={Boolean(sample.address?.trim())}
+                                value={location.address}
+                                onChange={(event) =>
+                                  changeLocation("address", event.target.value)
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span>经度</span>
+                              <input
+                                aria-label="经度"
+                                type="number"
+                                required
+                                min={-180}
+                                max={180}
+                                step="0.0000001"
+                                value={location.longitude}
+                                onChange={(event) =>
+                                  changeLocation(
+                                    "longitude",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span>纬度</span>
+                              <input
+                                aria-label="纬度"
+                                type="number"
+                                required
+                                min={-90}
+                                max={90}
+                                step="0.0000001"
+                                value={location.latitude}
+                                onChange={(event) =>
+                                  changeLocation("latitude", event.target.value)
+                                }
+                              />
+                            </label>
+                          </div>
+                        </fieldset>
+                        {!canEditLocation && (
+                          <p>
+                            当前账号无权修改业务地区与经纬度，可继续填写采集数据。
+                          </p>
+                        )}
+                        <div className="existing-observation__actions">
+                          <div>
+                            <strong>保存后立即生效</strong>
+                            <span>保留历史记录，同步更新对应分析与报表。</span>
+                          </div>
+                          <div className="existing-observation__action-buttons">
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={closeObservation}
+                            >
+                              取消
+                            </button>
+                            <button
+                              className="is-primary"
+                              type="submit"
+                              disabled={busy}
+                            >
+                              {busy ? "正在保存" : "保存并正式入库"}
+                            </button>
+                          </div>
                         </div>
-                        <div className="existing-observation__action-buttons">
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={closeObservation}
-                          >
-                            取消
-                          </button>
-                          <button
-                            className="is-primary"
-                            type="submit"
-                            disabled={busy}
-                          >
-                            {busy ? "正在保存" : "保存并正式入库"}
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  )}
-                </>
-              )}
-            </main>
+                      </form>
+                    )}
+                  </>
+                )}
+              </main>
+            </div>
           </div>
 
           {sample && (
@@ -1272,24 +1379,27 @@ function LockedSampleIdentity({ sample }: { sample: EligibleFormalSample }) {
         <span>业务地区</span>
         <strong>{sample.regionName}</strong>
       </div>
-      <div>
-        <span>样本点维护人</span>
-        <strong>{sample.maintainerDisplayName || "未绑定负责账号"}</strong>
-      </div>
-      <div>
-        <span>样本点联系方式</span>
-        <strong>
-          {sample.latestValues[
-            `${sample.domain === "PRODUCTION" ? "PROD" : sample.domain === "MARKET" ? "MKT" : "LOG"}_SAMPLE_CONTACT`
-          ] || "未填写"}
-        </strong>
-      </div>
-      <div>
-        <span>定位坐标</span>
-        <strong>
-          {sample.longitude}，{sample.latitude}
-        </strong>
-      </div>
+      <details>
+        <summary>对象资料</summary>
+        <div>
+          <span>样本点维护人</span>
+          <strong>{sample.maintainerDisplayName || "未绑定负责账号"}</strong>
+        </div>
+        <div>
+          <span>样本点联系方式</span>
+          <strong>
+            {sample.latestValues[
+              `${sample.domain === "PRODUCTION" ? "PROD" : sample.domain === "MARKET" ? "MKT" : "LOG"}_SAMPLE_CONTACT`
+            ] || "未填写"}
+          </strong>
+        </div>
+        <div>
+          <span>定位坐标</span>
+          <strong>
+            {sample.longitude}，{sample.latitude}
+          </strong>
+        </div>
+      </details>
     </div>
   );
 }

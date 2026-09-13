@@ -1,3 +1,4 @@
+import { CollectionRowActions } from "../CollectionRowActions";
 import { collectionColumnWidths } from "../collectionTableLayout";
 import { importFailureMessage } from "@/business/importing/businessImportPresentation";
 import { useEffect, useMemo, useState } from "react";
@@ -1410,100 +1411,104 @@ export function ProductMarketCollectionWorkspace({
                         </td>
                       );
                     })}
-                    <td>
-                      <button
-                        className="enterprise-ledger-row-action"
-                        type="button"
-                        disabled={
-                          Boolean(row.samplePointId) &&
-                          !row.values.__FORMAL_LATEST_OBSERVATION_ID
-                        }
-                        onClick={() => {
-                          if (
-                            realtimeRepository &&
-                            onEditRecord &&
-                            (!row.samplePointId ||
-                              row.values.__FORMAL_LATEST_OBSERVATION_ID)
-                          ) {
-                            onEditRecord(productCode, row.workId);
-                            return;
+                    <td className="collection-actions-cell">
+                      <CollectionRowActions>
+                        <button
+                          className="enterprise-ledger-row-action"
+                          type="button"
+                          disabled={
+                            Boolean(row.samplePointId) &&
+                            !row.values.__FORMAL_LATEST_OBSERVATION_ID
                           }
-                          onSelectionChange({
-                            type: "work-item",
-                            id: row.workId,
-                          });
-                        }}
-                      >
-                        查看记录
-                      </button>
-                      {row.samplePointId &&
-                        !readOnly &&
-                        permissions.includes("FORMAL_SAMPLE_MANAGE") && (
-                          <button
-                            className="enterprise-ledger-row-action"
-                            type="button"
-                            onClick={() =>
-                              onSelectionChange({
-                                type: "formal-sample-observation",
-                                id: row.samplePointId!,
-                              })
+                          onClick={() => {
+                            if (
+                              realtimeRepository &&
+                              onEditRecord &&
+                              (!row.samplePointId ||
+                                row.values.__FORMAL_LATEST_OBSERVATION_ID)
+                            ) {
+                              onEditRecord(productCode, row.workId);
+                              return;
                             }
-                          >
-                            编辑
-                          </button>
-                        )}
-                      {row.samplePointId &&
-                        !readOnly &&
-                        permissions.includes("FORMAL_SAMPLE_DELETE") && (
-                          <button
-                            className="enterprise-ledger-row-action"
-                            type="button"
-                            onClick={() => {
-                              if (!realtimeRepository?.deleteFormalSamplePoint)
-                                return;
-                              if (
-                                !window.confirm(
-                                  `确认删除“${row.subject}”？删除后将从当前台账和分析中移除，历史审计仍保留。`,
+                            onSelectionChange({
+                              type: "work-item",
+                              id: row.workId,
+                            });
+                          }}
+                        >
+                          查看记录
+                        </button>
+                        {row.samplePointId &&
+                          !readOnly &&
+                          permissions.includes("FORMAL_SAMPLE_MANAGE") && (
+                            <button
+                              className="enterprise-ledger-row-action"
+                              type="button"
+                              onClick={() =>
+                                onSelectionChange({
+                                  type: "formal-sample-observation",
+                                  id: row.samplePointId!,
+                                })
+                              }
+                            >
+                              编辑
+                            </button>
+                          )}
+                        {row.samplePointId &&
+                          !readOnly &&
+                          permissions.includes("FORMAL_SAMPLE_DELETE") && (
+                            <button
+                              className="enterprise-ledger-row-action"
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  !realtimeRepository?.deleteFormalSamplePoint
                                 )
-                              )
-                                return;
-                              void realtimeRepository
-                                .deleteFormalSamplePoint(
-                                  row.samplePointId!,
-                                  row.sampleVersion ?? 0,
+                                  return;
+                                if (
+                                  !window.confirm(
+                                    `确认删除“${row.subject}”？删除后将从当前台账和分析中移除，历史审计仍保留。`,
+                                  )
                                 )
-                                .then(() =>
-                                  setRecordsRevision((value) => value + 1),
-                                )
-                                .catch((error: unknown) =>
-                                  setRecordsError(
-                                    error instanceof RealtimeApiError &&
-                                      error.clientMessage
-                                      ? error.clientMessage
-                                      : "样本点删除失败，请稍后重试。",
-                                  ),
-                                );
-                            }}
-                          >
-                            彻底删除
-                          </button>
-                        )}
-                      {row.samplePointId &&
-                        !readOnly &&
-                        permissions.includes("FORMAL_SAMPLE_DELETE") && (
-                          <button
-                            className="enterprise-ledger-row-action"
-                            type="button"
-                            onClick={() =>
-                              onSelectionChange({
-                                type: "formal-sample-view",
-                                id: row.samplePointId!,
-                              })
-                            }
-                          >
-                            淘汰为历史
-                          </button>
-                        )}
+                                  return;
+                                void realtimeRepository
+                                  .deleteFormalSamplePoint(
+                                    row.samplePointId!,
+                                    row.sampleVersion ?? 0,
+                                  )
+                                  .then(() =>
+                                    setRecordsRevision((value) => value + 1),
+                                  )
+                                  .catch((error: unknown) =>
+                                    setRecordsError(
+                                      error instanceof RealtimeApiError &&
+                                        error.clientMessage
+                                        ? error.clientMessage
+                                        : "样本点删除失败，请稍后重试。",
+                                    ),
+                                  );
+                              }}
+                            >
+                              彻底删除
+                            </button>
+                          )}
+                        {row.samplePointId &&
+                          !readOnly &&
+                          permissions.includes("FORMAL_SAMPLE_DELETE") && (
+                            <button
+                              className="enterprise-ledger-row-action"
+                              type="button"
+                              onClick={() =>
+                                onSelectionChange({
+                                  type: "formal-sample-view",
+                                  id: row.samplePointId!,
+                                })
+                              }
+                            >
+                              淘汰为历史
+                            </button>
+                          )}
+                      </CollectionRowActions>{" "}
                     </td>
                   </tr>
                 ))}

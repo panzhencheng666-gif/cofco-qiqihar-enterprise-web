@@ -16,6 +16,6 @@ export function collectionColumnWidths(detailColumnCount: number): number[] {
     140,
     140,
     ...Array.from({ length: detailColumnCount }, () => 160),
-    140,
+    260,
   ];
 }

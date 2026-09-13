@@ -276,10 +276,17 @@ describe("product production collection workspace", () => {
     expect(within(row).queryByRole("button", { name: "查看照片" })).toBeNull();
     expect(within(row).getByRole("button", { name: "查看记录" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
-    expect(within(row).getByRole("button", { name: "彻底删除" })).toBeVisible();
+    await userEvent.click(
+      within(row).getByRole("button", { name: "更多操作" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "彻底删除" }),
+      ).toBeInTheDocument(),
+    );
     expect(
-      within(row).getByRole("button", { name: "淘汰为历史" }),
-    ).toBeVisible();
+      screen.getByRole("button", { name: "淘汰为历史" }),
+    ).toBeInTheDocument();
     await userEvent.click(
       within(row).getByRole("button", { name: "查看记录" }),
     );
@@ -290,14 +297,20 @@ describe("product production collection workspace", () => {
       id: "sample-production-1",
     });
     await userEvent.click(
-      within(row).getByRole("button", { name: "淘汰为历史" }),
+      within(row).getByRole("button", { name: "更多操作" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "淘汰为历史" }),
     );
     expect(onSelectionChange).toHaveBeenCalledWith({
       type: "formal-sample-view",
       id: "sample-production-1",
     });
     await userEvent.click(
-      within(row).getByRole("button", { name: "彻底删除" }),
+      within(row).getByRole("button", { name: "更多操作" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "彻底删除" }),
     );
     expect(confirm).toHaveBeenCalledWith(
       "确认删除“龙沙区玉米产情样本”？删除后将从当前台账和分析中移除，历史审计仍保留。",

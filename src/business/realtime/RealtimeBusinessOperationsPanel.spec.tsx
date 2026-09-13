@@ -560,6 +560,30 @@ function fillRequiredProductionFields() {
 }
 
 describe("RealtimeBusinessOperationsPanel", () => {
+  it("loads a standalone new document even when record-list loading is unavailable", async () => {
+    const { api } = repository();
+    const list = vi
+      .spyOn(api, "listProduction")
+      .mockRejectedValue(new Error("list unavailable"));
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="填报员"
+        domain="production"
+        editorOnly
+        lockedProductCode="CORN"
+        mode="entry"
+        repository={api}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "保存并提交" })).toBeEnabled(),
+    );
+    expect(list).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText("业务记录读取失败，请稍后重试。"),
+    ).not.toBeInTheDocument();
+  });
+
   it("loads agricultural-input fields from the backend definition and clears old object values when switching types", async () => {
     const { api } = repository();
     vi.spyOn(api, "listObjectTypes").mockResolvedValue([
@@ -824,7 +848,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     await screen.findByText(/作废成功/);
     expect(screen.getByText(/已作废/)).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "保存并提交审核" }),
+      screen.queryByRole("button", { name: "保存并提交" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "提交审核" }),
@@ -940,7 +964,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(screen.getByLabelText("数据月份")).toBeDisabled();
     expect(screen.getByLabelText("填报日期")).toHaveTextContent("2026-08-09");
     expect(
-      screen.queryByRole("button", { name: "保存并提交审核" }),
+      screen.queryByRole("button", { name: "保存并提交" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("新建填报")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "field.png" })).toHaveAttribute(
@@ -1052,7 +1076,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(await screen.findByLabelText("数据年份")).toBeDisabled();
     expect(screen.getByLabelText("数据月份")).toBeDisabled();
     expect(
-      screen.queryByRole("button", { name: "保存并提交审核" }),
+      screen.queryByRole("button", { name: "保存并提交" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "提交审核" }),
@@ -1083,9 +1107,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.getByText("原业务记录读取失败", { selector: "strong" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "保存并提交审核" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存并提交" })).toBeDisabled();
     expect(screen.queryByLabelText("现场水印照片")).not.toBeInTheDocument();
     expect(createProduction).not.toHaveBeenCalled();
   });
@@ -1165,7 +1187,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
 
-    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
+    expect(listProduction).not.toHaveBeenCalled();
     expect(getProduction).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText(/销售数量/)).toHaveValue(25);
   });
@@ -1518,9 +1540,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.queryByRole("group", { name: "现场照片" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "保存并提交审核" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存并提交" })).toBeDisabled();
     expect(createProduction).not.toHaveBeenCalled();
   });
 
@@ -1583,9 +1603,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.getByText("原业务记录读取失败", { selector: "strong" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "保存并提交审核" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存并提交" })).toBeDisabled();
   });
 
   it("searches the authorized region list before selecting a region", async () => {
@@ -1659,7 +1677,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     fillRequiredProductionFields();
 
     const saveButton = screen.getByRole("button", {
-      name: "保存并提交审核",
+      name: "保存并提交",
     });
     await waitFor(() => expect(saveButton).not.toBeDisabled());
     fireEvent.submit(saveButton.closest("form") as HTMLFormElement);

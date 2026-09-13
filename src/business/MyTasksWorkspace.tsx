@@ -92,47 +92,51 @@ export function MyTasksWorkspace({
   const prefix =
     product === "CORN" ? "corn" : product === "SOYBEAN" ? "soybean" : "paddy";
   return (
-    <section aria-label="我的任务">
-      <h1>我的任务</h1>
-      <div className="enterprise-ledger-table__toolbar">
-        <div role="tablist" aria-label="任务业务类型">
-          {(
-            [
-              ["market", "市场"],
-              ["production", "产情"],
-              ["logistics", "物流"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={domain === value}
-              onClick={() => {
-                setDomain(value);
-                onSelectionClear();
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <label>
-          品种{" "}
-          <select
-            aria-label="任务品种"
-            value={product}
-            onChange={(event) => {
-              setProduct(event.target.value as typeof product);
-              onSelectionClear();
-            }}
-          >
-            <option value="CORN">玉米</option>
-            <option value="SOYBEAN">大豆</option>
-            <option value="RICE">稻谷</option>
-          </select>
-        </label>
-      </div>
+    <section aria-label="我的任务" className="business-task-workspace">
+      {selection?.type !== "formal-sample-observation" && (
+        <>
+          <h1>我的任务</h1>
+          <div className="enterprise-ledger-table__toolbar">
+            <div role="tablist" aria-label="任务业务类型">
+              {(
+                [
+                  ["market", "市场"],
+                  ["production", "产情"],
+                  ["logistics", "物流"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={domain === value}
+                  onClick={() => {
+                    setDomain(value);
+                    onSelectionClear();
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label>
+              品种{" "}
+              <select
+                aria-label="任务品种"
+                value={product}
+                onChange={(event) => {
+                  setProduct(event.target.value as typeof product);
+                  onSelectionClear();
+                }}
+              >
+                <option value="CORN">玉米</option>
+                <option value="SOYBEAN">大豆</option>
+                <option value="RICE">稻谷</option>
+              </select>
+            </label>
+          </div>
+        </>
+      )}
       {!assigned ? (
         <p role="status">暂未分配责任地区</p>
       ) : domain === "production" ? (

@@ -1,3 +1,4 @@
+import { CollectionRowActions } from "../CollectionRowActions";
 import { collectionColumnWidths } from "../collectionTableLayout";
 import { importFailureMessage } from "@/business/importing/businessImportPresentation";
 import { useEffect, useMemo, useState } from "react";
@@ -988,7 +989,7 @@ export function ProductProductionCollectionWorkspace({
   );
 
   const renderRowActions = (row: ProductionCollectionRow) => (
-    <>
+    <CollectionRowActions>
       <button
         className="enterprise-ledger-row-action"
         type="button"
@@ -1077,7 +1078,7 @@ export function ProductProductionCollectionWorkspace({
             淘汰为历史
           </button>
         )}
-    </>
+    </CollectionRowActions>
   );
 
   return (
@@ -1559,7 +1560,9 @@ export function ProductProductionCollectionWorkspace({
                           <td>{row.validation}</td>
                         </>
                       )}
-                      <td>{renderRowActions(row)}</td>
+                      <td className="collection-actions-cell">
+                        {renderRowActions(row)}
+                      </td>
                     </tr>
                   ))}
                   {rows.length === 0 && (

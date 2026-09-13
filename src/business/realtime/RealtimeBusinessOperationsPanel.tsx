@@ -192,6 +192,8 @@ export function RealtimeBusinessOperationsPanel({
   const [selected, setSelected] = useState<SelectedRecord | null>(null);
   const selectedRecordId = useRef<string | undefined>(initialRecordId);
   const formDirty = useRef(false);
+  const documentFormRef = useRef<HTMLFormElement>(null);
+  const [activeSection, setActiveSection] = useState(0);
   const [recordLoadState, setRecordLoadState] = useState<
     "new" | "loading" | "loaded" | "failed"
   >(initialRecordId ? "loading" : "new");
@@ -272,7 +274,7 @@ export function RealtimeBusinessOperationsPanel({
 
   const reload = useCallback(
     async (nextProductCode = productCode): Promise<void> => {
-      if (!nextProductCode) return;
+      if (!nextProductCode || editorOnly) return;
       const page =
         domain === "production"
           ? await repository.listProduction({
@@ -285,7 +287,7 @@ export function RealtimeBusinessOperationsPanel({
             });
       setRecords(page.items);
     },
-    [domain, productCode, repository],
+    [domain, editorOnly, productCode, repository],
   );
 
   useEffect(() => {
@@ -294,9 +296,11 @@ export function RealtimeBusinessOperationsPanel({
     const domainCode = domain === "production" ? "PRODUCTION" : "MARKET";
     void Promise.all([
       repository.listObjectTypes(productCode, domainCode),
-      domain === "production"
-        ? repository.listProduction({ productCode, pageSize: 100 })
-        : repository.listMarket({ productCode, pageSize: 100 }),
+      editorOnly
+        ? Promise.resolve({ items: [] })
+        : domain === "production"
+          ? repository.listProduction({ productCode, pageSize: 100 })
+          : repository.listMarket({ productCode, pageSize: 100 }),
     ])
       .then(([types, page]) => {
         if (cancelled) return;
@@ -318,7 +322,7 @@ export function RealtimeBusinessOperationsPanel({
     return () => {
       cancelled = true;
     };
-  }, [authenticatedName, domain, productCode, repository]);
+  }, [authenticatedName, domain, editorOnly, productCode, repository]);
 
   const objectTypeCode =
     values.objectTypeCode ||
@@ -627,10 +631,10 @@ export function RealtimeBusinessOperationsPanel({
       );
       await reload(record.productCode);
       onRecordsChanged?.();
-      setMessage("提交审核成功");
+      setMessage("保存提交成功");
       onSaved?.();
     } catch {
-      setError("保存并提交审核失败，请核对填报内容后重试。");
+      setError("保存提交失败，请核对填报内容后重试。");
     } finally {
       setBusy(false);
     }
@@ -810,7 +814,7 @@ export function RealtimeBusinessOperationsPanel({
               ? "市场记录详情"
               : "市场采集"
       }
-      className="realtime-business-panel"
+      className={`realtime-business-panel${editorOnly ? " business-document-entry" : ""}`}
     >
       <header>
         <div>
@@ -839,7 +843,7 @@ export function RealtimeBusinessOperationsPanel({
               ? "只读核对原业务单据、现场照片和当前状态，通过或填写原因退回；审核不会新建记录。"
               : mode === "view"
                 ? "只读查看原业务记录及现场照片，不会修改或新建记录。"
-                : "按当前账号的业务范围填写记录，保存并提交后直接进入审核流程。"}
+                : "填写本次调查数据，带 * 的项目为必填项。保存结果以系统返回为准。"}
           </p>
         </div>
         <div className="realtime-business-header-actions">
@@ -927,7 +931,53 @@ export function RealtimeBusinessOperationsPanel({
             )}
           </aside>
         )}
-        <form onSubmit={(event) => void save(event)}>
+        {editorOnly && (
+          <nav
+            className="business-document__outline business-document-entry__outline"
+            aria-label="单据栏目"
+          >
+            <div className="business-document__context">
+              <span>
+                {mode === "view"
+                  ? "查看单据"
+                  : initialRecordId
+                    ? "补充填报"
+                    : "新建单据"}
+              </span>
+              <strong>
+                {productName(productCode, master)}
+                {domain === "production" ? "产情调查" : "市场采集"}
+              </strong>
+              <small>
+                {mode === "view"
+                  ? "原始业务记录 · 只读"
+                  : "按栏目填写，完成后统一保存"}
+              </small>
+            </div>
+            <strong>单据内容</strong>
+            {fieldSections.map(([section], index) => (
+              <button
+                key={section}
+                type="button"
+                aria-current={activeSection === index ? "location" : undefined}
+                onClick={() => {
+                  setActiveSection(index);
+                  documentFormRef.current
+                    ?.querySelectorAll("fieldset")
+                    .item(index)
+                    ?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                }}
+              >
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                {section}
+              </button>
+            ))}
+          </nav>
+        )}
+        <form ref={documentFormRef} onSubmit={(event) => void save(event)}>
           <header>
             <strong>
               {selected
@@ -1101,7 +1151,7 @@ export function RealtimeBusinessOperationsPanel({
                 disabled={busy || !definitionReady || existingRecordUnavailable}
                 type="submit"
               >
-                保存并提交审核
+                保存并提交
               </button>
             )}
             {mode === "entry" && selected && allowed.has("VOID") && (
