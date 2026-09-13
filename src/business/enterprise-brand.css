@@ -1,0 +1,618 @@
+/* Shared grain platform identity: quiet industrial watermark, readable controls. */
+.reference-enterprise-shell .formal-global-header,
+.reference-enterprise-shell .formal-header-primary,
+.identity-application-header {
+  background: linear-gradient(112deg, #315991 0%, #164576 46%, #103663 100%);
+  color: #fff;
+}
+.reference-enterprise-shell .formal-brand {
+  background: transparent;
+}
+.reference-enterprise-shell .formal-application-nav button {
+  background: transparent;
+  border-color: #ffffff12;
+  color: #e5edf9;
+}
+.reference-enterprise-shell .formal-application-nav button.is-active {
+  background: linear-gradient(120deg, #2765b9, #245697);
+  box-shadow: inset 0 -3px #4b94ff;
+}
+.reference-enterprise-shell .formal-sidebar,
+.identity-application-sidebar {
+  background-color: #1c3355;
+  background-image: url("/brand/grain-sidebar-watermark.png");
+  background-size: auto 580px;
+  background-repeat: no-repeat;
+  background-position: bottom;
+}
+.reference-enterprise-shell .formal-work-unit,
+.reference-enterprise-shell .formal-user {
+  text-decoration: none;
+  color: #edf4ff;
+}
+.enterprise-sidebar-motto {
+  margin: 90px 20px 26px;
+  color: #c4d4e2;
+  opacity: 0.72;
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+  font-size: 19px;
+  letter-spacing: 2px;
+  white-space: nowrap;
+  line-height: 1.6;
+  pointer-events: none;
+}
+.enterprise-sidebar-motto span {
+  padding-left: 1.5em;
+}
+.identity-application {
+  --identity-header-height: 72px;
+  --identity-rail-width: 188px;
+  display: grid;
+  grid-template-columns: var(--identity-rail-width) minmax(0, 1fr);
+  grid-template-rows: var(--identity-header-height) minmax(0, 1fr);
+  height: 100dvh;
+  background: #f4f7fc;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #253c5c;
+}
+.identity-application-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 24px;
+  min-width: 0;
+}
+.identity-platform-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: #fff;
+  white-space: nowrap;
+}
+.identity-platform-brand > svg {
+  width: 36px;
+  height: 42px;
+  color: #e8d58e;
+}
+.identity-platform-brand strong {
+  font-size: 22px;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+.identity-platform-brand small {
+  margin-left: 4px;
+  padding-left: 16px;
+  border-left: 1px solid #ffffff50;
+  font-family: "Kaiti SC", serif;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #d9e6f4;
+}
+.identity-application-header > nav {
+  display: flex;
+  height: 100%;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+.identity-application-header > nav :is(a, span) {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 16px;
+  white-space: nowrap;
+  color: #eaf2fc;
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: 4px;
+}
+.identity-application-header > nav svg {
+  width: 18px;
+  height: 18px;
+}
+.identity-application-header > nav [aria-current] {
+  background: linear-gradient(120deg, #2665bf, #235497);
+  box-shadow: inset 0 -3px #3990ff;
+}
+.identity-login-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-left: 1px solid #ffffff30;
+  background: transparent;
+  color: #fff;
+  padding: 0 0 0 20px;
+  text-align: left;
+  cursor: pointer;
+}
+.identity-login-avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(#f1f7ff, #b9d4f8);
+  color: #4078c1;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.identity-login-person strong {
+  display: block;
+  font-size: 13px;
+}
+.identity-login-person small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #c3d6ef;
+}
+.identity-application-sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 8px 0;
+  overflow-y: auto;
+}
+.identity-application-sidebar nav p {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #bacce5;
+  font-size: 12px;
+  margin: 12px 14px 18px;
+}
+.identity-application-sidebar nav svg {
+  width: 18px;
+  height: 18px;
+}
+.identity-application-sidebar nav button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 10px;
+  padding: 14px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #c6d7ee;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.identity-application-sidebar nav button[aria-current] {
+  background: linear-gradient(110deg, #2577ee, #345897);
+  color: white;
+  box-shadow: 0 4px 12px #0c254a40;
+}
+.identity-application-main {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.identity-login-state {
+  margin: 70px auto;
+  max-width: 600px;
+  padding: 32px;
+  background: white;
+  border: 1px solid #dde6f2;
+  border-radius: 8px;
+}
+.identity-login-state :is(a, button) {
+  display: inline-block;
+  margin: 16px 12px 0 0;
+  padding: 10px 16px;
+  border: 1px solid #2765bb;
+  border-radius: 5px;
+  background: white;
+  color: #2362b6;
+  text-decoration: none;
+  cursor: pointer;
+}
+@media (max-width: 1400px) {
+  .identity-platform-brand small {
+    display: none;
+  }
+  .identity-platform-brand strong {
+    font-size: 19px;
+  }
+  .identity-application-header {
+    gap: 16px;
+  }
+}
+@media (max-width: 900px) {
+  .identity-application {
+    --identity-rail-width: 160px;
+  }
+  .identity-application-header {
+    padding: 0 14px;
+  }
+  .identity-platform-brand strong {
+    font-size: 15px;
+    white-space: normal;
+    max-width: 180px;
+  }
+  .identity-application-header > nav :is(a, span) {
+    padding: 12px 9px;
+    font-size: 12px;
+  }
+  .identity-login-person {
+    padding-left: 10px;
+  }
+}
+@media (max-width: 640px) {
+  .identity-application {
+    --identity-rail-width: 0px;
+    --identity-header-height: 106px;
+  }
+  .identity-application-sidebar {
+    display: none;
+  }
+  .identity-application-header {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 10px 12px;
+  }
+  .identity-platform-brand strong {
+    max-width: none;
+    font-size: 14px;
+  }
+  .identity-platform-brand > svg {
+    width: 24px;
+    height: 28px;
+  }
+  .identity-application-header > nav {
+    order: 3;
+    width: 100%;
+    height: auto;
+    justify-content: center;
+  }
+  .identity-login-person {
+    margin-left: auto;
+  }
+  .identity-login-person > span:last-child {
+    max-width: 90px;
+  }
+}
+
+/* One header for both applications; the business search stays in its own toolbar. */
+.identity-application {
+  --identity-header-height: 64px;
+}
+.identity-application-header {
+  padding: 0;
+}
+.enterprise-platform-header {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
+  height: 64px;
+  padding: 0 22px;
+  background: linear-gradient(110deg, #335e99 0%, #234c86 42%, #143863 100%);
+  color: #edf4ff;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.enterprise-platform-header .platform-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.enterprise-platform-header .platform-wheat {
+  width: 38px;
+  height: 46px;
+  color: #e6d48e;
+}
+.enterprise-platform-header .platform-brand strong {
+  font-size: 21px;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+.enterprise-platform-header .platform-brand small {
+  margin-left: 8px;
+  padding-left: 17px;
+  border-left: 1px solid #b9d0f266;
+  font:
+    13px "Kaiti SC",
+    "STKaiti",
+    "KaiTi",
+    serif;
+  letter-spacing: 2px;
+  color: #cfddf3;
+}
+.enterprise-platform-header nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.enterprise-platform-header nav a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 16px;
+  color: #e4edf9;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.enterprise-platform-header nav a[aria-current="page"] {
+  background: linear-gradient(120deg, #315f9c, #29519a);
+  box-shadow: inset 0 -3px #468aff;
+}
+.enterprise-platform-header nav svg {
+  width: 19px;
+  height: 19px;
+}
+.enterprise-platform-header .platform-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 0 17px;
+  border: 0;
+  border-left: 1px solid #ffffff30;
+  background: none;
+  color: white;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.enterprise-platform-header .platform-avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+.enterprise-platform-header .platform-person strong {
+  display: block;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.enterprise-platform-header .platform-person small {
+  display: block;
+  margin-top: 3px;
+  color: #c3d5ef;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.enterprise-platform-header .platform-bell {
+  position: relative;
+  border: 0;
+  padding: 6px;
+  color: #d2e2f8;
+  background: none;
+  cursor: pointer;
+}
+.enterprise-platform-header .platform-bell svg {
+  width: 23px;
+  height: 23px;
+}
+.enterprise-platform-header .platform-bell i {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  background: #f0b75b;
+  border-radius: 50%;
+}
+.reference-enterprise-shell:has(.has-platform-header) {
+  --enterprise-header-height: 104px;
+}
+.reference-enterprise-shell .formal-header-primary.has-platform-header {
+  height: 104px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 0;
+  justify-content: flex-end;
+  align-content: start;
+  background: #f4f7fb;
+}
+.has-platform-header > .enterprise-platform-header {
+  flex: 0 0 100%;
+}
+.reference-enterprise-shell .has-platform-header > .formal-global-search {
+  height: 30px;
+  margin: 5px 12px;
+  max-width: 390px;
+  min-width: 220px;
+  border: 1px solid #d1ddeb;
+  background: white;
+  color: #53708d;
+}
+.reference-enterprise-shell .has-platform-header > .formal-global-search input {
+  color: #284569;
+}
+.reference-enterprise-shell
+  .has-platform-header
+  > .formal-global-search
+  input::placeholder {
+  color: #71849a;
+}
+.reference-enterprise-shell .has-platform-header > .formal-header-tool {
+  height: 40px;
+  color: #4e6785;
+  background: transparent;
+}
+.reference-enterprise-shell .formal-sidebar,
+.reference-enterprise-shell .formal-sidebar-navigation,
+.identity-application-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: #627c9c #1c3355;
+}
+.reference-enterprise-shell .formal-sidebar-navigation {
+  background-color: transparent;
+}
+.reference-enterprise-shell .formal-sidebar-navigation::-webkit-scrollbar,
+.identity-application-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.reference-enterprise-shell .formal-sidebar-navigation::-webkit-scrollbar-track,
+.identity-application-sidebar::-webkit-scrollbar-track {
+  background: #1c3355;
+}
+.reference-enterprise-shell .formal-sidebar-navigation::-webkit-scrollbar-thumb,
+.identity-application-sidebar::-webkit-scrollbar-thumb {
+  background: #627c9c;
+  border-radius: 6px;
+}
+@media (max-width: 1250px) {
+  .enterprise-platform-header .platform-brand small {
+    display: none;
+  }
+  .enterprise-platform-header .platform-brand strong {
+    font-size: 19px;
+  }
+}
+@media (max-width: 850px) {
+  .enterprise-platform-header {
+    gap: 8px;
+    padding: 0 12px;
+  }
+  .enterprise-platform-header .platform-brand strong {
+    font-size: 15px;
+    letter-spacing: 0;
+  }
+  .enterprise-platform-header nav a {
+    font-size: 12px;
+    padding: 13px 8px;
+  }
+  .enterprise-platform-header .platform-person small {
+    display: none;
+  }
+  .enterprise-platform-header .platform-person {
+    padding-left: 8px;
+  }
+}
+@media (max-width: 640px) {
+  .enterprise-platform-header {
+    height: 106px;
+    flex-wrap: wrap;
+    gap: 0 8px;
+    padding: 7px 12px;
+  }
+  .enterprise-platform-header nav {
+    order: 3;
+    justify-content: center;
+    width: 100%;
+  }
+  .enterprise-platform-header .platform-person {
+    margin-left: auto;
+  }
+  .enterprise-platform-header .platform-wheat {
+    width: 25px;
+    height: 32px;
+  }
+  .enterprise-platform-header .platform-avatar {
+    width: 28px;
+    height: 28px;
+  }
+  .identity-application {
+    --identity-header-height: 106px;
+  }
+  .reference-enterprise-shell:has(.has-platform-header) {
+    --enterprise-header-height: 146px;
+  }
+  .reference-enterprise-shell .formal-header-primary.has-platform-header {
+    height: 146px;
+  }
+}
+.reference-enterprise-shell .formal-sidebar,
+.identity-application-sidebar {
+  background-image:
+    linear-gradient(to bottom, #1c3355, transparent 40%),
+    url("/brand/grain-sidebar-watermark.png");
+  background-size:
+    100% 580px,
+    auto 580px;
+}
+.reference-enterprise-shell
+  .formal-header-primary.has-platform-header
+  .formal-global-search,
+.reference-enterprise-shell
+  .formal-header-primary.has-platform-header
+  .formal-global-search
+  input {
+  background: #fff;
+  color: #294768;
+}
+/* Header tools open on demand; no empty toolbar below the brand. */
+.reference-enterprise-shell:has(.has-platform-header) {
+  --enterprise-header-height: 64px;
+}
+.reference-enterprise-shell .formal-header-primary.has-platform-header {
+  height: 64px;
+}
+.enterprise-platform-header {
+  gap: 14px;
+}
+.enterprise-platform-header .platform-search-popover {
+  position: relative;
+}
+.enterprise-platform-header .platform-search-popover summary {
+  display: grid;
+  place-items: center;
+  color: #d2e2f8;
+  cursor: pointer;
+  list-style: none;
+  padding: 5px;
+}
+.enterprise-platform-header
+  .platform-search-popover
+  summary::-webkit-details-marker {
+  display: none;
+}
+.enterprise-platform-header .platform-search-popover summary svg {
+  width: 21px;
+  height: 21px;
+}
+.reference-enterprise-shell .platform-search-popover .formal-global-search {
+  position: absolute;
+  right: 0;
+  top: 42px;
+  width: min(380px, 85vw);
+  height: 40px;
+  margin: 0;
+  padding: 6px 10px;
+  background: white;
+  color: #294768;
+  border: 1px solid #ccd9ea;
+  border-radius: 5px;
+  box-shadow: 0 8px 30px #102e5730;
+}
+.reference-enterprise-shell
+  .platform-search-popover
+  .formal-global-search
+  input {
+  background: white;
+  color: #294768;
+}
+.reference-enterprise-shell
+  .platform-search-popover
+  .formal-global-search
+  input::placeholder {
+  color: #71849a;
+}
+@media (max-width: 640px) {
+  .reference-enterprise-shell:has(.has-platform-header) {
+    --enterprise-header-height: 106px;
+  }
+  .reference-enterprise-shell .formal-header-primary.has-platform-header {
+    height: 106px;
+  }
+}

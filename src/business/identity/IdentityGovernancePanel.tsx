@@ -21,10 +21,12 @@ const SampleResponsibilityEditor = lazy(() =>
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import "./identity-workspace.css";
 
-type GovernanceView =
+export type GovernanceView =
   "profile" | "organization" | "employees" | "regions" | "reviews" | "audit";
 
 interface IdentityGovernancePanelProps {
+  standalone?: boolean;
+  onViewChange?: (view: GovernanceView) => void;
   identityManagementUrl?: string;
   initialView: GovernanceView;
   logoutUrl?: string;
@@ -460,6 +462,8 @@ function AssignmentEditor({
 }
 
 export function IdentityGovernancePanel({
+  standalone = false,
+  onViewChange,
   identityManagementUrl,
   initialView,
   logoutUrl,
@@ -485,6 +489,9 @@ export function IdentityGovernancePanel({
   const [employeeUnit, setEmployeeUnit] = useState("");
   const [employeeRole, setEmployeeRole] = useState("");
   const [employeeStatus, setEmployeeStatus] = useState("");
+  const [unitSearch, setUnitSearch] = useState("");
+  const [employeePage, setEmployeePage] = useState(0);
+  const [employeeLoadFailed, setEmployeeLoadFailed] = useState(false);
 
   const [options, setOptions] =
     useState<IdentityAssignmentOptions>(emptyOptions);
@@ -568,24 +575,45 @@ export function IdentityGovernancePanel({
       active = false;
     };
   }, [repository]);
+  const loadAvailableAssignmentOptions = (
+    visibleEmployees: readonly EmployeeProfile[],
+  ) => {
+    // Platform units are not business assignment targets. Derive a target from
+    // visible business employees; the server independently checks unit access.
+    const businessEmployees = visibleEmployees.filter(
+      (employee) =>
+        employee.subjectId !== session.subjectId &&
+        employee.roles.some((role) =>
+          ["BUSINESS_OPERATOR", "BUSINESS_REVIEWER"].includes(role.code),
+        ),
+    );
+    const target =
+      businessEmployees.find(
+        (employee) => employee.workUnitCode === session.workUnitCode,
+      ) ?? businessEmployees[0];
+    return repository.loadAssignmentOptions(
+      target?.workUnitCode ?? assignmentUnit(session),
+    );
+  };
   const loadEmployees = async () => {
-    const assignmentOptionsGeneration = assignmentOptionsRequest.current;
+    const generation = assignmentOptionsRequest.current;
     setLoading(true);
+    setEmployeeLoadFailed(false);
     setError(null);
     try {
-      const [nextEmployees, nextOptions] = await Promise.all([
-        repository.listEmployees(),
-        repository.loadAssignmentOptions(assignmentUnit(session)),
-      ]);
+      const nextEmployees = await repository.listEmployees();
       setEmployees(nextEmployees);
-
-      if (
-        assignmentOptionsRequest.current === assignmentOptionsGeneration &&
-        !editor
-      ) {
-        setOptions(nextOptions);
+      try {
+        const nextOptions = await loadAvailableAssignmentOptions(nextEmployees);
+        if (assignmentOptionsRequest.current === generation && !editor)
+          setOptions(nextOptions);
+      } catch {
+        setError(
+          "员工已读取，授权选项暂时不可用。可重新读取，或打开具体员工查看。",
+        );
       }
     } catch {
+      setEmployeeLoadFailed(true);
       setError("员工与授权信息读取失败，请稍后重试。");
     } finally {
       setLoading(false);
@@ -595,14 +623,18 @@ export function IdentityGovernancePanel({
     setLoading(true);
     setError(null);
     try {
-      const reviewOptions = await repository.loadAssignmentOptions(
-        assignmentUnit(session),
-      );
+      const visibleEmployees = mayReadEmployees
+        ? await repository.listEmployees()
+        : [];
+      setEmployees(visibleEmployees);
+      const reviewOptions =
+        await loadAvailableAssignmentOptions(visibleEmployees);
       setOptions(reviewOptions);
-      if (mayReadEmployees) setEmployees(await repository.listEmployees());
-      const units = session.rootAdministrator
-        ? reviewOptions.workUnits.map((unit) => unit.code)
-        : [session.workUnitCode];
+      // Options are already scoped by the server, including platform administrators.
+      const units = reviewOptions.workUnits.map((unit) => unit.code);
+      setReviewWorkUnit((current) =>
+        units.includes(current) ? current : (units[0] ?? ""),
+      );
       setReviews(
         (
           await Promise.all(
@@ -693,6 +725,16 @@ export function IdentityGovernancePanel({
       (view !== "regions" ||
         !selectedRegion ||
         (employee.responsibilityRegionCodes ?? []).includes(selectedRegion)),
+  );
+  const pageSize = 10;
+  const lastEmployeePage = Math.max(
+    0,
+    Math.ceil(visibleEmployees.length / pageSize) - 1,
+  );
+  const currentEmployeePage = Math.min(employeePage, lastEmployeePage);
+  const displayedEmployees = visibleEmployees.slice(
+    currentEmployeePage * pageSize,
+    (currentEmployeePage + 1) * pageSize,
   );
 
   const assignedRegions = [
@@ -895,6 +937,7 @@ export function IdentityGovernancePanel({
   };
 
   const changeView = (nextView: GovernanceView) => {
+    onViewChange?.(nextView);
     if (view === "employees" && nextView !== "employees") {
       closeAssignmentEditor();
       closeInvitationEditor();
@@ -1048,12 +1091,14 @@ export function IdentityGovernancePanel({
   };
 
   return (
-    <div className="identity-governance-overlay identity-workspace-v4">
+    <div
+      className={`identity-governance-overlay identity-workspace-v4${standalone ? " identity-standalone" : ""}`}
+    >
       <section
         aria-label="账号与授权"
-        aria-modal="true"
+        aria-modal={standalone ? undefined : true}
         className="identity-governance-panel"
-        role="dialog"
+        role={standalone ? "region" : "dialog"}
       >
         <header className="identity-governance-header">
           <div>
@@ -1344,23 +1389,32 @@ export function IdentityGovernancePanel({
               className="identity-employee-workspace"
             >
               <aside className="identity-unit-sidebar" aria-label="组织单位">
-                <h3>组织单位</h3>
-                <p className="identity-sidebar-caption">按单位查看人员与分工</p>
-                {[{ code: "", name: "全部单位" }, ...options.workUnits].map(
-                  ({ code, name }) => (
-                    <button
-                      type="button"
-                      key={code}
-                      aria-pressed={employeeUnit === code}
-                      onClick={() => {
-                        setEmployeeUnit(code);
-                        setSelectedRegion("");
-                      }}
-                    >
-                      {name}
-                    </button>
+                <h3>所属单位</h3>
+                <input
+                  className="identity-unit-search"
+                  aria-label="搜索单位名称"
+                  placeholder="搜索单位名称"
+                  value={unitSearch}
+                  onChange={(event) => setUnitSearch(event.target.value)}
+                />
+                {[
+                  { code: "", name: "全部单位" },
+                  ...options.workUnits.filter((unit) =>
+                    unit.name.includes(unitSearch.trim()),
                   ),
-                )}
+                ].map(({ code, name }) => (
+                  <button
+                    type="button"
+                    key={code}
+                    aria-pressed={employeeUnit === code}
+                    onClick={() => {
+                      setEmployeeUnit(code);
+                      setSelectedRegion("");
+                    }}
+                  >
+                    {name}
+                  </button>
+                ))}
                 {view === "regions" && (
                   <div className="identity-region-directory">
                     <h3>已分工地区</h3>
@@ -1415,7 +1469,15 @@ export function IdentityGovernancePanel({
                       className="is-primary"
                       type="button"
                       onClick={() =>
-                        openAssignmentEditor(true, invitationDraft(session))
+                        openAssignmentEditor(true, {
+                          ...invitationDraft(session),
+                          workUnitCode:
+                            options.workUnits.find(
+                              (unit) => unit.code === employeeUnit,
+                            )?.code ??
+                            options.workUnits[0]?.code ??
+                            assignmentUnit(session),
+                        })
                       }
                     >
                       邀请员工
@@ -1491,7 +1553,15 @@ export function IdentityGovernancePanel({
                     重置筛选
                   </button>
                 </div>
-                {loading ? (
+                {employeeLoadFailed ? (
+                  <div className="identity-read-failure">
+                    <h3>员工信息暂时无法读取</h3>
+                    <p>未获取到数据，不能据此判断员工或地区分工是否为空。</p>
+                    <button type="button" onClick={() => void loadEmployees()}>
+                      重新读取
+                    </button>
+                  </div>
+                ) : loading ? (
                   <p>正在读取员工信息…</p>
                 ) : (
                   <div className="identity-data-table-scroll">
@@ -1513,7 +1583,7 @@ export function IdentityGovernancePanel({
                         </tr>
                       </thead>
                       <tbody>
-                        {visibleEmployees.map((employee) => (
+                        {displayedEmployees.map((employee) => (
                           <tr key={employee.subjectId}>
                             <th scope="row">
                               <strong>{employee.displayName}</strong>
@@ -1615,11 +1685,37 @@ export function IdentityGovernancePanel({
                     </table>
                   </div>
                 )}
+                {!loading && !employeeLoadFailed && (
+                  <footer className="identity-table-pagination">
+                    <span>
+                      共 {visibleEmployees.length} 位员工 · 每页 {pageSize} 位
+                    </span>
+                    <div>
+                      <button
+                        type="button"
+                        disabled={currentEmployeePage === 0}
+                        onClick={() => setEmployeePage(currentEmployeePage - 1)}
+                      >
+                        上一页
+                      </button>
+                      <strong>
+                        {currentEmployeePage + 1} / {lastEmployeePage + 1}
+                      </strong>
+                      <button
+                        type="button"
+                        disabled={currentEmployeePage >= lastEmployeePage}
+                        onClick={() => setEmployeePage(currentEmployeePage + 1)}
+                      >
+                        下一页
+                      </button>
+                    </div>
+                  </footer>
+                )}
                 {editor && (
                   <Drawer
                     open
                     title={editor.invite ? "邀请员工" : "员工设置"}
-                    width={540}
+                    width={440}
                     onClose={closeAssignmentEditor}
                     rootClassName="identity-settings-drawer"
                     destroyOnHidden
@@ -1740,7 +1836,7 @@ export function IdentityGovernancePanel({
               <div className="identity-governance-toolbar">
                 <div>
                   <h3>授权检查</h3>
-                  {session.rootAdministrator && (
+                  {(options?.workUnits.length ?? 0) > 1 && (
                     <label>
                       复核单位
                       <select
@@ -1829,7 +1925,7 @@ export function IdentityGovernancePanel({
                         </td>
                       </tr>
                     ))}
-                    {!loading && reviews.length === 0 && (
+                    {!loading && !error && reviews.length === 0 && (
                       <tr>
                         <td colSpan={4}>当前单位尚未建立权限复核。</td>
                       </tr>

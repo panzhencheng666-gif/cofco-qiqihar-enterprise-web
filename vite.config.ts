@@ -261,6 +261,12 @@ export default defineConfig({
     },
   },
   build: {
+    rollupOptions: {
+      input: {
+        index: resolve(import.meta.dirname, "index.html"),
+        identity: resolve(import.meta.dirname, "identity.html"),
+      },
+    },
     sourcemap: true,
     manifest: true,
     chunkSizeWarningLimit: 900,

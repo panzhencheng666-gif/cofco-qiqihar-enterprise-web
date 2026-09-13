@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 
+import { EnterprisePlatformHeader } from "./EnterprisePlatformHeader";
 import { BusinessNavigationTree } from "./components/BusinessNavigationTree";
 import type { BusinessWorkItem } from "./core/businessWork";
 import type { MonitoringObject } from "./core/monitoringRegistry";
@@ -265,6 +266,9 @@ export function EnterpriseShell({
   businessNotificationUnreadCount,
   onBusinessNotificationRead,
   onIdentityOpen,
+  identityPageUrl,
+  canManageIdentity = false,
+  identityRoleLabel = "",
   scope,
   queryAllowed = true,
   children,
@@ -280,13 +284,20 @@ export function EnterpriseShell({
   businessNotificationUnreadCount?: number;
   onBusinessNotificationRead?: (id: string) => void | Promise<void>;
   onIdentityOpen?: (view: "profile" | "organization") => void;
+  identityPageUrl?: string;
+  canManageIdentity?: boolean;
+  identityRoleLabel?: string;
   scope?: OperationalScope;
   queryAllowed?: boolean;
   children: ReactNode;
 }) {
   const [utilityPanel, setUtilityPanel] = useState<
     "notifications" | "help" | null
-  >(null);
+  >(() =>
+    new URLSearchParams(window.location.search).get("panel") === "notifications"
+      ? "notifications"
+      : null,
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const currentApplication =
     formalApplicationDefinitions.find(
@@ -402,6 +413,49 @@ export function EnterpriseShell({
     closePanels();
   };
 
+  const searchForm = (
+    <form
+      className="formal-global-search"
+      role="search"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const first = searchResults[0];
+        if (!first) return;
+        openSearchResult(first);
+      }}
+    >
+      <EnterpriseIcon name="search" />
+      <input
+        aria-label="全局搜索"
+        placeholder="搜索地区、企业、任务和报告"
+        type="search"
+        value={searchQuery}
+        onChange={(event) => setSearchQuery(event.target.value)}
+      />
+      {searchQuery && (
+        <div className="formal-search-results" role="listbox">
+          {searchResults.length > 0 ? (
+            searchResults.map((result) => (
+              <button
+                key={result.id}
+                role="option"
+                type="button"
+                onClick={() => {
+                  openSearchResult(result);
+                }}
+              >
+                <strong>{result.label}</strong>
+                <span>{result.detail}</span>
+                <small>{result.kind}</small>
+              </button>
+            ))
+          ) : (
+            <p>未找到匹配的业务页面</p>
+          )}
+        </div>
+      )}
+    </form>
+  );
   return (
     <div
       className="formal-enterprise reference-enterprise-shell"
@@ -410,128 +464,157 @@ export function EnterpriseShell({
       }}
     >
       <header className="formal-header formal-global-header">
-        <div className="formal-header-primary">
-          <button
-            aria-label="返回市场采集首页"
-            className="formal-brand"
-            type="button"
-            onClick={() =>
-              onNavigate(createFormalRoute("market", "corn-collection"))
-            }
-          >
-            <span>齐</span>
-            <strong>{shellIdentity.platformName}</strong>
-          </button>
-
-          <nav aria-label="业务应用" className="formal-application-nav">
-            {primaryBusinessApplications.map((item) => (
-              <button
-                aria-current={
-                  isPrimaryApplicationActive(item.key, location.route)
-                    ? "page"
-                    : undefined
-                }
-                className={
-                  isPrimaryApplicationActive(item.key, location.route)
-                    ? "is-active"
-                    : ""
-                }
-                key={item.key}
-                type="button"
-                onClick={() => {
-                  onNavigate(item.route);
-                  closePanels();
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
-
-          <button
-            aria-label={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`}
-            className="formal-work-unit"
-            disabled={!onIdentityOpen}
-            type="button"
-            onClick={() => onIdentityOpen?.("organization")}
-          >
-            <EnterpriseIcon name="home" />
-            <span>{shellIdentity.workUnit.currentUnitLabel}</span>
-          </button>
-
-          <form
-            className="formal-global-search"
-            role="search"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const first = searchResults[0];
-              if (!first) return;
-              openSearchResult(first);
-            }}
-          >
-            <EnterpriseIcon name="search" />
-            <input
-              aria-label="全局搜索"
-              placeholder="搜索地区、企业、任务和报告"
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+        <div
+          className={`formal-header-primary${identityPageUrl ? " has-platform-header" : ""}`}
+        >
+          {identityPageUrl ? (
+            <EnterprisePlatformHeader
+              platformName={shellIdentity.platformName}
+              displayName={shellIdentity.account.displayName}
+              roleLabel={identityRoleLabel}
+              canManage={canManageIdentity}
+              activeSection={
+                location.route.application === "work" ? "tasks" : "business"
+              }
+              managementHref={`${identityPageUrl}?view=employees`}
+              managementLabel={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`}
+              tools={
+                <>
+                  <details className="platform-search-popover">
+                    <summary aria-label="打开全局搜索">
+                      <EnterpriseIcon name="search" />
+                    </summary>
+                    {searchForm}
+                  </details>
+                  <button
+                    className="platform-bell"
+                    type="button"
+                    aria-label="当前页面帮助"
+                    onClick={() =>
+                      setUtilityPanel(utilityPanel === "help" ? null : "help")
+                    }
+                  >
+                    <EnterpriseIcon name="help" />
+                  </button>
+                </>
+              }
+              notification={
+                <button
+                  className="platform-bell"
+                  type="button"
+                  aria-label="业务通知"
+                  onClick={() =>
+                    setUtilityPanel(
+                      utilityPanel === "notifications" ? null : "notifications",
+                    )
+                  }
+                >
+                  <EnterpriseIcon name="bell" />
+                  {notificationCount > 0 && <i />}
+                </button>
+              }
             />
-            {searchQuery && (
-              <div className="formal-search-results" role="listbox">
-                {searchResults.length > 0 ? (
-                  searchResults.map((result) => (
-                    <button
-                      key={result.id}
-                      role="option"
-                      type="button"
-                      onClick={() => {
-                        openSearchResult(result);
-                      }}
-                    >
-                      <strong>{result.label}</strong>
-                      <span>{result.detail}</span>
-                      <small>{result.kind}</small>
-                    </button>
-                  ))
-                ) : (
-                  <p>未找到匹配的业务页面</p>
-                )}
-              </div>
-            )}
-          </form>
+          ) : (
+            <>
+              <button
+                aria-label="返回市场采集首页"
+                className="formal-brand"
+                type="button"
+                onClick={() =>
+                  onNavigate(createFormalRoute("market", "corn-collection"))
+                }
+              >
+                <span>齐</span>
+                <strong>{shellIdentity.platformName}</strong>
+              </button>
 
-          <button
-            className="formal-header-tool"
-            type="button"
-            onClick={() =>
-              setUtilityPanel(
-                utilityPanel === "notifications" ? null : "notifications",
-              )
-            }
-          >
-            <span>通知</span>
-            <b>{notificationCount}</b>
-          </button>
-          <button
-            className="formal-header-tool"
-            type="button"
-            onClick={() =>
-              setUtilityPanel(utilityPanel === "help" ? null : "help")
-            }
-          >
-            <span>帮助</span>
-          </button>
-          <button
-            aria-label={`当前用户：${shellIdentity.account.displayName}`}
-            className="formal-user"
-            disabled={!onIdentityOpen}
-            type="button"
-            onClick={() => onIdentityOpen?.("profile")}
-          >
-            <span>{shellIdentity.account.displayName.slice(0, 1)}</span>
-            <strong>{shellIdentity.account.displayName}</strong>
-          </button>
+              <nav aria-label="业务应用" className="formal-application-nav">
+                {primaryBusinessApplications.map((item) => (
+                  <button
+                    aria-current={
+                      isPrimaryApplicationActive(item.key, location.route)
+                        ? "page"
+                        : undefined
+                    }
+                    className={
+                      isPrimaryApplicationActive(item.key, location.route)
+                        ? "is-active"
+                        : ""
+                    }
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      onNavigate(item.route);
+                      closePanels();
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+
+              {identityPageUrl ? (
+                <a
+                  className="formal-work-unit"
+                  href={`${identityPageUrl}?view=employees`}
+                  aria-label={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`}
+                >
+                  <EnterpriseIcon name="settings" />
+                  <span>人员与权限</span>
+                </a>
+              ) : (
+                <button
+                  aria-label={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`}
+                  className="formal-work-unit"
+                  disabled={!onIdentityOpen}
+                  type="button"
+                  onClick={() => onIdentityOpen?.("organization")}
+                >
+                  <EnterpriseIcon name="home" />
+                  <span>{shellIdentity.workUnit.currentUnitLabel}</span>
+                </button>
+              )}
+            </>
+          )}
+          {!identityPageUrl && searchForm}
+
+          {!identityPageUrl && (
+            <button
+              className="formal-header-tool"
+              type="button"
+              onClick={() =>
+                setUtilityPanel(
+                  utilityPanel === "notifications" ? null : "notifications",
+                )
+              }
+            >
+              <span>通知</span>
+              <b>{notificationCount}</b>
+            </button>
+          )}
+          {!identityPageUrl && (
+            <button
+              className="formal-header-tool"
+              type="button"
+              onClick={() =>
+                setUtilityPanel(utilityPanel === "help" ? null : "help")
+              }
+            >
+              <span>帮助</span>
+            </button>
+          )}
+          {!identityPageUrl && (
+            <button
+              aria-label={`当前用户：${shellIdentity.account.displayName}`}
+              className="formal-user"
+              disabled={!onIdentityOpen}
+              type="button"
+              onClick={() => onIdentityOpen?.("profile")}
+            >
+              <span>{shellIdentity.account.displayName.slice(0, 1)}</span>
+              <strong>{shellIdentity.account.displayName}</strong>
+            </button>
+          )}
 
           {utilityPanel && (
             <section
@@ -643,6 +726,11 @@ export function EnterpriseShell({
               closePanels();
             }}
           />
+          <p className="enterprise-sidebar-motto">
+            立足粮食
+            <br />
+            <span>服务发展</span>
+          </p>
         </aside>
         <main className="formal-main">{children}</main>
       </div>

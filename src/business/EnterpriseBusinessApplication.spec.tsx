@@ -538,7 +538,6 @@ describe("formal enterprise prototype", () => {
   });
 
   it("binds the authenticated organization and account menus to real governance data", async () => {
-    const user = userEvent.setup();
     const repository = {
       loadCurrentSession: () =>
         Promise.resolve({
@@ -583,25 +582,15 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
-    await user.click(
-      await screen.findByRole("button", { name: "当前用户：李主任" }),
-    );
     expect(
-      screen.getByRole("dialog", { name: "账号与授权" }),
-    ).toHaveTextContent("管理员");
+      await screen.findByRole("link", { name: "当前用户：李主任" }),
+    ).toHaveAttribute("href", "/identity.html?view=profile");
     expect(
-      screen.getByRole("dialog", { name: "账号与授权" }),
-    ).not.toHaveTextContent("岗位");
-    await user.click(screen.getByRole("button", { name: "返回业务页面" }));
-    await user.click(
-      screen.getByRole("button", { name: "当前工作单位：齐齐哈尔经营部" }),
-    );
+      screen.getByRole("link", { name: "当前工作单位：齐齐哈尔经营部" }),
+    ).toHaveAttribute("href", "/identity.html?view=employees");
     expect(
-      screen.getByRole("dialog", { name: "账号与授权" }),
-    ).toHaveTextContent("人员与权限");
-    expect(
-      screen.getByRole("dialog", { name: "账号与授权" }),
-    ).not.toHaveTextContent("230200");
+      screen.queryByRole("dialog", { name: "账号与授权" }),
+    ).not.toBeInTheDocument();
   });
 
   it("refreshes authorized business data from the durable event stream without polling", async () => {

@@ -1,4 +1,186 @@
 /* Scoped management workspace; the existing enterprise shell stays intact. */
+.identity-workspace-v4.identity-standalone {
+  position: static;
+  height: 100%;
+  padding: 0;
+  background: #fff;
+}
+.identity-workspace-v4.identity-standalone .identity-governance-panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+.identity-workspace-v4.identity-standalone .identity-governance-header {
+  padding: 20px 24px 12px;
+  background: linear-gradient(120deg, #fff, #f1f6fe);
+}
+.identity-workspace-v4.identity-standalone .identity-page-description {
+  margin-top: 6px;
+}
+.identity-workspace-v4.identity-standalone .identity-governance-panel > nav {
+  gap: 0;
+  padding: 0 24px;
+  background: #f8fbff;
+}
+.identity-workspace-v4.identity-standalone
+  .identity-governance-panel
+  > nav
+  button {
+  min-width: 116px;
+  border: 1px solid #e1e8f3;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  border-radius: 5px 5px 0 0;
+  background: #fff;
+}
+.identity-workspace-v4.identity-standalone .identity-governance-content {
+  padding: 18px 24px;
+  background: #fff;
+}
+.identity-workspace-v4.identity-standalone .identity-employee-workspace {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 16px;
+  min-height: calc(100dvh - 280px);
+}
+.identity-workspace-v4.identity-standalone .identity-unit-sidebar {
+  padding: 0 10px;
+  border: 1px solid #e1e8f2;
+  border-radius: 4px;
+  background: #fff;
+}
+.identity-unit-search {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0 16px;
+  padding: 8px;
+  border: 1px solid #d9e2ef;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.identity-workspace-v4.identity-standalone .identity-employee-body {
+  padding: 0;
+}
+.identity-workspace-v4.identity-standalone .identity-governance-toolbar {
+  min-height: 36px;
+  padding-bottom: 12px;
+  border: 0;
+}
+.identity-workspace-v4.identity-standalone .identity-governance-toolbar h3 {
+  font-size: 14px;
+}
+.identity-workspace-v4.identity-standalone
+  .identity-governance-toolbar
+  > div
+  > p {
+  display: none;
+}
+.identity-workspace-v4.identity-standalone .identity-region-note {
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  font-size: 12px;
+  background: #eaf3ff;
+  border: 0;
+  border-radius: 4px;
+}
+.identity-workspace-v4.identity-standalone .identity-employee-filters {
+  grid-template-columns:
+    minmax(100px, 1.4fr) minmax(85px, 1fr) minmax(85px, 1fr)
+    auto;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+.identity-workspace-v4.identity-standalone .identity-employee-filters label {
+  font-size: 11px;
+}
+.identity-workspace-v4.identity-standalone .identity-data-table-scroll {
+  border: 1px solid #e3eaf4;
+  border-radius: 4px;
+}
+.identity-workspace-v4.identity-standalone .identity-list-count {
+  padding: 8px 12px;
+  font-size: 11px;
+}
+.identity-workspace-v4.identity-standalone .identity-employee-table {
+  min-width: 600px;
+  width: 100%;
+  font-size: 12px;
+}
+.identity-workspace-v4.identity-standalone
+  .identity-employee-table
+  :is(th, td) {
+  padding: 12px 10px;
+  border-right: 1px solid #eff3f8;
+  line-height: 1.6;
+}
+.identity-workspace-v4.identity-standalone
+  .identity-employee-table
+  tbody
+  tr:hover {
+  background: #edf5ff;
+}
+.identity-workspace-v4.identity-standalone .identity-employee-table thead th {
+  font-size: 12px;
+  color: #354b68;
+  background: linear-gradient(#fafcfe, #edf2f9);
+}
+.identity-workspace-v4.identity-standalone .identity-employee-actions {
+  gap: 5px 10px;
+}
+.identity-workspace-v4.identity-standalone .identity-employee-table button {
+  font-size: 11px;
+}
+.identity-table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 16px;
+  color: #738198;
+  font-size: 12px;
+}
+.identity-table-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.identity-table-pagination button,
+.identity-read-failure button {
+  border: 1px solid #d4dfef;
+  background: white;
+  color: #2566ba;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.identity-table-pagination button:disabled {
+  color: #abb6c7;
+  cursor: default;
+}
+.identity-read-failure {
+  padding: 28px 20px;
+  border: 1px solid #e3eaf3;
+  border-radius: 6px;
+  text-align: center;
+}
+.identity-read-failure p {
+  font-size: 12px;
+  color: #78879b;
+}
+.identity-settings-drawer .identity-governance-editor fieldset {
+  padding: 14px 12px;
+  border: 1px solid #e2e9f3;
+  border-radius: 5px;
+}
+.identity-settings-drawer .identity-governance-editor legend {
+  padding: 0 6px;
+  border-left: 3px solid #2468cb;
+}
+.identity-settings-drawer .identity-governance-editor header {
+  padding: 12px;
+  background: #f5f9ff;
+  border-radius: 6px;
+}
 .identity-workspace-v4 .identity-governance-panel {
   background: #f4f6fa;
   color: #24334a;

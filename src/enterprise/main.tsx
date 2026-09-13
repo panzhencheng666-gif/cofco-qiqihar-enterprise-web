@@ -5,6 +5,7 @@ import { EnterpriseBusinessErrorBoundary } from "../business/EnterpriseBusinessE
 import "../business/formal-enterprise.css";
 import "../business/market-monitoring.css";
 import "../business/unified-workspaces.css";
+import "../business/enterprise-brand.css";
 
 const mount = document.getElementById("enterprise-root");
 if (!mount) throw new Error("缺少系统挂载节点");

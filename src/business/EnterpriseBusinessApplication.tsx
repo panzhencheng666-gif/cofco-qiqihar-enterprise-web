@@ -1,3 +1,4 @@
+import { sessionRoleLabel } from "./EnterprisePlatformHeader";
 import { taskRepository } from "./taskRepository";
 import {
   clearAutomaticLoginAttempt,
@@ -26,7 +27,6 @@ import {
   createFixtureBusinessReportWorkflow,
 } from "./businessReportWorkflow";
 import { EnterpriseShell } from "./EnterpriseShell";
-import { IdentityGovernancePanel } from "./identity/IdentityGovernancePanel";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
 import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
@@ -54,10 +54,7 @@ import {
 import { realtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { ALL_AUTHORIZED_REGION_CODE } from "@/platform/api/observableAnalysisContract";
-import {
-  enterpriseLoginPath,
-  enterpriseLogoutPath,
-} from "@/platform/api/browserSession";
+import { enterpriseLoginPath } from "@/platform/api/browserSession";
 import type {
   BusinessNotificationRow,
   CurrentSession,
@@ -415,9 +412,7 @@ export function EnterpriseBusinessApplication({
   operationalIdentity,
   dataMode,
   repository = realtimeBusinessRepository,
-  identityManagementUrl,
   loginUrl,
-  logoutUrl,
 }: EnterpriseBusinessApplicationProps) {
   const environment = import.meta.env as unknown as Readonly<
     Record<string, unknown>
@@ -433,12 +428,6 @@ export function EnterpriseBusinessApplication({
     });
   const realtimeMode = runtimeDataMode === "api";
   const resolvedLoginUrl = loginUrl ?? enterpriseLoginPath;
-  const resolvedIdentityManagementUrl =
-    identityManagementUrl ??
-    (typeof environment["VITE_IDENTITY_MANAGEMENT_URL"] === "string"
-      ? environment["VITE_IDENTITY_MANAGEMENT_URL"]
-      : undefined);
-  const resolvedLogoutUrl = logoutUrl ?? enterpriseLogoutPath;
   const [initialActivationToken] = useState<string | null>(() =>
     realtimeMode ? captureInvitationActivationToken() : null,
   );
@@ -630,9 +619,6 @@ export function EnterpriseBusinessApplication({
       : "当前填报人");
   const [reportContext, setReportContext] =
     useState<BusinessReportContext | null>(null);
-  const [identityPanelView, setIdentityPanelView] = useState<
-    "profile" | "organization" | null
-  >(null);
   const [reportWorkflow] = useState(() =>
     realtimeMode
       ? createEmptyBusinessReportWorkflow()
@@ -1374,7 +1360,13 @@ export function EnterpriseBusinessApplication({
           : undefined
       }
       onBusinessNotificationRead={markBusinessNotificationRead}
-      onIdentityOpen={setIdentityPanelView}
+      identityPageUrl="/identity.html"
+      identityRoleLabel={sessionRoleLabel(currentSession)}
+      canManageIdentity={
+        currentSession?.permissions.some((permission) =>
+          ["IDENTITY_READ", "ACCESS_REVIEW", "AUDIT_READ"].includes(permission),
+        ) ?? false
+      }
       shellIdentity={shellIdentity}
       scope={scope}
       queryAllowed={queryAllowed}
@@ -1458,16 +1450,6 @@ export function EnterpriseBusinessApplication({
         {workspace}
       </Suspense>
       {realtimeEntry}
-      {realtimeMode && currentSession && identityPanelView && (
-        <IdentityGovernancePanel
-          identityManagementUrl={resolvedIdentityManagementUrl}
-          initialView={identityPanelView}
-          logoutUrl={resolvedLogoutUrl}
-          onClose={() => setIdentityPanelView(null)}
-          repository={repository}
-          session={currentSession}
-        />
-      )}
       {!realtimeMode && reportContext && (
         <BusinessReportComposer
           actorPost={reportActorPosts[scope.identity.postId] ?? "当前登录角色"}

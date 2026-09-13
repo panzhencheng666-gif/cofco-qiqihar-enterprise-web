@@ -1493,3 +1493,40 @@ describe("IdentityGovernancePanel", () => {
     );
   });
 });
+
+describe("platform account assignment targets", () => {
+  it("loads reviews using server-scoped business units instead of the platform account unit", async () => {
+    const api = repository();
+    const businessEmployees = await api.listEmployees();
+    const platformSession = {
+      ...session,
+      workUnitCode: "PLATFORM_SYSTEM",
+      rootAdministrator: false,
+    };
+    api.listEmployees.mockResolvedValue([
+      {
+        ...businessEmployees[0]!,
+        subjectId: platformSession.subjectId,
+        workUnitCode: "PLATFORM_SYSTEM",
+        roles: [{ code: "BUSINESS_REVIEWER", name: "管理员" }],
+      },
+      ...businessEmployees,
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="reviews"
+        onClose={vi.fn()}
+        session={platformSession}
+        repository={api as unknown as RealtimeBusinessRepository}
+      />,
+    );
+    await waitFor(() => expect(api.listAccessReviews).toHaveBeenCalled());
+    expect(api.loadAssignmentOptions).toHaveBeenCalledWith("QIQIHAR_BUSINESS");
+    expect(api.loadAssignmentOptions).not.toHaveBeenCalledWith(
+      "PLATFORM_SYSTEM",
+    );
+    expect(
+      screen.queryByText("权限复核信息读取失败，请稍后重试。"),
+    ).not.toBeInTheDocument();
+  });
+});
