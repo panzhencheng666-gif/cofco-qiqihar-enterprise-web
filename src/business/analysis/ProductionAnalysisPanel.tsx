@@ -424,8 +424,8 @@ function ProductionResult({
                       ? `${series.failedMonthCount} 个月数据暂缺`
                       : undefined
                   }
-                  description="仅当同一字段至少有两个有效月份时展示；缺失月份不补零。"
-                  title="跨月变化"
+                  description="按真实月度快照绘制，可切换曲线与折线；缺失月份不补零。"
+                  title="年度趋势 · 月度数据"
                 >
                   <div className="observable-analysis-report__chart-grid">
                     <AnalysisTrendChart
@@ -440,7 +440,7 @@ function ProductionResult({
                     />
                   </div>
                 </AnalysisReportSection>
-              ) : null}
+              ) : <p className="analysis-trend-status" role="status">{series.status === "loading" ? "正在同步年度趋势数据…" : series.status === "error" ? "年度趋势数据读取失败，请点击刷新分析重试。" : "当前范围不足两个有效月份，暂不能形成月度趋势；有新月份数据后自动更新。"}</p>}
             </div>
           </div>
           <AnalysisSourcePanel

@@ -1,4 +1,4 @@
-import { Children, type ReactNode } from "react";
+import { Children, useState, type ReactNode } from "react";
 
 import type { ObservableAnalysisSnapshot } from "@/platform/api/observableAnalysisContract";
 import type { ObservableAnalysisSeriesPoint } from "./useObservableAnalysisSeries";
@@ -171,6 +171,8 @@ export function AnalysisTrendChart({
   points: readonly ObservableAnalysisSeriesPoint[];
   lines: readonly AnalysisTrendLine[];
 }) {
+  const [curved, setCurved] = useState(true);
+  const [activeMonth, setActiveMonth] = useState<number | null>(null);
   const validMonthCount = Math.max(
     0,
     ...lines.map(
@@ -207,7 +209,14 @@ export function AnalysisTrendChart({
   }
 
   return (
-    <figure className="observable-analysis-report__trend">
+    <figure className="observable-analysis-report__trend analysis-live-trend">
+      <figcaption className="analysis-live-trend__heading">
+        <strong>{title}</strong>
+        <div role="group" aria-label={`${title}显示方式`}>
+          <button type="button" aria-pressed={curved} onClick={() => setCurved(true)}>曲线</button>
+          <button type="button" aria-pressed={!curved} onClick={() => setCurved(false)}>折线</button>
+        </div>
+      </figcaption>
       <div className="observable-analysis-report__legend" aria-hidden="true">
         {lines.map((line) => (
           <span data-tone={line.tone ?? "primary"} key={line.key}>
@@ -231,7 +240,7 @@ export function AnalysisTrendChart({
             </text>
           </g>
         ))}
-        {lines.map((line, lineIndex) => {
+        {lines.map((line) => {
           const values = points.map((point) => {
             const raw = point.snapshot ? line.value(point.snapshot) : null;
             return {
@@ -248,20 +257,14 @@ export function AnalysisTrendChart({
               data-tone={line.tone ?? "primary"}
               key={line.key}
             >
-              <path d={segmentedPath(values, x, y)} fill="none" />
+              <path d={segmentedPath(values, x, y, curved)} fill="none" />
               {values.flatMap((item) =>
                 item.value === null
                   ? []
                   : [
-                      <g key={item.month}>
-                        <circle cx={x(item.month)} cy={y(item.value)} r="4.5" />
-                        <text
-                          className="chart-value"
-                          x={x(item.month)}
-                          y={Math.max(13, y(item.value) - 8 - lineIndex * 12)}
-                        >
-                          {formatChartValue(item.value)}
-                        </text>
+                      <g key={item.month} onMouseEnter={() => setActiveMonth(item.month)}>
+                        <title>{item.month}月 · {line.label}：{formatMetric(String(item.value), line.unit)}</title>
+                        <circle cx={x(item.month)} cy={y(item.value)} r={activeMonth === item.month ? 6 : 4.5} />
                       </g>,
                     ],
               )}
@@ -269,6 +272,19 @@ export function AnalysisTrendChart({
           );
         })}
       </svg>
+      <div className="analysis-live-trend__months" role="group" aria-label={`${title}查看月份`}>
+        {points.map((point) => <button type="button" key={point.month}
+          aria-pressed={activeMonth === point.month}
+          onClick={() => setActiveMonth(point.month)}>{point.month}月</button>)}
+      </div>
+      <div className="analysis-live-trend__readout" aria-live="polite">
+        {activeMonth === null ? "选择月份或悬停数据点查看数值；缺失月份保留断点。" :
+          points.filter((point) => point.month === activeMonth).map((point) => (
+            <div key={point.month}><strong>{point.month}月</strong>{lines.map((line) => (
+              <span key={line.key}>{line.label}：{point.error ? "该月读取失败" : formatMetric(point.snapshot ? line.value(point.snapshot) : null, line.unit)}</span>
+            ))}<small>来源：{point.snapshot?.coverage.recordCount ?? 0} 条记录</small></div>
+          ))}
+      </div>
       <div className="observable-analysis-report__trend-table">
         <table aria-label={`${title}数据表`}>
           <thead>
@@ -971,28 +987,25 @@ function segmentedPath(
   values: readonly { month: number; value: number | null }[],
   x: (month: number) => number,
   y: (value: number) => number,
+  curved: boolean,
 ): string {
-  let drawing = false;
-  return values
-    .flatMap((item) => {
-      if (item.value === null) {
-        drawing = false;
-        return [];
-      }
-      const command = drawing ? "L" : "M";
-      drawing = true;
-      return [
-        `${command}${x(item.month).toFixed(2)},${y(item.value).toFixed(2)}`,
-      ];
-    })
-    .join(" ");
-}
-
-function formatChartValue(value: number): string {
-  return value.toLocaleString("zh-CN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  });
+  let previous: { month: number; value: number } | null = null;
+  return values.flatMap((item) => {
+    if (item.value === null) { previous = null; return []; }
+    const current = { month: item.month, value: item.value };
+    const end = `${x(item.month).toFixed(2)},${y(item.value).toFixed(2)}`;
+    let command = `M${end}`;
+    if (previous && item.month === previous.month + 1) {
+      // Horizontal cubic tangents stay within the two observed values.
+      // Never bridge an absent month or extrapolate beyond an observation.
+      const middle = ((x(previous.month) + x(item.month)) / 2).toFixed(2);
+      command = curved
+        ? `C${middle},${y(previous.value).toFixed(2)} ${middle},${y(item.value).toFixed(2)} ${end}`
+        : `L${end}`;
+    }
+    previous = current;
+    return [command];
+  }).join(" ");
 }
 
 export function formatMetric(
