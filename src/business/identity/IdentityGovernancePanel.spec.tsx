@@ -353,7 +353,6 @@ describe("IdentityGovernancePanel", () => {
     expect(
       screen.getByRole("checkbox", {
         name: /可访问地区.*测试乡镇$/,
-        exact: false,
       }),
     ).not.toBeChecked();
     expect(repo.updateEmployee).not.toHaveBeenCalled();
@@ -387,7 +386,9 @@ describe("IdentityGovernancePanel", () => {
     );
     expect(screen.getByText("张敏")).toBeVisible();
     expect(screen.queryByText("未分工员工")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "设置负责地区" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "调整张敏的负责地区" }),
+    ).toBeVisible();
     expect(repo.updateEmployee).not.toHaveBeenCalled();
   });
 

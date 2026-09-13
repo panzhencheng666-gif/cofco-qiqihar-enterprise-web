@@ -770,3 +770,114 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.identity-region-overview {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  border-bottom: 1px solid #e3eaf3;
+  padding: 4px 0 20px;
+}
+.identity-region-overview > div {
+  display: grid;
+  gap: 5px;
+  white-space: nowrap;
+}
+.identity-region-overview strong {
+  font-size: 28px;
+  color: #245e9f;
+  font-variant-numeric: tabular-nums;
+}
+.identity-region-overview span,
+.identity-region-overview p {
+  font-size: 12px;
+  color: #71829a;
+  line-height: 1.8;
+}
+.identity-region-overview p {
+  border-left: 1px solid #e0e7f1;
+  padding-left: 24px;
+}
+.identity-region-directory-search {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: #607087;
+  margin: 18px 0;
+  max-width: 380px;
+}
+.identity-region-directory-search input {
+  border: 1px solid #dce3ed;
+  padding: 10px;
+  border-radius: 5px;
+}
+.identity-region-ledger {
+  width: 100%;
+  min-width: 650px;
+}
+.identity-region-ledger th:first-child {
+  width: 30%;
+}
+.identity-region-owner,
+.identity-region-owner-actions {
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+.identity-region-owner small,
+.identity-unassigned-row small {
+  display: block;
+  font-size: 12px;
+  color: #7e8da3;
+}
+.identity-unassigned-employees {
+  margin-top: 28px;
+  border-top: 1px solid #e3eaf3;
+  padding-top: 18px;
+}
+.identity-unassigned-employees h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.identity-unassigned-employees h3 small {
+  margin-left: 10px;
+  color: #78879a;
+}
+.identity-unassigned-employees > p {
+  font-size: 12px;
+  color: #78879a;
+}
+.identity-unassigned-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 13px 0;
+  border-bottom: 1px solid #edf1f6;
+  gap: 16px;
+  font-size: 13px;
+}
+.identity-unassigned-row button {
+  background: white;
+  color: #2765b5;
+  border: 1px solid #cadbf0;
+  border-radius: 4px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.identity-unassigned-row > span {
+  color: #8b96a6;
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .identity-region-overview {
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .identity-region-overview p {
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+}
