@@ -895,6 +895,7 @@ export function IdentityGovernancePanel({
       return;
     }
     invitationEditorSubject.current = null;
+    setMessage(null);
     setLoadingInvitation(false);
     setInvitationEditor(null);
     setEditor({ invite, draft });
