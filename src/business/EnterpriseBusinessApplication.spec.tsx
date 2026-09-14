@@ -1353,6 +1353,7 @@ describe("formal enterprise prototype", () => {
   });
 
   it("changes applications through the location-owned route", async () => {
+    const user = userEvent.setup();
     render(
       <EnterpriseBusinessApplication initialSearch="?page=market&section=tasks" />,
     );
@@ -1363,10 +1364,11 @@ describe("formal enterprise prototype", () => {
         { name: "业务工作台" },
       ),
     ).toHaveAttribute("href", "/workbench/");
-    await act(async () => {
-      window.history.pushState({}, "", "/#/供需分析/供需平衡");
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    });
+    await user.click(
+      within(
+        screen.getByRole("navigation", { name: "市场监测模块" }),
+      ).getByRole("button", { name: "供需平衡" }),
+    );
 
     expect(window.location.search).toBe("");
     expect(decodeURIComponent(window.location.hash)).toBe(
