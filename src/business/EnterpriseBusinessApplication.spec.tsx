@@ -582,12 +582,26 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
-    expect(
-      await screen.findByRole("link", { name: "当前用户：李主任" }),
-    ).toHaveAttribute("href", "/identity.html?view=profile");
-    expect(
-      screen.getByRole("link", { name: "当前工作单位：齐齐哈尔经营部" }),
-    ).toHaveAttribute("href", "/identity.html?view=employees");
+    const accountLink = await screen.findByRole("link", {
+      name: "当前用户：李主任",
+    });
+    const managementLink = screen.getByRole("link", {
+      name: "当前工作单位：齐齐哈尔经营部",
+    });
+    for (const [link, view] of [
+      [accountLink, "profile"],
+      [managementLink, "employees"],
+    ] as const) {
+      const target = new URL(
+        link.getAttribute("href")!,
+        window.location.origin,
+      );
+      expect(target.pathname).toBe("/identity.html");
+      expect(target.searchParams.get("view")).toBe(view);
+      expect(target.searchParams.get("returnTo")).toBe(
+        `/workbench/${window.location.search}${window.location.hash}`,
+      );
+    }
     expect(
       screen.queryByRole("dialog", { name: "账号与授权" }),
     ).not.toBeInTheDocument();
@@ -731,10 +745,11 @@ describe("formal enterprise prototype", () => {
       expect(listNotifications).toHaveBeenCalledTimes(1);
       expect(listWorkItems).toHaveBeenCalledTimes(1);
     });
-    expect(screen.getByRole("button", { name: /^通知/ })).toHaveTextContent(
-      "7",
-    );
-    await user.click(screen.getByRole("button", { name: /^通知/ }));
+    const notificationButton = screen.getByRole("button", {
+      name: "业务通知，7条未读",
+    });
+    expect(notificationButton).toHaveAttribute("title", "7条未读业务通知");
+    await user.click(notificationButton);
     await user.click(
       screen.getByRole("button", { name: /玉米产情记录已新建/ }),
     );
@@ -1338,17 +1353,20 @@ describe("formal enterprise prototype", () => {
   });
 
   it("changes applications through the location-owned route", async () => {
-    const user = userEvent.setup();
     render(
       <EnterpriseBusinessApplication initialSearch="?page=market&section=tasks" />,
     );
 
-    await user.click(
-      within(screen.getByRole("navigation", { name: "业务应用" })).getByRole(
-        "button",
-        { name: "供需分析" },
+    expect(
+      within(screen.getByRole("navigation", { name: "平台应用" })).getByRole(
+        "link",
+        { name: "业务工作台" },
       ),
-    );
+    ).toHaveAttribute("href", "/workbench/");
+    await act(async () => {
+      window.history.pushState({}, "", "/#/供需分析/供需平衡");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
 
     expect(window.location.search).toBe("");
     expect(decodeURIComponent(window.location.hash)).toBe(

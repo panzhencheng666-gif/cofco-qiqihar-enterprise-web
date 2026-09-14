@@ -502,7 +502,8 @@ export function EnterpriseShell({
                 <button
                   className="platform-bell"
                   type="button"
-                  aria-label="业务通知"
+                  aria-label={`业务通知，${notificationCount}条未读`}
+                  title={`${notificationCount}条未读业务通知`}
                   onClick={() =>
                     setUtilityPanel(
                       utilityPanel === "notifications" ? null : "notifications",

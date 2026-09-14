@@ -853,6 +853,9 @@
         "docs/superpowers/plans/2026-09-01-design-sample-backend-contract.md",
         "docs/superpowers/plans/2026-09-01-formal-sample-backend-field-unification.md",
         "docs/superpowers/plans/2026-09-01-formal-sample-master-write.md",
+        "docs/superpowers/plans/2026-09-07-design-coordinate-preservation.md",
+        "docs/superpowers/plans/2026-09-09-employee-registration.md",
+        "docs/superpowers/plans/2026-09-14-regional-public-expansion.md",
         "docs/superpowers/specs/2026-08-08-market-logistics-submission-evidence-import-design.md",
         "docs/superpowers/specs/2026-08-17-xlsx-photo-batch-import-design.md",
         "docs/superpowers/specs/2026-08-19-incremental-supply-inventory-design.md",
@@ -862,7 +865,8 @@
         "docs/superpowers/specs/2026-08-28-formal-sample-observation-update-design.md",
         "docs/superpowers/specs/2026-09-01-design-sample-backend-contract-design.md",
         "docs/superpowers/specs/2026-09-01-formal-sample-backend-field-unification-design.md",
-        "docs/superpowers/specs/2026-09-01-formal-sample-master-write-design.md"
+        "docs/superpowers/specs/2026-09-01-formal-sample-master-write-design.md",
+        "docs/superpowers/specs/2026-09-09-employee-registration.md"
       ]
     },
     {
@@ -877,6 +881,7 @@
         "docs/superpowers/plans/2026-08-10-supply-period-version-history.md",
         "docs/superpowers/plans/2026-08-11-county-sample-point-icons.md",
         "docs/superpowers/plans/2026-08-28-overview-data-mode-visual-unification.md",
+        "docs/superpowers/plans/2026-09-14-regional-agriculture-profile-local.md",
         "docs/superpowers/specs/2026-08-03-openmct-executive-command-center-design.md",
         "docs/superpowers/specs/2026-08-03-overview-golden-rebuild-design.md",
         "docs/superpowers/specs/2026-08-03-overview-spatial-narration-design.md",
@@ -885,7 +890,8 @@
         "docs/superpowers/specs/2026-08-18-business-directory-linked-overview-design.md",
         "docs/superpowers/specs/2026-08-21-overview-map-and-sample-point-supersession.md",
         "docs/superpowers/specs/2026-08-23-overview-annual-sample-layer-contract-design.md",
-        "docs/superpowers/specs/2026-08-28-overview-data-mode-visual-unification-design.md"
+        "docs/superpowers/specs/2026-08-28-overview-data-mode-visual-unification-design.md",
+        "docs/superpowers/specs/2026-09-14-regional-agriculture-professional-profile-design.md"
       ]
     },
     {
@@ -925,6 +931,10 @@
         "docs/superpowers/plans/2026-08-24-five-business-workspaces-implementation.md",
         "docs/superpowers/plans/2026-09-02-sample-point-full-page-entry-and-atomic-xlsx.md",
         "docs/superpowers/plans/2026-09-03-existing-sample-list-maintainer.md",
+        "docs/superpowers/plans/2026-09-13-business-document-checkpoint.md",
+        "docs/superpowers/plans/2026-09-13-business-workspace-preview.md",
+        "docs/superpowers/plans/2026-09-13-identity-live-preview.md",
+        "docs/superpowers/plans/2026-09-13-identity-preview-checkpoint.md",
         "docs/superpowers/specs/2026-07-31-contextual-business-report-export-and-enterprise-shell-optimization-design.md",
         "docs/superpowers/specs/2026-07-31-enterprise-platform-information-architecture-redesign-design.md",
         "docs/superpowers/specs/2026-07-31-enterprise-visual-fusion-design.md",
