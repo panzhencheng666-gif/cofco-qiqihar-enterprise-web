@@ -713,3 +713,31 @@
     min-height: 0;
   }
 }
+
+.realtime-business-panel [aria-invalid="true"]:is(input, select) {
+  border: 1px solid #b42318;
+  box-shadow: 0 0 0 1px #b42318;
+  background: #fff6f5;
+}
+.realtime-business-panel .submission-field-error {
+  color: #b42318;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+}
+.business-import-correction {
+  flex-basis: 100%;
+  width: 100%;
+  color: #344054;
+}
+.business-import-correction table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.business-import-correction th,
+.business-import-correction td {
+  padding: 8px;
+  border: 1px solid #d0d5dd;
+  text-align: left;
+  white-space: normal;
+}

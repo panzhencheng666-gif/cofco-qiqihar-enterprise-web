@@ -40,6 +40,11 @@ import {
 } from "./realtimeRecordFormModel";
 import { RealtimeRegionCascadePicker } from "./RealtimeRegionCascadePicker";
 
+import {
+  validateSubmissionFields,
+  submissionFailure,
+} from "./realtimeSubmissionValidation";
+
 type Domain = "production" | "market";
 type SelectedRecord = ProductionRecordRow | MarketRecordRow;
 type PanelMode = "entry" | "view" | "review";
@@ -202,6 +207,7 @@ export function RealtimeBusinessOperationsPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("正在读取业务配置…");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
@@ -414,6 +420,11 @@ export function RealtimeBusinessOperationsPanel({
   function edit(code: string, value: string) {
     if (isAccountLockedReporter(code)) return;
     formDirty.current = true;
+    setFieldErrors((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([key]) => key !== code),
+      ),
+    );
     setValues((current) => {
       if (code !== "objectTypeCode" && code !== "MKT_OBJECT_TYPE") {
         return { ...current, [code]: value };
@@ -517,6 +528,7 @@ export function RealtimeBusinessOperationsPanel({
   function newRecord() {
     formDirty.current = false;
     setSelected(null);
+    setFieldErrors({});
     selectedRecordId.current = undefined;
     setRecordLoadState("new");
     setReturnReason("");
@@ -553,6 +565,21 @@ export function RealtimeBusinessOperationsPanel({
     }
     if (!selected && evidenceFiles.length > 5) {
       setError("现场照片最多上传 5 张。");
+      return;
+    }
+    const invalid = validateSubmissionFields(fields, values, options);
+    setFieldErrors(invalid);
+    if (Object.keys(invalid).length) {
+      setError(
+        `有 ${Object.keys(invalid).length} 项填写内容需要修正，请查看红色标记及原因。`,
+      );
+      requestAnimationFrame(() =>
+        documentFormRef.current
+          ?.querySelector<HTMLElement>(
+            'input[aria-invalid="true"], select[aria-invalid="true"]',
+          )
+          ?.focus(),
+      );
       return;
     }
     setBusy(true);
@@ -633,8 +660,17 @@ export function RealtimeBusinessOperationsPanel({
       onRecordsChanged?.();
       setMessage("保存提交成功");
       onSaved?.();
-    } catch {
-      setError("保存提交失败，请核对填报内容后重试。");
+    } catch (cause) {
+      const failure = submissionFailure(cause, fields);
+      setFieldErrors(failure.fields);
+      setError(failure.message);
+      requestAnimationFrame(() =>
+        documentFormRef.current
+          ?.querySelector<HTMLElement>(
+            'input[aria-invalid="true"], select[aria-invalid="true"]',
+          )
+          ?.focus(),
+      );
     } finally {
       setBusy(false);
     }
@@ -981,7 +1017,11 @@ export function RealtimeBusinessOperationsPanel({
             ))}
           </nav>
         )}
-        <form ref={documentFormRef} onSubmit={(event) => void save(event)}>
+        <form
+          noValidate
+          ref={documentFormRef}
+          onSubmit={(event) => void save(event)}
+        >
           <header>
             <strong>
               {selected
@@ -1015,6 +1055,8 @@ export function RealtimeBusinessOperationsPanel({
                 <div className="realtime-business-fields">
                   {sectionFields.map((field) => {
                     const fieldOptions = options(field);
+                    const fieldError = fieldErrors[field.code];
+                    const errorId = `${domain}-${field.code}-error`;
                     const accountLocked = isAccountLockedReporter(field.code);
                     const readOnly = accountLocked || field.readOnly;
                     const regionField =
@@ -1031,6 +1073,8 @@ export function RealtimeBusinessOperationsPanel({
                           <span>{field.label} *</span>
                           <RealtimeRegionCascadePicker
                             ariaLabel={field.label}
+                            invalid={Boolean(fieldError)}
+                            describedBy={fieldError ? errorId : undefined}
                             requireVillage={false}
                             regions={master?.regions ?? []}
                             value={values[field.code] ?? ""}
@@ -1038,6 +1082,14 @@ export function RealtimeBusinessOperationsPanel({
                               edit(field.code, regionCode)
                             }
                           />
+                          {fieldError && (
+                            <small
+                              className="submission-field-error"
+                              id={errorId}
+                            >
+                              {fieldError}
+                            </small>
+                          )}
                         </div>
                       );
                     }
@@ -1057,6 +1109,8 @@ export function RealtimeBusinessOperationsPanel({
                           field.type === "select" ? (
                           <select
                             aria-label={field.label}
+                            aria-invalid={Boolean(fieldError) || undefined}
+                            aria-describedby={fieldError ? errorId : undefined}
                             required={field.required}
                             value={values[field.code] ?? ""}
                             onChange={(event) =>
@@ -1073,6 +1127,8 @@ export function RealtimeBusinessOperationsPanel({
                         ) : (
                           <input
                             aria-label={field.label}
+                            aria-invalid={Boolean(fieldError) || undefined}
+                            aria-describedby={fieldError ? errorId : undefined}
                             {...(field.type === "decimal"
                               ? decimalInputConstraints(
                                   field.precision,
@@ -1089,6 +1145,14 @@ export function RealtimeBusinessOperationsPanel({
                               edit(field.code, event.target.value)
                             }
                           />
+                        )}
+                        {fieldError && (
+                          <small
+                            className="submission-field-error"
+                            id={errorId}
+                          >
+                            {fieldError}
+                          </small>
                         )}
                       </label>
                     );

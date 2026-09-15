@@ -1622,8 +1622,83 @@ describe("RealtimeBusinessOperationsPanel", () => {
     fireEvent.change(search, { target: { value: "黑河" } });
     const select = screen.getByRole("combobox", { name: "地级市" });
     expect(select).toHaveTextContent("黑河市");
+    expect(select).toHaveValue("231100");
     expect(select).not.toHaveTextContent("齐齐哈尔市");
     expect(select).not.toHaveTextContent("呼伦贝尔市");
+  });
+
+  it("marks all invalid submission fields and keeps data for correction", async () => {
+    const { api, createAndSubmitProduction } = repository();
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="张三"
+        domain="production"
+        lockedProductCode="CORN"
+        repository={api}
+        editorOnly
+      />,
+    );
+    await screen.findByRole("group", { name: "地区" });
+    fillRequiredProductionFields();
+    fireEvent.change(screen.getByLabelText("数据年份"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByLabelText("纬度"), {
+      target: { value: "99" },
+    });
+    fireEvent.submit(
+      screen.getByRole("button", { name: "保存并提交" }).closest("form")!,
+    );
+    expect(screen.getByLabelText("数据年份")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByLabelText("纬度")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByText(/纬度须在/)).toHaveTextContent("-90 至 90");
+    expect(createAndSubmitProduction).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("播种面积")).toHaveValue(100);
+    fireEvent.change(screen.getByLabelText("数据年份"), {
+      target: { value: "2026" },
+    });
+    expect(screen.getByLabelText("数据年份")).not.toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  });
+
+  it("preserves the server validation reason when a submission fails", async () => {
+    const { api, createAndSubmitProduction } = repository();
+    createAndSubmitProduction.mockRejectedValue(
+      new RealtimeApiError({
+        status: 400,
+        code: "INVALID_PRODUCTION_DRAFT",
+        message: "播种面积不能为负数",
+      }),
+    );
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="张三"
+        domain="production"
+        lockedProductCode="CORN"
+        repository={api}
+        editorOnly
+      />,
+    );
+    await screen.findByRole("group", { name: "地区" });
+    fillRequiredProductionFields();
+    fireEvent.submit(
+      screen.getByRole("button", { name: "保存并提交" }).closest("form")!,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("播种面积不能为负数"),
+    );
+    expect(screen.getByLabelText("播种面积")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   });
 
   it("submits a new production record atomically without a photo", async () => {

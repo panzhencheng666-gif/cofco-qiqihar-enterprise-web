@@ -87,6 +87,9 @@ describe("business import status", () => {
       "导入完成：1 行已处理，合格行已自动提交审核，失败 2 行。请下载错误清单核对。",
     );
     await user.click(screen.getByRole("button", { name: "下载错误清单" }));
+    expect(screen.getByText("填写范例")).toBeVisible();
+    expect(screen.getByText(/100亩/)).toBeVisible();
+    expect(screen.getByText(/更正后的 XLSX/)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "仅重试待修正行" }));
     expect(onDownloadErrors).toHaveBeenCalledTimes(1);
     expect(onRetry).toHaveBeenCalledTimes(1);
