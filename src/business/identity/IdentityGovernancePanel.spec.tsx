@@ -572,6 +572,46 @@ describe("IdentityGovernancePanel", () => {
     );
   });
 
+  it.each(["填报员", "管理员"])(
+    "checks zero-region invitations for %s",
+    async (role) => {
+      const user = userEvent.setup();
+      const api = repository();
+      render(
+        <IdentityGovernancePanel
+          initialView="employees"
+          onClose={vi.fn()}
+          repository={api as unknown as RealtimeBusinessRepository}
+          session={session}
+        />,
+      );
+      await user.click(await screen.findByRole("button", { name: "邀请员工" }));
+      await user.type(screen.getByLabelText("员工账号"), "unassigned-reporter");
+      await user.type(screen.getByLabelText("员工姓名"), "无地区填报员");
+      await user.type(
+        screen.getByLabelText("邀请送达邮箱"),
+        "reporter@example.test",
+      );
+      await user.click(screen.getByRole("radio", { name: role }));
+      await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
+      if (role === "填报员") {
+        await waitFor(() =>
+          expect(api.inviteEmployee).toHaveBeenCalledWith(
+            expect.objectContaining({
+              roleCodes: ["BUSINESS_OPERATOR"],
+              regionCodes: [],
+            }),
+          ),
+        );
+      } else {
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          "请至少选择一个可访问地区",
+        );
+        expect(api.inviteEmployee).not.toHaveBeenCalled();
+      }
+    },
+  );
+
   it("lets authorized administrators invite employees and change effective assignments", async () => {
     const user = userEvent.setup();
     const api = repository();

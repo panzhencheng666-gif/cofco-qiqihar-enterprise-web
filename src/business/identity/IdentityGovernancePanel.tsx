@@ -1063,7 +1063,10 @@ export function IdentityGovernancePanel({
       setError("请选择一个业务角色。");
       return;
     }
-    if (draft.regionCodes.length === 0) {
+    if (
+      draft.regionCodes.length === 0 &&
+      draft.roleCodes[0] !== "BUSINESS_OPERATOR"
+    ) {
       setError("请至少选择一个可访问地区。");
       return;
     }
