@@ -28,6 +28,24 @@ describe("submission field validation", () => {
       amount: "数量最多保留 2 位小数，例如 1.22。",
     });
   });
+  it("uses structured server errors with specific reasons instead of matching the summary", () => {
+    const result = submissionFailure(
+      new RealtimeApiError({
+        status: 400,
+        code: "INVALID_PRODUCTION_RECORD",
+        message: "填写内容不符合要求",
+        details: {
+          fieldErrors: {
+            PROD_SAMPLE_CONTACT: "联系方式须为 6 至 32 位电话号码。",
+          },
+        },
+      }),
+      [{ code: "PROD_SAMPLE_CONTACT", label: "样本点联系方式", type: "text" }],
+    );
+    expect(result.fields).toEqual({
+      PROD_SAMPLE_CONTACT: "联系方式须为 6 至 32 位电话号码。",
+    });
+  });
   it("does not blame a field for an unlocated server error or network uncertainty", () => {
     const fields = [
       { code: "regionCode", label: "地区", type: "region" as const },

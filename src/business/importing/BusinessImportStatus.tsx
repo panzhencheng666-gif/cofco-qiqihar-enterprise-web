@@ -1,3 +1,4 @@
+import { ImportRowErrors } from "./ImportRowErrors";
 import type { ProductionImportJob } from "@/platform/api/realtimeBusinessRepository";
 
 import { businessImportMessage } from "./businessImportWorkflow";
@@ -50,6 +51,7 @@ export function BusinessImportStatus({
           下载错误清单
         </button>
       )}
+      {showSummary && <ImportRowErrors errors={job.rowErrors} />}
       {(hasErrorFile || job.statusCode === "FAILED") && showSummary && (
         <details className="business-import-correction" open>
           <summary>填写范例</summary>

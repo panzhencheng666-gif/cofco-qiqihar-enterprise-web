@@ -847,6 +847,17 @@ describe("SamplePointGovernanceWorkspace", () => {
       "经度：请填写所选行政区内的经度",
     );
     expect(screen.queryByText("DSP_LONGITUDE")).not.toBeInTheDocument();
+    const longitudeInput = within(createForm).getByRole("spinbutton", {
+      name: "经度",
+    });
+    expect(longitudeInput).toHaveAttribute("aria-invalid", "true");
+    expect(longitudeInput).toHaveAccessibleDescription(
+      "请填写所选行政区内的经度",
+    );
+    await userEvent.clear(longitudeInput);
+    expect(longitudeInput).not.toHaveAttribute("aria-invalid", "true");
+    await userEvent.type(longitudeInput, "126.2");
+
     await userEvent.click(
       within(createForm).getByRole("button", { name: "保存" }),
     );

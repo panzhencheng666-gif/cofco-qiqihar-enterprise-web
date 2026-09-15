@@ -103,5 +103,46 @@ export function submissionFailure(
           `${field.label}未通过服务端校验，请核对填写内容。`,
       ]),
   );
-  return { message, fields: invalid };
+  return {
+    message,
+    fields: { ...invalid, ...serverFieldErrors(error, fields) },
+  };
+}
+
+/** Only render reasons attached to fields in the current form contract. */
+export function serverFieldErrors(
+  error: unknown,
+  fields: readonly { code: string; readOnly?: boolean }[],
+): Record<string, string> {
+  if (
+    !(error instanceof RealtimeApiError) ||
+    ![400, 422].includes(error.status)
+  )
+    return {};
+  const details = error.details;
+  if (!details || typeof details !== "object") return {};
+  const values =
+    (details as { fieldErrors?: unknown; errors?: unknown }).fieldErrors ??
+    (details as { errors?: unknown }).errors;
+  if (!values || typeof values !== "object" || Array.isArray(values)) return {};
+  const allowed = new Set(
+    fields.filter((field) => !field.readOnly).map((field) => field.code),
+  );
+  return Object.fromEntries(
+    Object.entries(values).flatMap(([code, value]) => {
+      if (!allowed.has(code)) return [];
+      const reasons = (Array.isArray(value) ? value : [value])
+        .filter((reason): reason is string => typeof reason === "string")
+        .map(
+          (message) =>
+            new RealtimeApiError({
+              status: 400,
+              code: "FIELD_INVALID",
+              message,
+            }).clientMessage,
+        )
+        .filter(Boolean);
+      return reasons.length ? [[code, reasons.join("；")]] : [];
+    }),
+  );
 }

@@ -1,3 +1,4 @@
+import { ImportRowErrors } from "../importing/ImportRowErrors";
 import {
   importFailureMessage,
   importRefreshFailureMessage,
@@ -144,6 +145,7 @@ export function SamplePointImportPanel({
             ) : null}
           </div>
         ) : null}
+        <ImportRowErrors errors={result?.rowErrors} />
         {error ? <div role="alert">{error}</div> : null}
       </section>
     );
@@ -185,6 +187,7 @@ export function SamplePointImportPanel({
           ) : null}
         </div>
       ) : null}
+      <ImportRowErrors errors={result?.rowErrors} />
       {error ? <div role="alert">{error}</div> : null}
     </>
   );

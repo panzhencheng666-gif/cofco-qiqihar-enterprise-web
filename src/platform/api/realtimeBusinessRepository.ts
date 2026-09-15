@@ -281,6 +281,12 @@ export interface FormalSampleMaintainerView {
 }
 
 export interface SamplePointImportResult {
+  rowErrors?: readonly {
+    rowNumber: number;
+    worksheet?: string | null;
+    field: string;
+    message: string;
+  }[];
   id: string;
   statusCode: "COMPLETED" | "COMPLETED_WITH_ERRORS";
   importedRows: number;
@@ -999,6 +1005,7 @@ export interface SupplyInputSetRow {
 }
 
 export interface ProductionImportJob {
+  rowErrors?: readonly { rowNumber: number; field: string; message: string }[];
   id: string;
   actionJobId?: string;
   domainCode: string;

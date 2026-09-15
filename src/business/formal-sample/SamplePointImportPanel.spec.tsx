@@ -78,6 +78,35 @@ describe("SamplePointImportPanel", () => {
     },
   );
 
+  it("shows the failed file row and its exact field reason", async () => {
+    const repository = {
+      importDesignSamplePoints: vi.fn().mockResolvedValue({
+        id: "failed-import",
+        statusCode: "COMPLETED_WITH_ERRORS",
+        importedRows: 0,
+        failedRows: 1,
+        rowErrors: [{ rowNumber: 4, field: "经度", message: "不能大于 180。" }],
+      }),
+    } as unknown as RealtimeBusinessRepository;
+    render(
+      <SamplePointImportPanel
+        kind="design"
+        repository={repository}
+        onImported={vi.fn()}
+      />,
+    );
+    await userEvent.upload(
+      screen.getByLabelText("选择 XLSX 文件"),
+      new File(["data"], "样本.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "校验并导入" }));
+    expect(
+      await screen.findByRole("table", { name: "实际导入错误" }),
+    ).toHaveTextContent("4经度不能大于 180。");
+  });
+
   it("does not describe an unknown system failure as a bad workbook", async () => {
     const repository = {
       importDesignSamplePoints: vi
