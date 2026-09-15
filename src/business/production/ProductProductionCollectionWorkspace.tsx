@@ -282,23 +282,28 @@ function cleanSubjectName(value: string): string {
 }
 
 function collectionStatus(item: BusinessWorkItem): string {
-  if (item.qualityStatus === "blocking") return "退回待补充";
-  if (item.reviewStatus === "returned") return "审核退回";
+  if (item.qualityStatus === "blocking") return "待修正";
+  if (item.reviewStatus === "returned") return "待修正";
   if (item.reviewStatus === "pending" || item.reviewStatus === "reviewing") {
-    return "待审核";
+    return "待校验";
   }
   if (item.reviewStatus === "approved" && item.qualityStatus === "passed") {
-    return "已核定";
+    return "已入库";
   }
   return "填写中";
 }
 
 function persistedProductionStatus(value: string | undefined): string {
-  if (value === "已审核" || value === "已核定" || value === "APPROVED")
-    return "已核定";
-  if (value === "已退回" || value === "RETURNED") return "审核退回";
+  if (
+    value === "已审核" ||
+    value === "已核定" ||
+    value === "APPROVED" ||
+    value === "已入库"
+  )
+    return "已入库";
+  if (value === "已退回" || value === "RETURNED") return "待修正";
   if (value === "已作废" || value === "VOIDED") return "已作废";
-  if (value === "待审核" || value === "SUBMITTED") return "待审核";
+  if (value === "待校验" || value === "SUBMITTED") return "待校验";
   if (value === "DRAFT" || value === "草稿" || value === "填写中")
     return "填写中";
   return "状态未提供";
@@ -924,7 +929,7 @@ export function ProductProductionCollectionWorkspace({
         validation:
           persistedProductionStatus(record.values.PROD_STATUS) === "已核定"
             ? "校验通过"
-            : "等待审核校验",
+            : "等待自动校验",
         lastSaved: formatRealFillingTime(record.values, "PROD"),
         status: persistedProductionStatus(record.values.PROD_STATUS),
       };
@@ -1012,11 +1017,12 @@ export function ProductProductionCollectionWorkspace({
           });
         }}
       >
-        查看记录
+        {permissions.includes("BUSINESS_UPDATE") ? "修改记录" : "查看记录"}
       </button>
       {row.samplePointId &&
         !readOnly &&
-        permissions.includes("FORMAL_SAMPLE_MANAGE") && (
+        (permissions.includes("FORMAL_SAMPLE_MANAGE") ||
+          permissions.includes("BUSINESS_CREATE")) && (
           <button
             className="enterprise-ledger-row-action"
             type="button"

@@ -708,7 +708,11 @@ export function EnterpriseBusinessApplication({
     ) {
       setRealtimeEntryProductCode(productCode);
       setRealtimeEntryRecordId(selection.id);
-      setRealtimeEntryMode("view");
+      setRealtimeEntryMode(
+        currentSession?.permissions.includes("BUSINESS_UPDATE")
+          ? "entry"
+          : "view",
+      );
       setRealtimeEntryDomain(domain);
     }
     navigate(...parameters);
@@ -1044,7 +1048,11 @@ export function EnterpriseBusinessApplication({
                 ? (productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
-                    setRealtimeEntryMode("view");
+                    setRealtimeEntryMode(
+                      currentSession?.permissions.includes("BUSINESS_UPDATE")
+                        ? "entry"
+                        : "view",
+                    );
                     setRealtimeEntryDomain("production");
                   }
                 : undefined
@@ -1101,7 +1109,11 @@ export function EnterpriseBusinessApplication({
                 ? (domain, productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
-                    setRealtimeEntryMode("view");
+                    setRealtimeEntryMode(
+                      currentSession?.permissions.includes("BUSINESS_UPDATE")
+                        ? "entry"
+                        : "view",
+                    );
                     setRealtimeEntryDomain(domain);
                   }
                 : undefined
@@ -1148,7 +1160,11 @@ export function EnterpriseBusinessApplication({
               onViewRecord={(domain, product, id) => {
                 setRealtimeEntryProductCode(product);
                 setRealtimeEntryRecordId(id);
-                setRealtimeEntryMode("view");
+                setRealtimeEntryMode(
+                  currentSession?.permissions.includes("BUSINESS_UPDATE")
+                    ? "entry"
+                    : "view",
+                );
                 setRealtimeEntryDomain(domain);
               }}
             />
@@ -1209,7 +1225,11 @@ export function EnterpriseBusinessApplication({
               onViewRecord={(domain, product, id) => {
                 setRealtimeEntryProductCode(product);
                 setRealtimeEntryRecordId(id);
-                setRealtimeEntryMode("view");
+                setRealtimeEntryMode(
+                  currentSession?.permissions.includes("BUSINESS_UPDATE")
+                    ? "entry"
+                    : "view",
+                );
                 setRealtimeEntryDomain(domain);
               }}
             />
@@ -1254,7 +1274,7 @@ export function EnterpriseBusinessApplication({
           label={
             realtimeEntryRecordId
               ? realtimeEntryMode === "review"
-                ? "物流监测单据审核"
+                ? "物流监测记录详情"
                 : realtimeEntryMode === "view"
                   ? "物流监测记录详情"
                   : "补充物流监测填报"
@@ -1286,8 +1306,8 @@ export function EnterpriseBusinessApplication({
           realtimeEntryRecordId
             ? realtimeEntryMode === "review"
               ? realtimeEntryDomain === "production"
-                ? "产情单据审核"
-                : "市场单据审核"
+                ? "产情记录详情"
+                : "市场记录详情"
               : realtimeEntryMode === "view"
                 ? realtimeEntryDomain === "production"
                   ? "产情记录详情"

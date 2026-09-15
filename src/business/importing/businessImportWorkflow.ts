@@ -87,9 +87,9 @@ export function businessImportMessage(job: ProductionImportJob) {
     case "PROCESSING":
       return "批量数据正在导入，请稍候。";
     case "COMPLETED":
-      return `导入完成：${job.importedRows} 行已处理，合格行已自动提交审核，失败 ${job.failedRows} 行。`;
+      return `导入完成：${job.importedRows} 行已处理，合格行已校验并入库，失败 ${job.failedRows} 行。`;
     case "COMPLETED_WITH_ERRORS":
-      return `导入完成：${job.importedRows} 行已处理，合格行已自动提交审核，失败 ${job.failedRows} 行。请下载错误清单核对。`;
+      return `导入完成：${job.importedRows} 行已处理，合格行已校验并入库，失败 ${job.failedRows} 行。请下载错误清单核对。`;
     case "FAILED":
       return `导入未完成：${job.failureMessage || "请核对文件内容后重试。"}`;
   }

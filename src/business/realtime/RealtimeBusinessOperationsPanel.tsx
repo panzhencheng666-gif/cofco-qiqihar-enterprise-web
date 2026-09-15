@@ -58,9 +58,9 @@ function inputType(field: RealtimeFormField): string {
 function statusLabel(status: string | undefined): string {
   const labels: Readonly<Record<string, string>> = {
     DRAFT: "草稿",
-    PENDING_REVIEW: "待审核",
-    APPROVED: "审核通过",
-    RETURNED: "退回补充",
+    PENDING_REVIEW: "待校验",
+    APPROVED: "已入库",
+    RETURNED: "待修正",
     VOIDED: "已作废",
   };
   return status ? (labels[status] ?? status) : "新建填报";
@@ -203,7 +203,6 @@ export function RealtimeBusinessOperationsPanel({
     "new" | "loading" | "loaded" | "failed"
   >(initialRecordId ? "loading" : "new");
   const [values, setValues] = useState<Record<string, string>>({});
-  const [returnReason, setReturnReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("正在读取业务配置…");
   const [error, setError] = useState("");
@@ -531,7 +530,6 @@ export function RealtimeBusinessOperationsPanel({
     setFieldErrors({});
     selectedRecordId.current = undefined;
     setRecordLoadState("new");
-    setReturnReason("");
     setEvidenceFiles([]);
     setValues({
       objectTypeCode: objectTypes[0]?.code ?? "",
@@ -540,7 +538,7 @@ export function RealtimeBusinessOperationsPanel({
         ? { PROD_REPORTER_NAME: authenticatedName }
         : { MKT_REPORTER_NAME: authenticatedName }),
     });
-    setMessage("已新建空白填报，提交审核后生成正式记录");
+    setMessage("已新建空白填报，校验通过后生成正式记录");
     setError("");
   }
 
@@ -676,15 +674,8 @@ export function RealtimeBusinessOperationsPanel({
     }
   }
 
-  async function transition(action: "submit" | "approve" | "return" | "void") {
+  async function transition(action: "void") {
     if (!selected) return;
-    if (
-      (action === "approve" && !permissions.includes("BUSINESS_APPROVE")) ||
-      (action === "return" && !permissions.includes("BUSINESS_RETURN"))
-    ) {
-      setError("当前账号没有该业务审核权限。");
-      return;
-    }
     setBusy(true);
     setError("");
     try {
@@ -694,22 +685,19 @@ export function RealtimeBusinessOperationsPanel({
               selected.id,
               action,
               selected.version,
-              action === "return" ? returnReason : undefined,
+              undefined,
             )
           : await repository.transitionMarket(
               selected.id,
               action,
               selected.version,
-              action === "return" ? returnReason : undefined,
+              undefined,
             );
       setSelected(record);
       formDirty.current = false;
       await reload(record.productCode);
       onRecordsChanged?.();
-      setMessage(
-        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : action === "return" ? "退回" : "作废"}成功`,
-      );
-      if (mode === "review" && action !== "submit") onSaved?.();
+      setMessage("作废成功");
     } catch {
       setError("业务状态处理失败，请稍后重试。");
     } finally {
@@ -823,14 +811,6 @@ export function RealtimeBusinessOperationsPanel({
   const canSave = mode === "entry" && (!selected || allowed.has("SAVE"));
   const readOnlyMode =
     mode === "view" || mode === "review" || (Boolean(selected) && !canSave);
-  const canApprove =
-    mode === "review" &&
-    permissions.includes("BUSINESS_APPROVE") &&
-    allowed.has("APPROVE");
-  const canReturn =
-    mode === "review" &&
-    permissions.includes("BUSINESS_RETURN") &&
-    allowed.has("RETURN");
   const existingRecordUnavailable =
     recordLoadState === "loading" || recordLoadState === "failed";
   const definitionReady = definitionState === "loaded" && definition !== null;
@@ -845,12 +825,12 @@ export function RealtimeBusinessOperationsPanel({
       aria-label={
         domain === "production"
           ? mode === "review"
-            ? "产情单据审核"
+            ? "产情记录详情"
             : mode === "view"
               ? "产情记录详情"
               : "产情填报"
           : mode === "review"
-            ? "市场单据审核"
+            ? "市场记录详情"
             : mode === "view"
               ? "市场记录详情"
               : "市场采集"
@@ -861,7 +841,7 @@ export function RealtimeBusinessOperationsPanel({
         <div>
           <span>
             {mode === "review"
-              ? "业务审核"
+              ? "业务查看"
               : mode === "view"
                 ? "业务查看"
                 : "业务填报"}
@@ -869,19 +849,19 @@ export function RealtimeBusinessOperationsPanel({
           <h2>
             {domain === "production"
               ? mode === "review"
-                ? "产情单据审核"
+                ? "产情记录详情"
                 : mode === "view"
                   ? "产情记录详情"
                   : "产情填报"
               : mode === "review"
-                ? "市场单据审核"
+                ? "市场记录详情"
                 : mode === "view"
                   ? "市场记录详情"
                   : "市场采集"}
           </h2>
           <p>
             {mode === "review"
-              ? "只读核对原业务单据、现场照片和当前状态，通过或填写原因退回；审核不会新建记录。"
+              ? "查看原业务记录、现场照片和当前状态。"
               : mode === "view"
                 ? "只读查看原业务记录及现场照片，不会修改或新建记录。"
                 : "填写本次调查数据，带 * 的项目为必填项。保存结果以系统返回为准。"}
@@ -1229,7 +1209,7 @@ export function RealtimeBusinessOperationsPanel({
                 disabled={busy || !definitionReady || existingRecordUnavailable}
                 type="submit"
               >
-                保存并提交
+                保存入库
               </button>
             )}
             {mode === "entry" && selected && allowed.has("VOID") && (
@@ -1240,37 +1220,6 @@ export function RealtimeBusinessOperationsPanel({
               >
                 作废记录
               </button>
-            )}
-            {selected && canApprove && (
-              <button
-                disabled={busy}
-                type="button"
-                onClick={() => void transition("approve")}
-              >
-                审核通过
-              </button>
-            )}
-            {selected && canReturn && (
-              <>
-                <input
-                  aria-label="退回原因"
-                  placeholder="填写退回原因"
-                  value={returnReason}
-                  onChange={(event) => setReturnReason(event.target.value)}
-                />
-                <button
-                  disabled={busy || !returnReason.trim()}
-                  type="button"
-                  onClick={() => void transition("return")}
-                >
-                  退回补充
-                </button>
-              </>
-            )}
-            {mode === "review" && selected && !canApprove && !canReturn && (
-              <p role="status">
-                当前账号无可执行的审核操作，或该单据已离开待审核状态。
-              </p>
             )}
           </div>
           <p aria-live="polite" role={visibleError ? "alert" : "status"}>

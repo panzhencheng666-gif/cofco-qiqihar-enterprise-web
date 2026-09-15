@@ -577,7 +577,15 @@ export function ExistingSampleObservationPanel({
         eventSequence.current = event.sequence;
         const current = eventState.current;
         const observationChanged =
-          event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED" &&
+          [
+            "FORMAL_SAMPLE_OBSERVATION_SAVED",
+            "PRODUCTION_RECORD_SAVED",
+            "MARKET_RECORD_SAVED",
+            "LOGISTICS_RECORD_SAVED",
+            "PRODUCTION_RECORD_VOIDED",
+            "MARKET_RECORD_VOIDED",
+            "LOGISTICS_RECORD_VOIDED",
+          ].includes(event.actionCode) &&
           event.productCode === current.productCode;
         const formalSampleChanged =
           event.actionCode.startsWith("FORMAL_SAMPLE_POINT_") ||

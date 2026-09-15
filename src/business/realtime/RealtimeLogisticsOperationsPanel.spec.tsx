@@ -350,8 +350,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("reviews the original logistics record without opening an editable entry form", async () => {
-    const user = userEvent.setup();
+  it("shows legacy review links as read-only records without review actions", async () => {
     const record = {
       id: "LOG-REVIEW-001",
       productCode: "CORN",
@@ -402,7 +401,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "物流监测单据审核" }),
+      await screen.findByRole("heading", { name: "物流监测记录详情" }),
     ).toBeVisible();
     expect(screen.getByLabelText(/数据年份/)).toBeDisabled();
     expect(
@@ -412,15 +411,12 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       screen.queryByRole("button", { name: "新建物流记录" }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "审核通过" }));
-    expect(transitionLogistics).toHaveBeenCalledWith(
-      record.id,
-      "approve",
-      3,
-      undefined,
-    );
+    expect(
+      screen.queryByRole("button", { name: "审核通过" }),
+    ).not.toBeInTheDocument();
+    expect(transitionLogistics).not.toHaveBeenCalled();
     expect(createLogistics).not.toHaveBeenCalled();
-    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
   });
 
   it("uses permissions and record state to expose logistics review actions", async () => {
@@ -457,7 +453,10 @@ describe("RealtimeLogisticsOperationsPanel", () => {
       />,
     );
 
-    expect(await screen.findByText(/当前账号无可执行的审核操作/)).toBeVisible();
+    await screen.findByRole("heading", { name: "物流监测记录详情" });
+    expect(
+      screen.queryByText(/当前账号无可执行的审核操作/),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "审核通过" }),
     ).not.toBeInTheDocument();
@@ -750,7 +749,7 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     );
     expect(importWorkbook).toHaveBeenCalledWith(expect.any(File), "CORN", []);
     expect(await screen.findByLabelText("批量导入处理结果")).toHaveTextContent(
-      "导入完成：2 行已处理，合格行已自动提交审核，失败 0 行。",
+      "导入完成：2 行已处理，合格行已校验并入库，失败 0 行。",
     );
     expect(listLogistics).toHaveBeenCalledTimes(2);
 

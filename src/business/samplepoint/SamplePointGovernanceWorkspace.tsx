@@ -15,7 +15,7 @@ import { SamplePointIdentityGovernancePanel } from "./SamplePointIdentityGoverna
 import "./sample-point-governance-workspace.css";
 
 type GovernanceModule = "registry" | "design" | "annual" | "review";
-type ReviewModule = "coordinate" | "identity-import" | "identity-merge";
+type ReviewModule = "coordinate" | "identity-merge";
 
 const modules = [
   ["registry", "样本点名册"],
@@ -303,7 +303,6 @@ export function SamplePointGovernanceWorkspace({
               {(
                 [
                   ["coordinate", "坐标修正"],
-                  ["identity-import", "新导入身份"],
                   ["identity-merge", "历史身份归并"],
                 ] as const
               ).map(([module, label]) => (
@@ -320,12 +319,6 @@ export function SamplePointGovernanceWorkspace({
             {reviewModule === "coordinate" ? (
               <SamplePointCoordinateGovernancePanel
                 mode="review"
-                repository={repository}
-              />
-            ) : null}
-            {reviewModule === "identity-import" ? (
-              <SamplePointIdentityGovernancePanel
-                mode="import-review"
                 repository={repository}
               />
             ) : null}

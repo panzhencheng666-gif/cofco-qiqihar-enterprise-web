@@ -114,7 +114,7 @@ interface MarketCollectionRow {
   inventory: string;
   transactionVolume: string;
   salesVolume: string;
-  state: "待审核" | "已核定" | "需补充" | "填写中" | "已作废";
+  state: "待校验" | "已入库" | "需补充" | "填写中" | "已作废";
   values: Readonly<Record<string, string>>;
 }
 
@@ -342,8 +342,13 @@ function persistedMarketValue(
 function persistedMarketState(
   value: string | undefined,
 ): MarketCollectionRow["state"] {
-  if (value === "已审核" || value === "已核定" || value === "APPROVED")
-    return "已核定";
+  if (
+    value === "已审核" ||
+    value === "已核定" ||
+    value === "APPROVED" ||
+    value === "已入库"
+  )
+    return "已入库";
   if (
     value === "已退回" ||
     value === "退回补充" ||
@@ -353,7 +358,7 @@ function persistedMarketState(
     return "需补充";
   if (value === "草稿" || value === "DRAFT") return "填写中";
   if (value === "已作废" || value === "VOIDED") return "已作废";
-  return "待审核";
+  return "待校验";
 }
 
 function objectTypeForWork(item: BusinessWorkItem): MarketBusinessObjectTypeId {
@@ -415,11 +420,11 @@ function businessRegionLabel(item: BusinessWorkItem): string {
 
 function businessState(item: BusinessWorkItem): MarketCollectionRow["state"] {
   if (item.reviewStatus === "approved" && item.qualityStatus === "passed")
-    return "已核定";
+    return "已入库";
   if (item.reviewStatus === "returned" || item.qualityStatus === "blocking")
     return "需补充";
   if (item.documentStatus === "draft") return "填写中";
-  return "待审核";
+  return "待校验";
 }
 
 function businessDate(item: BusinessWorkItem | undefined): string {
@@ -1433,11 +1438,12 @@ export function ProductMarketCollectionWorkspace({
                             });
                           }}
                         >
-                          查看记录
+                          {permissions.includes("BUSINESS_UPDATE") ? "修改记录" : "查看记录"}
                         </button>
                         {row.samplePointId &&
                           !readOnly &&
-                          permissions.includes("FORMAL_SAMPLE_MANAGE") && (
+                          (permissions.includes("FORMAL_SAMPLE_MANAGE") ||
+                            permissions.includes("BUSINESS_CREATE")) && (
                             <button
                               className="enterprise-ledger-row-action"
                               type="button"

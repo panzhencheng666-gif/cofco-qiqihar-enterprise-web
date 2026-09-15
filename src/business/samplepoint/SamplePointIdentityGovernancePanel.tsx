@@ -5,7 +5,6 @@ import type {
   RealtimeBusinessRepository,
   SampleIdentityMergeJob,
   SampleIdentityMergeRequest,
-  SampleIdentityReviewItem,
 } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 
@@ -33,10 +32,6 @@ function jobStatus(status: SampleIdentityMergeJob["statusCode"]): string {
   return "已完成";
 }
 
-function isCoordinateSharingReview(item: SampleIdentityReviewItem): boolean {
-  return item.reasonCode === "SAMPLE_COORDINATE_SHARED_REVIEW_REQUIRED";
-}
-
 export function SamplePointIdentityGovernancePanel({
   mode = "all",
   repository,
@@ -45,14 +40,10 @@ export function SamplePointIdentityGovernancePanel({
   repository: RealtimeBusinessRepository;
 }) {
   const [session, setSession] = useState<CurrentSession | null>(null);
-  const [reviews, setReviews] = useState<readonly SampleIdentityReviewItem[]>(
-    [],
-  );
   const [jobs, setJobs] = useState<readonly SampleIdentityMergeJob[]>([]);
   const [mergeRequests, setMergeRequests] = useState<
     readonly SampleIdentityMergeRequest[]
   >([]);
-  const [targets, setTargets] = useState<Record<string, string>>({});
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -63,10 +54,7 @@ export function SamplePointIdentityGovernancePanel({
     async (activeSession: CurrentSession) => {
       const canReview = activeSession.permissions.includes("BUSINESS_APPROVE");
       const canImport = activeSession.permissions.includes("BUSINESS_IMPORT");
-      const [nextReviews, nextJobs, nextRequests] = await Promise.all([
-        canReview && (mode === "all" || mode === "import-review")
-          ? repository.listSampleIdentityReviews?.()
-          : [],
+      const [nextJobs, nextRequests] = await Promise.all([
         canImport && (mode === "all" || mode === "manage")
           ? repository.listSampleIdentityMergeJobs?.()
           : [],
@@ -74,7 +62,6 @@ export function SamplePointIdentityGovernancePanel({
           ? repository.listSampleIdentityMergeRequests?.()
           : [],
       ]);
-      setReviews(nextReviews ?? []);
       setJobs(nextJobs ?? []);
       setMergeRequests(nextRequests ?? []);
     },
@@ -135,42 +122,6 @@ export function SamplePointIdentityGovernancePanel({
     return session ? refresh(session) : Promise.resolve();
   }
 
-  function decideImportIdentity(
-    item: SampleIdentityReviewItem,
-    decision: "LINK_EXISTING" | "CONFIRM_DISTINCT" | "RETURN_FOR_CORRECTION",
-  ) {
-    if (!repository.decideSampleIdentityReview) return;
-    const target = decision === "LINK_EXISTING" ? targets[item.draftId] : null;
-    if (decision === "LINK_EXISTING" && !target) return;
-    const promptLabel =
-      decision === "LINK_EXISTING"
-        ? "请填写认定为同一真实样本点的核验依据"
-        : decision === "CONFIRM_DISTINCT"
-          ? isCoordinateSharingReview(item)
-            ? "请填写证明不同对象合法共址的真实材料和核验依据"
-            : "请填写认定为不同真实样本点的核验依据"
-          : "请填写退回修正原因";
-    const reason = window.prompt(promptLabel, "");
-    if (reason === null || !reason.trim()) return;
-    void runAction(`identity:${item.draftId}`, async () => {
-      await repository.decideSampleIdentityReview!(
-        item.draftId,
-        decision,
-        target,
-        item.version,
-        reason.trim(),
-      );
-      await refreshAfterMutation();
-      setMessage(
-        decision === "RETURN_FOR_CORRECTION"
-          ? "已退回修正，当前行不会进入正式业务记录。"
-          : isCoordinateSharingReview(item)
-            ? "合法共址核验已记录，原导入草稿已继续进入业务审核链；最终审核时还会复核坐标占用情况。"
-            : "身份核验完成，原导入草稿已继续进入业务审核链。",
-      );
-    });
-  }
-
   function exportWorkbook() {
     if (!repository.downloadSampleIdentityMergeWorkbook) return;
     void runAction("merge-export", async () => {
@@ -227,7 +178,7 @@ export function SamplePointIdentityGovernancePanel({
           <span>稳定样本身份与跨期连续性</span>
           <h2>样本点身份治理</h2>
           <p>
-            名称相同不等于同一个样本点。系统结合联系方式、地区、坐标和期间先拦截不清楚的记录；人工核验后才继续审核。历史重复身份只追加解析关系，不删除样本点、不重写原业务记录。
+            名称相同不等于同一个样本点。系统结合联系方式、地区、坐标和期间先拦截不清楚的记录；无法唯一识别时返回错误，修正后重新校验。历史重复身份只追加解析关系，不删除样本点、不重写原业务记录。
           </p>
         </div>
       </header>
@@ -236,136 +187,10 @@ export function SamplePointIdentityGovernancePanel({
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
 
-      {(mode === "all" || mode === "import-review") && canReview && (
-        <div className="sample-coordinate-governance__section">
-          <header>
-            <div>
-              <h3>新导入身份待核验</h3>
-              <p>
-                “待核验”表示系统发现同名、多个候选或坐标已被占用，尚不能安全判断。选择真实已有样本点、确认确为不同对象，或退回填报人补充证据。
-              </p>
-            </div>
-          </header>
-          {reviews.length === 0 ? (
-            <p className="sample-coordinate-governance__empty">
-              当前授权范围内没有新导入身份待核验记录。
-            </p>
-          ) : (
-            <div className="sample-coordinate-governance__review-grid">
-              {reviews.map((item) => (
-                <article key={item.draftId}>
-                  <header>
-                    <div>
-                      <h4>{item.sampleName}</h4>
-                      <span>
-                        {item.domainCode === "PRODUCTION" ? "产情" : "市场"} ·{" "}
-                        {item.surveyPeriod}
-                      </span>
-                    </div>
-                    <strong>
-                      {isCoordinateSharingReview(item)
-                        ? "坐标共址待核验"
-                        : "身份待核验"}
-                    </strong>
-                  </header>
-                  <dl>
-                    <div>
-                      <dt>联系方式</dt>
-                      <dd>{item.sampleContact || "未填写"}</dd>
-                    </div>
-                    <div>
-                      <dt>地区</dt>
-                      <dd>{item.regionCode}</dd>
-                    </div>
-                    <div>
-                      <dt>坐标</dt>
-                      <dd>
-                        {item.longitude}, {item.latitude}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>判断原因</dt>
-                      <dd>{item.reasonMessage}</dd>
-                    </div>
-                  </dl>
-                  {isCoordinateSharingReview(item) && (
-                    <p>
-                      确认前请核对经营主体、联系方式、现场地址或其他真实材料；证据不足请退回补充。
-                    </p>
-                  )}
-                  {item.candidates.length > 0 && (
-                    <label className="sample-identity-governance__candidate">
-                      <span>
-                        {isCoordinateSharingReview(item)
-                          ? "同坐标已有样本点"
-                          : "规范样本点候选"}
-                      </span>
-                      <select
-                        aria-label={`选择${item.sampleName}的规范样本点`}
-                        value={targets[item.draftId] ?? ""}
-                        onChange={(event) =>
-                          setTargets((current) => ({
-                            ...current,
-                            [item.draftId]: event.target.value,
-                          }))
-                        }
-                      >
-                        <option value="">请选择核验后的真实样本点</option>
-                        {item.candidates.map((candidate) => (
-                          <option
-                            key={candidate.samplePointId}
-                            value={candidate.samplePointId}
-                          >
-                            {candidate.canonicalName} ·{" "}
-                            {candidate.sampleContact} · 已审核{" "}
-                            {candidate.approvedRecordCount} 条
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  <div className="sample-coordinate-governance__row-actions">
-                    <button
-                      aria-label={`关联已有样本点${item.sampleName}`}
-                      disabled={
-                        !targets[item.draftId] ||
-                        busyAction === `identity:${item.draftId}`
-                      }
-                      type="button"
-                      onClick={() =>
-                        decideImportIdentity(item, "LINK_EXISTING")
-                      }
-                    >
-                      关联已有样本点
-                    </button>
-                    <button
-                      aria-label={`${isCoordinateSharingReview(item) ? "确认合法共址" : "确认不同身份"}${item.sampleName}`}
-                      disabled={busyAction === `identity:${item.draftId}`}
-                      type="button"
-                      onClick={() =>
-                        decideImportIdentity(item, "CONFIRM_DISTINCT")
-                      }
-                    >
-                      {isCoordinateSharingReview(item)
-                        ? "确认不同对象且合法共址"
-                        : "确认是不同对象"}
-                    </button>
-                    <button
-                      aria-label={`退回修正${item.sampleName}`}
-                      disabled={busyAction === `identity:${item.draftId}`}
-                      type="button"
-                      onClick={() =>
-                        decideImportIdentity(item, "RETURN_FOR_CORRECTION")
-                      }
-                    >
-                      退回补充证据
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
+      {mode === "import-review" && (
+        <p>
+          导入行自动校验通过后直接入库。无法唯一识别的样本信息会返回字段错误，请修正后重新导入。
+        </p>
       )}
 
       {(mode === "all" || mode === "manage") && canImport && (

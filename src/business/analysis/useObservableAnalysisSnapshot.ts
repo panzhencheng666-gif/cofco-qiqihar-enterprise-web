@@ -188,7 +188,9 @@ function matchesScope(
 }
 
 function isAnalysisInvalidatingAction(actionCode: string): boolean {
-  return ["_APPROVED", "_VOIDED"].some((suffix) => actionCode.endsWith(suffix));
+  return ["_SAVED", "_APPROVED", "_VOIDED"].some((suffix) =>
+    actionCode.endsWith(suffix),
+  );
 }
 
 function toSnapshotError(cause: unknown): SnapshotError {

@@ -114,10 +114,10 @@ const logisticsProducts = [
 
 const logisticsStatusLabels: Readonly<Record<string, string>> = {
   DRAFT: "填写中",
-  PENDING_REVIEW: "待审核",
-  SUBMITTED: "待审核",
-  APPROVED: "已核定",
-  RETURNED: "退回待补充",
+  PENDING_REVIEW: "待校验",
+  SUBMITTED: "待校验",
+  APPROVED: "已入库",
+  RETURNED: "待修正",
   VOIDED: "已作废",
 };
 
@@ -969,11 +969,12 @@ export function LogisticsMonitoringWorkspace({
                               setSelectedPersistedId(record.id);
                             }}
                           >
-                            查看记录
+                            {permissions.includes("BUSINESS_UPDATE") ? "修改记录" : "查看记录"}
                           </button>
                           {record.values.__FORMAL_SAMPLE_ID &&
                             !readOnly &&
-                            permissions.includes("FORMAL_SAMPLE_MANAGE") && (
+                            (permissions.includes("FORMAL_SAMPLE_MANAGE") ||
+                              permissions.includes("BUSINESS_CREATE")) && (
                               <button
                                 className="enterprise-ledger-row-action"
                                 type="button"
@@ -1053,7 +1054,7 @@ export function LogisticsMonitoringWorkspace({
                               }
                             }}
                           >
-                            查看记录
+                            {permissions.includes("BUSINESS_UPDATE") ? "修改记录" : "查看记录"}
                           </button>
                         </td>
                       </tr>

@@ -576,7 +576,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "保存并提交" })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "保存入库" })).toBeEnabled(),
     );
     expect(list).not.toHaveBeenCalled();
     expect(
@@ -848,7 +848,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     await screen.findByText(/作废成功/);
     expect(screen.getByText(/已作废/)).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "保存并提交" }),
+      screen.queryByRole("button", { name: "保存入库" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "提交审核" }),
@@ -933,7 +933,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "产情单据审核" }),
+      await screen.findByRole("heading", { name: "产情记录详情" }),
     ).toBeVisible();
     expect(await screen.findByLabelText("填报人")).toHaveTextContent(
       "原始填报员",
@@ -964,27 +964,22 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(screen.getByLabelText("数据月份")).toBeDisabled();
     expect(screen.getByLabelText("填报日期")).toHaveTextContent("2026-08-09");
     expect(
-      screen.queryByRole("button", { name: "保存并提交" }),
+      screen.queryByRole("button", { name: "保存入库" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("新建填报")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "field.png" })).toHaveAttribute(
       "href",
       "/api/v1/evidence-photos/photo-review-1/content",
     );
-    expect(screen.getByRole("button", { name: "审核通过" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "退回补充" })).toBeDisabled();
-
-    fireEvent.click(screen.getByRole("button", { name: "审核通过" }));
-    await waitFor(() =>
-      expect(transitionProduction).toHaveBeenCalledWith(
-        pending.id,
-        "approve",
-        3,
-        undefined,
-      ),
-    );
+    expect(
+      screen.queryByRole("button", { name: "审核通过" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "退回补充" }),
+    ).not.toBeInTheDocument();
+    expect(transitionProduction).not.toHaveBeenCalled();
     expect(createProduction).not.toHaveBeenCalled();
-    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
   });
 
   it("does not expose review decisions without assigned review permissions", async () => {
@@ -1026,14 +1021,16 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
 
-    await screen.findByRole("heading", { name: "产情单据审核" });
+    await screen.findByRole("heading", { name: "产情记录详情" });
     expect(
       screen.queryByRole("button", { name: "审核通过" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "退回补充" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/当前账号无可执行的审核操作/)).toBeVisible();
+    expect(
+      screen.queryByText(/当前账号无可执行的审核操作/),
+    ).not.toBeInTheDocument();
   });
 
   it("does not expose editable actions after a record leaves an editable state", async () => {
@@ -1076,7 +1073,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(await screen.findByLabelText("数据年份")).toBeDisabled();
     expect(screen.getByLabelText("数据月份")).toBeDisabled();
     expect(
-      screen.queryByRole("button", { name: "保存并提交" }),
+      screen.queryByRole("button", { name: "保存入库" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "提交审核" }),
@@ -1107,7 +1104,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.getByText("原业务记录读取失败", { selector: "strong" }),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "保存并提交" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存入库" })).toBeDisabled();
     expect(screen.queryByLabelText("现场水印照片")).not.toBeInTheDocument();
     expect(createProduction).not.toHaveBeenCalled();
   });
@@ -1540,7 +1537,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.queryByRole("group", { name: "现场照片" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "保存并提交" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存入库" })).toBeDisabled();
     expect(createProduction).not.toHaveBeenCalled();
   });
 
@@ -1603,7 +1600,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.getByText("原业务记录读取失败", { selector: "strong" }),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "保存并提交" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存入库" })).toBeDisabled();
   });
 
   it("searches the authorized region list before selecting a region", async () => {
@@ -1647,7 +1644,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       target: { value: "99" },
     });
     fireEvent.submit(
-      screen.getByRole("button", { name: "保存并提交" }).closest("form")!,
+      screen.getByRole("button", { name: "保存入库" }).closest("form")!,
     );
     expect(screen.getByLabelText("数据年份")).toHaveAttribute(
       "aria-invalid",
@@ -1690,7 +1687,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     await screen.findByRole("group", { name: "地区" });
     fillRequiredProductionFields();
     fireEvent.submit(
-      screen.getByRole("button", { name: "保存并提交" }).closest("form")!,
+      screen.getByRole("button", { name: "保存入库" }).closest("form")!,
     );
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent("播种面积不能为负数"),
@@ -1752,7 +1749,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     fillRequiredProductionFields();
 
     const saveButton = screen.getByRole("button", {
-      name: "保存并提交",
+      name: "保存入库",
     });
     await waitFor(() => expect(saveButton).not.toBeDisabled());
     fireEvent.submit(saveButton.closest("form") as HTMLFormElement);
