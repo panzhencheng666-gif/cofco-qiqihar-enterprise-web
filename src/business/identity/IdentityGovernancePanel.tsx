@@ -240,7 +240,11 @@ function invitationStatusLabel(
 
 function invitationDeliveryLabel(
   value: IdentityInvitationReceipt["deliveryStatus"],
+  status: IdentityInvitationReceipt["invitationStatus"],
 ): string {
+  if (value === "AWAITING_VERIFICATION" && status !== "PENDING") {
+    return status === "ACTIVATED" ? "手机号已验证" : "手机号验证已关闭";
+  }
   return {
     QUEUED: "已进入送达队列",
     DELIVERED: "已送达",
@@ -308,7 +312,9 @@ function AssignmentEditor({
         )}
       </header>
       {invite && (
-        <p>账号由管理员建档；员工首次完成企业身份认证后才能进入系统。</p>
+        <p>
+          账号由管理员建档；员工首次使用受邀手机号完成短信验证码登录后激活账号。
+        </p>
       )}
       <h4 className="identity-editor-section-title">基本资料</h4>
       <div className="identity-governance-form-grid">
@@ -2025,6 +2031,7 @@ export function IdentityGovernancePanel({
                       ·{" "}
                       {invitationDeliveryLabel(
                         invitationEditor.receipt.deliveryStatus,
+                        invitationEditor.receipt.invitationStatus,
                       )}
                     </strong>
                   ) : (
