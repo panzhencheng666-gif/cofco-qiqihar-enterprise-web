@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   CurrentSession,
@@ -75,6 +75,41 @@ describe("monitoring and task boundary", () => {
       scope: "MY_TASKS",
     });
     expect(listMarket).toHaveBeenCalledTimes(1);
+  });
+  it("opens the normal task list for an unassigned reporter", async () => {
+    const listEligibleFormalSamples = vi.fn().mockResolvedValue([]);
+    render(
+      <MyTasksWorkspace
+        {...common}
+        repository={
+          { listEligibleFormalSamples } as unknown as RealtimeBusinessRepository
+        }
+        session={
+          {
+            regionCodes: [],
+            roleCodes: ["BUSINESS_OPERATOR"],
+            permissions: [
+              "BUSINESS_CREATE",
+              "BUSINESS_UPDATE",
+              "BUSINESS_SUBMIT",
+            ],
+            unassignedReporter: true,
+          } as unknown as CurrentSession
+        }
+        refreshToken={0}
+        onSelectionClear={vi.fn()}
+        onCreateRecord={vi.fn()}
+        onViewRecord={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("暂未分配责任地区")).toBeNull();
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "单条录入" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(listEligibleFormalSamples).toHaveBeenCalledWith(
+        expect.objectContaining({ scope: "MY_TASKS", regionCode: undefined }),
+      ),
+    );
   });
   it("shows no list or create action for an unassigned ordinary account", () => {
     render(

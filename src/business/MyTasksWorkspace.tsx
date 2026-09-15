@@ -56,6 +56,7 @@ export function MyTasksWorkspace({
   const assigned =
     session.roleCodes.includes("ADMIN") ||
     session.rootAdministrator ||
+    session.unassignedReporter ||
     session.regionCodes.length > 0;
   const common = {
     scope: {
@@ -63,7 +64,8 @@ export function MyTasksWorkspace({
       authorization: {
         ...scope.authorization,
         authorizedRegionIds: (session.roleCodes.includes("ADMIN") ||
-        session.rootAdministrator
+        session.rootAdministrator ||
+        session.unassignedReporter
           ? ["*"]
           : session.regionCodes) as typeof scope.authorization.authorizedRegionIds,
       },

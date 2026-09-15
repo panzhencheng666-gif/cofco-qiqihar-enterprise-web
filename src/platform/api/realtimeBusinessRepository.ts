@@ -427,6 +427,7 @@ export interface ReportPublication {
 
 export interface CurrentSession {
   rootAdministrator?: boolean;
+  unassignedReporter?: boolean;
   subjectId: string;
   displayName: string;
   workUnitCode: string;
