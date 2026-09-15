@@ -24,7 +24,10 @@ import type {
   ProductionDefinition,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
-import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+import {
+  realtimeApiClient,
+  RealtimeApiError,
+} from "@/platform/api/realtimeApiClient";
 import {
   PRODUCTION_SURVEY_CONTRACT_DIGEST,
   PRODUCTION_SURVEY_CONTRACT_VERSION,
@@ -536,6 +539,74 @@ describe("formal enterprise prototype", () => {
     expect(screen.queryByText("我的工作")).not.toBeInTheDocument();
     expect(loadMasterData).not.toHaveBeenCalled();
   });
+
+  it.each([
+    "?page=production&section=regional-annual",
+    "?page=work&section=task-regional",
+  ])(
+    "opens editable regional reporting for an unassigned ordinary account at %s",
+    async (initialSearch) => {
+      vi.spyOn(realtimeApiClient, "get").mockImplementation((path) =>
+        Promise.resolve(path.includes("regional-crop-summary") ? null : []),
+      );
+      const repository = {
+        loadCurrentSession: () =>
+          Promise.resolve(
+            apiSession({
+              roleCodes: [],
+              regionCodes: [],
+              permissions: [
+                "BUSINESS_READ",
+                "BUSINESS_CREATE",
+                "BUSINESS_UPDATE",
+              ],
+            }),
+          ),
+        loadMasterData: () =>
+          Promise.resolve({
+            products: [{ code: "CORN", name: "玉米" }],
+            periods: [],
+            approvedSurveyYears: [2026],
+            regions: [
+              {
+                code: "230200",
+                name: "齐齐哈尔市",
+                parentCode: null,
+                level: "PREFECTURE",
+              },
+              {
+                code: "230221",
+                name: "龙江县",
+                parentCode: "230200",
+                level: "COUNTY",
+              },
+            ],
+          }),
+        listWorkItems: () =>
+          Promise.resolve({
+            items: [],
+            pageNumber: 0,
+            pageSize: 100,
+            totalElements: 0,
+            totalPages: 0,
+          }),
+        listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+        subscribeBusinessEvents: () => () => undefined,
+      } as unknown as RealtimeBusinessRepository;
+      render(
+        <EnterpriseBusinessApplication
+          dataMode="api"
+          initialSearch={initialSearch}
+          repository={repository}
+        />,
+      );
+      await waitFor(() =>
+        expect(screen.getByLabelText("龙江县播种面积")).toBeEnabled(),
+      );
+      expect(screen.getByLabelText("龙江县单产")).toBeEnabled();
+      expect(screen.getByRole("button", { name: /保存/ })).toBeVisible();
+    },
+  );
 
   it("binds the authenticated organization and account menus to real governance data", async () => {
     const repository = {

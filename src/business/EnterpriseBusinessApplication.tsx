@@ -998,8 +998,7 @@ export function EnterpriseBusinessApplication({
           return (
             <RegionalAnnualProductionWorkspace
               canWrite={
-                currentSession?.rootAdministrator === true ||
-                currentSession?.roleCodes.includes("ADMIN") === true
+                currentSession?.permissions.includes("BUSINESS_UPDATE") === true
               }
               authorizedRegionCodes={["*"]}
               repository={repository}
@@ -1164,10 +1163,7 @@ export function EnterpriseBusinessApplication({
         ) {
           return (
             <RegionalAnnualProductionWorkspace
-              canWrite={
-                currentSession.rootAdministrator === true ||
-                currentSession.roleCodes.includes("ADMIN")
-              }
+              canWrite={currentSession.permissions.includes("BUSINESS_UPDATE")}
               authorizedRegionCodes={["*"]}
               repository={repository}
             />
