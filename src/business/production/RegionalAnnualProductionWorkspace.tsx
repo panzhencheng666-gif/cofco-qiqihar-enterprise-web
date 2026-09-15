@@ -311,7 +311,7 @@ export function RegionalAnnualProductionWorkspace({
         </div>
         {!canWrite && (
           <p className="regional-readonly-note">
-            当前账号仅可查看；地区年度数据由管理员维护。
+            当前会话未取得填报权限，请重新登录后重试。
           </p>
         )}
       </header>

@@ -1581,7 +1581,7 @@ export function IdentityGovernancePanel({
                 </div>
                 <p className="identity-region-note">
                   {view === "regions"
-                    ? "地区分工决定填报与样本维护责任。修改后同时更新员工分工和样本责任；管理员按现有权限管理。"
+                    ? "地区分工用于任务分配与样本责任归属。所有启用账号均可新增、修改和查看填报数据；修改分工后同步更新员工分工和样本责任。"
                     : "入职办理：邀请员工 → 员工登录激活 → 设置负责地区。已有员工直接点击“编辑账号”调整。"}
                 </p>
                 {view === "regions" ? (
