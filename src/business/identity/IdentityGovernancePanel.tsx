@@ -245,6 +245,7 @@ function invitationDeliveryLabel(
     QUEUED: "已进入送达队列",
     DELIVERED: "已送达",
     FAILED: "送达失败",
+    AWAITING_VERIFICATION: "等待手机号验证",
   }[value];
 }
 
@@ -334,16 +335,20 @@ function AssignmentEditor({
         </label>
         {invite && (
           <label>
-            邀请送达邮箱
+            受邀手机号
             <input
-              aria-label="邀请送达邮箱"
-              autoComplete="email"
-              inputMode="email"
+              aria-label="受邀手机号"
+              aria-describedby="phone-invitation-help"
+              autoComplete="tel"
+              inputMode="tel"
               value={draft.deliveryAddress}
               onChange={(event) =>
                 onChange({ ...draft, deliveryAddress: event.target.value })
               }
             />
+            <small id="phone-invitation-help">
+              邀请有效期24小时。请告知员工使用此手机号获取短信验证码登录，即可激活账号；创建邀请不会发送通知短信。
+            </small>
           </label>
         )}
         <label>
@@ -517,7 +522,7 @@ function AssignmentEditor({
           type="button"
           onClick={onSubmit}
         >
-          {invite ? "发送入职邀请" : "保存授权调整"}
+          {invite ? "创建手机号邀请" : "保存授权调整"}
         </button>
       </footer>
     </section>
@@ -980,6 +985,10 @@ export function IdentityGovernancePanel({
 
   const reissueCurrentInvitation = async () => {
     if (!invitationEditor?.deliveryAddress.trim()) return;
+    if (!/^1[3-9][0-9]{9}$/.test(invitationEditor.deliveryAddress.trim())) {
+      setError("请输入11位有效手机号。");
+      return;
+    }
     const subjectId = invitationEditor.employee.subjectId;
     setSaving(true);
     setMessage(null);
@@ -1002,11 +1011,13 @@ export function IdentityGovernancePanel({
           : current,
       );
       setMessage(
-        receipt.deliveryStatus === "DELIVERED"
-          ? "邀请已重新送达。"
-          : receipt.deliveryStatus === "FAILED"
-            ? "邀请重新发送失败，请保留本次操作并稍后重试。"
-            : "邀请已重新进入送达队列。",
+        receipt.deliveryStatus === "AWAITING_VERIFICATION"
+          ? "手机号邀请已创建，员工使用该手机号获取短信验证码登录后即可激活。"
+          : receipt.deliveryStatus === "DELIVERED"
+            ? "邀请已重新送达。"
+            : receipt.deliveryStatus === "FAILED"
+              ? "邀请重新发送失败，请保留本次操作并稍后重试。"
+              : "邀请已重新进入送达队列。",
       );
     } catch (caught) {
       if (invitationEditorSubject.current === subjectId) {
@@ -1052,6 +1063,13 @@ export function IdentityGovernancePanel({
       return;
     const draft = editor.draft;
     if (
+      editor.invite &&
+      !/^1[3-9][0-9]{9}$/.test(draft.deliveryAddress.trim())
+    ) {
+      setError("请输入11位有效手机号。");
+      return;
+    }
+    if (
       draft.workUnitCode === "DATABASE_AUTOMATION" ||
       !options.workUnits.some((unit) => unit.code === draft.workUnitCode) ||
       draft.regionCodes.some((code) => !options.regionCodes.includes(code))
@@ -1087,11 +1105,13 @@ export function IdentityGovernancePanel({
         };
         const receipt = await repository.inviteEmployee(input);
         setMessage(
-          receipt.deliveryStatus === "DELIVERED"
-            ? "邀请已送达，等待员工完成企业身份认证。"
-            : receipt.deliveryStatus === "FAILED"
-              ? "邀请尚未送达，请稍后使用重新发送功能。"
-              : "邀请已进入送达队列，实际送达状态待服务确认。",
+          receipt.deliveryStatus === "AWAITING_VERIFICATION"
+            ? "手机号邀请已创建，员工使用该手机号获取短信验证码登录后即可激活。"
+            : receipt.deliveryStatus === "DELIVERED"
+              ? "邀请已送达，等待员工完成企业身份认证。"
+              : receipt.deliveryStatus === "FAILED"
+                ? "邀请尚未送达，请稍后使用重新发送功能。"
+                : "邀请已进入送达队列，实际送达状态待服务确认。",
         );
       } else {
         const input: EmployeeAssignmentUpdate = {
@@ -1991,7 +2011,9 @@ export function IdentityGovernancePanel({
                 >
                   <header>
                     <h3>管理{invitationEditor.employee.displayName}的邀请</h3>
-                    <p>查看服务端当前状态；撤销或重新发送后会再次读取确认。</p>
+                    <p>
+                      手机号邀请有效期为24小时。员工自行获取短信验证码登录后激活；撤销或更新邀请后会重新读取状态。
+                    </p>
                   </header>
                   {loadingInvitation ? (
                     <p>正在读取当前邀请…</p>
@@ -2009,11 +2031,11 @@ export function IdentityGovernancePanel({
                     <p>当前邀请状态不可用。</p>
                   )}
                   <label>
-                    重新送达邮箱
+                    重新邀请手机号
                     <input
-                      aria-label="重新送达邮箱"
-                      autoComplete="email"
-                      inputMode="email"
+                      aria-label="重新邀请手机号"
+                      autoComplete="tel"
+                      inputMode="tel"
                       value={invitationEditor.deliveryAddress}
                       onChange={(event) =>
                         setInvitationEditor((current) =>
@@ -2049,7 +2071,7 @@ export function IdentityGovernancePanel({
                       type="button"
                       onClick={() => void reissueCurrentInvitation()}
                     >
-                      重新发送邀请
+                      更新手机号邀请
                     </button>
                   </footer>
                 </section>

@@ -588,12 +588,9 @@ describe("IdentityGovernancePanel", () => {
       await user.click(await screen.findByRole("button", { name: "邀请员工" }));
       await user.type(screen.getByLabelText("员工账号"), "unassigned-reporter");
       await user.type(screen.getByLabelText("员工姓名"), "无地区填报员");
-      await user.type(
-        screen.getByLabelText("邀请送达邮箱"),
-        "reporter@example.test",
-      );
+      await user.type(screen.getByLabelText("受邀手机号"), "13900000601");
       await user.click(screen.getByRole("radio", { name: role }));
-      await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
+      await user.click(screen.getByRole("button", { name: "创建手机号邀请" }));
       if (role === "填报员") {
         await waitFor(() =>
           expect(api.inviteEmployee).toHaveBeenCalledWith(
@@ -629,10 +626,7 @@ describe("IdentityGovernancePanel", () => {
     await user.click(screen.getByRole("button", { name: "邀请员工" }));
     await user.type(screen.getByLabelText("员工账号"), "employee-88");
     await user.type(screen.getByLabelText("员工姓名"), "赵蕾");
-    await user.type(
-      screen.getByLabelText("邀请送达邮箱"),
-      "employee-88@example.test",
-    );
+    await user.type(screen.getByLabelText("受邀手机号"), "13900000602");
     expect(screen.getAllByRole("radio")).toHaveLength(2);
     expect(
       screen.queryByRole("group", { name: "岗位" }),
@@ -643,7 +637,7 @@ describe("IdentityGovernancePanel", () => {
         name: "可访问地区 齐齐哈尔市 / 龙沙区 / 测试乡镇",
       }),
     );
-    await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
+    await user.click(screen.getByRole("button", { name: "创建手机号邀请" }));
     await waitFor(() =>
       expect(api.inviteEmployee).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -909,7 +903,7 @@ describe("IdentityGovernancePanel", () => {
       invitationId: "invite-001",
       invitationStatus: "PENDING",
       expiresAt: "2026-08-31T00:00:00Z",
-      deliveryStatus: "QUEUED",
+      deliveryStatus: "AWAITING_VERIFICATION",
       replayed: false,
     });
 
@@ -928,24 +922,34 @@ describe("IdentityGovernancePanel", () => {
     await user.type(screen.getByLabelText("员工账号"), "jagdaqi-operator");
     await user.type(screen.getByLabelText("员工姓名"), "加格达奇填报员");
     await user.type(
-      screen.getByLabelText("邀请送达邮箱"),
-      "operator@example.test",
+      screen.getByLabelText("受邀手机号"),
+      "invalid@example.test",
     );
+    await user.click(screen.getByRole("radio", { name: "填报员" }));
+    await user.click(screen.getByRole("button", { name: "创建手机号邀请" }));
+    expect(await screen.findByText("请输入11位有效手机号。")).toBeVisible();
+    expect(api.inviteEmployee).not.toHaveBeenCalled();
+    await user.clear(screen.getByLabelText("受邀手机号"));
+    await user.type(screen.getByLabelText("受邀手机号"), "13900000603");
     await user.click(screen.getByRole("radio", { name: "填报员" }));
     await user.click(
       screen.getByRole("checkbox", {
         name: "可访问地区 大兴安岭地区 / 加格达奇区",
       }),
     );
-    await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
+    await user.click(screen.getByRole("button", { name: "创建手机号邀请" }));
 
-    expect(await screen.findByText(/邀请已进入送达队列/)).toBeVisible();
+    expect(
+      await screen.findByText(
+        /手机号邀请已创建，员工使用该手机号获取短信验证码登录后即可激活/,
+      ),
+    ).toBeVisible();
     expect(screen.queryByText(/激活链接/)).not.toBeInTheDocument();
     expect(api.inviteEmployee).toHaveBeenCalledOnce();
     const invitationRequest = api.inviteEmployee.mock.calls[0][0];
     expect(invitationRequest.idempotencyKey).toMatch(/^identity-invite-/u);
     expect(invitationRequest).toMatchObject({
-      deliveryAddress: "operator@example.test",
+      deliveryAddress: "13900000603",
       regionCodes: ["232761"],
     });
   });
@@ -1073,10 +1077,10 @@ describe("IdentityGovernancePanel", () => {
       await screen.findByRole("button", { name: "管理张敏的邀请" }),
     );
     await user.type(
-      await screen.findByLabelText("重新送达邮箱"),
-      "employee-new@example.test",
+      await screen.findByLabelText("重新邀请手机号"),
+      "13900000604",
     );
-    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    await user.click(screen.getByRole("button", { name: "更新手机号邀请" }));
 
     expect(api.reissueInvitation).toHaveBeenCalledOnce();
     const reissueRequest = api.reissueInvitation.mock.calls[0][0];
@@ -1084,7 +1088,7 @@ describe("IdentityGovernancePanel", () => {
     expect(reissueRequest).toEqual({
       idempotencyKey: reissueRequest.idempotencyKey,
       subjectId: employee.subjectId,
-      deliveryAddress: "employee-new@example.test",
+      deliveryAddress: "13900000604",
     });
     await waitFor(() =>
       expect(api.loadEmployeeInvitation).toHaveBeenCalledTimes(2),
@@ -1134,14 +1138,14 @@ describe("IdentityGovernancePanel", () => {
     await user.click(
       await screen.findByRole("button", { name: "管理张敏的邀请" }),
     );
-    const deliveryAddress = await screen.findByLabelText("重新送达邮箱");
-    await user.type(deliveryAddress, "employee-first@example.test");
-    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    const deliveryAddress = await screen.findByLabelText("重新邀请手机号");
+    await user.type(deliveryAddress, "13900000605");
+    await user.click(screen.getByRole("button", { name: "更新手机号邀请" }));
     await waitFor(() => expect(api.reissueInvitation).toHaveBeenCalledOnce());
 
     await user.clear(deliveryAddress);
-    await user.type(deliveryAddress, "employee-second@example.test");
-    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    await user.type(deliveryAddress, "13900000606");
+    await user.click(screen.getByRole("button", { name: "更新手机号邀请" }));
     await waitFor(() => expect(api.reissueInvitation).toHaveBeenCalledTimes(2));
 
     expect(api.reissueInvitation.mock.calls[0][0].idempotencyKey).not.toBe(
@@ -1207,10 +1211,10 @@ describe("IdentityGovernancePanel", () => {
       await screen.findByRole("button", { name: "管理张敏的邀请" }),
     );
     await user.type(
-      await screen.findByLabelText("重新送达邮箱"),
-      "employee-first@example.test",
+      await screen.findByLabelText("重新邀请手机号"),
+      "13900000605",
     );
-    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    await user.click(screen.getByRole("button", { name: "更新手机号邀请" }));
     await user.click(screen.getByRole("button", { name: "管理李强的邀请" }));
     expect(
       await screen.findByRole("heading", { name: "管理李强的邀请" }),
@@ -1437,13 +1441,13 @@ describe("IdentityGovernancePanel", () => {
 
     await user.click(screen.getByRole("button", { name: "我的账号" }));
     expect(
-      screen.queryByRole("button", { name: "发送入职邀请" }),
+      screen.queryByRole("button", { name: "创建手机号邀请" }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "员工管理" }));
 
     expect(await screen.findByText("张敏")).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "发送入职邀请" }),
+      screen.queryByRole("button", { name: "创建手机号邀请" }),
     ).not.toBeInTheDocument();
     expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith(
       "QIQIHAR_BUSINESS",
