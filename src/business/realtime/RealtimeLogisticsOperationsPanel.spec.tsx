@@ -804,3 +804,45 @@ describe("RealtimeLogisticsOperationsPanel", () => {
     expect(screen.queryByLabelText("物流监测期")).not.toBeInTheDocument();
   });
 });
+
+it("opens a legacy record with field reasons and a business title", async () => {
+  const api = repository();
+  const record = {
+    id: "internal-legacy-logistics",
+    productCode: "CORN",
+    values: publicEditableValues,
+    displayValues: {},
+    status: "PENDING_REVIEW",
+    returnReason: null,
+    allowedActions: ["SAVE"],
+    version: 1,
+  };
+  api.getLogistics = vi.fn().mockResolvedValue(record);
+  api.getValidationPreview = vi
+    .fn()
+    .mockResolvedValue({
+      id: record.id,
+      version: 1,
+      fieldValidationPassed: false,
+      code: "FIELD_INVALID",
+      message: "请修正联系方式",
+      details: { fieldErrors: { LOG_SAMPLE_CONTACT: "请修正联系方式" } },
+    });
+  render(
+    <RealtimeLogisticsOperationsPanel
+      actorName="物流填报员"
+      editorOnly
+      productCode="CORN"
+      initialRecordId={record.id}
+      repository={api}
+    />,
+  );
+  expect((await screen.findAllByText("请修正联系方式")).length).toBeGreaterThan(
+    0,
+  );
+  expect(screen.getByDisplayValue("13900000000")).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  expect(screen.queryByText(/internal-legacy-logistics/)).toBeNull();
+});

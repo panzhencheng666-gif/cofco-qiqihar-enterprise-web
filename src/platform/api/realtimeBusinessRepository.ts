@@ -1231,7 +1231,17 @@ export interface BusinessRecordListItem {
   version: number;
 }
 
+export interface BusinessValidationPreview {
+  id: string;
+  version: number;
+  fieldValidationPassed: boolean;
+  message: string;
+  code: string | null;
+  details: Record<string, unknown>;
+}
+
 export interface BusinessRecordListInput {
+  recovery?: boolean;
   scope?: "MY_TASKS";
   productCode: string;
   page?: number;
@@ -1793,6 +1803,10 @@ export interface RealtimeBusinessRepository {
   listProduction(
     input: BusinessRecordListInput,
   ): Promise<Page<BusinessRecordListItem>>;
+  getValidationPreview?(
+    domain: "market" | "production" | "logistics",
+    id: string,
+  ): Promise<BusinessValidationPreview>;
   getProduction(id: string): Promise<ProductionRecordRow>;
   createProduction(draft: ProductionDraftPayload): Promise<ProductionRecordRow>;
   createAndSubmitProduction(
@@ -2042,6 +2056,7 @@ function recordQuery(
     productCode: input.productCode,
     pageKind: "MONITORING",
     scope: input.scope,
+    ...(input.recovery ? { recovery: "true" } : {}),
     pageNumber: input.page ?? 0,
     pageSize: input.pageSize ?? 100,
     ...Object.fromEntries(
@@ -2571,6 +2586,10 @@ export function createRealtimeBusinessRepository(
         "/api/v1/production-records",
         recordQuery(input),
       ),
+    getValidationPreview: (domain, id) =>
+      client.get<BusinessValidationPreview>(
+        `/api/v1/${domain}-records/${encodeURIComponent(id)}/validation-preview`,
+      ),
     getProduction: (id) =>
       client.get<ProductionRecordRow>(
         `/api/v1/production-records/${encodeURIComponent(id)}`,
@@ -2883,6 +2902,8 @@ export function createRealtimeBusinessRepository(
       ),
     listLogistics: (input) =>
       client.get<Page<LogisticsRecordRow>>("/api/v1/logistics-records", {
+        scope: input.scope,
+        ...(input.recovery ? { recovery: "true" } : {}),
         productCode: input.productCode,
         pageNumber: input.page ?? 0,
         pageSize: input.pageSize ?? 100,

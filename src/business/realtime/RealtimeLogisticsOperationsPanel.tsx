@@ -1,3 +1,4 @@
+import { serverFieldErrors } from "./realtimeSubmissionValidation";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import {
   importFailureMessage,
@@ -89,7 +90,6 @@ export function RealtimeLogisticsOperationsPanel({
   repository = realtimeBusinessRepository,
   editorOnly = false,
   mode = "entry",
-  permissions = [],
   refreshToken = 0,
   initialRecordId,
   onCancel,
@@ -113,6 +113,7 @@ export function RealtimeLogisticsOperationsPanel({
   );
   const [records, setRecords] = useState<readonly LogisticsRecordRow[]>([]);
   const [selected, setSelected] = useState<LogisticsRecordRow | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const selectedRecordId = useRef<string | undefined>(initialRecordId);
   const formDirty = useRef(false);
   const [recordLoadState, setRecordLoadState] = useState<
@@ -188,11 +189,69 @@ export function RealtimeLogisticsOperationsPanel({
     setMessage("已新建空白物流记录，保存后生成正式记录");
   }
 
+  useEffect(() => {
+    if (
+      !selected ||
+      !fields.length ||
+      !repository.getValidationPreview ||
+      formDirty.current
+    )
+      return;
+    let cancelled = false;
+    void repository
+      .getValidationPreview("logistics", selected.id)
+      .then((preview) => {
+        if (cancelled || formDirty.current) return;
+        if (
+          preview.id !== selected.id ||
+          preview.version !== selected.version
+        ) {
+          setError("记录已发生变化，请刷新原记录后再校验。");
+          return;
+        }
+        setFieldErrors(
+          preview.fieldValidationPassed
+            ? {}
+            : serverFieldErrors(
+                new RealtimeApiError({
+                  status: 400,
+                  code: preview.code ?? "FIELD_INVALID",
+                  message: preview.message,
+                  details: preview.details,
+                }),
+                fields,
+              ),
+        );
+        setError(
+          preview.fieldValidationPassed
+            ? ""
+            : (new RealtimeApiError({
+                status: 400,
+                code: preview.code ?? "FIELD_INVALID",
+                message: preview.message,
+              }).clientMessage ?? "旧记录未通过校验，请核对填写内容。"),
+        );
+        setMessage(
+          preview.fieldValidationPassed
+            ? "字段与坐标校验通过；保存时仍会核对样本关联、重复记录和版本。"
+            : "旧记录未通过校验，请查看字段标记并修正后保存。",
+        );
+      })
+      .catch(() => {
+        if (!cancelled && !formDirty.current)
+          setError("校验结果读取失败，请刷新原记录后重试。");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, fields, repository]);
+
   const openRecord = useCallback(
     async (id: string) => {
       selectedRecordId.current = id;
       setRecordLoadState("loading");
       setSelected(null);
+      setFieldErrors({});
       setBusy(true);
       setError("");
       try {
@@ -276,6 +335,7 @@ export function RealtimeLogisticsOperationsPanel({
       setMessage("保存成功");
       onSaved?.();
     } catch (saveError) {
+      setFieldErrors(serverFieldErrors(saveError, fields));
       setError(
         saveError instanceof RealtimeApiError
           ? (saveError.clientMessage ?? "物流记录校验失败，请核对填报内容。")
@@ -517,7 +577,8 @@ export function RealtimeLogisticsOperationsPanel({
                     <strong>
                       {record.displayValues.LOGISTICS_NODE ??
                         record.values.LOGISTICS_NODE ??
-                        record.id}
+                        record.values.LOG_SAMPLE_NAME ??
+                        "物流记录"}
                     </strong>
                     <span>{statusLabel(record.status)}</span>
                   </button>
@@ -533,7 +594,7 @@ export function RealtimeLogisticsOperationsPanel({
           <header>
             <strong>
               {selected
-                ? `${selected.id} · ${statusLabel(selected.status)}`
+                ? `${selected.values.LOG_SAMPLE_NAME || "物流记录"} · ${statusLabel(selected.status)}`
                 : recordLoadState === "loading"
                   ? "正在读取原物流记录"
                   : recordLoadState === "failed"
@@ -567,12 +628,27 @@ export function RealtimeLogisticsOperationsPanel({
                       <output aria-label={field.label}>{readOnlyValue}</output>
                     ) : field.options.length > 0 ? (
                       <select
+                        aria-invalid={
+                          Boolean(fieldErrors[field.code]) || undefined
+                        }
+                        aria-describedby={
+                          fieldErrors[field.code]
+                            ? `log-error-${field.code}`
+                            : undefined
+                        }
                         aria-label={field.label}
                         required={field.required}
                         value={values[field.code] ?? ""}
                         onChange={(event) =>
                           setValues((current) => {
                             formDirty.current = true;
+                            setFieldErrors((errors) =>
+                              Object.fromEntries(
+                                Object.entries(errors).filter(
+                                  ([code]) => code !== field.code,
+                                ),
+                              ),
+                            );
                             return {
                               ...current,
                               [field.code]: event.target.value,
@@ -589,6 +665,14 @@ export function RealtimeLogisticsOperationsPanel({
                       </select>
                     ) : (
                       <input
+                        aria-invalid={
+                          Boolean(fieldErrors[field.code]) || undefined
+                        }
+                        aria-describedby={
+                          fieldErrors[field.code]
+                            ? `log-error-${field.code}`
+                            : undefined
+                        }
                         aria-label={field.label}
                         max={
                           field.code === "LOG_SAMPLE_LATITUDE"
@@ -612,6 +696,13 @@ export function RealtimeLogisticsOperationsPanel({
                         onChange={(event) =>
                           setValues((current) => {
                             formDirty.current = true;
+                            setFieldErrors((errors) =>
+                              Object.fromEntries(
+                                Object.entries(errors).filter(
+                                  ([code]) => code !== field.code,
+                                ),
+                              ),
+                            );
                             return {
                               ...current,
                               [field.code]: event.target.value,
@@ -619,6 +710,15 @@ export function RealtimeLogisticsOperationsPanel({
                           })
                         }
                       />
+                    )}
+                    {fieldErrors[field.code] && (
+                      <span
+                        id={`log-error-${field.code}`}
+                        className="submission-field-error"
+                        role="alert"
+                      >
+                        {fieldErrors[field.code]}
+                      </span>
                     )}
                   </label>
                 );

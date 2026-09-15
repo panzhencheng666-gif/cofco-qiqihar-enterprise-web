@@ -1,3 +1,4 @@
+import { LegacyRecordRecoveryPanel } from "../realtime/LegacyRecordRecoveryPanel";
 import { importFailureMessage } from "@/business/importing/businessImportPresentation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -672,6 +673,16 @@ export function LogisticsMonitoringWorkspace({
       <div className="enterprise-ledger-workbench__breadcrumb">
         物流监测 / 物流业务监测
       </div>
+      {queryAllowed && realtimeRepository && onEditRecord && !selection && (
+        <LegacyRecordRecoveryPanel
+          key={`logistics:${productCode}`}
+          domain="logistics"
+          productCode={productCode}
+          repository={realtimeRepository}
+          refreshToken={realtimeRefreshToken}
+          onOpen={onEditRecord}
+        />
+      )}
       <ExistingSampleObservationPanel
         domain="LOGISTICS"
         permissions={readOnly ? [] : permissions}
@@ -969,7 +980,9 @@ export function LogisticsMonitoringWorkspace({
                               setSelectedPersistedId(record.id);
                             }}
                           >
-                            {permissions.includes("BUSINESS_UPDATE") ? "修改记录" : "查看记录"}
+                            {permissions.includes("BUSINESS_UPDATE")
+                              ? "修改记录"
+                              : "查看记录"}
                           </button>
                           {record.values.__FORMAL_SAMPLE_ID &&
                             !readOnly &&
@@ -1054,7 +1067,9 @@ export function LogisticsMonitoringWorkspace({
                               }
                             }}
                           >
-                            {permissions.includes("BUSINESS_UPDATE") ? "修改记录" : "查看记录"}
+                            {permissions.includes("BUSINESS_UPDATE")
+                              ? "修改记录"
+                              : "查看记录"}
                           </button>
                         </td>
                       </tr>

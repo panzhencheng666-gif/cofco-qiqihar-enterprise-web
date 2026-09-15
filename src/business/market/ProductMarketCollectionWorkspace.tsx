@@ -1,3 +1,4 @@
+import { LegacyRecordRecoveryPanel } from "../realtime/LegacyRecordRecoveryPanel";
 import { CollectionRowActions } from "../CollectionRowActions";
 import { collectionColumnWidths } from "../collectionTableLayout";
 import { importFailureMessage } from "@/business/importing/businessImportPresentation";
@@ -1068,6 +1069,16 @@ export function ProductMarketCollectionWorkspace({
       <div className="enterprise-ledger-workbench__breadcrumb">
         市场监测 / {context.productLabel}市场采集
       </div>
+      {queryAllowed && realtimeRepository && onEditRecord && !selection && (
+        <LegacyRecordRecoveryPanel
+          key={`market:${productCode}`}
+          domain="market"
+          productCode={productCode}
+          repository={realtimeRepository}
+          refreshToken={realtimeRefreshToken}
+          onOpen={onEditRecord}
+        />
+      )}
       <ExistingSampleObservationPanel
         domain="MARKET"
         permissions={readOnly ? [] : permissions}
@@ -1438,7 +1449,9 @@ export function ProductMarketCollectionWorkspace({
                             });
                           }}
                         >
-                          {permissions.includes("BUSINESS_UPDATE") ? "修改记录" : "查看记录"}
+                          {permissions.includes("BUSINESS_UPDATE")
+                            ? "修改记录"
+                            : "查看记录"}
                         </button>
                         {row.samplePointId &&
                           !readOnly &&
