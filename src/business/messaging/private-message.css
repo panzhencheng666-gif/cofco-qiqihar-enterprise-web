@@ -1,0 +1,107 @@
+.private-message-entry {
+  position: relative;
+}
+.private-message-button svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+.private-message-button.is-unread {
+  color: #ffd36a;
+}
+.private-message-button b {
+  position: absolute;
+  right: -6px;
+  top: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #e24747;
+  color: #fff;
+  font: 700 11px/18px sans-serif;
+}
+.private-message-panel {
+  position: absolute;
+  right: 0;
+  top: 42px;
+  z-index: 100;
+  width: min(430px, 90vw);
+  max-height: 72vh;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #c7d7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #17263c;
+  box-shadow: 0 16px 44px rgba(16, 35, 61, 0.28);
+}
+.private-message-panel > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.private-message-panel button {
+  cursor: pointer;
+}
+.private-message-panel > nav {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.private-message-panel > nav button[aria-pressed="true"] {
+  background: #174f91;
+  color: #fff;
+}
+.private-message-panel form {
+  display: grid;
+  gap: 12px;
+}
+.private-message-panel form label {
+  display: grid;
+  gap: 5px;
+}
+.private-message-panel input,
+.private-message-panel textarea {
+  border: 1px solid #aebfd3;
+  border-radius: 5px;
+  padding: 8px;
+}
+.private-message-panel textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+.private-message-panel fieldset {
+  display: flex;
+  gap: 18px;
+  border: 0;
+  padding: 0;
+}
+.private-message-list {
+  display: grid;
+  gap: 8px;
+}
+.private-message-list > button {
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  border: 1px solid #d6e0ed;
+  border-radius: 7px;
+  background: #fff;
+  padding: 10px;
+}
+.private-message-list > button.is-unread {
+  border-left: 4px solid #e6a52e;
+  background: #fffaf0;
+}
+.private-message-list span,
+.private-message-list small {
+  color: #687a91;
+  font-size: 12px;
+}
+.private-message-list p {
+  margin: 0;
+  white-space: pre-wrap;
+}

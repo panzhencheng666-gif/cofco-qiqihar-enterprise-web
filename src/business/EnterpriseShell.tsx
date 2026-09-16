@@ -16,6 +16,7 @@ import {
   type FormalShellIdentity,
 } from "./formalEnterpriseData";
 import { EnterpriseIcon } from "./EnterpriseIcon";
+import { PrivateMessageEnvelope } from "./messaging/PrivateMessageEnvelope";
 import {
   createFormalRoute,
   marketSectionProductCode,
@@ -497,6 +498,7 @@ export function EnterpriseShell({
                   >
                     <EnterpriseIcon name="help" />
                   </button>
+                  <PrivateMessageEnvelope />
                 </>
               }
               notification={

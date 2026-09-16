@@ -15,6 +15,15 @@ export default tseslint.config(
     rules: tseslint.configs.disableTypeChecked.rules,
   },
   {
+    files: ["public/session-recovery-v1.js"],
+    languageOptions: { globals: globals.browser },
+  },
+  {
+    files: ["scripts/session-recovery-smoke.cjs"],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       globals: globals.browser,
