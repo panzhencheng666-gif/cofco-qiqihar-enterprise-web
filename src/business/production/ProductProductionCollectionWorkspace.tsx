@@ -1,4 +1,3 @@
-import { LegacyRecordRecoveryPanel } from "../realtime/LegacyRecordRecoveryPanel";
 import { CollectionRowActions } from "../CollectionRowActions";
 import { collectionColumnWidths } from "../collectionTableLayout";
 import { importFailureMessage } from "@/business/importing/businessImportPresentation";
@@ -1093,16 +1092,6 @@ export function ProductProductionCollectionWorkspace({
       <div className="enterprise-ledger-workbench__breadcrumb">
         产情监测 / {context.productLabel}产情填报
       </div>
-      {queryAllowed && realtimeRepository && onEditRecord && !selection && (
-        <LegacyRecordRecoveryPanel
-          key={`production:${productCode}`}
-          domain="production"
-          productCode={productCode}
-          repository={realtimeRepository}
-          refreshToken={realtimeRefreshToken}
-          onOpen={onEditRecord}
-        />
-      )}
       <ExistingSampleObservationPanel
         domain="PRODUCTION"
         permissions={readOnly ? [] : permissions}

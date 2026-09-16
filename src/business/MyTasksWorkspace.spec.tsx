@@ -111,11 +111,11 @@ describe("monitoring and task boundary", () => {
       ),
     );
   });
-  it("shows no list or create action for an unassigned ordinary account", () => {
+  it("opens the business list for an unassigned ordinary account", () => {
     render(
       <MyTasksWorkspace
         {...common}
-        repository={{} as RealtimeBusinessRepository}
+        repository={{ listEligibleFormalSamples: vi.fn().mockResolvedValue([]) } as unknown as RealtimeBusinessRepository}
         session={
           {
             regionCodes: [],
@@ -129,7 +129,7 @@ describe("monitoring and task boundary", () => {
         onViewRecord={vi.fn()}
       />,
     );
-    expect(screen.getByRole("status")).toHaveTextContent("暂未分配责任地区");
-    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.queryByText("暂未分配责任地区")).toBeNull();
+    expect(screen.getByRole("table")).toBeInTheDocument();
   });
 });

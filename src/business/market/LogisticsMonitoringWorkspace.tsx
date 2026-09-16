@@ -1,4 +1,3 @@
-import { LegacyRecordRecoveryPanel } from "../realtime/LegacyRecordRecoveryPanel";
 import { importFailureMessage } from "@/business/importing/businessImportPresentation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -673,16 +672,6 @@ export function LogisticsMonitoringWorkspace({
       <div className="enterprise-ledger-workbench__breadcrumb">
         物流监测 / 物流业务监测
       </div>
-      {queryAllowed && realtimeRepository && onEditRecord && !selection && (
-        <LegacyRecordRecoveryPanel
-          key={`logistics:${productCode}`}
-          domain="logistics"
-          productCode={productCode}
-          repository={realtimeRepository}
-          refreshToken={realtimeRefreshToken}
-          onOpen={onEditRecord}
-        />
-      )}
       <ExistingSampleObservationPanel
         domain="LOGISTICS"
         permissions={readOnly ? [] : permissions}

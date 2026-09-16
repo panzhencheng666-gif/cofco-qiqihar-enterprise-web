@@ -53,21 +53,12 @@ export function MyTasksWorkspace({
     () => taskRepository(repository),
     [repository],
   );
-  const assigned =
-    session.roleCodes.includes("ADMIN") ||
-    session.rootAdministrator ||
-    session.unassignedReporter ||
-    session.regionCodes.length > 0;
   const common = {
     scope: {
       ...scope,
       authorization: {
         ...scope.authorization,
-        authorizedRegionIds: (session.roleCodes.includes("ADMIN") ||
-        session.rootAdministrator ||
-        session.unassignedReporter
-          ? ["*"]
-          : session.regionCodes) as typeof scope.authorization.authorizedRegionIds,
+        authorizedRegionIds: ["*"] as unknown as typeof scope.authorization.authorizedRegionIds,
       },
     },
     onScopeChange,
@@ -139,9 +130,7 @@ export function MyTasksWorkspace({
           </div>
         </>
       )}
-      {!assigned ? (
-        <p role="status">暂未分配责任地区</p>
-      ) : domain === "production" ? (
+      {domain === "production" ? (
         <ProductionMonitoringWorkspace
           key={`${domain}:${product}`}
           {...common}

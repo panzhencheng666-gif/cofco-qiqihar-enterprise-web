@@ -1629,7 +1629,7 @@ describe("SamplePointGovernanceWorkspace", () => {
   });
 });
 
-it("keeps design samples read-only for ordinary accounts despite legacy update/import permissions", async () => {
+it("allows ordinary accounts to maintain and import design samples", async () => {
   render(
     <DesignSamplePointTable
       onListStateChange={vi.fn()}
@@ -1643,7 +1643,7 @@ it("keeps design samples read-only for ordinary accounts despite legacy update/i
     />,
   );
   expect(await screen.findByText("众兴村")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "新建设计样本" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "编辑" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "下载 XLSX 模板" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "新建设计样本" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "编辑众兴村" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "下载 XLSX 模板" })).toBeInTheDocument();
 });

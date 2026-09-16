@@ -107,6 +107,7 @@ export function DesignSamplePointTable({
   const [actionError, setActionError] = useState("");
   const hydratedSelection = useRef("");
   const canWrite =
+    session.permissions.includes("BUSINESS_UPDATE") ||
     session.rootAdministrator === true || session.roleCodes.includes("ADMIN");
   const canImport = canWrite;
   const showList = true;

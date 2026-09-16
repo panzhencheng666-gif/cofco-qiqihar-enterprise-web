@@ -189,63 +189,6 @@ export function RealtimeLogisticsOperationsPanel({
     setMessage("已新建空白物流记录，保存后生成正式记录");
   }
 
-  useEffect(() => {
-    if (
-      !selected ||
-      !fields.length ||
-      !repository.getValidationPreview ||
-      formDirty.current
-    )
-      return;
-    let cancelled = false;
-    void repository
-      .getValidationPreview("logistics", selected.id)
-      .then((preview) => {
-        if (cancelled || formDirty.current) return;
-        if (
-          preview.id !== selected.id ||
-          preview.version !== selected.version
-        ) {
-          setError("记录已发生变化，请刷新原记录后再校验。");
-          return;
-        }
-        setFieldErrors(
-          preview.fieldValidationPassed
-            ? {}
-            : serverFieldErrors(
-                new RealtimeApiError({
-                  status: 400,
-                  code: preview.code ?? "FIELD_INVALID",
-                  message: preview.message,
-                  details: preview.details,
-                }),
-                fields,
-              ),
-        );
-        setError(
-          preview.fieldValidationPassed
-            ? ""
-            : (new RealtimeApiError({
-                status: 400,
-                code: preview.code ?? "FIELD_INVALID",
-                message: preview.message,
-              }).clientMessage ?? "旧记录未通过校验，请核对填写内容。"),
-        );
-        setMessage(
-          preview.fieldValidationPassed
-            ? "字段与坐标校验通过；保存时仍会核对样本关联、重复记录和版本。"
-            : "旧记录未通过校验，请查看字段标记并修正后保存。",
-        );
-      })
-      .catch(() => {
-        if (!cancelled && !formDirty.current)
-          setError("校验结果读取失败，请刷新原记录后重试。");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selected, fields, repository]);
-
   const openRecord = useCallback(
     async (id: string) => {
       selectedRecordId.current = id;
