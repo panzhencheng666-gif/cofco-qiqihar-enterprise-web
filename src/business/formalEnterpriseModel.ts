@@ -18,7 +18,14 @@ export const formalSectionsByApplication = {
     "task-design",
     "task-regional",
   ],
-  overview: ["operations", "risks", "duty", "releases", "map"],
+  overview: [
+    "operations",
+    "risks",
+    "duty",
+    "releases",
+    "map",
+    "periodic-reports",
+  ],
   production: [
     "corn-collection",
     "soybean-collection",
@@ -102,6 +109,7 @@ const formalBusinessRouteNames = {
       duty: "履责情况",
       releases: "结果发布",
       map: "总揽监测",
+      "periodic-reports": "周期总结",
     },
   },
   production: {

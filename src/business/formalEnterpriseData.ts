@@ -249,6 +249,10 @@ export const formalApplicationDefinitions: readonly FormalApplicationDefinition[
           route: createFormalRoute("overview", "map"),
           label: "总揽监测",
         },
+        {
+          route: createFormalRoute("overview", "periodic-reports"),
+          label: "周期总结",
+        },
         { route: createFormalRoute("overview", "risks"), label: "风险事项" },
         { route: createFormalRoute("overview", "duty"), label: "履责监督" },
         { route: createFormalRoute("overview", "releases"), label: "发布成果" },

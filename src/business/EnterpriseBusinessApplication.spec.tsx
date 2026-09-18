@@ -957,6 +957,40 @@ describe("formal enterprise prototype", () => {
     expect(subscribeBusinessEvents).not.toHaveBeenCalled();
   });
 
+  it("opens periodic reports inside the current enterprise shell", async () => {
+    const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession({ positions: [] })),
+      loadMasterData: vi.fn(() =>
+        Promise.resolve({ products: [], periods: [], regions: [] }),
+      ),
+      listWorkItems: vi.fn(() =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      ),
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: () => () => {},
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <EnterpriseBusinessApplication
+        dataMode="api"
+        initialSearch="?page=overview&section=periodic-reports"
+        repository={repository}
+      />,
+    );
+
+    expect(await screen.findByTitle("齐齐哈尔粮食商情周期总结")).toBeVisible();
+    expect(screen.getByText("周期总结").closest("button")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
   it("shows the production ledger without mounting the entry form by default", async () => {
     const listObjectTypes = vi.fn(() =>
       Promise.resolve([{ code: "FARMER", name: "农户", domain: "PRODUCTION" }]),
@@ -1383,7 +1417,7 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(19);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(20);
     expect(within(navigation).queryByText("产情任务")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("数据审核")).not.toBeInTheDocument();
     expect(within(navigation).getByText("玉米产情监测")).toBeVisible();

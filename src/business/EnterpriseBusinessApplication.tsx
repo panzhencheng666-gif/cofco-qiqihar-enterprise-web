@@ -29,6 +29,7 @@ import {
 import { EnterpriseShell } from "./EnterpriseShell";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
+import { PeriodicReportsFrame } from "./PeriodicReportsFrame";
 import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
 import { FormalSupplyDemandWorkspace } from "./SupplyDemandWorkspace";
 import { RegionalAnnualProductionWorkspace } from "./production/RegionalAnnualProductionWorkspace";
@@ -986,6 +987,9 @@ export function EnterpriseBusinessApplication({
       case "overview":
         if (location.route.section === "map") {
           return <OverviewMonitoringFrame />;
+        }
+        if (location.route.section === "periodic-reports") {
+          return <PeriodicReportsFrame />;
         }
         return (
           <FormalExecutiveOverviewWorkspace
