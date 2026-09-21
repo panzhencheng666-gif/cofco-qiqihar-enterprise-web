@@ -341,7 +341,7 @@ describe("product market collection workspace", () => {
     expect(within(row).getByText("1250.5000")).toBeVisible();
     expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: "查看照片" })).toBeNull();
-    expect(within(row).getByRole("button", { name: "查看记录" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "修改记录" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
     await userEvent.click(
       within(row).getByRole("button", { name: "更多操作" }),
@@ -355,7 +355,7 @@ describe("product market collection workspace", () => {
       screen.getByRole("button", { name: "淘汰为历史" }),
     ).toBeInTheDocument();
     await userEvent.click(
-      within(row).getByRole("button", { name: "查看记录" }),
+      within(row).getByRole("button", { name: "修改记录" }),
     );
     expect(onEditRecord).toHaveBeenCalledWith("CORN", "MKT-DB-001");
     await userEvent.click(within(row).getByRole("button", { name: "编辑" }));
@@ -979,7 +979,7 @@ describe("product market collection workspace", () => {
     );
     expect(
       await screen.findByText(
-        "导入完成：2 行已处理，合格行已自动提交审核，失败 0 行。",
+        "导入完成：2 行已处理，合格行已校验并入库，失败 0 行。",
       ),
     ).toBeVisible();
     await waitFor(() => expect(listMarket).toHaveBeenCalledTimes(3));

@@ -25,7 +25,7 @@ describe("business import status", () => {
     );
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "导入完成：2 行已处理，合格行已自动提交审核，失败 0 行。",
+      "导入完成：2 行已处理，合格行已校验并入库，失败 0 行。",
     );
     expect(screen.queryByText(/草稿/u)).not.toBeInTheDocument();
     expect(
@@ -84,7 +84,7 @@ describe("business import status", () => {
     );
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "导入完成：1 行已处理，合格行已自动提交审核，失败 2 行。请下载错误清单核对。",
+      "导入完成：1 行已处理，合格行已校验并入库，失败 2 行。请下载错误清单核对。",
     );
     await user.click(screen.getByRole("button", { name: "下载错误清单" }));
     expect(screen.getByText("填写范例")).toBeVisible();

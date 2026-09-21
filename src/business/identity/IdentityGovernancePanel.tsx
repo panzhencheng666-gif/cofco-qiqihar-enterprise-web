@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Drawer } from "antd";
+import { EnterpriseDrawer } from "@/shared/enterprise-ui";
 import { RegionResponsibilityDirectory } from "./RegionResponsibilityDirectory";
 import type {
   AccessReviewCampaign,
@@ -1938,7 +1938,7 @@ export function IdentityGovernancePanel({
                   </>
                 )}
                 {editor && (
-                  <Drawer
+                  <EnterpriseDrawer
                     open
                     title={editor.invite ? "邀请员工" : "员工设置"}
                     width="min(560px, 100vw)"
@@ -1990,7 +1990,7 @@ export function IdentityGovernancePanel({
                       loadingOptions={loadingAssignmentOptions}
                       optionsReady={assignmentOptionsReady}
                     />
-                  </Drawer>
+                  </EnterpriseDrawer>
                 )}
               </div>
               {responsibilityEditor && (
@@ -2226,7 +2226,7 @@ export function IdentityGovernancePanel({
                 </table>
               </div>
               {selectedReview && (
-                <Drawer
+                <EnterpriseDrawer
                   open
                   width="min(800px, 100vw)"
                   title="权限复核明细"
@@ -2339,7 +2339,7 @@ export function IdentityGovernancePanel({
                       </button>
                     )}
                   </section>
-                </Drawer>
+                </EnterpriseDrawer>
               )}
             </section>
           )}

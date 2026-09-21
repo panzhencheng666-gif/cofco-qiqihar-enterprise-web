@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Drawer } from "antd";
+import { EnterpriseDrawer } from "@/shared/enterprise-ui";
 import type {
   EmployeeProfile,
   IdentityAssignmentOptions,
@@ -147,7 +147,7 @@ export function SampleResponsibilityEditor({
     groups.set(parentLabel, [...(groups.get(parentLabel) ?? []), code]);
   }
   return (
-    <Drawer
+    <EnterpriseDrawer
       open
       title={readOnly ? "样本责任明细" : "设置负责地区"}
       width="min(960px, 100vw)"
@@ -342,6 +342,6 @@ export function SampleResponsibilityEditor({
           )}
         </div>
       </footer>
-    </Drawer>
+    </EnterpriseDrawer>
   );
 }
