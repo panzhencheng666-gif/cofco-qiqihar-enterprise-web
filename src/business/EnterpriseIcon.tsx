@@ -1,4 +1,5 @@
 export type EnterpriseIconName =
+  | "people"
   | "apps"
   | "home"
   | "work"
@@ -27,6 +28,12 @@ export type EnterpriseIconName =
   | "plus";
 
 const paths: Record<EnterpriseIconName, readonly string[]> = {
+  people: [
+    "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
+    "M2 21v-2a7 7 0 0 1 14 0v2Z",
+    "M17 4a4 4 0 0 1 0 7",
+    "M18 14a6 6 0 0 1 4 5v2",
+  ],
   apps: [
     "M5 5h3v3H5z",
     "M10.5 5h3v3h-3z",
@@ -58,15 +65,8 @@ const paths: Record<EnterpriseIconName, readonly string[]> = {
     "M12 17h.01",
   ],
   settings: [
-    "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z",
-    "M12 3v2",
-    "M12 19v2",
-    "M3 12h2",
-    "M19 12h2",
-    "M6.5 6.5 8 8",
-    "M16 16l1.5 1.5",
-    "M17.5 6.5 16 8",
-    "M8 16l-1.5 1.5",
+    "m10 3-1 3-3 1-2 2 1 3-1 3 2 2 3 1 1 3h4l1-3 3-1 2-2-1-3 1-3-2-2-3-1-1-3z",
+    "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
   ],
   collapse: ["m14 6-6 6 6 6", "M20 4v16"],
   expand: ["m10 6 6 6-6 6", "M4 4v16"],

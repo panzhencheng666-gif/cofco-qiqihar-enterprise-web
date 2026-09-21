@@ -18,6 +18,13 @@ try {
   await p.locator("#cofco-sms-tab").click();
   await expect(p.locator("#cofco-sms-login")).toBeVisible();
   await expect(p.locator("#kc-form-login")).toBeHidden();
+  await p.locator("#cofco-email-tab").click();
+  await expect(p.locator("#cofco-email-login")).toBeVisible();
+  await expect(p.locator("#cofco-login-email")).toHaveAttribute(
+    "type",
+    "email",
+  );
+  await expect(p.locator("#cofco-sms-login")).toBeHidden();
   await p.locator("#cofco-password-tab").click();
   await expect(p.locator("#kc-form-login")).toBeVisible();
   await p.goto(origin + "/register.html");
@@ -81,6 +88,18 @@ try {
     fullPage: true,
   });
   await expect(p.locator('[name="phone_number"]')).toBeVisible();
+  await expect(p.locator('[name="email"]')).toBeVisible();
+  await expect(p.locator('[name="email"]')).toHaveAttribute("required", "");
+  await expect(p.locator('[name="cofco-verification-method"]')).toHaveCount(2);
+  await expect(
+    p.locator('[name="cofco-verification-method"][value="PHONE"]'),
+  ).toBeChecked();
+  await p.locator('[name="cofco-verification-method"][value="EMAIL"]').check();
+  await expect(p.locator('[name="phone_number"]')).not.toHaveAttribute(
+    "required",
+    "",
+  );
+  await expect(p.locator("#cofco-code-label")).toHaveText("邮箱验证码 *");
   await expect(p.locator("#password")).toBeVisible();
   await p.setViewportSize({ width: 390, height: 844 });
   if (await p.evaluate(() => document.documentElement.scrollWidth > innerWidth))

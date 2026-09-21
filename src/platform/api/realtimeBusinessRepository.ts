@@ -281,6 +281,12 @@ export interface FormalSampleMaintainerView {
 }
 
 export interface SamplePointImportResult {
+  rowErrors?: readonly {
+    rowNumber: number;
+    worksheet?: string | null;
+    field: string;
+    message: string;
+  }[];
   id: string;
   statusCode: "COMPLETED" | "COMPLETED_WITH_ERRORS";
   importedRows: number;
@@ -421,6 +427,7 @@ export interface ReportPublication {
 
 export interface CurrentSession {
   rootAdministrator?: boolean;
+  unassignedReporter?: boolean;
   subjectId: string;
   displayName: string;
   workUnitCode: string;
@@ -999,6 +1006,7 @@ export interface SupplyInputSetRow {
 }
 
 export interface ProductionImportJob {
+  rowErrors?: readonly { rowNumber: number; field: string; message: string }[];
   id: string;
   actionJobId?: string;
   domainCode: string;
@@ -2080,6 +2088,8 @@ export function createRealtimeBusinessRepository(
     string,
     Promise<ObservableAnalysisSnapshot>
   >();
+  let masterDataSnapshot: DefinitionCacheEntry<MasterDataSnapshot> | undefined;
+  let masterDataRequest: Promise<MasterDataSnapshot> | undefined;
   function cachedDefinitionRead<T>(
     cache: Map<string, DefinitionCacheEntry<T>>,
     requests: Map<string, Promise<T>>,
@@ -2102,6 +2112,36 @@ export function createRealtimeBusinessRepository(
         requests.delete(key);
       });
     requests.set(key, request);
+    return request;
+  }
+  function loadPageEntryMasterData(): Promise<MasterDataSnapshot> {
+    if (masterDataSnapshot && masterDataSnapshot.expires > Date.now()) {
+      return Promise.resolve(masterDataSnapshot.value);
+    }
+    if (masterDataRequest) return masterDataRequest;
+    const request = Promise.all([
+      client.get<MasterProduct[]>("/api/v1/master-data/products"),
+      client.get<MasterPeriod[]>("/api/v1/master-data/business-periods"),
+      client.get<MasterRegion[]>("/api/v1/master-data/regions"),
+      client.get<{ years: readonly number[] }>("/api/v1/overview/options"),
+    ])
+      .then(([products, periods, regions, overviewOptions]) => {
+        const snapshot = {
+          products,
+          periods,
+          regions,
+          approvedSurveyYears: overviewOptions.years,
+        };
+        masterDataSnapshot = {
+          value: snapshot,
+          expires: Date.now() + 1_000,
+        };
+        return snapshot;
+      })
+      .finally(() => {
+        if (masterDataRequest === request) masterDataRequest = undefined;
+      });
+    masterDataRequest = request;
     return request;
   }
   return {
@@ -2429,20 +2469,7 @@ export function createRealtimeBusinessRepository(
       form.append("watermarkText", input.watermarkText);
       return client.upload<EvidencePhotoRow>("/api/v1/evidence-photos", form);
     },
-    async loadMasterData() {
-      const [products, periods, regions, overviewOptions] = await Promise.all([
-        client.get<MasterProduct[]>("/api/v1/master-data/products"),
-        client.get<MasterPeriod[]>("/api/v1/master-data/business-periods"),
-        client.get<MasterRegion[]>("/api/v1/master-data/regions"),
-        client.get<{ years: readonly number[] }>("/api/v1/overview/options"),
-      ]);
-      return {
-        products,
-        periods,
-        regions,
-        approvedSurveyYears: overviewOptions.years,
-      };
-    },
+    loadMasterData: loadPageEntryMasterData,
     listProducts: (domain, pageKind) =>
       client.get<readonly MasterProduct[]>("/api/v1/master-data/products", {
         domain,
@@ -2875,6 +2902,7 @@ export function createRealtimeBusinessRepository(
       ),
     listLogistics: (input) =>
       client.get<Page<LogisticsRecordRow>>("/api/v1/logistics-records", {
+        scope: input.scope,
         productCode: input.productCode,
         pageNumber: input.page ?? 0,
         pageSize: input.pageSize ?? 100,

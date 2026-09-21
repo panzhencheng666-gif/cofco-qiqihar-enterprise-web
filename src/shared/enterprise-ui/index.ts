@@ -7,6 +7,7 @@ export * from "./EnterpriseLifecyclePanel";
 export * from "./EnterpriseMetricGrid";
 export * from "./EnterpriseNoticePanel";
 export * from "./EnterpriseObjectDrawer";
+export * from "./EnterpriseOverlays";
 export * from "./EnterprisePage";
 export * from "./EnterpriseReviewPanel";
 export * from "./EnterpriseTable";

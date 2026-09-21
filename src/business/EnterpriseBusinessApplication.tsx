@@ -1,3 +1,4 @@
+import { sessionRoleLabel } from "./EnterprisePlatformHeader";
 import { taskRepository } from "./taskRepository";
 import {
   clearAutomaticLoginAttempt,
@@ -26,10 +27,9 @@ import {
   createFixtureBusinessReportWorkflow,
 } from "./businessReportWorkflow";
 import { EnterpriseShell } from "./EnterpriseShell";
-import { IdentityGovernancePanel } from "./identity/IdentityGovernancePanel";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
-import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
+import { PeriodicReportsFrame } from "./PeriodicReportsFrame";
 import { FormalSupplyDemandWorkspace } from "./SupplyDemandWorkspace";
 import { RegionalAnnualProductionWorkspace } from "./production/RegionalAnnualProductionWorkspace";
 import { SupplyBalanceWorkspace } from "./SupplyBalanceWorkspace";
@@ -54,10 +54,7 @@ import {
 import { realtimeBusinessRepository } from "@/platform/api/realtimeBusinessRepository";
 import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import { ALL_AUTHORIZED_REGION_CODE } from "@/platform/api/observableAnalysisContract";
-import {
-  enterpriseLoginPath,
-  enterpriseLogoutPath,
-} from "@/platform/api/browserSession";
+import { enterpriseLoginPath } from "@/platform/api/browserSession";
 import type {
   BusinessNotificationRow,
   CurrentSession,
@@ -92,6 +89,12 @@ const HistoricalSampleWorkspace = lazy(() =>
 const MyTasksWorkspace = lazy(() =>
   import("./MyTasksWorkspace").then((module) => ({
     default: module.MyTasksWorkspace,
+  })),
+);
+
+const FormalProductionMonitoringWorkspace = lazy(() =>
+  import("./ProductionMonitoringWorkspace").then((module) => ({
+    default: module.FormalProductionMonitoringWorkspace,
   })),
 );
 
@@ -415,9 +418,7 @@ export function EnterpriseBusinessApplication({
   operationalIdentity,
   dataMode,
   repository = realtimeBusinessRepository,
-  identityManagementUrl,
   loginUrl,
-  logoutUrl,
 }: EnterpriseBusinessApplicationProps) {
   const environment = import.meta.env as unknown as Readonly<
     Record<string, unknown>
@@ -433,12 +434,6 @@ export function EnterpriseBusinessApplication({
     });
   const realtimeMode = runtimeDataMode === "api";
   const resolvedLoginUrl = loginUrl ?? enterpriseLoginPath;
-  const resolvedIdentityManagementUrl =
-    identityManagementUrl ??
-    (typeof environment["VITE_IDENTITY_MANAGEMENT_URL"] === "string"
-      ? environment["VITE_IDENTITY_MANAGEMENT_URL"]
-      : undefined);
-  const resolvedLogoutUrl = logoutUrl ?? enterpriseLogoutPath;
   const [initialActivationToken] = useState<string | null>(() =>
     realtimeMode ? captureInvitationActivationToken() : null,
   );
@@ -630,9 +625,6 @@ export function EnterpriseBusinessApplication({
       : "当前填报人");
   const [reportContext, setReportContext] =
     useState<BusinessReportContext | null>(null);
-  const [identityPanelView, setIdentityPanelView] = useState<
-    "profile" | "organization" | null
-  >(null);
   const [reportWorkflow] = useState(() =>
     realtimeMode
       ? createEmptyBusinessReportWorkflow()
@@ -722,7 +714,11 @@ export function EnterpriseBusinessApplication({
     ) {
       setRealtimeEntryProductCode(productCode);
       setRealtimeEntryRecordId(selection.id);
-      setRealtimeEntryMode("view");
+      setRealtimeEntryMode(
+        currentSession?.permissions.includes("BUSINESS_UPDATE")
+          ? "entry"
+          : "view",
+      );
       setRealtimeEntryDomain(domain);
     }
     navigate(...parameters);
@@ -997,6 +993,9 @@ export function EnterpriseBusinessApplication({
         if (location.route.section === "map") {
           return <OverviewMonitoringFrame />;
         }
+        if (location.route.section === "periodic-reports") {
+          return <PeriodicReportsFrame />;
+        }
         return (
           <FormalExecutiveOverviewWorkspace
             section={location.route.section}
@@ -1011,7 +1010,9 @@ export function EnterpriseBusinessApplication({
         if (realtimeMode && location.route.section === "regional-annual") {
           return (
             <RegionalAnnualProductionWorkspace
-              canWrite={false}
+              canWrite={
+                currentSession?.permissions.includes("BUSINESS_UPDATE") === true
+              }
               authorizedRegionCodes={["*"]}
               repository={repository}
             />
@@ -1056,7 +1057,11 @@ export function EnterpriseBusinessApplication({
                 ? (productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
-                    setRealtimeEntryMode("view");
+                    setRealtimeEntryMode(
+                      currentSession?.permissions.includes("BUSINESS_UPDATE")
+                        ? "entry"
+                        : "view",
+                    );
                     setRealtimeEntryDomain("production");
                   }
                 : undefined
@@ -1113,7 +1118,11 @@ export function EnterpriseBusinessApplication({
                 ? (domain, productCode, recordId) => {
                     setRealtimeEntryProductCode(productCode);
                     setRealtimeEntryRecordId(recordId);
-                    setRealtimeEntryMode("view");
+                    setRealtimeEntryMode(
+                      currentSession?.permissions.includes("BUSINESS_UPDATE")
+                        ? "entry"
+                        : "view",
+                    );
                     setRealtimeEntryDomain(domain);
                   }
                 : undefined
@@ -1160,7 +1169,11 @@ export function EnterpriseBusinessApplication({
               onViewRecord={(domain, product, id) => {
                 setRealtimeEntryProductCode(product);
                 setRealtimeEntryRecordId(id);
-                setRealtimeEntryMode("view");
+                setRealtimeEntryMode(
+                  currentSession?.permissions.includes("BUSINESS_UPDATE")
+                    ? "entry"
+                    : "view",
+                );
                 setRealtimeEntryDomain(domain);
               }}
             />
@@ -1175,10 +1188,7 @@ export function EnterpriseBusinessApplication({
         ) {
           return (
             <RegionalAnnualProductionWorkspace
-              canWrite={
-                currentSession.rootAdministrator === true ||
-                currentSession.roleCodes.includes("ADMIN")
-              }
+              canWrite={currentSession.permissions.includes("BUSINESS_UPDATE")}
               authorizedRegionCodes={["*"]}
               repository={repository}
             />
@@ -1224,7 +1234,11 @@ export function EnterpriseBusinessApplication({
               onViewRecord={(domain, product, id) => {
                 setRealtimeEntryProductCode(product);
                 setRealtimeEntryRecordId(id);
-                setRealtimeEntryMode("view");
+                setRealtimeEntryMode(
+                  currentSession?.permissions.includes("BUSINESS_UPDATE")
+                    ? "entry"
+                    : "view",
+                );
                 setRealtimeEntryDomain(domain);
               }}
             />
@@ -1269,7 +1283,7 @@ export function EnterpriseBusinessApplication({
           label={
             realtimeEntryRecordId
               ? realtimeEntryMode === "review"
-                ? "物流监测单据审核"
+                ? "物流监测记录详情"
                 : realtimeEntryMode === "view"
                   ? "物流监测记录详情"
                   : "补充物流监测填报"
@@ -1301,8 +1315,8 @@ export function EnterpriseBusinessApplication({
           realtimeEntryRecordId
             ? realtimeEntryMode === "review"
               ? realtimeEntryDomain === "production"
-                ? "产情单据审核"
-                : "市场单据审核"
+                ? "产情记录详情"
+                : "市场记录详情"
               : realtimeEntryMode === "view"
                 ? realtimeEntryDomain === "production"
                   ? "产情记录详情"
@@ -1374,7 +1388,13 @@ export function EnterpriseBusinessApplication({
           : undefined
       }
       onBusinessNotificationRead={markBusinessNotificationRead}
-      onIdentityOpen={setIdentityPanelView}
+      identityPageUrl="/identity.html"
+      identityRoleLabel={sessionRoleLabel(currentSession)}
+      canManageIdentity={
+        currentSession?.permissions.some((permission) =>
+          ["IDENTITY_READ", "ACCESS_REVIEW", "AUDIT_READ"].includes(permission),
+        ) ?? false
+      }
       shellIdentity={shellIdentity}
       scope={scope}
       queryAllowed={queryAllowed}
@@ -1458,16 +1478,6 @@ export function EnterpriseBusinessApplication({
         {workspace}
       </Suspense>
       {realtimeEntry}
-      {realtimeMode && currentSession && identityPanelView && (
-        <IdentityGovernancePanel
-          identityManagementUrl={resolvedIdentityManagementUrl}
-          initialView={identityPanelView}
-          logoutUrl={resolvedLogoutUrl}
-          onClose={() => setIdentityPanelView(null)}
-          repository={repository}
-          session={currentSession}
-        />
-      )}
       {!realtimeMode && reportContext && (
         <BusinessReportComposer
           actorPost={reportActorPosts[scope.identity.postId] ?? "当前登录角色"}

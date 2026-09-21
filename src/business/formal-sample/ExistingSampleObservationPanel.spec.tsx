@@ -413,7 +413,7 @@ describe("ExistingSampleObservationPanel", () => {
     expect(api.saveFormalSampleObservation).not.toHaveBeenCalled();
   });
 
-  it("preserves the locked sample when a direct observation route is queried again", async () => {
+  it("opens a locked sample directly without a redundant search form", async () => {
     const api = repository();
     render(
       <ExistingSampleObservationPanel
@@ -433,7 +433,10 @@ describe("ExistingSampleObservationPanel", () => {
     expect(
       await screen.findByRole("group", { name: "正式样本锁定信息" }),
     ).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "查询正式样本" }));
+    expect(
+      screen.queryByRole("region", { name: "已有正式样本查询" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("实际观测时间")).toBeVisible();
 
     expect(
       await screen.findByRole("group", { name: "正式样本锁定信息" }),
@@ -510,6 +513,7 @@ describe("ExistingSampleObservationPanel", () => {
     await openCollectionData();
     const address = await screen.findByRole("textbox", { name: "详细地址" });
     expect(address).toHaveValue(sample.address);
+    await userEvent.click(screen.getByText("对象资料"));
     expect(screen.getByText(sample.maintainerDisplayName!)).toBeVisible();
     await userEvent.clear(address);
     await userEvent.type(address, "龙江县测试路18号");
@@ -550,6 +554,7 @@ describe("ExistingSampleObservationPanel", () => {
         read: false,
       }),
     );
+    await userEvent.click(screen.getByText("对象资料"));
     expect(await screen.findByText("李维护")).toBeVisible();
     expect(screen.queryByText("王维护")).not.toBeInTheDocument();
   });
@@ -1927,9 +1932,9 @@ describe("ExistingSampleObservationPanel", () => {
       screen.getByRole("region", { name: "已有正式样本查询" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "填写或更新采集数据" }),
+      screen.getByRole("heading", { name: "玉米市场数据填报" }),
     ).toBeVisible();
-    expect(screen.getByRole("heading", { name: "本次正式观测" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "本次调查内容" })).toBeVisible();
     await waitFor(() =>
       expect(api.listFormalSampleObservationHistory).toHaveBeenCalled(),
     );
@@ -2007,7 +2012,7 @@ describe("ExistingSampleObservationPanel", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: /中粮生化能源/u }),
     );
-    expect(screen.getByRole("heading", { name: "本次正式观测" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "本次调查内容" })).toBeVisible();
     expect(
       screen.getByRole("combobox", { name: "样本业务地区" }),
     ).toBeEnabled();
@@ -2019,7 +2024,7 @@ describe("ExistingSampleObservationPanel", () => {
     const page = screen.getByRole("region", { name: "采集数据填写工作台" });
     const filters = screen.getByRole("region", { name: "已有正式样本查询" });
     expect(
-      identity.compareDocumentPosition(filters) &
+      filters.compareDocumentPosition(identity) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(within(identity).getByText(/深加工企业/u)).toBeVisible();

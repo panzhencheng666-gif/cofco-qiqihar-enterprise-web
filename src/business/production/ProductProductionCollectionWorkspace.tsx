@@ -1,3 +1,5 @@
+import { CollectionRowActions } from "../CollectionRowActions";
+import { collectionColumnWidths } from "../collectionTableLayout";
 import { importFailureMessage } from "@/business/importing/businessImportPresentation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -280,24 +282,31 @@ function cleanSubjectName(value: string): string {
 }
 
 function collectionStatus(item: BusinessWorkItem): string {
-  if (item.qualityStatus === "blocking") return "退回待补充";
-  if (item.reviewStatus === "returned") return "审核退回";
+  if (item.qualityStatus === "blocking") return "待修正";
+  if (item.reviewStatus === "returned") return "待修正";
   if (item.reviewStatus === "pending" || item.reviewStatus === "reviewing") {
-    return "待审核";
+    return "待校验";
   }
   if (item.reviewStatus === "approved" && item.qualityStatus === "passed") {
-    return "已核定";
+    return "已入库";
   }
   return "填写中";
 }
 
 function persistedProductionStatus(value: string | undefined): string {
-  if (value === "已审核" || value === "已核定" || value === "APPROVED")
-    return "已核定";
-  if (value === "已退回" || value === "RETURNED") return "审核退回";
+  if (
+    value === "已审核" ||
+    value === "已核定" ||
+    value === "APPROVED" ||
+    value === "已入库"
+  )
+    return "已入库";
+  if (value === "已退回" || value === "RETURNED") return "待修正";
   if (value === "已作废" || value === "VOIDED") return "已作废";
-  if (value === "待审核" || value === "SUBMITTED") return "待审核";
-  return "填写中";
+  if (value === "待校验" || value === "SUBMITTED") return "待校验";
+  if (value === "DRAFT" || value === "草稿" || value === "填写中")
+    return "填写中";
+  return "状态未提供";
 }
 
 function persistedValue(
@@ -309,12 +318,6 @@ function persistedValue(
     if (value !== undefined && value !== "") return value;
   }
   return "—";
-}
-
-function businessDate(item: BusinessWorkItem | undefined): string {
-  if (!item) return "当前调查期";
-  const date = new Date(item.deadline);
-  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
 export function ProductProductionCollectionWorkspace({
@@ -926,7 +929,7 @@ export function ProductProductionCollectionWorkspace({
         validation:
           persistedProductionStatus(record.values.PROD_STATUS) === "已核定"
             ? "校验通过"
-            : "等待审核校验",
+            : "等待自动校验",
         lastSaved: formatRealFillingTime(record.values, "PROD"),
         status: persistedProductionStatus(record.values.PROD_STATUS),
       };
@@ -963,7 +966,6 @@ export function ProductProductionCollectionWorkspace({
     (currentPageNumber + 1) * collectionPageSize,
     rowTotal,
   );
-  const sourceItem = productItems[0];
   const selectedItem =
     selection?.type === "work-item"
       ? productItems.find(({ workId }) => workId === selection.id)
@@ -987,6 +989,104 @@ export function ProductProductionCollectionWorkspace({
   ).length;
   const qualityFields = getGrainQualityFields(context.productId);
 
+  const columnWidths = collectionColumnWidths(
+    realtimeRepository ? formalLedgerFields.length : 26 + qualityFields.length,
+  );
+
+  const renderRowActions = (row: ProductionCollectionRow) => (
+    <CollectionRowActions>
+      <button
+        className="enterprise-ledger-row-action"
+        type="button"
+        disabled={
+          Boolean(row.samplePointId) &&
+          !row.values.__FORMAL_LATEST_OBSERVATION_ID
+        }
+        onClick={() => {
+          if (
+            realtimeRepository &&
+            onEditRecord &&
+            (!row.samplePointId || row.values.__FORMAL_LATEST_OBSERVATION_ID)
+          ) {
+            onEditRecord(productCode, row.workId);
+            return;
+          }
+          onSelectionChange({
+            type: "work-item",
+            id: row.workId,
+          });
+        }}
+      >
+        {permissions.includes("BUSINESS_UPDATE") ? "修改记录" : "查看记录"}
+      </button>
+      {row.samplePointId &&
+        !readOnly &&
+        (permissions.includes("FORMAL_SAMPLE_MANAGE") ||
+          permissions.includes("BUSINESS_CREATE")) && (
+          <button
+            className="enterprise-ledger-row-action"
+            type="button"
+            onClick={() =>
+              onSelectionChange({
+                type: "formal-sample-observation",
+                id: row.samplePointId!,
+              })
+            }
+          >
+            编辑
+          </button>
+        )}
+      {row.samplePointId &&
+        !readOnly &&
+        permissions.includes("FORMAL_SAMPLE_DELETE") && (
+          <button
+            className="enterprise-ledger-row-action"
+            type="button"
+            onClick={() => {
+              if (!realtimeRepository?.deleteFormalSamplePoint) return;
+              if (
+                !window.confirm(
+                  `确认删除“${row.subject}”？删除后将从当前台账和分析中移除，历史审计仍保留。`,
+                )
+              )
+                return;
+              void realtimeRepository
+                .deleteFormalSamplePoint(
+                  row.samplePointId!,
+                  row.sampleVersion ?? 0,
+                )
+                .then(() => setRecordsRevision((value) => value + 1))
+                .catch((error: unknown) =>
+                  setRecordsError(
+                    error instanceof RealtimeApiError && error.clientMessage
+                      ? error.clientMessage
+                      : "样本点删除失败，请稍后重试。",
+                  ),
+                );
+            }}
+          >
+            彻底删除
+          </button>
+        )}
+      {row.samplePointId &&
+        !readOnly &&
+        permissions.includes("FORMAL_SAMPLE_DELETE") && (
+          <button
+            className="enterprise-ledger-row-action"
+            type="button"
+            onClick={() =>
+              onSelectionChange({
+                type: "formal-sample-view",
+                id: row.samplePointId!,
+              })
+            }
+          >
+            淘汰为历史
+          </button>
+        )}
+    </CollectionRowActions>
+  );
+
   return (
     <div className="enterprise-ledger-workbench">
       <div className="enterprise-ledger-workbench__breadcrumb">
@@ -1002,6 +1102,18 @@ export function ProductProductionCollectionWorkspace({
         onSelectionClear={onSelectionClear}
         onSaved={() => setRecordsRevision((value) => value + 1)}
       >
+        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
+          <div className="business-page-intro">
+            <h1>{context.productLabel}产情调查表</h1>
+            <p>
+              {surveyYear}年{surveyMonth ? `${Number(surveyMonth)}月` : "全年"}{" "}
+              · 样本调查记录与填报内容
+            </p>
+            <p className="enterprise-ledger-title__sample-note">
+              {annualSampleStatusNote(surveyYear)}
+            </p>
+          </div>
+        </header>
         <section
           aria-label={`${context.productLabel}产情查询条件`}
           className="enterprise-ledger-query enterprise-ledger-query--production"
@@ -1193,13 +1305,6 @@ export function ProductProductionCollectionWorkspace({
           onDownloadErrors={() => void downloadImportErrors()}
           onRetry={() => void retryImport()}
         />
-        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
-          <h1>{context.productLabel}产情调查表</h1>
-          <p>{businessDate(sourceItem)} · 当前授权地区 · 当前样本点</p>
-          <p className="enterprise-ledger-title__sample-note">
-            {annualSampleStatusNote(surveyYear)}
-          </p>
-        </header>
 
         <section
           aria-label={`${context.productLabel}产情调查表区域`}
@@ -1283,7 +1388,19 @@ export function ProductProductionCollectionWorkspace({
             )}
           </div>
           <div className="enterprise-ledger-table__scroll" tabIndex={0}>
-            <table aria-label={`${context.productLabel}产情调查表`}>
+            <table
+              aria-label={`${context.productLabel}产情调查表`}
+              className="collection-table-standard"
+              style={{
+                width: columnWidths.reduce((total, width) => total + width, 0),
+                minWidth: "100%",
+              }}
+            >
+              <colgroup>
+                {columnWidths.map((width, index) => (
+                  <col key={index} style={{ width }} />
+                ))}
+              </colgroup>
               <>
                 <thead>
                   <tr>
@@ -1380,10 +1497,12 @@ export function ProductProductionCollectionWorkspace({
                       <td>{row.number}</td>
                       <td>{row.surveyDate}</td>
                       <td>{row.lastSaved}</td>
-                      <th scope="row">{row.subject}</th>
+                      <th scope="row" title={row.subject}>
+                        {row.subject}
+                      </th>
                       <td>{row.objectType}</td>
-                      <td>{row.region}</td>
-                      <td>{row.address}</td>
+                      <td title={row.region}>{row.region}</td>
+                      <td title={row.address}>{row.address}</td>
                       <td>{row.maintainer}</td>
                       <td>{row.surveyor}</td>
                       <td>{row.reporter}</td>
@@ -1444,102 +1563,8 @@ export function ProductProductionCollectionWorkspace({
                           <td>{row.validation}</td>
                         </>
                       )}
-                      <td>
-                        <button
-                          className="enterprise-ledger-row-action"
-                          type="button"
-                          disabled={
-                            Boolean(row.samplePointId) &&
-                            !row.values.__FORMAL_LATEST_OBSERVATION_ID
-                          }
-                          onClick={() => {
-                            if (
-                              realtimeRepository &&
-                              onEditRecord &&
-                              (!row.samplePointId ||
-                                row.values.__FORMAL_LATEST_OBSERVATION_ID)
-                            ) {
-                              onEditRecord(productCode, row.workId);
-                              return;
-                            }
-                            onSelectionChange({
-                              type: "work-item",
-                              id: row.workId,
-                            });
-                          }}
-                        >
-                          查看记录
-                        </button>
-                        {row.samplePointId &&
-                          !readOnly &&
-                          permissions.includes("FORMAL_SAMPLE_MANAGE") && (
-                            <button
-                              className="enterprise-ledger-row-action"
-                              type="button"
-                              onClick={() =>
-                                onSelectionChange({
-                                  type: "formal-sample-observation",
-                                  id: row.samplePointId!,
-                                })
-                              }
-                            >
-                              编辑
-                            </button>
-                          )}
-                        {row.samplePointId &&
-                          !readOnly &&
-                          permissions.includes("FORMAL_SAMPLE_DELETE") && (
-                            <button
-                              className="enterprise-ledger-row-action"
-                              type="button"
-                              onClick={() => {
-                                if (
-                                  !realtimeRepository?.deleteFormalSamplePoint
-                                )
-                                  return;
-                                if (
-                                  !window.confirm(
-                                    `确认删除“${row.subject}”？删除后将从当前台账和分析中移除，历史审计仍保留。`,
-                                  )
-                                )
-                                  return;
-                                void realtimeRepository
-                                  .deleteFormalSamplePoint(
-                                    row.samplePointId!,
-                                    row.sampleVersion ?? 0,
-                                  )
-                                  .then(() =>
-                                    setRecordsRevision((value) => value + 1),
-                                  )
-                                  .catch((error: unknown) =>
-                                    setRecordsError(
-                                      error instanceof RealtimeApiError &&
-                                        error.clientMessage
-                                        ? error.clientMessage
-                                        : "样本点删除失败，请稍后重试。",
-                                    ),
-                                  );
-                              }}
-                            >
-                              彻底删除
-                            </button>
-                          )}
-                        {row.samplePointId &&
-                          !readOnly &&
-                          permissions.includes("FORMAL_SAMPLE_DELETE") && (
-                            <button
-                              className="enterprise-ledger-row-action"
-                              type="button"
-                              onClick={() =>
-                                onSelectionChange({
-                                  type: "formal-sample-view",
-                                  id: row.samplePointId!,
-                                })
-                              }
-                            >
-                              淘汰为历史
-                            </button>
-                          )}
+                      <td className="collection-actions-cell">
+                        {renderRowActions(row)}
                       </td>
                     </tr>
                   ))}
@@ -1562,9 +1587,10 @@ export function ProductProductionCollectionWorkspace({
             </table>
           </div>
           <footer>
-            <span>
-              本页已填 {completedFields} 项，缺失 {missingFields} 项，异常{" "}
-              {abnormalRows} 项
+            <span className="collection-table-page-size">
+              {realtimeRepository
+                ? `每页 ${collectionPageSize} 条`
+                : `本页已填 ${completedFields} 项，缺失 ${missingFields} 项，异常 ${abnormalRows} 项`}
             </span>
             <WorkspacePagination
               end={rowEnd}

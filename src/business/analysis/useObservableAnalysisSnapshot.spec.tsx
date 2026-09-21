@@ -105,6 +105,9 @@ describe("observable analysis realtime state", () => {
     );
 
     const formalEvents = [
+      ["PRODUCTION_RECORD", "PRODUCTION_RECORD_SAVED"],
+      ["MARKET_RECORD", "MARKET_RECORD_SAVED"],
+      ["LOGISTICS_RECORD", "LOGISTICS_RECORD_SAVED"],
       ["PRODUCTION_RECORD", "PRODUCTION_RECORD_APPROVED"],
       ["MARKET_RECORD", "MARKET_RECORD_APPROVED"],
       ["LOGISTICS_RECORD", "LOGISTICS_RECORD_APPROVED"],

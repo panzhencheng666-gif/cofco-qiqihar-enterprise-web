@@ -114,10 +114,10 @@ const logisticsProducts = [
 
 const logisticsStatusLabels: Readonly<Record<string, string>> = {
   DRAFT: "填写中",
-  PENDING_REVIEW: "待审核",
-  SUBMITTED: "待审核",
-  APPROVED: "已核定",
-  RETURNED: "退回待补充",
+  PENDING_REVIEW: "待校验",
+  SUBMITTED: "待校验",
+  APPROVED: "已入库",
+  RETURNED: "待修正",
   VOIDED: "已作废",
 };
 
@@ -682,6 +682,18 @@ export function LogisticsMonitoringWorkspace({
         onSelectionClear={onSelectionClear}
         onSaved={() => setRecordsRevision((value) => value + 1)}
       >
+        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
+          <div className="business-page-intro">
+            <h1>粮食物流监测表</h1>
+            <p>
+              物流运输业务 · {surveyYear}年
+              {surveyMonth ? `${Number(surveyMonth)}月` : "全年"} · 当前授权地区
+            </p>
+          </div>
+          <span className="business-page-mode">
+            {readOnly ? "数据查看" : "业务办理"}
+          </span>
+        </header>
         <section
           aria-label="物流业务查询条件"
           className="enterprise-ledger-query enterprise-ledger-query--logistics"
@@ -820,14 +832,6 @@ export function LogisticsMonitoringWorkspace({
           onRetry={() => void retryImport()}
         />
 
-        <header className="enterprise-ledger-title enterprise-ledger-title--collection">
-          <h1>粮食物流监测表</h1>
-          <p>
-            物流运输业务 · {surveyYear}年
-            {surveyMonth ? `${Number(surveyMonth)}月` : "全年"} · 当前授权地区
-          </p>
-        </header>
-
         <section
           aria-label="粮食物流监测表区域"
           className="enterprise-ledger-table"
@@ -965,11 +969,14 @@ export function LogisticsMonitoringWorkspace({
                               setSelectedPersistedId(record.id);
                             }}
                           >
-                            查看记录
+                            {permissions.includes("BUSINESS_UPDATE")
+                              ? "修改记录"
+                              : "查看记录"}
                           </button>
                           {record.values.__FORMAL_SAMPLE_ID &&
                             !readOnly &&
-                            permissions.includes("FORMAL_SAMPLE_MANAGE") && (
+                            (permissions.includes("FORMAL_SAMPLE_MANAGE") ||
+                              permissions.includes("BUSINESS_CREATE")) && (
                               <button
                                 className="enterprise-ledger-row-action"
                                 type="button"
@@ -1049,7 +1056,9 @@ export function LogisticsMonitoringWorkspace({
                               }
                             }}
                           >
-                            查看记录
+                            {permissions.includes("BUSINESS_UPDATE")
+                              ? "修改记录"
+                              : "查看记录"}
                           </button>
                         </td>
                       </tr>

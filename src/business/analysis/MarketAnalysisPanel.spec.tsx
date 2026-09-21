@@ -164,7 +164,7 @@ describe("MarketAnalysisPanel", () => {
     );
     expect(screen.getByText("暂无核定数据")).toBeVisible();
     expect(
-      screen.getByText("当前范围暂无已审核的市场或物流分析数据。"),
+      screen.getByText("当前范围暂无可用于分析的市场或物流数据。"),
     ).toBeVisible();
     expect(
       screen.queryByRole("heading", { name: "价格运行" }),
@@ -221,10 +221,10 @@ describe("MarketAnalysisPanel", () => {
       "data-dashboard",
       "market",
     );
-    expect(container.firstElementChild).toHaveClass("analysis-workbench-page");
+    expect(container.firstElementChild).toHaveClass("analysis-showcase-page");
     expect(
       screen.getByRole("region", { name: "市场分析范围" }),
-    ).toHaveAttribute("data-layout", "linear-workbench");
+    ).toHaveAttribute("data-layout", "analytical-canvas");
     for (const heading of [
       "价格与购销",
       "库存与流通费用",
@@ -333,11 +333,11 @@ describe("MarketAnalysisPanel", () => {
       ),
     ).toBeVisible();
     expect(
-      container.querySelector(".observable-analysis-dashboard__masthead"),
+      container.querySelector(".analysis-showcase-masthead"),
     ).toBeVisible();
     expect(
       container.querySelector(
-        '.observable-analysis-dashboard__masthead[data-layout="linear-workbench"]',
+        '.analysis-showcase-masthead[data-layout="analytical-canvas"]',
       ),
     ).toBeVisible();
     expect(

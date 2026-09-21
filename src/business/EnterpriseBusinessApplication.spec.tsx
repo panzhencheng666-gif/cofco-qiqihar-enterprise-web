@@ -24,7 +24,10 @@ import type {
   ProductionDefinition,
   RealtimeBusinessRepository,
 } from "@/platform/api/realtimeBusinessRepository";
-import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
+import {
+  realtimeApiClient,
+  RealtimeApiError,
+} from "@/platform/api/realtimeApiClient";
 import {
   PRODUCTION_SURVEY_CONTRACT_DIGEST,
   PRODUCTION_SURVEY_CONTRACT_VERSION,
@@ -537,8 +540,75 @@ describe("formal enterprise prototype", () => {
     expect(loadMasterData).not.toHaveBeenCalled();
   });
 
+  it.each([
+    "?page=production&section=regional-annual",
+    "?page=work&section=task-regional",
+  ])(
+    "opens editable regional reporting for an unassigned ordinary account at %s",
+    async (initialSearch) => {
+      vi.spyOn(realtimeApiClient, "get").mockImplementation((path) =>
+        Promise.resolve(path.includes("regional-crop-summary") ? null : []),
+      );
+      const repository = {
+        loadCurrentSession: () =>
+          Promise.resolve(
+            apiSession({
+              roleCodes: [],
+              regionCodes: [],
+              permissions: [
+                "BUSINESS_READ",
+                "BUSINESS_CREATE",
+                "BUSINESS_UPDATE",
+              ],
+            }),
+          ),
+        loadMasterData: () =>
+          Promise.resolve({
+            products: [{ code: "CORN", name: "玉米" }],
+            periods: [],
+            approvedSurveyYears: [2026],
+            regions: [
+              {
+                code: "230200",
+                name: "齐齐哈尔市",
+                parentCode: null,
+                level: "PREFECTURE",
+              },
+              {
+                code: "230221",
+                name: "龙江县",
+                parentCode: "230200",
+                level: "COUNTY",
+              },
+            ],
+          }),
+        listWorkItems: () =>
+          Promise.resolve({
+            items: [],
+            pageNumber: 0,
+            pageSize: 100,
+            totalElements: 0,
+            totalPages: 0,
+          }),
+        listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+        subscribeBusinessEvents: () => () => undefined,
+      } as unknown as RealtimeBusinessRepository;
+      render(
+        <EnterpriseBusinessApplication
+          dataMode="api"
+          initialSearch={initialSearch}
+          repository={repository}
+        />,
+      );
+      await waitFor(() =>
+        expect(screen.getByLabelText("龙江县播种面积")).toBeEnabled(),
+      );
+      expect(screen.getByLabelText("龙江县单产")).toBeEnabled();
+      expect(screen.getByRole("button", { name: /保存/ })).toBeVisible();
+    },
+  );
+
   it("binds the authenticated organization and account menus to real governance data", async () => {
-    const user = userEvent.setup();
     const repository = {
       loadCurrentSession: () =>
         Promise.resolve({
@@ -583,25 +653,29 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
-    await user.click(
-      await screen.findByRole("button", { name: "当前用户：李主任" }),
-    );
+    const accountLink = await screen.findByRole("link", {
+      name: "当前用户：李主任",
+    });
+    const managementLink = screen.getByRole("link", {
+      name: "当前工作单位：齐齐哈尔经营部",
+    });
+    for (const [link, view] of [
+      [accountLink, "profile"],
+      [managementLink, "employees"],
+    ] as const) {
+      const target = new URL(
+        link.getAttribute("href")!,
+        window.location.origin,
+      );
+      expect(target.pathname).toBe("/identity.html");
+      expect(target.searchParams.get("view")).toBe(view);
+      expect(target.searchParams.get("returnTo")).toBe(
+        `/workbench/${window.location.search}${window.location.hash}`,
+      );
+    }
     expect(
-      screen.getByRole("dialog", { name: "账号与授权" }),
-    ).toHaveTextContent("管理员");
-    expect(
-      screen.getByRole("dialog", { name: "账号与授权" }),
-    ).not.toHaveTextContent("岗位");
-    await user.click(screen.getByRole("button", { name: "返回业务页面" }));
-    await user.click(
-      screen.getByRole("button", { name: "当前工作单位：齐齐哈尔经营部" }),
-    );
-    expect(
-      screen.getByRole("dialog", { name: "账号与授权" }),
-    ).toHaveTextContent("已分配 1 个可访问地区");
-    expect(
-      screen.getByRole("dialog", { name: "账号与授权" }),
-    ).not.toHaveTextContent("230200");
+      screen.queryByRole("dialog", { name: "账号与授权" }),
+    ).not.toBeInTheDocument();
   });
 
   it("refreshes authorized business data from the durable event stream without polling", async () => {
@@ -742,10 +816,11 @@ describe("formal enterprise prototype", () => {
       expect(listNotifications).toHaveBeenCalledTimes(1);
       expect(listWorkItems).toHaveBeenCalledTimes(1);
     });
-    expect(screen.getByRole("button", { name: /^通知/ })).toHaveTextContent(
-      "7",
-    );
-    await user.click(screen.getByRole("button", { name: /^通知/ }));
+    const notificationButton = screen.getByRole("button", {
+      name: "业务通知，7条未读",
+    });
+    expect(notificationButton).toHaveAttribute("title", "7条未读业务通知");
+    await user.click(notificationButton);
     await user.click(
       screen.getByRole("button", { name: /玉米产情记录已新建/ }),
     );
@@ -880,6 +955,40 @@ describe("formal enterprise prototype", () => {
     expect(loadMasterData).not.toHaveBeenCalled();
     expect(listNotifications).not.toHaveBeenCalled();
     expect(subscribeBusinessEvents).not.toHaveBeenCalled();
+  });
+
+  it("opens periodic reports inside the current enterprise shell", async () => {
+    const repository = {
+      loadCurrentSession: () => Promise.resolve(apiSession({ positions: [] })),
+      loadMasterData: vi.fn(() =>
+        Promise.resolve({ products: [], periods: [], regions: [] }),
+      ),
+      listWorkItems: vi.fn(() =>
+        Promise.resolve({
+          items: [],
+          pageNumber: 0,
+          pageSize: 100,
+          totalElements: 0,
+          totalPages: 0,
+        }),
+      ),
+      listNotifications: () => Promise.resolve({ items: [], unreadCount: 0 }),
+      subscribeBusinessEvents: () => () => {},
+    } as unknown as RealtimeBusinessRepository;
+
+    render(
+      <EnterpriseBusinessApplication
+        dataMode="api"
+        initialSearch="?page=overview&section=periodic-reports"
+        repository={repository}
+      />,
+    );
+
+    expect(await screen.findByTitle("齐齐哈尔粮食商情周期总结")).toBeVisible();
+    expect(screen.getByText("周期总结").closest("button")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("shows the production ledger without mounting the entry form by default", async () => {
@@ -1308,7 +1417,7 @@ describe("formal enterprise prototype", () => {
 
     expect(screen.getByText("齐齐哈尔粮食商情企业平台")).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "产情监测模块" });
-    expect(within(navigation).getAllByRole("button")).toHaveLength(19);
+    expect(within(navigation).getAllByRole("button")).toHaveLength(20);
     expect(within(navigation).queryByText("产情任务")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("数据审核")).not.toBeInTheDocument();
     expect(within(navigation).getByText("玉米产情监测")).toBeVisible();
@@ -1354,11 +1463,16 @@ describe("formal enterprise prototype", () => {
       <EnterpriseBusinessApplication initialSearch="?page=market&section=tasks" />,
     );
 
-    await user.click(
-      within(screen.getByRole("navigation", { name: "业务应用" })).getByRole(
-        "button",
-        { name: "供需分析" },
+    expect(
+      within(screen.getByRole("navigation", { name: "平台应用" })).getByRole(
+        "link",
+        { name: "业务工作台" },
       ),
+    ).toHaveAttribute("href", "/workbench/");
+    await user.click(
+      within(
+        screen.getByRole("navigation", { name: "市场监测模块" }),
+      ).getByRole("button", { name: "供需平衡" }),
     );
 
     expect(window.location.search).toBe("");

@@ -64,6 +64,20 @@ function setup(failInitialPreview = false) {
   return { api, onSaved };
 }
 describe("region responsibility editor", () => {
+  it("removes a selected responsibility through a fresh preview without saving", async () => {
+    const { api } = setup();
+    const remove = await screen.findByRole("button", {
+      name: "移除负责地区 县甲 / 镇甲",
+    });
+    await waitFor(() => expect(remove).toBeEnabled());
+    await userEvent.click(remove);
+    expect(api.previewRegionResponsibility).toHaveBeenLastCalledWith("user", {
+      regionCodes: [],
+    });
+    expect(api.saveRegionResponsibility).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "保存负责地区" })).toBeDisabled();
+  });
+
   it("reenables region selection after initial preview failure and successful retry", async () => {
     const user = userEvent.setup();
     setup(true);

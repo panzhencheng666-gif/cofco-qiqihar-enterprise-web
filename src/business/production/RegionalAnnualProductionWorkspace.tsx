@@ -307,10 +307,13 @@ export function RegionalAnnualProductionWorkspace({
         <div>
           <p>产情监测 / 地区年度数据</p>
           <h2>地区产情填报</h2>
-          <span>
-            可先保存播种面积，单产正式数据出来后再补填；总产在单产填报后由系统自动计算，同年度同地区同品种再次保存即更新当前值并保留历史。
-          </span>
+          <span>按地区管理年度播种面积、单产与总产，市级数据自动汇总。</span>
         </div>
+        {!canWrite && (
+          <p className="regional-readonly-note">
+            当前会话未取得填报权限，请重新登录后重试。
+          </p>
+        )}
       </header>
       <div className="regional-data-workspace__filters">
         <label>
@@ -364,6 +367,17 @@ export function RegionalAnnualProductionWorkspace({
             ))}
           </select>
         </label>
+      </div>
+      <div className="business-reporting-guide" aria-label="地区数据说明">
+        <strong>{canWrite ? "填报顺序" : "数据说明"}</strong>
+        <span>
+          {canWrite
+            ? "选择地区与年度 → 填写区县数据 → 按行保存"
+            : "区县数据逐级汇总，选择上方范围查看对应年度与品种。"}
+        </span>
+        <small>
+          播种面积可先保存，单产可后补；总产自动计算，修改保留历史。
+        </small>
       </div>
       {issue && (
         <p className="regional-data-workspace__issue" role="alert">

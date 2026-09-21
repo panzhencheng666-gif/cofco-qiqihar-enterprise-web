@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { EnterpriseModal } from "@/shared/enterprise-ui/EnterpriseModal";
+import { EnterpriseDrawer } from "@/shared/enterprise-ui";
 import type {
   EmployeeProfile,
   IdentityAssignmentOptions,
@@ -43,7 +43,10 @@ export function SampleResponsibilityEditor({
       repository.loadRegionResponsibility(employee.subjectId),
       readOnly
         ? Promise.resolve(null)
-        : repository.loadAssignmentOptions(employee.workUnitCode),
+        : repository.loadAssignmentOptions(
+            employee.workUnitCode,
+            employee.subjectId,
+          ),
     ])
       .then(async ([current, assignment]) => {
         if (!active) return;
@@ -144,12 +147,12 @@ export function SampleResponsibilityEditor({
     groups.set(parentLabel, [...(groups.get(parentLabel) ?? []), code]);
   }
   return (
-    <EnterpriseModal
+    <EnterpriseDrawer
       open
       title={readOnly ? "样本责任明细" : "设置负责地区"}
-      width={1120}
-      className="identity-region-modal"
-      onCancel={onCancel}
+      width="min(960px, 100vw)"
+      rootClassName="identity-responsibility-drawer"
+      onClose={onCancel}
       closable={!saving}
       maskClosable={!saving}
       keyboard={!saving}
@@ -169,6 +172,30 @@ export function SampleResponsibilityEditor({
         <p role="alert" className="identity-governance-error">
           {error}
         </p>
+      )}
+      {!readOnly && initialized && (
+        <section
+          className="identity-responsibility-selected"
+          aria-label="已选负责地区"
+        >
+          <h4>本次负责地区 · {codes.length}</h4>
+          <div>
+            {codes.map((code) => (
+              <button
+                key={code}
+                type="button"
+                disabled={saving || loading}
+                aria-label={`移除负责地区 ${label(code)}`}
+                onClick={() =>
+                  void refreshPreview(codes.filter((value) => value !== code))
+                }
+              >
+                {label(code)} <span aria-hidden="true">×</span>
+              </button>
+            ))}
+            {codes.length === 0 && <p>尚未选择负责地区</p>}
+          </div>
+        </section>
       )}
       <div className="identity-region-columns" data-readonly={readOnly}>
         {!readOnly && (
@@ -315,6 +342,6 @@ export function SampleResponsibilityEditor({
           )}
         </div>
       </footer>
-    </EnterpriseModal>
+    </EnterpriseDrawer>
   );
 }

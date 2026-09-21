@@ -1,3 +1,4 @@
+import { useDocumentSection } from "../useDocumentSection";
 import {
   importFailureMessage,
   importRefreshFailureMessage,
@@ -39,6 +40,11 @@ import {
 } from "./realtimeRecordFormModel";
 import { RealtimeRegionCascadePicker } from "./RealtimeRegionCascadePicker";
 
+import {
+  validateSubmissionFields,
+  submissionFailure,
+} from "./realtimeSubmissionValidation";
+
 type Domain = "production" | "market";
 type SelectedRecord = ProductionRecordRow | MarketRecordRow;
 type PanelMode = "entry" | "view" | "review";
@@ -52,9 +58,9 @@ function inputType(field: RealtimeFormField): string {
 function statusLabel(status: string | undefined): string {
   const labels: Readonly<Record<string, string>> = {
     DRAFT: "草稿",
-    PENDING_REVIEW: "待审核",
-    APPROVED: "审核通过",
-    RETURNED: "退回补充",
+    PENDING_REVIEW: "待校验",
+    APPROVED: "已入库",
+    RETURNED: "待修正",
     VOIDED: "已作废",
   };
   return status ? (labels[status] ?? status) : "新建填报";
@@ -157,7 +163,6 @@ export function RealtimeBusinessOperationsPanel({
   repository = realtimeBusinessRepository,
   editorOnly = false,
   mode = "entry",
-  permissions = [],
   refreshToken = 0,
   initialRecordId,
   onCancel,
@@ -192,14 +197,15 @@ export function RealtimeBusinessOperationsPanel({
   const [selected, setSelected] = useState<SelectedRecord | null>(null);
   const selectedRecordId = useRef<string | undefined>(initialRecordId);
   const formDirty = useRef(false);
+  const documentFormRef = useRef<HTMLFormElement>(null);
   const [recordLoadState, setRecordLoadState] = useState<
     "new" | "loading" | "loaded" | "failed"
   >(initialRecordId ? "loading" : "new");
   const [values, setValues] = useState<Record<string, string>>({});
-  const [returnReason, setReturnReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("正在读取业务配置…");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [importing, setImporting] = useState(false);
   const [importJob, setImportJob] = useState<ProductionImportJob | null>(null);
   const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
@@ -272,7 +278,7 @@ export function RealtimeBusinessOperationsPanel({
 
   const reload = useCallback(
     async (nextProductCode = productCode): Promise<void> => {
-      if (!nextProductCode) return;
+      if (!nextProductCode || editorOnly) return;
       const page =
         domain === "production"
           ? await repository.listProduction({
@@ -285,7 +291,7 @@ export function RealtimeBusinessOperationsPanel({
             });
       setRecords(page.items);
     },
-    [domain, productCode, repository],
+    [domain, editorOnly, productCode, repository],
   );
 
   useEffect(() => {
@@ -294,9 +300,11 @@ export function RealtimeBusinessOperationsPanel({
     const domainCode = domain === "production" ? "PRODUCTION" : "MARKET";
     void Promise.all([
       repository.listObjectTypes(productCode, domainCode),
-      domain === "production"
-        ? repository.listProduction({ productCode, pageSize: 100 })
-        : repository.listMarket({ productCode, pageSize: 100 }),
+      editorOnly
+        ? Promise.resolve({ items: [] })
+        : domain === "production"
+          ? repository.listProduction({ productCode, pageSize: 100 })
+          : repository.listMarket({ productCode, pageSize: 100 }),
     ])
       .then(([types, page]) => {
         if (cancelled) return;
@@ -318,7 +326,7 @@ export function RealtimeBusinessOperationsPanel({
     return () => {
       cancelled = true;
     };
-  }, [authenticatedName, domain, productCode, repository]);
+  }, [authenticatedName, domain, editorOnly, productCode, repository]);
 
   const objectTypeCode =
     values.objectTypeCode ||
@@ -410,6 +418,11 @@ export function RealtimeBusinessOperationsPanel({
   function edit(code: string, value: string) {
     if (isAccountLockedReporter(code)) return;
     formDirty.current = true;
+    setFieldErrors((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([key]) => key !== code),
+      ),
+    );
     setValues((current) => {
       if (code !== "objectTypeCode" && code !== "MKT_OBJECT_TYPE") {
         return { ...current, [code]: value };
@@ -455,6 +468,7 @@ export function RealtimeBusinessOperationsPanel({
       setRecordLoadState("loading");
       selectedRecordId.current = id;
       setSelected(null);
+      setFieldErrors({});
       setBusy(true);
       setError("");
       try {
@@ -513,9 +527,9 @@ export function RealtimeBusinessOperationsPanel({
   function newRecord() {
     formDirty.current = false;
     setSelected(null);
+    setFieldErrors({});
     selectedRecordId.current = undefined;
     setRecordLoadState("new");
-    setReturnReason("");
     setEvidenceFiles([]);
     setValues({
       objectTypeCode: objectTypes[0]?.code ?? "",
@@ -524,7 +538,7 @@ export function RealtimeBusinessOperationsPanel({
         ? { PROD_REPORTER_NAME: authenticatedName }
         : { MKT_REPORTER_NAME: authenticatedName }),
     });
-    setMessage("已新建空白填报，提交审核后生成正式记录");
+    setMessage("已新建空白填报，校验通过后生成正式记录");
     setError("");
   }
 
@@ -549,6 +563,21 @@ export function RealtimeBusinessOperationsPanel({
     }
     if (!selected && evidenceFiles.length > 5) {
       setError("现场照片最多上传 5 张。");
+      return;
+    }
+    const invalid = validateSubmissionFields(fields, values, options);
+    setFieldErrors(invalid);
+    if (Object.keys(invalid).length) {
+      setError(
+        `有 ${Object.keys(invalid).length} 项填写内容需要修正，请查看红色标记及原因。`,
+      );
+      requestAnimationFrame(() =>
+        documentFormRef.current
+          ?.querySelector<HTMLElement>(
+            'input[aria-invalid="true"], select[aria-invalid="true"]',
+          )
+          ?.focus(),
+      );
       return;
     }
     setBusy(true);
@@ -627,24 +656,26 @@ export function RealtimeBusinessOperationsPanel({
       );
       await reload(record.productCode);
       onRecordsChanged?.();
-      setMessage("提交审核成功");
+      setMessage("保存提交成功");
       onSaved?.();
-    } catch {
-      setError("保存并提交审核失败，请核对填报内容后重试。");
+    } catch (cause) {
+      const failure = submissionFailure(cause, fields);
+      setFieldErrors(failure.fields);
+      setError(failure.message);
+      requestAnimationFrame(() =>
+        documentFormRef.current
+          ?.querySelector<HTMLElement>(
+            'input[aria-invalid="true"], select[aria-invalid="true"]',
+          )
+          ?.focus(),
+      );
     } finally {
       setBusy(false);
     }
   }
 
-  async function transition(action: "submit" | "approve" | "return" | "void") {
+  async function transition(action: "void") {
     if (!selected) return;
-    if (
-      (action === "approve" && !permissions.includes("BUSINESS_APPROVE")) ||
-      (action === "return" && !permissions.includes("BUSINESS_RETURN"))
-    ) {
-      setError("当前账号没有该业务审核权限。");
-      return;
-    }
     setBusy(true);
     setError("");
     try {
@@ -654,22 +685,19 @@ export function RealtimeBusinessOperationsPanel({
               selected.id,
               action,
               selected.version,
-              action === "return" ? returnReason : undefined,
+              undefined,
             )
           : await repository.transitionMarket(
               selected.id,
               action,
               selected.version,
-              action === "return" ? returnReason : undefined,
+              undefined,
             );
       setSelected(record);
       formDirty.current = false;
       await reload(record.productCode);
       onRecordsChanged?.();
-      setMessage(
-        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : action === "return" ? "退回" : "作废"}成功`,
-      );
-      if (mode === "review" && action !== "submit") onSaved?.();
+      setMessage("作废成功");
     } catch {
       setError("业务状态处理失败，请稍后重试。");
     } finally {
@@ -783,40 +811,37 @@ export function RealtimeBusinessOperationsPanel({
   const canSave = mode === "entry" && (!selected || allowed.has("SAVE"));
   const readOnlyMode =
     mode === "view" || mode === "review" || (Boolean(selected) && !canSave);
-  const canApprove =
-    mode === "review" &&
-    permissions.includes("BUSINESS_APPROVE") &&
-    allowed.has("APPROVE");
-  const canReturn =
-    mode === "review" &&
-    permissions.includes("BUSINESS_RETURN") &&
-    allowed.has("RETURN");
   const existingRecordUnavailable =
     recordLoadState === "loading" || recordLoadState === "failed";
   const definitionReady = definitionState === "loaded" && definition !== null;
   const visibleError = definitionError || error;
+  const activeSection = useDocumentSection(
+    documentFormRef,
+    fieldSections.map(([name]) => name).join("|"),
+  );
+
   return (
     <section
       aria-label={
         domain === "production"
           ? mode === "review"
-            ? "产情单据审核"
+            ? "产情记录详情"
             : mode === "view"
               ? "产情记录详情"
               : "产情填报"
           : mode === "review"
-            ? "市场单据审核"
+            ? "市场记录详情"
             : mode === "view"
               ? "市场记录详情"
               : "市场采集"
       }
-      className="realtime-business-panel"
+      className={`realtime-business-panel${editorOnly ? " business-document-entry" : ""}`}
     >
       <header>
         <div>
           <span>
             {mode === "review"
-              ? "业务审核"
+              ? "业务查看"
               : mode === "view"
                 ? "业务查看"
                 : "业务填报"}
@@ -824,22 +849,22 @@ export function RealtimeBusinessOperationsPanel({
           <h2>
             {domain === "production"
               ? mode === "review"
-                ? "产情单据审核"
+                ? "产情记录详情"
                 : mode === "view"
                   ? "产情记录详情"
                   : "产情填报"
               : mode === "review"
-                ? "市场单据审核"
+                ? "市场记录详情"
                 : mode === "view"
                   ? "市场记录详情"
                   : "市场采集"}
           </h2>
           <p>
             {mode === "review"
-              ? "只读核对原业务单据、现场照片和当前状态，通过或填写原因退回；审核不会新建记录。"
+              ? "查看原业务记录、现场照片和当前状态。"
               : mode === "view"
                 ? "只读查看原业务记录及现场照片，不会修改或新建记录。"
-                : "按当前账号的业务范围填写记录，保存并提交后直接进入审核流程。"}
+                : "填写本次调查数据，带 * 的项目为必填项。保存结果以系统返回为准。"}
           </p>
         </div>
         <div className="realtime-business-header-actions">
@@ -927,11 +952,62 @@ export function RealtimeBusinessOperationsPanel({
             )}
           </aside>
         )}
-        <form onSubmit={(event) => void save(event)}>
+        {editorOnly && (
+          <nav
+            className="business-document__outline business-document-entry__outline"
+            aria-label="单据栏目"
+          >
+            <div className="business-document__context">
+              <span>
+                {mode === "view"
+                  ? "查看单据"
+                  : initialRecordId
+                    ? "补充填报"
+                    : "新建单据"}
+              </span>
+              <strong>
+                {productName(productCode, master)}
+                {domain === "production" ? "产情调查" : "市场采集"}
+              </strong>
+              <small>
+                {mode === "view"
+                  ? "原始业务记录 · 只读"
+                  : "按栏目填写，完成后统一保存"}
+              </small>
+            </div>
+            <strong>单据内容</strong>
+            {fieldSections.map(([section], index) => (
+              <button
+                key={section}
+                type="button"
+                aria-current={activeSection === index ? "location" : undefined}
+                onClick={() => {
+                  documentFormRef.current
+                    ?.querySelectorAll("fieldset")
+                    .item(index)
+                    ?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                }}
+              >
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                {section}
+              </button>
+            ))}
+          </nav>
+        )}
+        <form
+          noValidate
+          ref={documentFormRef}
+          onSubmit={(event) => void save(event)}
+        >
           <header>
             <strong>
               {selected
-                ? `${businessRecordLabel(values)} · ${statusLabel(selected.status)}`
+                ? mode === "view"
+                  ? businessRecordLabel(values)
+                  : `${businessRecordLabel(values)} · ${statusLabel(selected.status)}`
                 : recordLoadState === "loading"
                   ? "正在读取原业务记录"
                   : recordLoadState === "failed"
@@ -944,11 +1020,23 @@ export function RealtimeBusinessOperationsPanel({
               <fieldset
                 disabled={existingRecordUnavailable || readOnlyMode}
                 key={section}
+                data-compact={
+                  (sectionFields.length <= 2 &&
+                    sectionFields.every(
+                      (field) =>
+                        field.type !== "region" &&
+                        field.code !== "regionCode" &&
+                        field.code !== "MKT_REGION",
+                    )) ||
+                  undefined
+                }
               >
                 <legend>{section}</legend>
                 <div className="realtime-business-fields">
                   {sectionFields.map((field) => {
                     const fieldOptions = options(field);
+                    const fieldError = fieldErrors[field.code];
+                    const errorId = `${domain}-${field.code}-error`;
                     const accountLocked = isAccountLockedReporter(field.code);
                     const readOnly = accountLocked || field.readOnly;
                     const regionField =
@@ -965,6 +1053,8 @@ export function RealtimeBusinessOperationsPanel({
                           <span>{field.label} *</span>
                           <RealtimeRegionCascadePicker
                             ariaLabel={field.label}
+                            invalid={Boolean(fieldError)}
+                            describedBy={fieldError ? errorId : undefined}
                             requireVillage={false}
                             regions={master?.regions ?? []}
                             value={values[field.code] ?? ""}
@@ -972,6 +1062,14 @@ export function RealtimeBusinessOperationsPanel({
                               edit(field.code, regionCode)
                             }
                           />
+                          {fieldError && (
+                            <small
+                              className="submission-field-error"
+                              id={errorId}
+                            >
+                              {fieldError}
+                            </small>
+                          )}
                         </div>
                       );
                     }
@@ -991,6 +1089,8 @@ export function RealtimeBusinessOperationsPanel({
                           field.type === "select" ? (
                           <select
                             aria-label={field.label}
+                            aria-invalid={Boolean(fieldError) || undefined}
+                            aria-describedby={fieldError ? errorId : undefined}
                             required={field.required}
                             value={values[field.code] ?? ""}
                             onChange={(event) =>
@@ -1007,6 +1107,8 @@ export function RealtimeBusinessOperationsPanel({
                         ) : (
                           <input
                             aria-label={field.label}
+                            aria-invalid={Boolean(fieldError) || undefined}
+                            aria-describedby={fieldError ? errorId : undefined}
                             {...(field.type === "decimal"
                               ? decimalInputConstraints(
                                   field.precision,
@@ -1023,6 +1125,14 @@ export function RealtimeBusinessOperationsPanel({
                               edit(field.code, event.target.value)
                             }
                           />
+                        )}
+                        {fieldError && (
+                          <small
+                            className="submission-field-error"
+                            id={errorId}
+                          >
+                            {fieldError}
+                          </small>
                         )}
                       </label>
                     );
@@ -1099,7 +1209,7 @@ export function RealtimeBusinessOperationsPanel({
                 disabled={busy || !definitionReady || existingRecordUnavailable}
                 type="submit"
               >
-                保存并提交审核
+                保存入库
               </button>
             )}
             {mode === "entry" && selected && allowed.has("VOID") && (
@@ -1110,37 +1220,6 @@ export function RealtimeBusinessOperationsPanel({
               >
                 作废记录
               </button>
-            )}
-            {selected && canApprove && (
-              <button
-                disabled={busy}
-                type="button"
-                onClick={() => void transition("approve")}
-              >
-                审核通过
-              </button>
-            )}
-            {selected && canReturn && (
-              <>
-                <input
-                  aria-label="退回原因"
-                  placeholder="填写退回原因"
-                  value={returnReason}
-                  onChange={(event) => setReturnReason(event.target.value)}
-                />
-                <button
-                  disabled={busy || !returnReason.trim()}
-                  type="button"
-                  onClick={() => void transition("return")}
-                >
-                  退回补充
-                </button>
-              </>
-            )}
-            {mode === "review" && selected && !canApprove && !canReturn && (
-              <p role="status">
-                当前账号无可执行的审核操作，或该单据已离开待审核状态。
-              </p>
             )}
           </div>
           <p aria-live="polite" role={visibleError ? "alert" : "status"}>

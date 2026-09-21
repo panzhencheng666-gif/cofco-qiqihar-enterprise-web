@@ -274,7 +274,9 @@ export function FormalSamplePointLedger({
   const regionName = (code: string) =>
     regionNames.get(code) ?? "地区名称待同步";
   const busy = listBusy || detailBusy || deleteBusy || writeBusy;
-  const canManage = permissions.includes("FORMAL_SAMPLE_MANAGE");
+  const canManage =
+    permissions.includes("FORMAL_SAMPLE_MANAGE") ||
+    permissions.includes("BUSINESS_CREATE");
   const canCreate =
     canManage && typeof repository.createFormalSamplePoint === "function";
   const canUpdate =
@@ -591,8 +593,15 @@ export function FormalSamplePointLedger({
         if (event.sequence <= eventSequence.current) return;
         eventSequence.current = event.sequence;
         const observationChanged =
-          event.actionCode === "FORMAL_SAMPLE_OBSERVATION_SAVED" &&
-          event.productCode === productCode;
+          [
+            "FORMAL_SAMPLE_OBSERVATION_SAVED",
+            "PRODUCTION_RECORD_SAVED",
+            "MARKET_RECORD_SAVED",
+            "LOGISTICS_RECORD_SAVED",
+            "PRODUCTION_RECORD_VOIDED",
+            "MARKET_RECORD_VOIDED",
+            "LOGISTICS_RECORD_VOIDED",
+          ].includes(event.actionCode) && event.productCode === productCode;
         const samplePointChanged =
           event.aggregateType === "FORMAL_SAMPLE_POINT" ||
           event.actionCode.startsWith("FORMAL_SAMPLE_POINT_");

@@ -261,6 +261,12 @@ export default defineConfig({
     },
   },
   build: {
+    rollupOptions: {
+      input: {
+        index: resolve(import.meta.dirname, "index.html"),
+        identity: resolve(import.meta.dirname, "identity.html"),
+      },
+    },
     sourcemap: true,
     manifest: true,
     chunkSizeWarningLimit: 900,
@@ -318,6 +324,7 @@ export default defineConfig({
       "scripts/release-manifest.spec.mjs",
       "scripts/local-runtime-publish.spec.mjs",
       "scripts/local-runtime-smoke.spec.mjs",
+      "scripts/email-entry-visibility.spec.mjs",
       "scripts/preproduction-release-manifest.spec.mjs",
     ],
     restoreMocks: true,

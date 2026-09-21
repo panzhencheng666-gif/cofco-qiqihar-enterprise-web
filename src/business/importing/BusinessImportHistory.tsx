@@ -182,7 +182,7 @@ export function BusinessImportHistory({
         </span>
         <span>已完成 {statusCount("COMPLETED")}</span>
         <span className="business-import-history__summary-note">
-          导入通过后进入原业务审核流程
+          导入通过自动校验后直接入库
         </span>
       </div>
 

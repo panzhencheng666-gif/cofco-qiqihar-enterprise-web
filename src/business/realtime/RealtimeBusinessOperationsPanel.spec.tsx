@@ -560,6 +560,30 @@ function fillRequiredProductionFields() {
 }
 
 describe("RealtimeBusinessOperationsPanel", () => {
+  it("loads a standalone new document even when record-list loading is unavailable", async () => {
+    const { api } = repository();
+    const list = vi
+      .spyOn(api, "listProduction")
+      .mockRejectedValue(new Error("list unavailable"));
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="填报员"
+        domain="production"
+        editorOnly
+        lockedProductCode="CORN"
+        mode="entry"
+        repository={api}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "保存入库" })).toBeEnabled(),
+    );
+    expect(list).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText("业务记录读取失败，请稍后重试。"),
+    ).not.toBeInTheDocument();
+  });
+
   it("loads agricultural-input fields from the backend definition and clears old object values when switching types", async () => {
     const { api } = repository();
     vi.spyOn(api, "listObjectTypes").mockResolvedValue([
@@ -824,7 +848,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     await screen.findByText(/作废成功/);
     expect(screen.getByText(/已作废/)).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "保存并提交审核" }),
+      screen.queryByRole("button", { name: "保存入库" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "提交审核" }),
@@ -909,7 +933,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "产情单据审核" }),
+      await screen.findByRole("heading", { name: "产情记录详情" }),
     ).toBeVisible();
     expect(await screen.findByLabelText("填报人")).toHaveTextContent(
       "原始填报员",
@@ -940,27 +964,22 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(screen.getByLabelText("数据月份")).toBeDisabled();
     expect(screen.getByLabelText("填报日期")).toHaveTextContent("2026-08-09");
     expect(
-      screen.queryByRole("button", { name: "保存并提交审核" }),
+      screen.queryByRole("button", { name: "保存入库" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("新建填报")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "field.png" })).toHaveAttribute(
       "href",
       "/api/v1/evidence-photos/photo-review-1/content",
     );
-    expect(screen.getByRole("button", { name: "审核通过" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "退回补充" })).toBeDisabled();
-
-    fireEvent.click(screen.getByRole("button", { name: "审核通过" }));
-    await waitFor(() =>
-      expect(transitionProduction).toHaveBeenCalledWith(
-        pending.id,
-        "approve",
-        3,
-        undefined,
-      ),
-    );
+    expect(
+      screen.queryByRole("button", { name: "审核通过" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "退回补充" }),
+    ).not.toBeInTheDocument();
+    expect(transitionProduction).not.toHaveBeenCalled();
     expect(createProduction).not.toHaveBeenCalled();
-    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
   });
 
   it("does not expose review decisions without assigned review permissions", async () => {
@@ -1002,14 +1021,16 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
 
-    await screen.findByRole("heading", { name: "产情单据审核" });
+    await screen.findByRole("heading", { name: "产情记录详情" });
     expect(
       screen.queryByRole("button", { name: "审核通过" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "退回补充" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/当前账号无可执行的审核操作/)).toBeVisible();
+    expect(
+      screen.queryByText(/当前账号无可执行的审核操作/),
+    ).not.toBeInTheDocument();
   });
 
   it("does not expose editable actions after a record leaves an editable state", async () => {
@@ -1052,7 +1073,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(await screen.findByLabelText("数据年份")).toBeDisabled();
     expect(screen.getByLabelText("数据月份")).toBeDisabled();
     expect(
-      screen.queryByRole("button", { name: "保存并提交审核" }),
+      screen.queryByRole("button", { name: "保存入库" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "提交审核" }),
@@ -1083,9 +1104,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.getByText("原业务记录读取失败", { selector: "strong" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "保存并提交审核" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存入库" })).toBeDisabled();
     expect(screen.queryByLabelText("现场水印照片")).not.toBeInTheDocument();
     expect(createProduction).not.toHaveBeenCalled();
   });
@@ -1165,7 +1184,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
       />,
     );
 
-    await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(2));
+    expect(listProduction).not.toHaveBeenCalled();
     expect(getProduction).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText(/销售数量/)).toHaveValue(25);
   });
@@ -1518,9 +1537,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.queryByRole("group", { name: "现场照片" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "保存并提交审核" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存入库" })).toBeDisabled();
     expect(createProduction).not.toHaveBeenCalled();
   });
 
@@ -1583,9 +1600,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     expect(
       screen.getByText("原业务记录读取失败", { selector: "strong" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "保存并提交审核" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存入库" })).toBeDisabled();
   });
 
   it("searches the authorized region list before selecting a region", async () => {
@@ -1604,8 +1619,83 @@ describe("RealtimeBusinessOperationsPanel", () => {
     fireEvent.change(search, { target: { value: "黑河" } });
     const select = screen.getByRole("combobox", { name: "地级市" });
     expect(select).toHaveTextContent("黑河市");
+    expect(select).toHaveValue("231100");
     expect(select).not.toHaveTextContent("齐齐哈尔市");
     expect(select).not.toHaveTextContent("呼伦贝尔市");
+  });
+
+  it("marks all invalid submission fields and keeps data for correction", async () => {
+    const { api, createAndSubmitProduction } = repository();
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="张三"
+        domain="production"
+        lockedProductCode="CORN"
+        repository={api}
+        editorOnly
+      />,
+    );
+    await screen.findByRole("group", { name: "地区" });
+    fillRequiredProductionFields();
+    fireEvent.change(screen.getByLabelText("数据年份"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByLabelText("纬度"), {
+      target: { value: "99" },
+    });
+    fireEvent.submit(
+      screen.getByRole("button", { name: "保存入库" }).closest("form")!,
+    );
+    expect(screen.getByLabelText("数据年份")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByLabelText("纬度")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByText(/纬度须在/)).toHaveTextContent("-90 至 90");
+    expect(createAndSubmitProduction).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("播种面积")).toHaveValue(100);
+    fireEvent.change(screen.getByLabelText("数据年份"), {
+      target: { value: "2026" },
+    });
+    expect(screen.getByLabelText("数据年份")).not.toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  });
+
+  it("preserves the server validation reason when a submission fails", async () => {
+    const { api, createAndSubmitProduction } = repository();
+    createAndSubmitProduction.mockRejectedValue(
+      new RealtimeApiError({
+        status: 400,
+        code: "INVALID_PRODUCTION_DRAFT",
+        message: "播种面积不能为负数",
+      }),
+    );
+    render(
+      <RealtimeBusinessOperationsPanel
+        actorName="张三"
+        domain="production"
+        lockedProductCode="CORN"
+        repository={api}
+        editorOnly
+      />,
+    );
+    await screen.findByRole("group", { name: "地区" });
+    fillRequiredProductionFields();
+    fireEvent.submit(
+      screen.getByRole("button", { name: "保存入库" }).closest("form")!,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("播种面积不能为负数"),
+    );
+    expect(screen.getByLabelText("播种面积")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   });
 
   it("submits a new production record atomically without a photo", async () => {
@@ -1659,7 +1749,7 @@ describe("RealtimeBusinessOperationsPanel", () => {
     fillRequiredProductionFields();
 
     const saveButton = screen.getByRole("button", {
-      name: "保存并提交审核",
+      name: "保存入库",
     });
     await waitFor(() => expect(saveButton).not.toBeDisabled());
     fireEvent.submit(saveButton.closest("form") as HTMLFormElement);

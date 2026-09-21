@@ -111,11 +111,16 @@ describe("observable analysis cross-menu integration", () => {
       expect(data.loadObservableAnalysisSnapshot).toHaveBeenCalledTimes(26),
     );
     await waitFor(() => expect(data.activeListenerCount()).toBe(2));
-    await waitFor(() =>
-      expect(
-        container.querySelectorAll("[data-analysis-version]").length,
-      ).toBeGreaterThan(5),
-    );
+    await waitFor(() => {
+      for (const dashboard of ["production", "market"]) {
+        const page = container.querySelector(`[data-dashboard="${dashboard}"]`);
+        expect(page).not.toBeNull();
+        expect(page!.querySelector("[data-analysis-version]")).toHaveAttribute(
+          "data-analysis-version",
+          validSnapshot().analysisVersion,
+        );
+      }
+    });
     expect(versions(container)).toEqual(
       new Set([validSnapshot().analysisVersion]),
     );

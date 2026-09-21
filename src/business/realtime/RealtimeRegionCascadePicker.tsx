@@ -25,6 +25,35 @@ function pathTo(
   return path;
 }
 
+function similarity(name: string, query: string): number {
+  const normalize = (text: string) =>
+    text
+      .trim()
+      .toLocaleLowerCase()
+      .replace(
+        /(自治县|自治区|地级市|行政村|街道|地区|省|市|区|县|镇|乡|村)$/u,
+        "",
+      );
+  const a = normalize(name),
+    b = normalize(query);
+  if (!a || !b) return 0;
+  if (a === b) return 3;
+  if (a.includes(b)) return 2 + b.length / a.length;
+  if (b.length < 2) return 0;
+  let row = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++)
+      next[j] = Math.min(
+        next[j - 1] + 1,
+        row[j] + 1,
+        row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    row = next;
+  }
+  return 1 - row[b.length] / Math.max(a.length, b.length);
+}
+
 export function RealtimeRegionCascadePicker({
   regions,
   value,
@@ -33,6 +62,8 @@ export function RealtimeRegionCascadePicker({
   requireVillage = true,
   disabled = false,
   searchable = true,
+  invalid = false,
+  describedBy,
 }: {
   regions: readonly MasterRegion[];
   value: string;
@@ -41,6 +72,8 @@ export function RealtimeRegionCascadePicker({
   requireVillage?: boolean;
   disabled?: boolean;
   searchable?: boolean;
+  invalid?: boolean;
+  describedBy?: string;
 }) {
   const [queries, setQueries] = useState<Record<string, string>>({});
   const selectedPath = useMemo(() => pathTo(regions, value), [regions, value]);
@@ -51,6 +84,8 @@ export function RealtimeRegionCascadePicker({
   return (
     <div
       aria-label={ariaLabel}
+      aria-invalid={invalid || undefined}
+      aria-describedby={describedBy}
       className="realtime-region-cascade"
       role="group"
     >
@@ -60,18 +95,50 @@ export function RealtimeRegionCascadePicker({
           ? selectedByLevel.get(parentLevel)
           : null;
         const query = queries[level.code]?.trim().toLocaleLowerCase() ?? "";
-        const options = regions.filter((region) => {
+        const candidates = regions.filter((region) => {
           if (region.level.toUpperCase() !== level.code) return false;
           if (index > 0 && region.parentCode !== parentCode) return false;
-          return !query || region.name.toLocaleLowerCase().includes(query);
+          return true;
         });
         const enabled = index === 0 || Boolean(parentCode);
         const selected = selectedByLevel.get(level.code) ?? "";
+        const ranked = candidates
+          .map((region) => ({ region, score: similarity(region.name, query) }))
+          .sort(
+            (a, b) =>
+              b.score - a.score || a.region.code.localeCompare(b.region.code),
+          );
+        const options = query
+          ? ranked
+              .filter(
+                ({ region, score }) => score >= 0.5 || region.code === selected,
+              )
+              .map(({ region }) => region)
+          : candidates;
+        function search(text: string) {
+          setQueries((current) =>
+            Object.fromEntries([
+              ...Object.entries(current).filter(([code]) =>
+                levels.slice(0, index).some((item) => item.code === code),
+              ),
+              [level.code, text],
+            ]),
+          );
+          if (!text.trim()) return;
+          const best = candidates
+            .map((region) => ({ region, score: similarity(region.name, text) }))
+            .sort(
+              (a, b) =>
+                b.score - a.score || a.region.code.localeCompare(b.region.code),
+            )[0];
+          if (best && best.score >= 0.5) onChange(best.region.code);
+        }
 
         return (
           <label key={level.code}>
             <span>
               {level.label}
+              {searchable ? "搜索栏" : ""}
               {requireVillage && level.code === "VILLAGE" ? " *" : ""}
             </span>
             {searchable ? (
@@ -81,17 +148,14 @@ export function RealtimeRegionCascadePicker({
                 placeholder={`搜索${level.label}名称`}
                 type="search"
                 value={queries[level.code] ?? ""}
-                onChange={(event) =>
-                  setQueries((current) => ({
-                    ...current,
-                    [level.code]: event.target.value,
-                  }))
-                }
+                onChange={(event) => search(event.target.value)}
               />
             ) : null}
             <select
               aria-label={level.label}
               data-scrollable-menu="true"
+              aria-invalid={invalid || undefined}
+              aria-describedby={describedBy}
               disabled={disabled || !enabled}
               required={requireVillage && level.code === "VILLAGE"}
               value={selected}

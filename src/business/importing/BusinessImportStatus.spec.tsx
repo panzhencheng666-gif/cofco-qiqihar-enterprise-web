@@ -25,7 +25,7 @@ describe("business import status", () => {
     );
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "导入完成：2 行已处理，合格行已自动提交审核，失败 0 行。",
+      "导入完成：2 行已处理，合格行已校验并入库，失败 0 行。",
     );
     expect(screen.queryByText(/草稿/u)).not.toBeInTheDocument();
     expect(
@@ -84,12 +84,39 @@ describe("business import status", () => {
     );
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "导入完成：1 行已处理，合格行已自动提交审核，失败 2 行。请下载错误清单核对。",
+      "导入完成：1 行已处理，合格行已校验并入库，失败 2 行。请下载错误清单核对。",
     );
     await user.click(screen.getByRole("button", { name: "下载错误清单" }));
+    expect(screen.getByText("填写范例")).toBeVisible();
+    expect(screen.getByText(/100亩/)).toBeVisible();
+    expect(screen.getByText(/更正后的 XLSX/)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "仅重试待修正行" }));
     expect(onDownloadErrors).toHaveBeenCalledTimes(1);
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows actual workbook row numbers, fields and reasons from the receipt", () => {
+    render(
+      <BusinessImportStatus
+        busy={false}
+        className="business-alert"
+        job={{
+          id: "job",
+          domainCode: "PRODUCTION",
+          statusCode: "COMPLETED_WITH_ERRORS",
+          importedRows: 0,
+          failedRows: 1,
+          rowErrors: [
+            { rowNumber: 7, field: "播种面积", message: "数值不能为负数。" },
+          ],
+        }}
+        onDownloadErrors={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("table", { name: "实际导入错误" }),
+    ).toHaveTextContent("7播种面积数值不能为负数。");
   });
 
   it("renders nothing before an import job exists", () => {

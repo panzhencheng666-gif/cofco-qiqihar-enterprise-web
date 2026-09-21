@@ -274,14 +274,21 @@ describe("product production collection workspace", () => {
     expect(within(row).getByText("320.0000")).toBeVisible();
     expect(screen.queryByLabelText("填报状态")).not.toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: "查看照片" })).toBeNull();
-    expect(within(row).getByRole("button", { name: "查看记录" })).toBeVisible();
+    expect(within(row).getByRole("button", { name: "修改记录" })).toBeVisible();
     expect(within(row).getByRole("button", { name: "编辑" })).toBeVisible();
-    expect(within(row).getByRole("button", { name: "彻底删除" })).toBeVisible();
-    expect(
-      within(row).getByRole("button", { name: "淘汰为历史" }),
-    ).toBeVisible();
     await userEvent.click(
-      within(row).getByRole("button", { name: "查看记录" }),
+      within(row).getByRole("button", { name: "更多操作" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "彻底删除" }),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: "淘汰为历史" }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      within(row).getByRole("button", { name: "修改记录" }),
     );
     expect(onEditRecord).toHaveBeenCalledWith("CORN", "PROD-DB-001");
     await userEvent.click(within(row).getByRole("button", { name: "编辑" }));
@@ -290,14 +297,20 @@ describe("product production collection workspace", () => {
       id: "sample-production-1",
     });
     await userEvent.click(
-      within(row).getByRole("button", { name: "淘汰为历史" }),
+      within(row).getByRole("button", { name: "更多操作" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "淘汰为历史" }),
     );
     expect(onSelectionChange).toHaveBeenCalledWith({
       type: "formal-sample-view",
       id: "sample-production-1",
     });
     await userEvent.click(
-      within(row).getByRole("button", { name: "彻底删除" }),
+      within(row).getByRole("button", { name: "更多操作" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "彻底删除" }),
     );
     expect(confirm).toHaveBeenCalledWith(
       "确认删除“龙沙区玉米产情样本”？删除后将从当前台账和分析中移除，历史审计仍保留。",
@@ -795,7 +808,7 @@ describe("product production collection workspace", () => {
     );
     expect(
       await screen.findByText(
-        "导入完成：1 行已处理，合格行已自动提交审核，失败 0 行。",
+        "导入完成：1 行已处理，合格行已校验并入库，失败 0 行。",
       ),
     ).toBeVisible();
     await waitFor(() => expect(listProduction).toHaveBeenCalledTimes(3));

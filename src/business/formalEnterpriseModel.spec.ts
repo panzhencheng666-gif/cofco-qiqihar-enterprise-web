@@ -96,6 +96,7 @@ describe("formal enterprise route model", () => {
       ["overview", "risks", "#/经营总览/风险关注"],
       ["overview", "duty", "#/经营总览/履责情况"],
       ["overview", "releases", "#/经营总览/结果发布"],
+      ["overview", "periodic-reports", "#/经营总览/周期总结"],
       ["production", "corn-collection", "#/产情监测/玉米产情填报"],
       ["production", "soybean-collection", "#/产情监测/大豆产情填报"],
       ["production", "rice-collection", "#/产情监测/稻谷产情填报"],

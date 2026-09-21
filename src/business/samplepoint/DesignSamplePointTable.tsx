@@ -1,3 +1,4 @@
+import { serverFieldErrors } from "../realtime/realtimeSubmissionValidation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
@@ -90,6 +91,9 @@ export function DesignSamplePointTable({
   });
   const [filters, setFilters] = useState(filterDraft);
   const [regions, setRegions] = useState<readonly MasterRegion[]>([]);
+  const [editorFieldErrors, setEditorFieldErrors] = useState<
+    Record<string, string>
+  >({});
   const [catalog, setCatalog] = useState<DesignSampleFieldContract>();
   const [editor, setEditor] = useState<Editor>();
   const [viewPoint, setViewPoint] = useState<DesignSamplePointRow>();
@@ -103,7 +107,9 @@ export function DesignSamplePointTable({
   const [actionError, setActionError] = useState("");
   const hydratedSelection = useRef("");
   const canWrite =
-    session.rootAdministrator === true || session.roleCodes.includes("ADMIN");
+    session.permissions.includes("BUSINESS_UPDATE") ||
+    session.rootAdministrator === true ||
+    session.roleCodes.includes("ADMIN");
   const canImport = canWrite;
   const showList = true;
   const navigate = (next: FormalSelection) => onSelectionChange?.(next);
@@ -203,6 +209,7 @@ export function DesignSamplePointTable({
       setEditor(currentEditor);
       setEditorContract(undefined);
       setEditorError("");
+      setEditorFieldErrors({});
       setEditorValues(
         currentEditor.point
           ? Object.fromEntries(
@@ -254,6 +261,7 @@ export function DesignSamplePointTable({
     setEditorContext(context);
     setEditorContract(undefined);
     setEditorError("");
+    setEditorFieldErrors({});
     void repository
       .loadDesignSamplePointFields(context)
       .then(setEditorContract)
@@ -327,6 +335,7 @@ export function DesignSamplePointTable({
     };
     setSaving(true);
     setEditorError("");
+    setEditorFieldErrors({});
     setActionError("");
     let saved: DesignSamplePointRow;
     try {
@@ -345,6 +354,9 @@ export function DesignSamplePointTable({
         );
       }
     } catch (error) {
+      setEditorFieldErrors(
+        serverFieldErrors(error, editorContract.identityFields),
+      );
       setEditorError(
         errorMessage(error, "保存失败，请核对填写内容后重试。", editorContract),
       );
@@ -776,6 +788,7 @@ export function DesignSamplePointTable({
           contract={editorContract}
           context={editorContext}
           error={editorError}
+          fieldErrors={editorFieldErrors}
           mode={editor.mode}
           onCancel={() => {
             setEditor(undefined);
@@ -783,9 +796,14 @@ export function DesignSamplePointTable({
           }}
           onContextChange={changeEditorContext}
           onSave={() => void save()}
-          onValueChange={(code, value) =>
-            setEditorValues((current) => ({ ...current, [code]: value }))
-          }
+          onValueChange={(code, value) => {
+            setEditorFieldErrors((current) =>
+              Object.fromEntries(
+                Object.entries(current).filter(([key]) => key !== code),
+              ),
+            );
+            setEditorValues((current) => ({ ...current, [code]: value }));
+          }}
           regions={regions}
           saving={saving}
           session={session}
@@ -801,6 +819,7 @@ function DesignSamplePointEditor({
   contract,
   context,
   error,
+  fieldErrors,
   mode,
   onCancel,
   onContextChange,
@@ -815,6 +834,7 @@ function DesignSamplePointEditor({
   contract: DesignSampleFieldContract | undefined;
   context: DesignSampleContext;
   error: string;
+  fieldErrors: Readonly<Record<string, string>>;
   mode: "create" | "edit";
   onCancel: () => void;
   onContextChange: (context: Partial<DesignSampleContext>) => void;
@@ -930,6 +950,7 @@ function DesignSamplePointEditor({
                 field.code === "DSP_MAINTAINER_UNIT"
               }
               field={field}
+              error={fieldErrors[field.code]}
               key={field.code}
               onChange={(value) => onValueChange(field.code, value)}
               regions={regions}
@@ -952,17 +973,29 @@ function DesignSamplePointEditor({
 
 function MetadataField({
   disabled = false,
+  error,
   field,
   onChange,
   regions,
   value,
 }: {
   disabled?: boolean;
+  error?: string;
   field: DesignSampleFieldDefinition;
   onChange: (value: string) => void;
   regions: readonly MasterRegion[];
   value: string;
 }) {
+  const errorId = `design-${field.code}-error`;
+  const errorHint = error ? (
+    <small id={errorId} className="submission-field-error">
+      {error}
+    </small>
+  ) : null;
+  const invalidProps = {
+    "aria-invalid": Boolean(error) || undefined,
+    "aria-describedby": error ? errorId : undefined,
+  };
   const businessLabel = fieldLabel(field);
   const label = field.unit
     ? `${businessLabel}（${field.unit}）`
@@ -972,6 +1005,7 @@ function MetadataField({
       <label>
         <span>{businessLabel}</span>
         <select
+          {...invalidProps}
           aria-label={businessLabel}
           onChange={(event) => onChange(event.target.value)}
           required={field.required}
@@ -984,6 +1018,7 @@ function MetadataField({
             </option>
           ))}
         </select>
+        {errorHint}
       </label>
     );
   }
@@ -992,6 +1027,7 @@ function MetadataField({
       <label>
         <span>{label}</span>
         <select
+          {...invalidProps}
           aria-label={label}
           onChange={(event) => onChange(event.target.value)}
           required={field.required}
@@ -1004,6 +1040,7 @@ function MetadataField({
             </option>
           ))}
         </select>
+        {errorHint}
       </label>
     );
   }
@@ -1015,6 +1052,7 @@ function MetadataField({
     >
       <span>{label}</span>
       <input
+        {...invalidProps}
         aria-label={label}
         disabled={disabled}
         max={field.maximumValue ?? undefined}
@@ -1032,6 +1070,7 @@ function MetadataField({
         }
         value={value}
       />
+      {errorHint}
     </label>
   );
 }
@@ -1079,7 +1118,9 @@ function errorMessage(
   if (!(error instanceof RealtimeApiError)) return fallback;
   const fieldErrors = readableFieldErrors(error.details, contract);
   return (
-    [error.clientMessage, ...fieldErrors].filter(Boolean).join("；") || fallback
+    [...new Set([error.clientMessage, ...fieldErrors].filter(Boolean))].join(
+      "；",
+    ) || fallback
   );
 }
 
@@ -1103,11 +1144,16 @@ function readableFieldErrors(
   return Object.entries(values).flatMap(([code, message]) => {
     const label = labels.get(code);
     if (!label) return [];
-    if (typeof message === "string") return [`${label}：${message}`];
+    if (typeof message === "string")
+      return [
+        message.startsWith(`${label}：`) ? message : `${label}：${message}`,
+      ];
     if (Array.isArray(message)) {
       return message
         .filter((entry): entry is string => typeof entry === "string")
-        .map((entry) => `${label}：${entry}`);
+        .map((entry) =>
+          entry.startsWith(`${label}：`) ? entry : `${label}：${entry}`,
+        );
     }
     return [];
   });

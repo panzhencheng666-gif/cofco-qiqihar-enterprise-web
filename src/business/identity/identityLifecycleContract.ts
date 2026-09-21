@@ -2,7 +2,7 @@ export const identityLifecycleContract = {
   version: "2026-08-30",
   idempotencyHeader: "Idempotency-Key",
   invitationStatuses: ["PENDING", "ACTIVATED", "REVOKED", "EXPIRED"],
-  deliveryResults: ["QUEUED", "DELIVERED", "FAILED"],
+  deliveryResults: ["QUEUED", "DELIVERED", "FAILED", "AWAITING_VERIFICATION"],
   errorCodes: [
     "IDENTITY_INVITATION_INVALID",
     "IDENTITY_INVITATION_NOT_FOUND",

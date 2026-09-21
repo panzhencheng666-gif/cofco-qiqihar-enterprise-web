@@ -1418,7 +1418,7 @@ export function ExecutiveOverviewWorkspace({
   onOpenRoute: (route: FormalRoute) => void;
 }) {
   const [page, setPage] = useState(1);
-  if (section === "map") return null;
+  if (section === "map" || section === "periodic-reports") return null;
   const realtimeMode = scope.authorization.serverAuthoritative === true;
   const currentWorkItems = workItems ?? [];
   const realtimeOptions = realtimeExecutiveOptions(currentWorkItems);

@@ -1,3 +1,5 @@
+import { serverFieldErrors } from "./realtimeSubmissionValidation";
+import { RealtimeApiError } from "@/platform/api/realtimeApiClient";
 import {
   importFailureMessage,
   importRefreshFailureMessage,
@@ -57,9 +59,9 @@ function statusLabel(status: string): string {
     (
       {
         DRAFT: "草稿",
-        PENDING_REVIEW: "待审核",
-        APPROVED: "审核通过",
-        RETURNED: "退回补充",
+        PENDING_REVIEW: "待校验",
+        APPROVED: "已入库",
+        RETURNED: "待修正",
         VOIDED: "已作废",
       } as Record<string, string>
     )[status] ?? status
@@ -88,7 +90,6 @@ export function RealtimeLogisticsOperationsPanel({
   repository = realtimeBusinessRepository,
   editorOnly = false,
   mode = "entry",
-  permissions = [],
   refreshToken = 0,
   initialRecordId,
   onCancel,
@@ -112,6 +113,7 @@ export function RealtimeLogisticsOperationsPanel({
   );
   const [records, setRecords] = useState<readonly LogisticsRecordRow[]>([]);
   const [selected, setSelected] = useState<LogisticsRecordRow | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const selectedRecordId = useRef<string | undefined>(initialRecordId);
   const formDirty = useRef(false);
   const [recordLoadState, setRecordLoadState] = useState<
@@ -124,7 +126,6 @@ export function RealtimeLogisticsOperationsPanel({
   const [importPhotos, setImportPhotos] = useState<readonly File[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("正在读取物流业务定义…");
-  const [returnReason, setReturnReason] = useState("");
 
   const fields = useMemo(() => {
     const byCode = new Map(
@@ -185,7 +186,6 @@ export function RealtimeLogisticsOperationsPanel({
         ]),
       ),
     );
-    setReturnReason("");
     setMessage("已新建空白物流记录，保存后生成正式记录");
   }
 
@@ -194,6 +194,7 @@ export function RealtimeLogisticsOperationsPanel({
       selectedRecordId.current = id;
       setRecordLoadState("loading");
       setSelected(null);
+      setFieldErrors({});
       setBusy(true);
       setError("");
       try {
@@ -276,22 +277,20 @@ export function RealtimeLogisticsOperationsPanel({
       onRecordsChanged?.();
       setMessage("保存成功");
       onSaved?.();
-    } catch {
-      setError("物流记录保存失败，请核对填报内容后重试。");
+    } catch (saveError) {
+      setFieldErrors(serverFieldErrors(saveError, fields));
+      setError(
+        saveError instanceof RealtimeApiError
+          ? (saveError.clientMessage ?? "物流记录校验失败，请核对填报内容。")
+          : "物流记录保存失败，请核对填报内容后重试。",
+      );
     } finally {
       setBusy(false);
     }
   }
 
-  async function transition(action: "submit" | "approve" | "return" | "void") {
+  async function transition(action: "void") {
     if (!selected) return;
-    if (
-      (action === "approve" && !permissions.includes("BUSINESS_APPROVE")) ||
-      (action === "return" && !permissions.includes("BUSINESS_RETURN"))
-    ) {
-      setError("当前账号没有该业务审核权限。");
-      return;
-    }
     setBusy(true);
     setError("");
     try {
@@ -299,17 +298,14 @@ export function RealtimeLogisticsOperationsPanel({
         selected.id,
         action,
         selected.version,
-        action === "return" ? returnReason : undefined,
+        undefined,
       );
       setSelected(record);
       formDirty.current = false;
       setValues(record.values);
       await reload();
-      setMessage(
-        `${action === "submit" ? "提交" : action === "approve" ? "审核通过" : action === "return" ? "退回" : "作废"}成功`,
-      );
+      setMessage("作废成功");
       onRecordsChanged?.();
-      if (mode === "review" && action !== "submit") onSaved?.();
     } catch {
       setError("物流记录处理失败，请稍后重试。");
     } finally {
@@ -412,14 +408,6 @@ export function RealtimeLogisticsOperationsPanel({
   const canSave = mode === "entry" && (!selected || actions.has("SAVE"));
   const readOnlyMode =
     mode === "view" || mode === "review" || (Boolean(selected) && !canSave);
-  const canApprove =
-    mode === "review" &&
-    permissions.includes("BUSINESS_APPROVE") &&
-    actions.has("APPROVE");
-  const canReturn =
-    mode === "review" &&
-    permissions.includes("BUSINESS_RETURN") &&
-    actions.has("RETURN");
   const existingRecordUnavailable =
     recordLoadState === "loading" || recordLoadState === "failed";
   return (
@@ -427,7 +415,7 @@ export function RealtimeLogisticsOperationsPanel({
       className="realtime-business-panel"
       aria-label={
         mode === "review"
-          ? "物流监测单据审核"
+          ? "物流监测记录详情"
           : mode === "view"
             ? "物流监测记录详情"
             : "物流监测填报"
@@ -437,24 +425,24 @@ export function RealtimeLogisticsOperationsPanel({
         <div>
           <span>
             {mode === "review"
-              ? "业务审核"
+              ? "业务查看"
               : mode === "view"
                 ? "业务查看"
                 : "业务填报"}
           </span>
           <h2>
             {mode === "review"
-              ? "物流监测单据审核"
+              ? "物流监测记录详情"
               : mode === "view"
                 ? "物流监测记录详情"
                 : "物流监测填报"}
           </h2>
           <p>
             {mode === "review"
-              ? "只读核对原物流单据和当前状态，通过或填写原因退回；审核不会新建记录。"
+              ? "查看原物流记录和当前状态。"
               : mode === "view"
                 ? "只读查看原物流记录，不会修改或新建记录。"
-                : "按当前产品和业务范围填写物流记录，提交后进入审核流程。"}
+                : "按当前产品和业务范围填写物流记录，校验通过后自动入库。"}
           </p>
         </div>
         {!editorOnly && mode === "entry" && (
@@ -532,7 +520,8 @@ export function RealtimeLogisticsOperationsPanel({
                     <strong>
                       {record.displayValues.LOGISTICS_NODE ??
                         record.values.LOGISTICS_NODE ??
-                        record.id}
+                        record.values.LOG_SAMPLE_NAME ??
+                        "物流记录"}
                     </strong>
                     <span>{statusLabel(record.status)}</span>
                   </button>
@@ -548,7 +537,7 @@ export function RealtimeLogisticsOperationsPanel({
           <header>
             <strong>
               {selected
-                ? `${selected.id} · ${statusLabel(selected.status)}`
+                ? `${selected.values.LOG_SAMPLE_NAME || "物流记录"} · ${statusLabel(selected.status)}`
                 : recordLoadState === "loading"
                   ? "正在读取原物流记录"
                   : recordLoadState === "failed"
@@ -582,12 +571,27 @@ export function RealtimeLogisticsOperationsPanel({
                       <output aria-label={field.label}>{readOnlyValue}</output>
                     ) : field.options.length > 0 ? (
                       <select
+                        aria-invalid={
+                          Boolean(fieldErrors[field.code]) || undefined
+                        }
+                        aria-describedby={
+                          fieldErrors[field.code]
+                            ? `log-error-${field.code}`
+                            : undefined
+                        }
                         aria-label={field.label}
                         required={field.required}
                         value={values[field.code] ?? ""}
                         onChange={(event) =>
                           setValues((current) => {
                             formDirty.current = true;
+                            setFieldErrors((errors) =>
+                              Object.fromEntries(
+                                Object.entries(errors).filter(
+                                  ([code]) => code !== field.code,
+                                ),
+                              ),
+                            );
                             return {
                               ...current,
                               [field.code]: event.target.value,
@@ -604,6 +608,14 @@ export function RealtimeLogisticsOperationsPanel({
                       </select>
                     ) : (
                       <input
+                        aria-invalid={
+                          Boolean(fieldErrors[field.code]) || undefined
+                        }
+                        aria-describedby={
+                          fieldErrors[field.code]
+                            ? `log-error-${field.code}`
+                            : undefined
+                        }
                         aria-label={field.label}
                         max={
                           field.code === "LOG_SAMPLE_LATITUDE"
@@ -627,6 +639,13 @@ export function RealtimeLogisticsOperationsPanel({
                         onChange={(event) =>
                           setValues((current) => {
                             formDirty.current = true;
+                            setFieldErrors((errors) =>
+                              Object.fromEntries(
+                                Object.entries(errors).filter(
+                                  ([code]) => code !== field.code,
+                                ),
+                              ),
+                            );
                             return {
                               ...current,
                               [field.code]: event.target.value,
@@ -634,6 +653,15 @@ export function RealtimeLogisticsOperationsPanel({
                           })
                         }
                       />
+                    )}
+                    {fieldErrors[field.code] && (
+                      <span
+                        id={`log-error-${field.code}`}
+                        className="submission-field-error"
+                        role="alert"
+                      >
+                        {fieldErrors[field.code]}
+                      </span>
                     )}
                   </label>
                 );
@@ -654,15 +682,6 @@ export function RealtimeLogisticsOperationsPanel({
                 保存物流记录
               </button>
             )}
-            {mode === "entry" && selected && actions.has("SUBMIT") && (
-              <button
-                disabled={busy}
-                type="button"
-                onClick={() => void transition("submit")}
-              >
-                提交审核
-              </button>
-            )}
             {mode === "entry" && selected && actions.has("VOID") && (
               <button
                 disabled={busy}
@@ -671,37 +690,6 @@ export function RealtimeLogisticsOperationsPanel({
               >
                 作废记录
               </button>
-            )}
-            {selected && canApprove && (
-              <button
-                disabled={busy}
-                type="button"
-                onClick={() => void transition("approve")}
-              >
-                审核通过
-              </button>
-            )}
-            {selected && canReturn && (
-              <>
-                <input
-                  aria-label="物流退回原因"
-                  placeholder="填写退回原因"
-                  value={returnReason}
-                  onChange={(event) => setReturnReason(event.target.value)}
-                />
-                <button
-                  disabled={busy || !returnReason.trim()}
-                  type="button"
-                  onClick={() => void transition("return")}
-                >
-                  退回补充
-                </button>
-              </>
-            )}
-            {mode === "review" && selected && !canApprove && !canReturn && (
-              <p role="status">
-                当前账号无可执行的审核操作，或该单据已离开待审核状态。
-              </p>
             )}
           </div>
           <p aria-live="polite" role={error ? "alert" : "status"}>

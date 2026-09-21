@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { validSnapshot } from "@/platform/api/observableAnalysisContract.fixture";
@@ -289,6 +295,50 @@ describe("observable analysis report components", () => {
     expect(
       within(table).getByRole("row", { name: /4 月 该月暂缺/u }),
     ).toBeVisible();
+  });
+
+  it("switches real curves to lines, retains gaps and reads updated monthly values", () => {
+    const lines = [
+      {
+        key: "output",
+        label: "预计总产",
+        unit: "吨",
+        value: (snapshot: ReturnType<typeof validSnapshot>) =>
+          snapshot.production.metrics.find(
+            ({ code }) => code === "EXPECTED_OUTPUT",
+          )?.value ?? null,
+      },
+    ];
+    const { container, rerender } = render(
+      <AnalysisTrendChart
+        title="总产变化"
+        lines={lines}
+        points={[point(1, "10"), point(2, "20"), point(4, "40")]}
+      />,
+    );
+    const path = () =>
+      container
+        .querySelector('[data-series-key="output"] path')
+        ?.getAttribute("d");
+    expect(path()).toContain("C");
+    expect(path()?.match(/M/g)).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "折线" }));
+    expect(path()).not.toContain("C");
+    expect(path()).toContain("L");
+    fireEvent.click(screen.getByRole("button", { name: "2月" }));
+    expect(
+      container.querySelector(".analysis-live-trend__readout"),
+    ).toHaveTextContent("预计总产：20.00 吨");
+    rerender(
+      <AnalysisTrendChart
+        title="总产变化"
+        lines={lines}
+        points={[point(1, "10"), point(2, "25"), point(4, "40")]}
+      />,
+    );
+    expect(
+      container.querySelector(".analysis-live-trend__readout"),
+    ).toHaveTextContent("预计总产：25.00 吨");
   });
 
   it("does not manufacture a trend when only one period has approved data", () => {

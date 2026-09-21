@@ -2925,6 +2925,41 @@ body {
   font-size: 12px;
 }
 
+.periodic-reports-entry {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - var(--enterprise-header-height) - 24px);
+  min-height: 620px;
+  overflow: hidden;
+  background: #eaf1f5;
+}
+
+.periodic-reports-entry__frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #eaf1f5;
+}
+
+.periodic-reports-entry__fallback {
+  position: absolute;
+  inset: 24px auto auto 24px;
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+  padding: 14px 16px;
+  border: 1px solid #e0b8ac;
+  border-radius: 4px;
+  color: #7d352c;
+  background: #fff4f0;
+  box-shadow: 0 8px 24px rgb(0 20 31 / 20%);
+}
+
+.periodic-reports-entry__fallback span {
+  font-size: 12px;
+}
+
 .formal-enterprise {
   --enterprise-header-height: 76px;
   --enterprise-header-primary-height: 44px;

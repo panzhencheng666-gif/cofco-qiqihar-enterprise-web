@@ -309,8 +309,7 @@ describe("IdentityGovernancePanel", () => {
     await screen.findByText("齐齐哈尔市");
   });
 
-  it("opens the authenticated work unit as a real organization responsibility view", async () => {
-    const user = userEvent.setup();
+  it("opens employee management from the former organization entry", async () => {
     render(
       <IdentityGovernancePanel
         initialView="organization"
@@ -320,27 +319,171 @@ describe("IdentityGovernancePanel", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "当前单位" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    const unit = screen.getByRole("region", { name: "当前单位访问范围" });
     expect(
-      within(unit).getByRole("heading", { name: "齐齐哈尔经营部" }),
-    ).toBeVisible();
-    expect(within(unit).queryByText("单位负责人")).not.toBeInTheDocument();
-    expect(await within(unit).findByText("齐齐哈尔市")).toBeVisible();
-    expect(within(unit).queryByText("230200")).not.toBeInTheDocument();
-    expect(within(unit).getByText("李主任")).toBeVisible();
-
-    await user.click(
-      within(unit).getByRole("button", { name: "管理员工与授权" }),
-    );
+      screen.queryByRole("button", { name: "当前单位" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "员工管理" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(await screen.findByText("张敏")).toBeVisible();
+  });
+
+  it("removes a selected access region from the editor without writing before save", async () => {
+    const user = userEvent.setup();
+    const repo = repository();
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={repo as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "管理张敏的授权" }),
+    );
+    const selected = await screen.findByRole("complementary", {
+      name: "已选可访问地区",
+    });
+    await user.click(
+      within(selected).getByRole("button", { name: /移除可访问地区/ }),
+    );
+    expect(within(selected).getByText("尚未选择地区")).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", {
+        name: /可访问地区.*测试乡镇$/,
+      }),
+    ).not.toBeChecked();
+    expect(repo.updateEmployee).not.toHaveBeenCalled();
+  });
+
+  it("blocks saving after option load failure and supports retry without losing existing regions", async () => {
+    const api = repository();
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    const edit = await screen.findByRole("button", { name: "管理张敏的授权" });
+    api.loadAssignmentOptions.mockRejectedValueOnce(new Error("offline"));
+    await userEvent.click(edit);
+    expect(
+      await screen.findByText("可访问地区读取失败，请重新选择工作单位。"),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "保存授权调整" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /移除可访问地区/ }),
+    ).toBeVisible();
+    expect(api.updateEmployee).not.toHaveBeenCalled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "重新读取授权选项" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "保存授权调整" }),
+      ).toBeEnabled(),
+    );
+    expect(
+      screen.getByRole("checkbox", { name: /可访问地区.*测试乡镇$/ }),
+    ).toBeChecked();
+  });
+
+  it("preserves an existing region omitted by the options response and blocks accidental revocation", async () => {
+    const api = repository();
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    const edit = await screen.findByRole("button", { name: "管理张敏的授权" });
+    const options = await api.loadAssignmentOptions("QIQIHAR_BUSINESS");
+    api.loadAssignmentOptions.mockResolvedValueOnce({
+      ...options,
+      regionCodes: [],
+    });
+    await userEvent.click(edit);
+    expect(await screen.findByText(/原有授权包含当前不可选地区/)).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /移除可访问地区/ }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "保存授权调整" })).toBeDisabled();
+    expect(api.updateEmployee).not.toHaveBeenCalled();
+  });
+
+  it("keeps database automation read-only and outside employee responsibility assignment", async () => {
+    const api = repository();
+    const rows = await api.listEmployees();
+    api.listEmployees.mockResolvedValue([
+      {
+        ...rows[0],
+        subjectId: "database-master-data-automation",
+        displayName: "主数据受控自动化",
+        workUnitCode: "DATABASE_AUTOMATION",
+        workUnitName: "数据库受控自动化",
+        roles: [],
+      },
+      ...rows,
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        repository={api as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    const name = await screen.findByText("主数据受控自动化");
+    const row = name.closest("tr")!;
+    expect(within(row).getByText("系统自动化账号 · 只读")).toBeVisible();
+    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+    expect(api.loadAssignmentOptions).not.toHaveBeenCalledWith(
+      "DATABASE_AUTOMATION",
+      expect.anything(),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "地区分工" }));
+    expect(screen.queryByText("主数据受控自动化")).not.toBeInTheDocument();
+    expect(api.updateEmployee).not.toHaveBeenCalled();
+  });
+
+  it("filters region responsibility using employee assignments without separate writes", async () => {
+    const user = userEvent.setup();
+    const repo = repository();
+    const rows = await repo.listEmployees();
+    repo.listEmployees.mockResolvedValue([
+      { ...rows[0], responsibilityRegionCodes: ["230202001"] },
+      {
+        ...rows[0],
+        subjectId: "employee-2",
+        displayName: "未分工员工",
+        responsibilityRegionCodes: [],
+      },
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="regions"
+        onClose={vi.fn()}
+        repository={repo as unknown as RealtimeBusinessRepository}
+        session={session}
+      />,
+    );
+    expect(await screen.findByText("未分工员工")).toBeVisible();
+    const directory = screen.getByRole("complementary", { name: "组织单位" });
+    await user.click(
+      await within(directory).findByRole("button", { name: /测试乡镇/ }),
+    );
+    expect(screen.getByText("张敏")).toBeVisible();
+    expect(screen.queryByText("未分工员工")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "调整张敏的负责地区" }),
+    ).toBeVisible();
+    expect(repo.updateEmployee).not.toHaveBeenCalled();
   });
 
   it("shows the authenticated account, organization and responsibility scope without obsolete positions", async () => {
@@ -429,6 +572,43 @@ describe("IdentityGovernancePanel", () => {
     );
   });
 
+  it.each(["填报员", "管理员"])(
+    "checks zero-region invitations for %s",
+    async (role) => {
+      const user = userEvent.setup();
+      const api = repository();
+      render(
+        <IdentityGovernancePanel
+          initialView="employees"
+          onClose={vi.fn()}
+          repository={api as unknown as RealtimeBusinessRepository}
+          session={session}
+        />,
+      );
+      await user.click(await screen.findByRole("button", { name: "邀请员工" }));
+      await user.type(screen.getByLabelText("员工账号"), "unassigned-reporter");
+      await user.type(screen.getByLabelText("员工姓名"), "无地区填报员");
+      await user.type(screen.getByLabelText("受邀手机号"), "13900000601");
+      await user.click(screen.getByRole("radio", { name: role }));
+      await user.click(screen.getByRole("button", { name: "创建手机号邀请" }));
+      if (role === "填报员") {
+        await waitFor(() =>
+          expect(api.inviteEmployee).toHaveBeenCalledWith(
+            expect.objectContaining({
+              roleCodes: ["BUSINESS_OPERATOR"],
+              regionCodes: [],
+            }),
+          ),
+        );
+      } else {
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          "请至少选择一个可访问地区",
+        );
+        expect(api.inviteEmployee).not.toHaveBeenCalled();
+      }
+    },
+  );
+
   it("lets authorized administrators invite employees and change effective assignments", async () => {
     const user = userEvent.setup();
     const api = repository();
@@ -446,10 +626,7 @@ describe("IdentityGovernancePanel", () => {
     await user.click(screen.getByRole("button", { name: "邀请员工" }));
     await user.type(screen.getByLabelText("员工账号"), "employee-88");
     await user.type(screen.getByLabelText("员工姓名"), "赵蕾");
-    await user.type(
-      screen.getByLabelText("邀请送达邮箱"),
-      "employee-88@example.test",
-    );
+    await user.type(screen.getByLabelText("受邀手机号"), "13900000602");
     expect(screen.getAllByRole("radio")).toHaveLength(2);
     expect(
       screen.queryByRole("group", { name: "岗位" }),
@@ -460,7 +637,7 @@ describe("IdentityGovernancePanel", () => {
         name: "可访问地区 齐齐哈尔市 / 龙沙区 / 测试乡镇",
       }),
     );
-    await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
+    await user.click(screen.getByRole("button", { name: "创建手机号邀请" }));
     await waitFor(() =>
       expect(api.inviteEmployee).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -726,7 +903,7 @@ describe("IdentityGovernancePanel", () => {
       invitationId: "invite-001",
       invitationStatus: "PENDING",
       expiresAt: "2026-08-31T00:00:00Z",
-      deliveryStatus: "QUEUED",
+      deliveryStatus: "AWAITING_VERIFICATION",
       replayed: false,
     });
 
@@ -745,24 +922,34 @@ describe("IdentityGovernancePanel", () => {
     await user.type(screen.getByLabelText("员工账号"), "jagdaqi-operator");
     await user.type(screen.getByLabelText("员工姓名"), "加格达奇填报员");
     await user.type(
-      screen.getByLabelText("邀请送达邮箱"),
-      "operator@example.test",
+      screen.getByLabelText("受邀手机号"),
+      "invalid@example.test",
     );
+    await user.click(screen.getByRole("radio", { name: "填报员" }));
+    await user.click(screen.getByRole("button", { name: "创建手机号邀请" }));
+    expect(await screen.findByText("请输入11位有效手机号。")).toBeVisible();
+    expect(api.inviteEmployee).not.toHaveBeenCalled();
+    await user.clear(screen.getByLabelText("受邀手机号"));
+    await user.type(screen.getByLabelText("受邀手机号"), "13900000603");
     await user.click(screen.getByRole("radio", { name: "填报员" }));
     await user.click(
       screen.getByRole("checkbox", {
         name: "可访问地区 大兴安岭地区 / 加格达奇区",
       }),
     );
-    await user.click(screen.getByRole("button", { name: "发送入职邀请" }));
+    await user.click(screen.getByRole("button", { name: "创建手机号邀请" }));
 
-    expect(await screen.findByText(/邀请已进入送达队列/)).toBeVisible();
+    expect(
+      await screen.findByText(
+        /手机号邀请已创建，员工使用该手机号获取短信验证码登录后即可激活/,
+      ),
+    ).toBeVisible();
     expect(screen.queryByText(/激活链接/)).not.toBeInTheDocument();
     expect(api.inviteEmployee).toHaveBeenCalledOnce();
     const invitationRequest = api.inviteEmployee.mock.calls[0][0];
     expect(invitationRequest.idempotencyKey).toMatch(/^identity-invite-/u);
     expect(invitationRequest).toMatchObject({
-      deliveryAddress: "operator@example.test",
+      deliveryAddress: "13900000603",
       regionCodes: ["232761"],
     });
   });
@@ -890,10 +1077,10 @@ describe("IdentityGovernancePanel", () => {
       await screen.findByRole("button", { name: "管理张敏的邀请" }),
     );
     await user.type(
-      await screen.findByLabelText("重新送达邮箱"),
-      "employee-new@example.test",
+      await screen.findByLabelText("重新邀请手机号"),
+      "13900000604",
     );
-    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    await user.click(screen.getByRole("button", { name: "更新手机号邀请" }));
 
     expect(api.reissueInvitation).toHaveBeenCalledOnce();
     const reissueRequest = api.reissueInvitation.mock.calls[0][0];
@@ -901,7 +1088,7 @@ describe("IdentityGovernancePanel", () => {
     expect(reissueRequest).toEqual({
       idempotencyKey: reissueRequest.idempotencyKey,
       subjectId: employee.subjectId,
-      deliveryAddress: "employee-new@example.test",
+      deliveryAddress: "13900000604",
     });
     await waitFor(() =>
       expect(api.loadEmployeeInvitation).toHaveBeenCalledTimes(2),
@@ -951,14 +1138,14 @@ describe("IdentityGovernancePanel", () => {
     await user.click(
       await screen.findByRole("button", { name: "管理张敏的邀请" }),
     );
-    const deliveryAddress = await screen.findByLabelText("重新送达邮箱");
-    await user.type(deliveryAddress, "employee-first@example.test");
-    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    const deliveryAddress = await screen.findByLabelText("重新邀请手机号");
+    await user.type(deliveryAddress, "13900000605");
+    await user.click(screen.getByRole("button", { name: "更新手机号邀请" }));
     await waitFor(() => expect(api.reissueInvitation).toHaveBeenCalledOnce());
 
     await user.clear(deliveryAddress);
-    await user.type(deliveryAddress, "employee-second@example.test");
-    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    await user.type(deliveryAddress, "13900000606");
+    await user.click(screen.getByRole("button", { name: "更新手机号邀请" }));
     await waitFor(() => expect(api.reissueInvitation).toHaveBeenCalledTimes(2));
 
     expect(api.reissueInvitation.mock.calls[0][0].idempotencyKey).not.toBe(
@@ -1024,10 +1211,10 @@ describe("IdentityGovernancePanel", () => {
       await screen.findByRole("button", { name: "管理张敏的邀请" }),
     );
     await user.type(
-      await screen.findByLabelText("重新送达邮箱"),
-      "employee-first@example.test",
+      await screen.findByLabelText("重新邀请手机号"),
+      "13900000605",
     );
-    await user.click(screen.getByRole("button", { name: "重新发送邀请" }));
+    await user.click(screen.getByRole("button", { name: "更新手机号邀请" }));
     await user.click(screen.getByRole("button", { name: "管理李强的邀请" }));
     expect(
       await screen.findByRole("heading", { name: "管理李强的邀请" }),
@@ -1254,13 +1441,13 @@ describe("IdentityGovernancePanel", () => {
 
     await user.click(screen.getByRole("button", { name: "我的账号" }));
     expect(
-      screen.queryByRole("button", { name: "发送入职邀请" }),
+      screen.queryByRole("button", { name: "创建手机号邀请" }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "员工管理" }));
 
     expect(await screen.findByText("张敏")).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "发送入职邀请" }),
+      screen.queryByRole("button", { name: "创建手机号邀请" }),
     ).not.toBeInTheDocument();
     expect(api.loadAssignmentOptions).toHaveBeenLastCalledWith(
       "QIQIHAR_BUSINESS",
@@ -1303,7 +1490,7 @@ describe("IdentityGovernancePanel", () => {
     expect(await screen.findByText("复核已完成")).toBeVisible();
   });
 
-  it("normalizes legacy broad region grants to the assignable township anchors", async () => {
+  it("requires explicit removal before replacing legacy broad region grants", async () => {
     const user = userEvent.setup();
     const api = repository();
     const [employee] = await api.listEmployees();
@@ -1329,6 +1516,9 @@ describe("IdentityGovernancePanel", () => {
     await user.click(
       await screen.findByRole("button", { name: "管理张敏的授权" }),
     );
+    expect(screen.getByRole("button", { name: "保存授权调整" })).toBeDisabled();
+    const removals = screen.getAllByRole("button", { name: /移除可访问地区/ });
+    for (const index of [0, 1, 3]) await user.click(removals[index]);
     await user.click(screen.getByRole("button", { name: "保存授权调整" }));
 
     await waitFor(() =>
@@ -1473,5 +1663,106 @@ describe("IdentityGovernancePanel", () => {
     expect(api.listAuditEvents).toHaveBeenLastCalledWith(
       expect.objectContaining({ page: 1, pageSize: 50 }),
     );
+  });
+});
+
+describe("platform account assignment targets", () => {
+  it("requires an explicit business unit before assigning a platform employee", async () => {
+    const api = repository();
+    const employees = await api.listEmployees();
+    api.listEmployees.mockResolvedValue([
+      { ...employees[0], workUnitCode: "PLATFORM_ADMIN" },
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="employees"
+        onClose={vi.fn()}
+        session={{
+          ...session,
+          rootAdministrator: true,
+          workUnitCode: "PLATFORM_ADMIN",
+        }}
+        repository={api as unknown as RealtimeBusinessRepository}
+      />,
+    );
+    await screen.findByText("张敏");
+    await userEvent.click(screen.getByRole("button", { name: "设置负责地区" }));
+    expect(await screen.findByText(/该账号尚未归属业务单位/)).toBeVisible();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "保存授权调整" }),
+      ).toBeDisabled(),
+    );
+    expect(screen.getByLabelText("工作单位")).toHaveValue("PLATFORM_ADMIN");
+    expect(api.updateEmployee).not.toHaveBeenCalled();
+    expect(api.loadAssignmentOptions).not.toHaveBeenCalledWith(
+      "PLATFORM_ADMIN",
+      expect.anything(),
+    );
+  });
+
+  it("does not let another platform employee poison review options", async () => {
+    const api = repository();
+    const employees = await api.listEmployees();
+    api.listEmployees.mockResolvedValue([
+      {
+        ...employees[0],
+        subjectId: "platform-user",
+        workUnitCode: "PLATFORM_ADMIN",
+      },
+      ...employees,
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="reviews"
+        onClose={vi.fn()}
+        session={{
+          ...session,
+          rootAdministrator: true,
+          workUnitCode: "PLATFORM_ADMIN",
+        }}
+        repository={api as unknown as RealtimeBusinessRepository}
+      />,
+    );
+    await waitFor(() => expect(api.listAccessReviews).toHaveBeenCalled());
+    expect(api.loadAssignmentOptions).not.toHaveBeenCalledWith(
+      "PLATFORM_ADMIN",
+    );
+    expect(api.loadAssignmentOptions).toHaveBeenCalledWith("QIQIHAR_BUSINESS");
+  });
+
+  it("loads reviews using server-scoped business units instead of the platform account unit", async () => {
+    const api = repository();
+    const businessEmployees = await api.listEmployees();
+    const platformSession = {
+      ...session,
+      workUnitCode: "PLATFORM_SYSTEM",
+      rootAdministrator: false,
+    };
+    api.listEmployees.mockResolvedValue([
+      {
+        ...businessEmployees[0],
+        subjectId: platformSession.subjectId,
+        workUnitCode: "PLATFORM_SYSTEM",
+        roles: [{ code: "BUSINESS_REVIEWER", name: "管理员" }],
+      },
+      ...businessEmployees,
+    ]);
+    render(
+      <IdentityGovernancePanel
+        initialView="reviews"
+        onClose={vi.fn()}
+        session={platformSession}
+        repository={api as unknown as RealtimeBusinessRepository}
+      />,
+    );
+    await waitFor(() => expect(api.listAccessReviews).toHaveBeenCalled());
+    expect(api.loadAssignmentOptions).toHaveBeenCalledWith("QIQIHAR_BUSINESS");
+    expect(api.loadAssignmentOptions).not.toHaveBeenCalledWith(
+      "PLATFORM_SYSTEM",
+    );
+    expect(
+      screen.queryByText("权限复核信息读取失败，请稍后重试。"),
+    ).not.toBeInTheDocument();
   });
 });

@@ -34,6 +34,7 @@ const sectionIcons: Partial<Record<string, EnterpriseIconName>> = {
   comprehensive: "report",
   "review-distribution": "upload",
   ledger: "history",
+  "periodic-reports": "report",
 };
 
 const visibleSectionsByApplication: Readonly<
@@ -59,7 +60,7 @@ const visibleSectionsByApplication: Readonly<
   ],
   supply: ["balance"],
   work: ["sample-governance", "sample-history"],
-  overview: ["map"],
+  overview: ["map", "periodic-reports"],
 };
 
 export function BusinessNavigationTree({

@@ -847,6 +847,17 @@ describe("SamplePointGovernanceWorkspace", () => {
       "经度：请填写所选行政区内的经度",
     );
     expect(screen.queryByText("DSP_LONGITUDE")).not.toBeInTheDocument();
+    const longitudeInput = within(createForm).getByRole("spinbutton", {
+      name: "经度",
+    });
+    expect(longitudeInput).toHaveAttribute("aria-invalid", "true");
+    expect(longitudeInput).toHaveAccessibleDescription(
+      "请填写所选行政区内的经度",
+    );
+    await userEvent.clear(longitudeInput);
+    expect(longitudeInput).not.toHaveAttribute("aria-invalid", "true");
+    await userEvent.type(longitudeInput, "126.2");
+
     await userEvent.click(
       within(createForm).getByRole("button", { name: "保存" }),
     );
@@ -1618,7 +1629,7 @@ describe("SamplePointGovernanceWorkspace", () => {
   });
 });
 
-it("keeps design samples read-only for ordinary accounts despite legacy update/import permissions", async () => {
+it("allows ordinary accounts to maintain and import design samples", async () => {
   render(
     <DesignSamplePointTable
       onListStateChange={vi.fn()}
@@ -1632,7 +1643,13 @@ it("keeps design samples read-only for ordinary accounts despite legacy update/i
     />,
   );
   expect(await screen.findByText("众兴村")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "新建设计样本" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "编辑" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "下载 XLSX 模板" })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "新建设计样本" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "编辑众兴村" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "下载 XLSX 模板" }),
+  ).toBeInTheDocument();
 });

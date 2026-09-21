@@ -157,6 +157,9 @@ export function SamplePointLedgerPagination({
         上一页
       </button>
       <span>第 {pageNumber + 1} 页</span>
+      <span className="business-pagination-total">
+        共 {Math.max(1, pageCount)} 页
+      </span>
       <button
         disabled={disabled || pageNumber + 1 >= pageCount}
         type="button"

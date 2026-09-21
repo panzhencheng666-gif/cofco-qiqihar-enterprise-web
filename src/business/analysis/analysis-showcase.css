@@ -1,0 +1,716 @@
+/* Compact analytical workspace. One spacing system; no decorative fixed-height panels. */
+.reference-enterprise-shell .analysis-showcase-page {
+  padding: 16px 20px 24px;
+  background: #f0f3f6;
+  color: #2b485e;
+}
+.analysis-showcase-page .enterprise-ledger-workbench__breadcrumb {
+  margin: 0 0 12px;
+  font-size: 11px;
+  color: #8b9ba8;
+}
+.reference-enterprise-shell .analysis-showcase-masthead {
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) minmax(300px, 1fr);
+  gap: 16px;
+  align-items: center;
+  margin: 0;
+}
+.reference-enterprise-shell .analysis-showcase-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.reference-enterprise-shell .analysis-showcase-title h1 {
+  font-size: 23px;
+  margin: 0;
+  color: #1f3c52;
+  letter-spacing: 0.5px;
+}
+.reference-enterprise-shell .analysis-showcase-title p {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #899ba9;
+}
+.reference-enterprise-shell .analysis-showcase-title button {
+  border: 1px solid #cbd9e3;
+  border-radius: 3px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #356681;
+  background: #fff;
+  cursor: pointer;
+}
+.analysis-showcase-page .analysis-scope-disclosure {
+  border: 1px solid #d8e2e9;
+  border-radius: 3px;
+  background: #fff;
+}
+.analysis-showcase-page .analysis-scope-disclosure > summary {
+  padding: 11px 14px;
+  font-size: 12px;
+  color: #59798e;
+  cursor: pointer;
+}
+.analysis-showcase-page .analysis-scope-disclosure > summary span {
+  float: right;
+  color: #337499;
+}
+.analysis-showcase-page .analysis-scope-disclosure[open] {
+  grid-column: 1/-1;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 0;
+  margin: 6px 0 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-size: 10px;
+  color: #8498a7;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-status
+  strong {
+  color: #537b94;
+  background: #e1eaf1;
+  border-radius: 2px;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-status
+  span
+  + span {
+  border: 0;
+  padding-left: 0;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  > .observable-analysis-report__metric-band {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 1px solid #dbe4eb;
+  border-radius: 3px;
+  background: #fff;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  > .observable-analysis-report__metric-band
+  > div {
+  margin: 0;
+  padding: 14px 18px;
+  min-height: 0;
+  border: 0;
+  border-right: 1px solid #e7edf2;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  > .observable-analysis-report__metric-band
+  > div:last-child {
+  border-right: 0;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__metric-band-card::after {
+  display: none;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__metric-band-card
+  dt {
+  font-size: 11px;
+  color: #7790a3;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__metric-band-card
+  dd {
+  font-size: clamp(18px, 1.55vw, 25px);
+  font-weight: 600;
+  color: #245c80;
+  margin: 8px 0 4px;
+  letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__metric-band-card
+  small {
+  font-size: 10px;
+  color: #98a9b5;
+}
+.analysis-exhibition {
+  display: block;
+}
+.analysis-exhibition__charts {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-dashboard__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  align-items: start;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-dashboard__stack {
+  display: contents;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__section {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid #dce5ec;
+  border-radius: 3px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: none;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__section
+  > header {
+  padding: 16px 18px 10px;
+  border: 0;
+  background: transparent;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__section
+  > header
+  h2 {
+  font-size: 15px;
+  color: #34586f;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__section
+  > header
+  p {
+  font-size: 10px;
+  color: #93a3b0;
+  margin: 5px 0 0;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__chart-grid[data-layout="stacked"] {
+  grid-template-columns: 1fr;
+}
+.analysis-harvest-focus {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(160px, 1fr);
+  gap: 20px;
+  align-items: center;
+  padding: 0 18px 16px;
+}
+.analysis-harvest-focus figure {
+  margin: 0;
+  text-align: center;
+}
+.analysis-harvest-focus svg {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+}
+.analysis-harvest-focus figcaption {
+  font-size: 10px;
+  color: #8a9eac;
+}
+.focus-number {
+  fill: #2d738f;
+  font-size: 30px;
+  font-weight: 600;
+}
+.focus-caption {
+  fill: #8a9eac;
+  font-size: 12px;
+}
+.analysis-harvest-focus dl {
+  margin: 0;
+}
+.analysis-harvest-focus dl > div {
+  padding: 9px 0;
+  border-bottom: 1px solid #edf2f5;
+}
+.analysis-harvest-focus dt {
+  font-size: 11px;
+  color: #7792a4;
+}
+.analysis-harvest-focus dd {
+  font-size: 18px;
+  font-weight: 600;
+  color: #376c87;
+  margin: 5px 0;
+}
+.analysis-harvest-focus small {
+  font-size: 10px;
+  color: #a0afba;
+}
+.analysis-price-focus {
+  position: relative;
+  padding: 0 18px 14px;
+  margin: 0;
+}
+.analysis-price-focus figcaption {
+  font-size: 11px;
+  color: #7893a4;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.analysis-price-focus svg {
+  display: block;
+  width: 100%;
+  max-height: 190px;
+}
+.analysis-price-spread {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  border-top: 1px solid #e9f0f4;
+  padding-top: 10px;
+  color: #7290a4;
+  font-size: 11px;
+}
+.analysis-price-spread strong {
+  font-size: 19px;
+  color: #297d92;
+}
+.analysis-price-spread small {
+  font-size: 10px;
+  color: #9aaab6;
+}
+.analysis-harvest-focus > .observable-analysis-report__trend-table,
+.analysis-price-focus > .observable-analysis-report__trend-table {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.analysis-cost-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 18px;
+  padding: 9px 0;
+  border-bottom: 1px solid #e7eff4;
+  font-size: 11px;
+  color: #7e99a9;
+}
+.analysis-cost-total strong {
+  color: #356e88;
+  font-size: 18px;
+  font-weight: 600;
+}
+/* Source diagram and table align within the same resizable evidence workspace. */
+.analysis-source-panel {
+  margin-top: 14px;
+  padding: 0;
+  background: #fff;
+  border: 1px solid #dce5ec;
+  border-radius: 3px;
+}
+.analysis-source-panel > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e6edf2;
+}
+.analysis-source-panel h2 {
+  font-size: 15px;
+  color: #34586f;
+  margin: 0;
+}
+.analysis-source-panel p {
+  font-size: 11px;
+  color: #91a5b3;
+  margin: 6px 0 0;
+}
+.analysis-source-panel > header label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6c899d;
+  font-size: 11px;
+}
+.analysis-source-panel > header input {
+  width: 230px;
+  max-width: 100%;
+  border: 1px solid #cbdbe6;
+  border-radius: 3px;
+  height: 32px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #426b84;
+}
+.analysis-source-body {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  align-items: start;
+}
+.analysis-source-breakdown {
+  padding: 14px 16px;
+  min-width: 0;
+}
+.analysis-source-breakdown h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #5a7b91;
+  display: flex;
+  justify-content: space-between;
+}
+.analysis-source-breakdown h3 span {
+  font-size: 10px;
+  color: #98aab7;
+}
+.analysis-source-regions {
+  display: grid;
+  gap: 3px;
+  max-height: 320px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #b7cbd8 transparent;
+}
+.reference-enterprise-shell .analysis-source-regions button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  border: 0;
+  background: none;
+  text-align: left;
+  color: #6b899d;
+  font-size: 11px;
+  padding: 8px 6px;
+  cursor: pointer;
+}
+.reference-enterprise-shell .analysis-source-regions button:hover,
+.reference-enterprise-shell
+  .analysis-source-regions
+  button[aria-pressed="true"] {
+  background: #ecf5fa;
+  color: #28678b;
+}
+.analysis-source-regions i {
+  grid-column: 1/-1;
+  height: 4px;
+  background: #edf3f6;
+}
+.analysis-source-regions b {
+  display: block;
+  height: 100%;
+  background: #5b9bbb;
+}
+.analysis-source-records {
+  min-width: 0;
+  border-left: 1px solid #e5edf3;
+}
+.analysis-source-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  color: #6f8da1;
+  font-size: 11px;
+  min-height: 44px;
+}
+.analysis-source-caption button {
+  border: 0;
+  padding: 0;
+  color: #2e7a9e;
+  font-size: 11px;
+  background: transparent;
+  cursor: pointer;
+}
+.reference-enterprise-shell
+  .analysis-source-records
+  .observable-analysis-report__lineage-viewport {
+  max-height: 320px;
+  overflow: auto;
+  border: 0;
+  margin: 0;
+}
+.reference-enterprise-shell .analysis-source-records table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 12px;
+}
+.reference-enterprise-shell .analysis-source-records th {
+  position: sticky;
+  top: 0;
+  background: #eaf2f7;
+  color: #577b91;
+  font-weight: 600;
+  text-align: left;
+}
+.reference-enterprise-shell .analysis-source-records :is(th, td) {
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid #e6eef3;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.reference-enterprise-shell .analysis-source-records td {
+  color: #6e8a9c;
+}
+.reference-enterprise-shell .analysis-source-records tr:nth-child(even) {
+  background: #f8fbfd;
+}
+.analysis-source-empty {
+  padding: 20px;
+}
+@media (max-width: 1050px) {
+  .reference-enterprise-shell .analysis-showcase-masthead {
+    grid-template-columns: 1fr;
+  }
+  .reference-enterprise-shell
+    .analysis-showcase-page
+    .observable-analysis-dashboard__grid {
+    grid-template-columns: 1fr;
+  }
+  .analysis-source-body {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+  .reference-enterprise-shell
+    .analysis-showcase-page
+    > .observable-analysis-report__metric-band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .analysis-source-panel > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .analysis-source-body {
+    grid-template-columns: 1fr;
+  }
+  .analysis-source-records {
+    border-left: 0;
+  }
+  .analysis-source-regions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 160px;
+  }
+  .reference-enterprise-shell
+    .analysis-showcase-page
+    .observable-analysis-report__chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* A lone final module uses the complete row instead of leaving a vacant half. */
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  > .observable-analysis-report__section:last-child {
+  grid-column: 1 / -1;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-dashboard__grid[data-card-count="1"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.reference-enterprise-shell
+  .analysis-source-records
+  .observable-analysis-report__lineage-viewport {
+  max-height: 320px !important;
+}
+/* Avoid nested half-width quality grids: values and units stay on one baseline. */
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__grouped-ranges {
+  grid-template-columns: minmax(0, 1fr);
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__ranges {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__range-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  .observable-analysis-report__range-values
+  small {
+  white-space: nowrap;
+  font-size: 10px;
+}
+/* Pair compact topics together; give the longer cost analysis its own complete row. */
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-outcomes"]
+  > .observable-analysis-report__section:nth-child(1) {
+  order: 1;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-outcomes"]
+  > .observable-analysis-report__section:nth-child(2) {
+  order: 2;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-outcomes"]
+  > .observable-analysis-report__section:nth-child(3) {
+  order: 3;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  > .observable-analysis-report__section:last-child {
+  order: 4;
+  grid-column: auto;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  > .observable-analysis-report__section:has(.analysis-cost-total) {
+  order: 5;
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  > .observable-analysis-report__section:has(.analysis-cost-total)
+  > :is(header, .analysis-cost-total) {
+  grid-column: 1/-1;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  .observable-analysis-report__distribution-layout {
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: center;
+}
+.reference-enterprise-shell
+  .analysis-showcase-page
+  [data-business-flow="production-resources"]
+  .observable-analysis-report__distribution-layout
+  dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+@media (max-width: 1000px) {
+  .reference-enterprise-shell
+    .analysis-showcase-page
+    [data-business-flow="production-resources"]
+    > .observable-analysis-report__section:has(.analysis-cost-total) {
+    grid-template-columns: 1fr;
+  }
+  .reference-enterprise-shell
+    .analysis-showcase-page
+    [data-business-flow="production-resources"]
+    .observable-analysis-report__distribution-layout
+    dl {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Live monthly plots share a stable chart, controls and value readout grid. */
+.analysis-showcase-page .analysis-live-trend {
+  min-width: 0;
+  margin: 0;
+}
+.analysis-live-trend__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+}
+.analysis-live-trend__heading > div,
+.analysis-live-trend__months {
+  display: flex;
+  gap: 4px;
+}
+.analysis-live-trend button {
+  border: 1px solid #d5e2ef;
+  background: #fff;
+  color: #516b85;
+  border-radius: 4px;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.analysis-live-trend button[aria-pressed="true"] {
+  background: #e9f2fc;
+  border-color: #3578bc;
+  color: #205c99;
+}
+.analysis-live-trend button:focus-visible {
+  outline: 2px solid #3578bc;
+  outline-offset: 2px;
+}
+.analysis-live-trend__months {
+  flex-wrap: wrap;
+}
+.analysis-live-trend__readout {
+  min-height: 68px;
+  padding: 10px 0;
+  color: #516b85;
+  font-size: 12px;
+}
+.analysis-live-trend__readout > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: baseline;
+}
+.analysis-live-trend__readout small {
+  flex-basis: 100%;
+}
+.analysis-trend-status {
+  padding: 12px 16px;
+  margin: 0;
+  color: #60758d;
+  background: #f5f8fc;
+  border: 1px solid #dde6f0;
+  font-size: 13px;
+}
+.analysis-live-trend svg {
+  width: 100%;
+  height: auto;
+}
+.analysis-live-trend svg path {
+  stroke-width: 2.5;
+}
