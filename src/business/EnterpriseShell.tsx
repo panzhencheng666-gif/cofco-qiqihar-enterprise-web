@@ -260,6 +260,7 @@ export function EnterpriseShell({
   administrator = false,
   location,
   onNavigate,
+  onTaskSearchRequested,
   shellIdentity,
   workItems = businessWorkFixtures,
   productionObjects = productionMonitoringObjects,
@@ -277,6 +278,7 @@ export function EnterpriseShell({
 }: {
   location: FormalLocation;
   onNavigate: (route: FormalRoute, selection?: FormalSelection) => void;
+  onTaskSearchRequested?: () => void;
   administrator?: boolean;
   shellIdentity: FormalShellIdentity;
   workItems?: readonly BusinessWorkItem[];
@@ -432,7 +434,10 @@ export function EnterpriseShell({
         placeholder="搜索地区、企业、任务和报告"
         type="search"
         value={searchQuery}
-        onChange={(event) => setSearchQuery(event.target.value)}
+        onChange={(event) => {
+          setSearchQuery(event.target.value);
+          if (event.target.value.trim()) onTaskSearchRequested?.();
+        }}
       />
       {searchQuery && (
         <div className="formal-search-results" role="listbox">

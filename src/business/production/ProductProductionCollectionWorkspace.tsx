@@ -612,8 +612,9 @@ export function ProductProductionCollectionWorkspace({
           ? "SOYBEAN"
           : "RICE";
     const request = realtimeRepository.listEligibleFormalSamples
-      ? realtimeRepository
-          .listEligibleFormalSamples({
+      ? loadEligibleSamplePage(
+          realtimeRepository,
+          {
             domain: "PRODUCTION",
             productCode,
             regionCode: realtimeRegionCode || undefined,
@@ -624,39 +625,34 @@ export function ProductProductionCollectionWorkspace({
             observedAt: new Date(
               `${surveyYear}-${surveyMonth ? surveyMonth.padStart(2, "0") : "12"}-01T00:00:00+08:00`,
             ).toISOString(),
-          })
-          .then((samples) => ({
-            items: samples
-              .slice(
-                pageNumber * collectionPageSize,
-                (pageNumber + 1) * collectionPageSize,
-              )
-              .map((sample) => ({
-                id: sample.latestObservationId ?? sample.samplePointId,
-                values: {
-                  ...sample.latestValues,
-                  PROD_OBJECT_TYPE: sample.objectTypeCode ?? "",
-                  __FORMAL_SAMPLE_ID: sample.samplePointId,
-                  __FORMAL_SAMPLE_NAME: sample.sampleName,
-                  __FORMAL_SAMPLE_ADDRESS: sample.address,
-                  __FORMAL_SAMPLE_OBJECT_TYPE: sample.objectTypeCode ?? "",
-                  __FORMAL_SAMPLE_OBJECT_TYPE_NAME: sample.objectTypeName ?? "",
-                  __FORMAL_SAMPLE_REGION: sample.regionName,
-                  __FORMAL_SAMPLE_MAINTAINER:
-                    sample.maintainerDisplayName ?? "—",
-                  __FORMAL_SAMPLE_LATITUDE: sample.latitude,
-                  __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
-                  __FORMAL_LATEST_OBSERVATION_ID:
-                    sample.latestObservationId ?? "",
-                },
-                allowedActions: [],
-                version: sample.version,
-              })),
-            pageNumber,
-            pageSize: collectionPageSize,
-            totalElements: samples.length,
-            totalPages: Math.ceil(samples.length / collectionPageSize),
-          }))
+          },
+          pageNumber,
+          collectionPageSize,
+        ).then((samplePage) => ({
+          items: samplePage.items.map((sample) => ({
+            id: sample.latestObservationId ?? sample.samplePointId,
+            values: {
+              ...sample.latestValues,
+              PROD_OBJECT_TYPE: sample.objectTypeCode ?? "",
+              __FORMAL_SAMPLE_ID: sample.samplePointId,
+              __FORMAL_SAMPLE_NAME: sample.sampleName,
+              __FORMAL_SAMPLE_ADDRESS: sample.address,
+              __FORMAL_SAMPLE_OBJECT_TYPE: sample.objectTypeCode ?? "",
+              __FORMAL_SAMPLE_OBJECT_TYPE_NAME: sample.objectTypeName ?? "",
+              __FORMAL_SAMPLE_REGION: sample.regionName,
+              __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
+              __FORMAL_SAMPLE_LATITUDE: sample.latitude,
+              __FORMAL_SAMPLE_LONGITUDE: sample.longitude,
+              __FORMAL_LATEST_OBSERVATION_ID: sample.latestObservationId ?? "",
+            },
+            allowedActions: [],
+            version: sample.version,
+          })),
+          pageNumber,
+          pageSize: collectionPageSize,
+          totalElements: samplePage.totalElements,
+          totalPages: samplePage.totalPages,
+        }))
       : realtimeRepository.listProduction({
           productCode,
           page: pageNumber,
@@ -1625,3 +1621,4 @@ export function ProductProductionCollectionWorkspace({
     </div>
   );
 }
+import { loadEligibleSamplePage } from "../realtime/loadEligibleSamplePage";

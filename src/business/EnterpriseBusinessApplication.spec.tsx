@@ -1,6 +1,7 @@
 import {
   act,
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -807,6 +808,14 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
+    await waitFor(() =>
+      expect(subscribeBusinessEvents).toHaveBeenCalledTimes(1),
+    );
+    expect(listWorkItems).not.toHaveBeenCalled();
+    fireEvent.change(
+      screen.getByRole("searchbox", { name: "全局搜索", hidden: true }),
+      { target: { value: "任务" } },
+    );
     await waitFor(() => {
       expect(subscribeBusinessEvents).toHaveBeenCalledTimes(1);
       expect(subscribeBusinessEvents).toHaveBeenCalledWith(
@@ -877,7 +886,7 @@ describe("formal enterprise prototype", () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the shared work catalog when navigating between business sections", async () => {
+  it("loads the shared work catalog on search demand and reuses it across sections", async () => {
     const loadMasterData = vi.fn(() =>
       Promise.resolve({
         products: [],
@@ -908,6 +917,11 @@ describe("formal enterprise prototype", () => {
         repository={repository}
       />,
     );
+    await screen.findByLabelText("全局搜索");
+    expect(listWorkItems).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("全局搜索"), {
+      target: { value: "任务" },
+    });
     await waitFor(() => expect(loadMasterData).toHaveBeenCalledTimes(1));
     await act(async () => {
       window.history.replaceState({}, "", "/#/产情监测/业务任务");
@@ -1259,6 +1273,9 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
+    fireEvent.change(await screen.findByLabelText("全局搜索"), {
+      target: { value: "任务" },
+    });
     await waitFor(() =>
       expect(
         screen.getByRole("status", {
@@ -1294,6 +1311,9 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
+    fireEvent.change(await screen.findByLabelText("全局搜索"), {
+      target: { value: "任务" },
+    });
     expect(
       await screen.findByRole("alert", {
         name: "业务数据状态",
@@ -1352,6 +1372,9 @@ describe("formal enterprise prototype", () => {
       />,
     );
 
+    fireEvent.change(await screen.findByLabelText("全局搜索"), {
+      target: { value: "任务" },
+    });
     expect(
       await screen.findByRole("alert", { name: "业务数据状态" }),
     ).toHaveTextContent("业务数据读取失败");

@@ -613,6 +613,7 @@ export interface BusinessNotificationRow {
 export interface BusinessNotificationPage {
   items: readonly BusinessNotificationRow[];
   unreadCount: number;
+  currentSequence?: number;
 }
 
 export interface WorkObligationReportInput {
@@ -1725,6 +1726,20 @@ export interface RealtimeBusinessRepository {
     productCode: string,
     objectTypeCode?: string,
   ): Promise<ProductionDefinition>;
+  listEligibleFormalSamplesPage?(
+    input: Parameters<
+      NonNullable<RealtimeBusinessRepository["listEligibleFormalSamples"]>
+    >[0] & {
+      pageNumber: number;
+      pageSize: number;
+    },
+  ): Promise<{
+    items: readonly EligibleFormalSample[];
+    pageNumber: number;
+    pageSize: number;
+    totalElements: number;
+    totalPages: number;
+  }>;
   listEligibleFormalSamples?(input: {
     scope?: "MY_TASKS";
     domain: FormalSampleObservationDomain;
@@ -2145,6 +2160,14 @@ export function createRealtimeBusinessRepository(
     return request;
   }
   return {
+    listEligibleFormalSamplesPage: (input) =>
+      client.get<{
+        items: readonly EligibleFormalSample[];
+        pageNumber: number;
+        pageSize: number;
+        totalElements: number;
+        totalPages: number;
+      }>("/api/v1/formal-sample-observations/eligible-samples", input),
     listEligibleFormalSamples: (input) =>
       client.get<readonly EligibleFormalSample[]>(
         "/api/v1/formal-sample-observations/eligible-samples",
@@ -2448,11 +2471,19 @@ export function createRealtimeBusinessRepository(
       const source = eventSourceFactory(
         `${streamBaseUrl}/api/v1/business-events/stream?after=${cursor}`,
       );
+      let latestSequence = cursor;
       source.addEventListener("business-change", (rawEvent) => {
         const data = (rawEvent as MessageEvent<unknown>).data;
         if (typeof data !== "string") return;
         try {
-          onChange(JSON.parse(data) as BusinessNotificationRow);
+          const event = JSON.parse(data) as BusinessNotificationRow;
+          if (
+            !Number.isSafeInteger(event.sequence) ||
+            event.sequence <= latestSequence
+          )
+            return;
+          latestSequence = event.sequence;
+          onChange(event);
         } catch {
           onError?.();
         }

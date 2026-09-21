@@ -660,6 +660,7 @@ export function EnterpriseBusinessApplication({
     "connecting" | "connected" | "empty" | "error" | "fixtures"
   >(realtimeMode ? "connecting" : "fixtures");
   const [realtimeRefreshToken, setRealtimeRefreshToken] = useState(0);
+  const [taskSearchRequested, setTaskSearchRequested] = useState(false);
   const [
     sampleNetworkRefreshSequenceByYear,
     setSampleNetworkRefreshSequenceByYear,
@@ -755,8 +756,19 @@ export function EnterpriseBusinessApplication({
   const activeWorkItemScope = realtimeWorkItemScope(
     location.route.application === "work" ? location.route.section : "tasks",
   );
+  const workItemDataNeeded =
+    taskSearchRequested ||
+    (location.route.application === "overview" &&
+      !overviewMapActive &&
+      location.route.section !== "periodic-reports");
   useEffect(() => {
-    if (!realtimeMode || !sessionReady || overviewMapActive) return;
+    if (
+      !realtimeMode ||
+      !sessionReady ||
+      overviewMapActive ||
+      !workItemDataNeeded
+    )
+      return;
     let cancelled = false;
     void Promise.all([
       repository.loadMasterData(),
@@ -789,6 +801,7 @@ export function EnterpriseBusinessApplication({
       cancelled = true;
     };
   }, [
+    workItemDataNeeded,
     overviewMapActive,
     activeWorkItemScope,
     realtimeMode,
@@ -802,6 +815,7 @@ export function EnterpriseBusinessApplication({
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    let cursorRetryTimer: ReturnType<typeof setTimeout> | undefined;
     let pendingSampleNetworkYears = new Set<number>();
     let pendingBusinessRefresh = false;
     const available = () =>
@@ -854,30 +868,37 @@ export function EnterpriseBusinessApplication({
         },
       );
     };
-    void repository
-      .listNotifications()
-      .then((page) => {
-        if (cancelled) return;
-        setBusinessNotifications(page.items);
-        setBusinessNotificationUnreadCount(page.unreadCount);
-        subscribeFrom(
-          page.items.reduce(
-            (latest, notification) => Math.max(latest, notification.sequence),
-            0,
-          ),
-        );
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setBusinessNotifications([]);
-        setBusinessNotificationUnreadCount(0);
-        subscribeFrom(0);
-      });
+    const initializeStream = () => {
+      void repository
+        .listNotifications()
+        .then((page) => {
+          if (cancelled) return;
+          setBusinessNotifications(page.items);
+          setBusinessNotificationUnreadCount(page.unreadCount);
+          subscribeFrom(
+            page.currentSequence ??
+              page.items.reduce(
+                (latest, notification) =>
+                  Math.max(latest, notification.sequence),
+                0,
+              ),
+          );
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setBusinessNotifications([]);
+          setBusinessNotificationUnreadCount(0);
+          // A failed cursor read must not replay the complete business history.
+          cursorRetryTimer = setTimeout(initializeStream, 15_000);
+        });
+    };
+    initializeStream();
     return () => {
       document.removeEventListener("visibilitychange", scheduleRefresh);
       window.removeEventListener("online", scheduleRefresh);
       cancelled = true;
       if (refreshTimer !== undefined) clearTimeout(refreshTimer);
+      if (cursorRetryTimer !== undefined) clearTimeout(cursorRetryTimer);
       unsubscribe?.();
     };
   }, [notificationsConfigured, repository, sessionReady]);
@@ -1399,6 +1420,7 @@ export function EnterpriseBusinessApplication({
       scope={scope}
       queryAllowed={queryAllowed}
       workItems={currentWorkItems}
+      onTaskSearchRequested={() => setTaskSearchRequested(true)}
     >
       {persistenceMessage && (
         <section
@@ -1448,6 +1470,7 @@ export function EnterpriseBusinessApplication({
         </section>
       )}
       {realtimeMode &&
+        workItemDataNeeded &&
         !(
           location.route.application === "overview" &&
           location.route.section === "map"

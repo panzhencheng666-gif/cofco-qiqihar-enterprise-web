@@ -416,8 +416,9 @@ export function LogisticsMonitoringWorkspace({
       setSelectedPersistedId(undefined);
     });
     const request = realtimeRepository.listEligibleFormalSamples
-      ? realtimeRepository
-          .listEligibleFormalSamples({
+      ? loadEligibleSamplePage(
+          realtimeRepository,
+          {
             domain: "LOGISTICS",
             productCode,
             regionCode: realtimeRegionCode || undefined,
@@ -428,40 +429,35 @@ export function LogisticsMonitoringWorkspace({
             observedAt: new Date(
               `${surveyYear}-${surveyMonth ? surveyMonth.padStart(2, "0") : "12"}-01T00:00:00+08:00`,
             ).toISOString(),
-          })
-          .then((samples) => ({
-            items: samples
-              .slice(
-                pageNumber * collectionPageSize,
-                (pageNumber + 1) * collectionPageSize,
-              )
-              .map((sample) => ({
-                id: sample.latestObservationId ?? sample.samplePointId,
-                productCode,
-                values: {
-                  ...sample.latestValues,
-                  LOG_SAMPLE_NAME: sample.sampleName,
-                  LOG_REGION: sample.regionName,
-                  LOG_SAMPLE_LATITUDE: sample.latitude,
-                  LOG_SAMPLE_LONGITUDE: sample.longitude,
-                  __FORMAL_SAMPLE_ID: sample.samplePointId,
-                  __FORMAL_SAMPLE_ADDRESS: sample.address,
-                  __FORMAL_SAMPLE_MAINTAINER:
-                    sample.maintainerDisplayName ?? "—",
-                  __FORMAL_LATEST_OBSERVATION_ID:
-                    sample.latestObservationId ?? "",
-                },
-                displayValues: {},
-                status: "DRAFT",
-                returnReason: null,
-                allowedActions: [],
-                version: sample.version,
-              })),
-            pageNumber,
-            pageSize: collectionPageSize,
-            totalElements: samples.length,
-            totalPages: Math.ceil(samples.length / collectionPageSize),
-          }))
+          },
+          pageNumber,
+          collectionPageSize,
+        ).then((samplePage) => ({
+          items: samplePage.items.map((sample) => ({
+            id: sample.latestObservationId ?? sample.samplePointId,
+            productCode,
+            values: {
+              ...sample.latestValues,
+              LOG_SAMPLE_NAME: sample.sampleName,
+              LOG_REGION: sample.regionName,
+              LOG_SAMPLE_LATITUDE: sample.latitude,
+              LOG_SAMPLE_LONGITUDE: sample.longitude,
+              __FORMAL_SAMPLE_ID: sample.samplePointId,
+              __FORMAL_SAMPLE_ADDRESS: sample.address,
+              __FORMAL_SAMPLE_MAINTAINER: sample.maintainerDisplayName ?? "—",
+              __FORMAL_LATEST_OBSERVATION_ID: sample.latestObservationId ?? "",
+            },
+            displayValues: {},
+            status: "DRAFT",
+            returnReason: null,
+            allowedActions: [],
+            version: sample.version,
+          })),
+          pageNumber,
+          pageSize: collectionPageSize,
+          totalElements: samplePage.totalElements,
+          totalPages: samplePage.totalPages,
+        }))
       : realtimeRepository.listLogistics({
           productCode,
           page: pageNumber,
@@ -1137,3 +1133,4 @@ export function LogisticsMonitoringWorkspace({
     </div>
   );
 }
+import { loadEligibleSamplePage } from "../realtime/loadEligibleSamplePage";
