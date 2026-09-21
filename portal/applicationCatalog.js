@@ -4,7 +4,7 @@ export const applicationCatalog = Object.freeze([
     name: "业务工作台",
     summary: "粮情采集 · 业务监测 · 经营分析",
     category: "粮食业务",
-    href: "https://localhost:29444/",
+    href: "/",
     featured: true,
     published: true,
   }),
@@ -13,7 +13,7 @@ export const applicationCatalog = Object.freeze([
     name: "风险研判预警",
     summary: "风险发现 · 证据研判 · 预警处置",
     category: "风险治理",
-    href: "https://localhost:29444/risk/",
+    href: "/risk/",
     featured: true,
     published: true,
   }),
@@ -21,6 +21,6 @@ export const applicationCatalog = Object.freeze([
 
 export function availableApps() {
   return applicationCatalog.filter(
-    (app) => app.published && /^https:\/\//u.test(app.href),
+    (app) => app.published && /^\/(?!\/)/u.test(app.href),
   );
 }

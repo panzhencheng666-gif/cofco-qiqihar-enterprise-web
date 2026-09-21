@@ -1,6 +1,7 @@
 import {
   AuditOutlined,
   DatabaseOutlined,
+  ExperimentOutlined,
   FileSearchOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
@@ -30,6 +31,7 @@ import {
 } from "@/platform/api/realtimeApiClient";
 import type { CurrentSession } from "@/platform/api/realtimeBusinessRepository";
 import { riskAntTheme } from "./riskVisualTheme";
+import { RiskModelCenter } from "./RiskModelCenter";
 
 type RiskLevel =
   "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | "UNAVAILABLE";
@@ -300,6 +302,7 @@ function FeedbackForm({
 }
 
 export function RiskWarningApplication() {
+  const [activeView, setActiveView] = useState<"events" | "models">("events");
   const [session, setSession] = useState<CurrentSession | null>(null);
   const [rows, setRows] = useState<readonly RiskAssessmentSummary[]>([]);
   const [selected, setSelected] = useState<RiskAssessmentDetail | null>(null);
@@ -458,10 +461,22 @@ export function RiskWarningApplication() {
                 </small>
               </div>
               <nav aria-label="风险系统功能">
-                <a aria-current="page">
+                <button
+                  type="button"
+                  aria-current={activeView === "events" ? "page" : undefined}
+                  onClick={() => setActiveView("events")}
+                >
                   <FileSearchOutlined />
                   风险事件研判
-                </a>
+                </button>
+                <button
+                  type="button"
+                  aria-current={activeView === "models" ? "page" : undefined}
+                  onClick={() => setActiveView("models")}
+                >
+                  <ExperimentOutlined />
+                  AI 模型中心
+                </button>
               </nav>
               <div className="risk-rail-foot">
                 <SafetyCertificateOutlined />
@@ -472,10 +487,18 @@ export function RiskWarningApplication() {
               <header className="risk-command-header">
                 <div>
                   <span>风险智能分析</span>
-                  <h1>风险研判预警中心</h1>
-                  <p>真实事件 · 可追溯证据 · 受控模型 · 人工复核</p>
+                  <h1>
+                    {activeView === "events"
+                      ? "风险研判预警中心"
+                      : "AI 模型训练与治理中心"}
+                  </h1>
+                  <p>
+                    {activeView === "events"
+                      ? "真实事件 · 可追溯证据 · 受控模型 · 人工复核"
+                      : "每日学习 · 冻结快照 · 真实工件 · 候选受控晋级"}
+                  </p>
                 </div>
-                <div className="risk-sync-facts">
+                {activeView === "events" && <div className="risk-sync-facts">
                   <div>
                     <small>当前查询</small>
                     <strong>{error ? "—" : rows.length}</strong>
@@ -488,8 +511,11 @@ export function RiskWarningApplication() {
                     </strong>
                     <span>30 秒自动刷新</span>
                   </div>
-                </div>
+                </div>}
               </header>
+              {activeView === "models" ? (
+                <RiskModelCenter />
+              ) : (<>
               {error && (
                 <Alert
                   type="error"
@@ -743,6 +769,7 @@ export function RiskWarningApplication() {
                   </Spin>
                 </div>
               </section>
+              </>)}
             </main>
           </div>
         </div>

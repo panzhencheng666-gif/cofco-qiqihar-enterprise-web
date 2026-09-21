@@ -15,7 +15,7 @@ describe("portal application center", () => {
         expect.objectContaining({
           id: "risk-warning",
           name: "风险研判预警",
-          href: "https://localhost:29444/risk/",
+          href: "/risk/",
           published: true,
         }),
       ]),
@@ -25,7 +25,7 @@ describe("portal application center", () => {
   it("keeps the current business workbench address unchanged", () => {
     expect(applicationCatalog[0]).toMatchObject({
       id: "grain-workbench",
-      href: "https://localhost:29444/",
+      href: "/",
     });
   });
 });
