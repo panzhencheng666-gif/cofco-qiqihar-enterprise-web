@@ -4,7 +4,7 @@ export const applicationCatalog = Object.freeze([
     name: "业务工作台",
     summary: "粮情采集 · 业务监测 · 经营分析",
     category: "粮食业务",
-    href: "/",
+    href: "/workbench/",
     featured: true,
     published: true,
   }),

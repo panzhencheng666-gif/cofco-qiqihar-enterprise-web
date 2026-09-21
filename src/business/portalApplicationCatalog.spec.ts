@@ -25,7 +25,7 @@ describe("portal application center", () => {
   it("keeps the current business workbench address unchanged", () => {
     expect(applicationCatalog[0]).toMatchObject({
       id: "grain-workbench",
-      href: "/",
+      href: "/workbench/",
     });
   });
 });

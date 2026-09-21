@@ -89,7 +89,7 @@ interface Filters {
 }
 
 const api = createRealtimeApiClient();
-const applicationCenterUrl = "/portal/";
+const applicationCenterUrl = "/#/applications";
 const domainLabels: Readonly<Record<string, string>> = {
   INVENTORY: "库存",
   MARKET: "市场",

@@ -20,10 +20,10 @@ describe("RiskWarningApplication navigation", () => {
 
     expect(
       screen.getByRole("link", { name: "返回平台应用中心" }),
-    ).toHaveAttribute("href", "/portal/");
+    ).toHaveAttribute("href", "/#/applications");
     expect(screen.getByRole("link", { name: "返回应用中心" })).toHaveAttribute(
       "href",
-      "/portal/",
+      "/#/applications",
     );
   });
 });
