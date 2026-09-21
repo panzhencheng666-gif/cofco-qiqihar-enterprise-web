@@ -440,7 +440,15 @@ function ProductionResult({
                     />
                   </div>
                 </AnalysisReportSection>
-              ) : <p className="analysis-trend-status" role="status">{series.status === "loading" ? "正在同步年度趋势数据…" : series.status === "error" ? "年度趋势数据读取失败，请点击刷新分析重试。" : "当前范围不足两个有效月份，暂不能形成月度趋势；有新月份数据后自动更新。"}</p>}
+              ) : (
+                <p className="analysis-trend-status" role="status">
+                  {series.status === "loading"
+                    ? "正在同步年度趋势数据…"
+                    : series.status === "error"
+                      ? "年度趋势数据读取失败，请点击刷新分析重试。"
+                      : "当前范围不足两个有效月份，暂不能形成月度趋势；有新月份数据后自动更新。"}
+                </p>
+              )}
             </div>
           </div>
           <AnalysisSourcePanel

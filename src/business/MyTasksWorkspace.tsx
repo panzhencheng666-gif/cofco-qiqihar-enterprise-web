@@ -58,7 +58,9 @@ export function MyTasksWorkspace({
       ...scope,
       authorization: {
         ...scope.authorization,
-        authorizedRegionIds: ["*"] as unknown as typeof scope.authorization.authorizedRegionIds,
+        authorizedRegionIds: [
+          "*",
+        ] as unknown as typeof scope.authorization.authorizedRegionIds,
       },
     },
     onScopeChange,

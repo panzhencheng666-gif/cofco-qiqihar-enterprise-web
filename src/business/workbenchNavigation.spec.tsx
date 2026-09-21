@@ -23,12 +23,14 @@ describe("production workbench navigation", () => {
         activeSection="business"
       />,
     );
-    expect(
-      screen.getByRole("link", { name: "业务工作台" }),
-    ).toHaveAttribute("href", "/workbench/");
-    expect(
-      screen.getByRole("link", { name: "我的任务" }),
-    ).toHaveAttribute("href", "/workbench/?page=work&section=my-tasks");
+    expect(screen.getByRole("link", { name: "业务工作台" })).toHaveAttribute(
+      "href",
+      "/workbench/",
+    );
+    expect(screen.getByRole("link", { name: "我的任务" })).toHaveAttribute(
+      "href",
+      "/workbench/?page=work&section=my-tasks",
+    );
     expect(screen.getByRole("link", { name: "业务通知" })).toHaveAttribute(
       "href",
       "/workbench/?panel=notifications",

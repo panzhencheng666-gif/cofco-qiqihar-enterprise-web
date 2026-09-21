@@ -1643,7 +1643,13 @@ it("allows ordinary accounts to maintain and import design samples", async () =>
     />,
   );
   expect(await screen.findByText("众兴村")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "新建设计样本" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "编辑众兴村" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "下载 XLSX 模板" })).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "新建设计样本" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "编辑众兴村" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "下载 XLSX 模板" }),
+  ).toBeInTheDocument();
 });

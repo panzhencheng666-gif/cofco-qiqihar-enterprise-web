@@ -213,8 +213,20 @@ export function AnalysisTrendChart({
       <figcaption className="analysis-live-trend__heading">
         <strong>{title}</strong>
         <div role="group" aria-label={`${title}显示方式`}>
-          <button type="button" aria-pressed={curved} onClick={() => setCurved(true)}>曲线</button>
-          <button type="button" aria-pressed={!curved} onClick={() => setCurved(false)}>折线</button>
+          <button
+            type="button"
+            aria-pressed={curved}
+            onClick={() => setCurved(true)}
+          >
+            曲线
+          </button>
+          <button
+            type="button"
+            aria-pressed={!curved}
+            onClick={() => setCurved(false)}
+          >
+            折线
+          </button>
         </div>
       </figcaption>
       <div className="observable-analysis-report__legend" aria-hidden="true">
@@ -262,9 +274,19 @@ export function AnalysisTrendChart({
                 item.value === null
                   ? []
                   : [
-                      <g key={item.month} onMouseEnter={() => setActiveMonth(item.month)}>
-                        <title>{item.month}月 · {line.label}：{formatMetric(String(item.value), line.unit)}</title>
-                        <circle cx={x(item.month)} cy={y(item.value)} r={activeMonth === item.month ? 6 : 4.5} />
+                      <g
+                        key={item.month}
+                        onMouseEnter={() => setActiveMonth(item.month)}
+                      >
+                        <title>
+                          {item.month}月 · {line.label}：
+                          {formatMetric(String(item.value), line.unit)}
+                        </title>
+                        <circle
+                          cx={x(item.month)}
+                          cy={y(item.value)}
+                          r={activeMonth === item.month ? 6 : 4.5}
+                        />
                       </g>,
                     ],
               )}
@@ -272,18 +294,46 @@ export function AnalysisTrendChart({
           );
         })}
       </svg>
-      <div className="analysis-live-trend__months" role="group" aria-label={`${title}查看月份`}>
-        {points.map((point) => <button type="button" key={point.month}
-          aria-pressed={activeMonth === point.month}
-          onClick={() => setActiveMonth(point.month)}>{point.month}月</button>)}
+      <div
+        className="analysis-live-trend__months"
+        role="group"
+        aria-label={`${title}查看月份`}
+      >
+        {points.map((point) => (
+          <button
+            type="button"
+            key={point.month}
+            aria-pressed={activeMonth === point.month}
+            onClick={() => setActiveMonth(point.month)}
+          >
+            {point.month}月
+          </button>
+        ))}
       </div>
       <div className="analysis-live-trend__readout" aria-live="polite">
-        {activeMonth === null ? "选择月份或悬停数据点查看数值；缺失月份保留断点。" :
-          points.filter((point) => point.month === activeMonth).map((point) => (
-            <div key={point.month}><strong>{point.month}月</strong>{lines.map((line) => (
-              <span key={line.key}>{line.label}：{point.error ? "该月读取失败" : formatMetric(point.snapshot ? line.value(point.snapshot) : null, line.unit)}</span>
-            ))}<small>来源：{point.snapshot?.coverage.recordCount ?? 0} 条记录</small></div>
-          ))}
+        {activeMonth === null
+          ? "选择月份或悬停数据点查看数值；缺失月份保留断点。"
+          : points
+              .filter((point) => point.month === activeMonth)
+              .map((point) => (
+                <div key={point.month}>
+                  <strong>{point.month}月</strong>
+                  {lines.map((line) => (
+                    <span key={line.key}>
+                      {line.label}：
+                      {point.error
+                        ? "该月读取失败"
+                        : formatMetric(
+                            point.snapshot ? line.value(point.snapshot) : null,
+                            line.unit,
+                          )}
+                    </span>
+                  ))}
+                  <small>
+                    来源：{point.snapshot?.coverage.recordCount ?? 0} 条记录
+                  </small>
+                </div>
+              ))}
       </div>
       <div className="observable-analysis-report__trend-table">
         <table aria-label={`${title}数据表`}>
@@ -990,22 +1040,27 @@ function segmentedPath(
   curved: boolean,
 ): string {
   let previous: { month: number; value: number } | null = null;
-  return values.flatMap((item) => {
-    if (item.value === null) { previous = null; return []; }
-    const current = { month: item.month, value: item.value };
-    const end = `${x(item.month).toFixed(2)},${y(item.value).toFixed(2)}`;
-    let command = `M${end}`;
-    if (previous && item.month === previous.month + 1) {
-      // Horizontal cubic tangents stay within the two observed values.
-      // Never bridge an absent month or extrapolate beyond an observation.
-      const middle = ((x(previous.month) + x(item.month)) / 2).toFixed(2);
-      command = curved
-        ? `C${middle},${y(previous.value).toFixed(2)} ${middle},${y(item.value).toFixed(2)} ${end}`
-        : `L${end}`;
-    }
-    previous = current;
-    return [command];
-  }).join(" ");
+  return values
+    .flatMap((item) => {
+      if (item.value === null) {
+        previous = null;
+        return [];
+      }
+      const current = { month: item.month, value: item.value };
+      const end = `${x(item.month).toFixed(2)},${y(item.value).toFixed(2)}`;
+      let command = `M${end}`;
+      if (previous && item.month === previous.month + 1) {
+        // Horizontal cubic tangents stay within the two observed values.
+        // Never bridge an absent month or extrapolate beyond an observation.
+        const middle = ((x(previous.month) + x(item.month)) / 2).toFixed(2);
+        command = curved
+          ? `C${middle},${y(previous.value).toFixed(2)} ${middle},${y(item.value).toFixed(2)} ${end}`
+          : `L${end}`;
+      }
+      previous = current;
+      return [command];
+    })
+    .join(" ");
 }
 
 export function formatMetric(

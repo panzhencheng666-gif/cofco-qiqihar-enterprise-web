@@ -115,7 +115,11 @@ describe("monitoring and task boundary", () => {
     render(
       <MyTasksWorkspace
         {...common}
-        repository={{ listEligibleFormalSamples: vi.fn().mockResolvedValue([]) } as unknown as RealtimeBusinessRepository}
+        repository={
+          {
+            listEligibleFormalSamples: vi.fn().mockResolvedValue([]),
+          } as unknown as RealtimeBusinessRepository
+        }
         session={
           {
             regionCodes: [],

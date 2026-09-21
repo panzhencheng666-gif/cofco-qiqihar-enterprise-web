@@ -108,7 +108,8 @@ export function DesignSamplePointTable({
   const hydratedSelection = useRef("");
   const canWrite =
     session.permissions.includes("BUSINESS_UPDATE") ||
-    session.rootAdministrator === true || session.roleCodes.includes("ADMIN");
+    session.rootAdministrator === true ||
+    session.roleCodes.includes("ADMIN");
   const canImport = canWrite;
   const showList = true;
   const navigate = (next: FormalSelection) => onSelectionChange?.(next);
