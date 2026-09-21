@@ -55,7 +55,19 @@ interface RiskTrainingExecution {
 interface RiskModelOverview {
   models: RiskModelSummary[];
   recentExecutions: RiskTrainingExecution[];
+  recentActivationEvents: RiskModelActivationEvent[];
   readAt: string;
+}
+
+interface RiskModelActivationEvent {
+  eventId: string;
+  modelId: string;
+  modelName: string;
+  fromVersion: number | null;
+  toVersion: number;
+  eventCode: "AUTO_ACTIVATED" | "AUTO_REJECTED" | "AUTO_ROLLED_BACK";
+  reasonCode: string;
+  occurredAt: string;
 }
 
 const api = createRealtimeApiClient();
@@ -77,6 +89,28 @@ const executionStatus: Readonly<
   SKIPPED: { label: "本次跳过", badge: "warning" },
   FAILED: { label: "训练失败", badge: "error" },
 };
+
+const versionStatusLabels: Readonly<Record<string, string>> = {
+  CANDIDATE: "候选待评估",
+  SHADOW: "影子验证中",
+  APPROVED: "自动门槛已通过",
+  ACTIVE: "正式运行",
+  STANDBY: "可回滚稳定版",
+  REJECTED: "自动淘汰",
+  RETIRED: "已退役",
+};
+
+const promotionReasonLabels: Readonly<Record<string, string>> = {
+  PROMOTION_GATES_PASSED: "真实影子指标通过",
+  F1_BELOW_GATE: "F1 低于安全门槛",
+  F1_REGRESSION: "相对稳定版发生回退",
+};
+
+function activationAction(event: RiskModelActivationEvent): string {
+  if (event.eventCode === "AUTO_ACTIVATED") return `自动上线 v${event.toVersion}`;
+  if (event.eventCode === "AUTO_REJECTED") return `自动淘汰 v${event.toVersion}`;
+  return `自动回滚 v${event.fromVersion ?? "—"} → v${event.toVersion}`;
+}
 
 function modelError(error: unknown): string {
   if (error instanceof RealtimeApiError)
@@ -195,6 +229,25 @@ export function RiskModelCenter() {
     [],
   );
 
+  const activationColumns = useMemo<ColumnsType<RiskModelActivationEvent>>(
+    () => [
+      { title: "模型", dataIndex: "modelName", ellipsis: true },
+      {
+        title: "自动动作",
+        key: "action",
+        width: 184,
+        render: (_, event) => activationAction(event),
+      },
+      {
+        title: "真实判定依据",
+        dataIndex: "reasonCode",
+        render: (value: string) => promotionReasonLabels[value] ?? value,
+      },
+      { title: "发生时间", dataIndex: "occurredAt", width: 176, render: time },
+    ],
+    [],
+  );
+
   if (loading && !overview)
     return (
       <div className="risk-model-loading">
@@ -220,10 +273,10 @@ export function RiskModelCenter() {
       <section className="risk-model-governance" aria-label="模型训练治理边界">
         <SafetyCertificateOutlined />
         <div>
-          <strong>每日自动取数、训练、评估并生成候选版本</strong>
-          <span>候选模型只能进入影子评估；系统数据库永久禁止自动上线。</span>
+          <strong>每日自动训练、真实影子验证、自动晋级与异常回滚</strong>
+          <span>真实影子结果达到门槛后自动灰度切换；质量下降时恢复上一稳定版本。</span>
         </div>
-        <Tag color="green">禁止自动上线</Tag>
+        <Tag color="cyan">自动受控上线</Tag>
       </section>
       <section className="risk-model-grid" aria-label="AI 模型清单">
         {!overview?.models.length ? (
@@ -269,7 +322,7 @@ export function RiskModelCenter() {
                     <dt>当前候选</dt>
                     <dd>
                       {model.latestVersion
-                        ? `v${model.latestVersion} · ${model.latestVersionStatus}`
+                        ? `v${model.latestVersion} · ${versionStatusLabels[model.latestVersionStatus ?? ""] ?? model.latestVersionStatus}`
                         : "尚未生成候选版本"}
                     </dd>
                   </div>
@@ -288,7 +341,9 @@ export function RiskModelCenter() {
                   <p className="risk-model-outcome">{model.lastOutcomeMessage}</p>
                 )}
                 <footer>
-                  <span>实现方式：{implementationLabel(model)}</span>
+                  <span>
+                    实现方式：{implementationLabel(model)} · {model.autoActivationEnabled ? "自动晋级" : "仅训练"}
+                  </span>
                   <Button
                     type="primary"
                     disabled={!trainable}
@@ -302,6 +357,23 @@ export function RiskModelCenter() {
             );
           })
         )}
+      </section>
+      <section className="risk-training-ledger" aria-label="自动晋级记录">
+        <header>
+          <div>
+            <strong>自动晋级记录</strong>
+            <small>上线、淘汰和回滚均由真实影子结果触发并写入不可变台账</small>
+          </div>
+        </header>
+        <Table
+          rowKey="eventId"
+          columns={activationColumns}
+          dataSource={overview?.recentActivationEvents ?? []}
+          pagination={false}
+          size="small"
+          locale={{ emptyText: "尚无自动晋级事件" }}
+          scroll={{ x: 720 }}
+        />
       </section>
       <section className="risk-training-ledger" aria-label="训练运行记录">
         <header>

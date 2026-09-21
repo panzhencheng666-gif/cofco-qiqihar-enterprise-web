@@ -20,7 +20,7 @@ mocks.get.mockResolvedValue({
       trainingWindowDays: 90,
       minimumNewLabels: 10,
       automaticCandidateEnabled: true,
-      autoActivationEnabled: false,
+      autoActivationEnabled: true,
       lastScheduledDate: null,
       lastExecutionStatus: null,
       lastOutcomeCode: null,
@@ -31,6 +31,18 @@ mocks.get.mockResolvedValue({
     },
   ],
   recentExecutions: [],
+  recentActivationEvents: [
+    {
+      eventId: "21600000-0000-0000-0000-000000000099",
+      modelId: "21500000-0000-0000-0000-000000000001",
+      modelName: "风险案例领域分类模型",
+      fromVersion: null,
+      toVersion: 1,
+      eventCode: "AUTO_ACTIVATED",
+      reasonCode: "PROMOTION_GATES_PASSED",
+      occurredAt: "2026-09-21T03:20:00Z",
+    },
+  ],
   readAt: "2026-09-21T03:00:00Z",
 });
 mocks.post.mockResolvedValue({
@@ -56,9 +68,13 @@ describe("RiskModelCenter", () => {
       </App>,
     );
 
-    expect(await screen.findByText("风险案例领域分类模型")).toBeInTheDocument();
+    expect(await screen.findAllByText("风险案例领域分类模型")).toHaveLength(2);
     expect(screen.getByText("每日 02:15 Asia/Shanghai")).toBeInTheDocument();
-    expect(screen.getByText("禁止自动上线")).toBeInTheDocument();
+    expect(screen.getByText("自动受控上线")).toBeInTheDocument();
+    expect(screen.getByText(/真实影子结果达到门槛后自动灰度切换/)).toBeInTheDocument();
+    expect(screen.queryByText("禁止自动上线")).not.toBeInTheDocument();
+    expect(screen.getByText("自动晋级记录")).toBeInTheDocument();
+    expect(screen.getByText("自动上线 v1")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "立即训练" }));
     await waitFor(() =>
