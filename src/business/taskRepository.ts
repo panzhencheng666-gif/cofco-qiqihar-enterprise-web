@@ -8,6 +8,7 @@ export function taskRepository(
       if (
         [
           "listEligibleFormalSamples",
+          "listEligibleFormalSamplesPage",
           "listProduction",
           "listMarket",
           "listLogistics",
