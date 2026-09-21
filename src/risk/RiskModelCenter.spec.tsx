@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { App } from "antd";
 import { describe, expect, it, vi } from "vitest";
 import type * as RealtimeApiClientModule from "@/platform/api/realtimeApiClient";
+import { App } from "@/shared/enterprise-ui/EnterpriseUiPrimitives";
 import { RiskModelCenter } from "./RiskModelCenter";
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));

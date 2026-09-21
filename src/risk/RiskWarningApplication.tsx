@@ -1,29 +1,27 @@
 import {
-  AuditOutlined,
-  DatabaseOutlined,
-  ExperimentOutlined,
-  FileSearchOutlined,
-  ReloadOutlined,
-  SafetyCertificateOutlined,
-  SearchOutlined,
-} from "@ant-design/icons";
-import {
   Alert,
   App,
+  AuditOutlined,
   Badge,
   Button,
   ConfigProvider,
+  DatabaseOutlined,
   Descriptions,
   Empty,
+  ExperimentOutlined,
+  FileSearchOutlined,
   Input,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  SearchOutlined,
   Select,
   Space,
   Spin,
   Table,
   Tag,
   Typography,
-} from "antd";
-import type { ColumnsType } from "antd/es/table";
+  type ColumnsType,
+} from "@/shared/enterprise-ui/EnterpriseUiPrimitives";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createRealtimeApiClient,

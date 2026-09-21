@@ -1,13 +1,20 @@
 import {
+  Alert,
+  App,
+  Badge,
+  Button,
   ClockCircleOutlined,
   DatabaseOutlined,
+  Empty,
   ExperimentOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
+  Spin,
+  Table,
+  Tag,
   ThunderboltOutlined,
-} from "@ant-design/icons";
-import { Alert, App, Badge, Button, Empty, Spin, Table, Tag } from "antd";
-import type { ColumnsType } from "antd/es/table";
+  type ColumnsType,
+} from "@/shared/enterprise-ui/EnterpriseUiPrimitives";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createRealtimeApiClient,
