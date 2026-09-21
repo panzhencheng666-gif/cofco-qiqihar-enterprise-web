@@ -87,6 +87,7 @@ interface Filters {
 }
 
 const api = createRealtimeApiClient();
+const applicationCenterUrl = "/portal/";
 const domainLabels: Readonly<Record<string, string>> = {
   INVENTORY: "库存",
   MARKET: "市场",
@@ -419,7 +420,7 @@ export function RiskWarningApplication() {
           <header className="risk-system-header">
             <a
               className="risk-system-brand"
-              href="/"
+              href={applicationCenterUrl}
               aria-label="返回平台应用中心"
             >
               <img src="/brand/rice-emblem.png" alt="" />
@@ -433,7 +434,7 @@ export function RiskWarningApplication() {
                 <small>当前用户</small>
                 <strong>{session?.displayName ?? "未认证"}</strong>
               </span>
-              <a href="/">返回应用中心</a>
+              <a href={applicationCenterUrl}>返回应用中心</a>
             </div>
           </header>
           <div className="risk-shell">
