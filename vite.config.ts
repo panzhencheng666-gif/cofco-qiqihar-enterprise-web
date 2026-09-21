@@ -265,6 +265,7 @@ export default defineConfig({
       input: {
         index: resolve(import.meta.dirname, "index.html"),
         identity: resolve(import.meta.dirname, "identity.html"),
+        risk: resolve(import.meta.dirname, "risk/index.html"),
       },
     },
     sourcemap: true,

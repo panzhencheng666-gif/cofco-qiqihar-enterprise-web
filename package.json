@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "prototype:risk": "VITEST=true vite --host 127.0.0.1 --port 63183 --strictPort",
     "preview": "vite preview --host 127.0.0.1 --port 63182 --strictPort",
     "preview:e2e": "vite preview --host 127.0.0.1 --port 63180 --strictPort",
     "build": "tsc -b && vite build",
