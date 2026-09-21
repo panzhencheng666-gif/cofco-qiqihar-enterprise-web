@@ -29,6 +29,7 @@ import {
   RealtimeApiError,
 } from "@/platform/api/realtimeApiClient";
 import type { CurrentSession } from "@/platform/api/realtimeBusinessRepository";
+import { riskAntTheme } from "./riskVisualTheme";
 
 type RiskLevel =
   "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | "UNAVAILABLE";
@@ -409,36 +410,12 @@ export function RiskWarningApplication() {
   }
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: "#35a7c8",
-          colorInfo: "#35a7c8",
-          colorSuccess: "#2bb673",
-          colorWarning: "#d8a441",
-          colorError: "#e45b5b",
-          colorText: "#dce8ef",
-          colorTextSecondary: "#8da5b3",
-          colorBgBase: "#07131d",
-          colorBgContainer: "#0d1e2a",
-          colorBorder: "#244050",
-          borderRadius: 3,
-          fontFamily: '"PingFang SC","Microsoft YaHei",system-ui,sans-serif',
-          fontSize: 13,
-        },
-        components: {
-          Table: {
-            headerBg: "#102633",
-            headerColor: "#94b2c2",
-            rowHoverBg: "#123040",
-          },
-          Select: { selectorBg: "#0c1c27" },
-          Input: { activeBg: "#0c1c27", hoverBg: "#0c1c27" },
-        },
-      }}
-    >
+    <ConfigProvider theme={riskAntTheme}>
       <App>
-        <div className="risk-application">
+        <div
+          className="risk-application"
+          data-service-state={error ? "error" : "online"}
+        >
           <header className="risk-system-header">
             <a
               className="risk-system-brand"
@@ -490,10 +467,10 @@ export function RiskWarningApplication() {
                 <span>所有结论保留证据、模型版本和人工复核记录</span>
               </div>
             </aside>
-            <main className="risk-main">
+            <main className="risk-main" aria-label="风险研判工作区">
               <header className="risk-command-header">
                 <div>
-                  <span>RISK INTELLIGENCE</span>
+                  <span>风险智能分析</span>
                   <h1>风险研判预警中心</h1>
                   <p>真实事件 · 可追溯证据 · 受控模型 · 人工复核</p>
                 </div>
