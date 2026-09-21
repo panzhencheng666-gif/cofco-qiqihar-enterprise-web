@@ -7,10 +7,17 @@ import {
   localAcceptanceActor,
   localIdentitySwitchPlugin,
   localLoopbackProxyTarget,
+  riskApiProxy,
   verifyLocalOverviewContract,
 } from "./vite.config";
 
 describe("enterprise local acceptance API proxy", () => {
+  it("routes only risk APIs to the independent loopback service", () => {
+    expect(riskApiProxy.target).toBe("http://127.0.0.1:63184");
+    expect(enterpriseConfig.server?.proxy?.["/api/v1/risk"]).toBe(riskApiProxy);
+    expect(enterpriseConfig.server?.proxy?.["/api"]).toBe(enterpriseApiProxy);
+  });
+
   it("allows only explicit numeric loopback origins for an isolated acceptance stack", () => {
     expect(
       localLoopbackProxyTarget(

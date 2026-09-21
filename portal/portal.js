@@ -1,19 +1,13 @@
 /* global document, location, scrollTo, window */
 
+import { applicationCatalog, availableApps } from "./applicationCatalog.js";
+
 const main = document.querySelector("main");
-const applicationCatalog = Object.freeze([
-  Object.freeze({
-    id: "grain-workbench",
-    name: "业务工作台",
-    summary: "粮情采集 · 业务监测 · 经营分析",
-    category: "粮食业务",
-    href: "https://localhost:29444/",
-    featured: true,
-    published: true,
-  }),
-]);
-const appIcon =
+const workbenchIcon =
   '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+const riskIcon =
+  '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 18h18"/><path d="m5 15 4-5 3 3 5-8 2 4"/><circle cx="5" cy="15" r="1"/><circle cx="9" cy="10" r="1"/><circle cx="12" cy="13" r="1"/><circle cx="17" cy="5" r="1"/></svg>';
+const iconFor = (app) => (app.id === "risk-warning" ? riskIcon : workbenchIcon);
 const escapeText = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -22,13 +16,8 @@ const escapeText = (value) =>
         c
       ],
   );
-function availableApps() {
-  return applicationCatalog.filter(
-    (a) => a.published && /^https:\/\//.test(a.href),
-  );
-}
 function applicationMarkup(app) {
-  return `<article class="catalog-entry"><span class="catalog-icon">${appIcon}</span><div><h3>${escapeText(app.name)}</h3><p>${escapeText(app.summary)}</p></div><a class="primary" href="${escapeText(app.href)}" target="_blank" rel="noopener" aria-label="打开${escapeText(app.name)}（新标签页）">进入${escapeText(app.name)} ↗</a></article>`;
+  return `<article class="catalog-entry"><span class="catalog-icon">${iconFor(app)}</span><div><h3>${escapeText(app.name)}</h3><p>${escapeText(app.summary)}</p></div><a class="primary" href="${escapeText(app.href)}" target="_blank" rel="noopener" aria-label="打开${escapeText(app.name)}（新标签页）">进入${escapeText(app.name)} ↗</a></article>`;
 }
 let directoryQuery = "";
 function updateDirectory() {
@@ -57,7 +46,7 @@ const views = {
       .slice(0, 3)
       .map(
         (app) =>
-          `<div class="portal-app-layout"><div class="application-intro"><span class="line-icon" aria-hidden="true">${appIcon}</span><h3>${escapeText(app.name)}</h3><p>${escapeText(app.summary)}</p></div><div class="application-action"><a class="launch-app" href="${escapeText(app.href)}" target="_blank" rel="noopener" aria-label="进入${escapeText(app.name)}（新标签页）"><span>进入${escapeText(app.name)}</span><span aria-hidden="true">↗</span></a><span class="launch-note">在新标签页打开</span></div></div>`,
+          `<div class="portal-app-layout"><div class="application-intro"><span class="line-icon" aria-hidden="true">${iconFor(app)}</span><h3>${escapeText(app.name)}</h3><p>${escapeText(app.summary)}</p></div><div class="application-action"><a class="launch-app" href="${escapeText(app.href)}" target="_blank" rel="noopener" aria-label="进入${escapeText(app.name)}（新标签页）"><span>进入${escapeText(app.name)}</span><span aria-hidden="true">↗</span></a><span class="launch-note">在新标签页打开</span></div></div>`,
       )
       .join(
         "",
@@ -65,9 +54,9 @@ const views = {
   applications: () =>
     `${title("应用中心", "应用中心", "")}<section class="container application-directory"><div class="directory-tools"><label for="directory-query">查找应用</label><input id="directory-query" type="search" value="${escapeText(directoryQuery)}" placeholder="输入应用名称或关键词"><span id="directory-count" role="status"></span></div><div id="directory-results" class="catalog-list"></div></section>`,
   about: () =>
-    `${title("关于平台", "立足粮食业务，服务区域经营", "齐齐哈尔粮食商情企业平台")}<section class="container prose"><h2>平台定位</h2><p>平台是业务应用中心的统一入口，以区域粮食商情业务为起点，支持后续持续建设与完善。</p><h2>当前应用</h2><p>业务工作台承载粮食信息采集、监测与分析。平台首页负责应用发现与服务引导，具体业务在工作台内开展。</p><a class="primary" href="#/applications">浏览应用中心 →</a></section>`,
+    `${title("关于平台", "立足粮食业务，服务区域经营", "齐齐哈尔粮食商情企业平台")}<section class="container prose"><h2>平台定位</h2><p>平台是独立业务系统的统一应用入口，以区域粮食商情业务为起点，支持后续持续建设与完善。</p><h2>当前应用</h2><p>业务工作台承载粮食信息采集、监测与分析；风险研判预警系统独立承担风险发现、证据研判和预警处置。两个系统均从应用中心进入。</p><a class="primary" href="#/applications">浏览应用中心 →</a></section>`,
   support: () =>
-    `${title("服务支持", "使用指南", "")}<section class="container help"><details id="help-start" tabindex="-1"><summary>如何进入业务工作台？</summary><div class="help-answer"><p>打开“应用中心”，选择“业务工作台”。进入后可使用工作台内的业务目录。</p><a class="text-link" href="${escapeText(availableApps()[0].href)}" target="_blank" rel="noopener">进入业务工作台 ↗</a></div></details><details><summary>如何切换业务和返回首页？</summary><div class="help-answer"><p>业务工作台在新标签页打开，沿用原系统的导航与操作方式。回到此标签页即可继续浏览平台首页。</p></div></details><details id="help-access" tabindex="-1"><summary>工作台需要登录或无法打开怎么办？</summary><div class="help-answer"><p>工作台使用原系统的登录页面与账号流程。若暂时无法访问，请先检查网络与访问地址；仍无法打开时，联系原系统管理员。首页不会代替工作台验证身份。</p></div></details><details><summary>搜索可以找到哪些内容？</summary><div class="help-answer"><p>平台搜索查找应用和使用指南。进入具体应用后，使用该应用提供的业务导航。</p></div></details><details><summary>当前预览可以办理真实业务吗？</summary><div class="help-answer"><p>本首页为独立预览。业务工作台入口会打开原系统，登录及业务操作均由原系统处理。</p></div></details></section>`,
+    `${title("服务支持", "使用指南", "")}<section class="container help"><details id="help-start" tabindex="-1"><summary>如何进入业务系统？</summary><div class="help-answer"><p>打开“应用中心”，选择“业务工作台”或“风险研判预警”。两个系统均在新标签页独立打开。</p><a class="text-link" href="#/applications">查看应用中心 →</a></div></details><details><summary>如何切换系统和返回首页？</summary><div class="help-answer"><p>各业务系统在新标签页独立运行。返回本标签页即可继续使用应用中心选择其他系统。</p></div></details><details id="help-access" tabindex="-1"><summary>系统需要登录或无法打开怎么办？</summary><div class="help-answer"><p>各系统使用平台账号和权限。若暂时无法访问，请先检查网络与访问地址；仍无法打开时，联系系统管理员。</p></div></details><details><summary>搜索可以找到哪些内容？</summary><div class="help-answer"><p>平台搜索查找应用和使用指南。进入具体系统后，使用该系统自己的业务导航。</p></div></details></section>`,
 };
 function render() {
   document.querySelector("[data-login-entry]").href =
