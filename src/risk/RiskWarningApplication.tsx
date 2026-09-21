@@ -498,278 +498,294 @@ export function RiskWarningApplication() {
                       : "每日学习 · 冻结快照 · 真实工件 · 候选受控晋级"}
                   </p>
                 </div>
-                {activeView === "events" && <div className="risk-sync-facts">
-                  <div>
-                    <small>当前查询</small>
-                    <strong>{error ? "—" : rows.length}</strong>
-                    <span>{error ? "未取得数据" : "条真实记录"}</span>
+                {activeView === "events" && (
+                  <div className="risk-sync-facts">
+                    <div>
+                      <small>当前查询</small>
+                      <strong>{error ? "—" : rows.length}</strong>
+                      <span>{error ? "未取得数据" : "条真实记录"}</span>
+                    </div>
+                    <div>
+                      <small>同步状态</small>
+                      <strong className={error ? "is-error" : "is-online"}>
+                        {error ? "异常" : "在线"}
+                      </strong>
+                      <span>30 秒自动刷新</span>
+                    </div>
                   </div>
-                  <div>
-                    <small>同步状态</small>
-                    <strong className={error ? "is-error" : "is-online"}>
-                      {error ? "异常" : "在线"}
-                    </strong>
-                    <span>30 秒自动刷新</span>
-                  </div>
-                </div>}
+                )}
               </header>
               {activeView === "models" ? (
                 <RiskModelCenter />
-              ) : (<>
-              {error && (
-                <Alert
-                  type="error"
-                  showIcon
-                  message="无法读取风险研判数据"
-                  description={error}
-                  action={
-                    <Button
-                      icon={<ReloadOutlined />}
-                      onClick={() => void load()}
-                    >
-                      重新连接
-                    </Button>
-                  }
-                />
-              )}
-              <section className="risk-query-panel">
-                <div className="risk-query-title">
-                  <DatabaseOutlined />
-                  <span>
-                    <strong>风险事件流</strong>
-                    <small>仅显示服务端返回的正式研判记录</small>
-                  </span>
-                </div>
-                <Space wrap>
-                  <Input
-                    allowClear
-                    prefix={<SearchOutlined />}
-                    placeholder="搜索对象或原因编码"
-                    value={filters.search}
-                    onChange={(event) =>
-                      setFilters((current) => ({
-                        ...current,
-                        search: event.target.value,
-                      }))
-                    }
-                  />
-                  <Select
-                    aria-label="业务域"
-                    value={filters.domain}
-                    onChange={(domain) =>
-                      setFilters((current) => ({ ...current, domain }))
-                    }
-                    options={[
-                      { value: "", label: "全部业务域" },
-                      ...Object.entries(domainLabels).map(([value, label]) => ({
-                        value,
-                        label,
-                      })),
-                    ]}
-                  />
-                  <Select
-                    aria-label="风险等级"
-                    value={filters.level}
-                    onChange={(level) =>
-                      setFilters((current) => ({ ...current, level }))
-                    }
-                    options={[
-                      { value: "", label: "全部等级" },
-                      ...Object.entries(riskLabels).map(([value, label]) => ({
-                        value,
-                        label,
-                      })),
-                    ]}
-                  />
-                  <Select
-                    aria-label="复核状态"
-                    value={filters.status}
-                    onChange={(status) =>
-                      setFilters((current) => ({ ...current, status }))
-                    }
-                    options={[
-                      { value: "OPEN", label: "待复核" },
-                      { value: "REVIEWED", label: "已复核" },
-                      { value: "ALL", label: "全部" },
-                    ]}
-                  />
-                  <Button
-                    icon={<ReloadOutlined />}
-                    loading={loading}
-                    onClick={() => void load()}
-                  >
-                    刷新
-                  </Button>
-                </Space>
-              </section>
-              <section className="risk-workspace">
-                <div className="risk-event-ledger">
-                  <Table
-                    rowKey="assessmentId"
-                    loading={loading}
-                    columns={columns}
-                    dataSource={[...rows]}
-                    pagination={false}
-                    locale={{
-                      emptyText: (
-                        <Empty
-                          image={Empty.PRESENTED_IMAGE_SIMPLE}
-                          description={
-                            error
-                              ? "服务恢复后显示真实风险事件"
-                              : "当前查询没有风险事件"
-                          }
-                        />
-                      ),
-                    }}
-                    onRow={(row) => ({ onClick: () => void open(row) })}
-                    rowClassName={(row) =>
-                      selected?.assessment.assessmentId === row.assessmentId
-                        ? "is-selected"
-                        : ""
-                    }
-                    scroll={{ x: 1050, y: 360 }}
-                    size="small"
-                  />
-                </div>
-                <div className="risk-detail-panel">
-                  <Spin spinning={detailLoading}>
-                    {!selected ? (
-                      <Empty
-                        image={<AuditOutlined />}
-                        description="选择一条真实风险事件查看证据与复核记录"
+              ) : (
+                <>
+                  {error && (
+                    <Alert
+                      type="error"
+                      showIcon
+                      message="无法读取风险研判数据"
+                      description={error}
+                      action={
+                        <Button
+                          icon={<ReloadOutlined />}
+                          onClick={() => void load()}
+                        >
+                          重新连接
+                        </Button>
+                      }
+                    />
+                  )}
+                  <section className="risk-query-panel">
+                    <div className="risk-query-title">
+                      <DatabaseOutlined />
+                      <span>
+                        <strong>风险事件流</strong>
+                        <small>仅显示服务端返回的正式研判记录</small>
+                      </span>
+                    </div>
+                    <Space wrap>
+                      <Input
+                        allowClear
+                        prefix={<SearchOutlined />}
+                        placeholder="搜索对象或原因编码"
+                        value={filters.search}
+                        onChange={(event) =>
+                          setFilters((current) => ({
+                            ...current,
+                            search: event.target.value,
+                          }))
+                        }
                       />
-                    ) : (
-                      <>
-                        <div className="risk-detail-heading">
-                          <div>
-                            <small>
-                              {domainLabels[selected.assessment.domainCode] ??
-                                selected.assessment.domainCode}
-                            </small>
-                            <h2>{selected.assessment.subjectId}</h2>
-                          </div>
-                          {levelTag(selected.assessment.riskLevel)}
-                        </div>
-                        <Descriptions
-                          bordered
-                          size="small"
-                          column={2}
-                          items={[
-                            {
-                              key: "type",
-                              label: "对象类型",
-                              children: selected.assessment.subjectType,
-                            },
-                            {
-                              key: "mode",
-                              label: "研判方式",
-                              children: selected.assessment.evaluationMode,
-                            },
-                            {
-                              key: "model",
-                              label: "模型版本",
-                              children: selected.assessment.modelName
-                                ? `${selected.assessment.modelName} v${selected.assessment.modelVersion}`
-                                : "规则研判",
-                            },
-                            {
-                              key: "duration",
-                              label: "计算耗时",
-                              children: `${selected.assessment.evaluationDurationMs} ms`,
-                            },
-                            {
-                              key: "reasons",
-                              label: "原因编码",
-                              span: 2,
-                              children:
-                                selected.assessment.reasonCodes.join("、") ||
-                                "—",
-                            },
-                          ]}
-                        />
-                        <section>
-                          <h3>证据快照</h3>
-                          <EvidenceSnapshot value={selected.evidenceSnapshot} />
-                        </section>
-                        <section>
-                          <h3>AI研判意见</h3>
-                          {selected.judgement ? (
-                            <div className="risk-ai-record">
-                              <p>{selected.judgement.independentConclusion}</p>
-                              <dl>
-                                <div>
-                                  <dt>置信度</dt>
-                                  <dd>
-                                    {(
-                                      selected.judgement.confidence * 100
-                                    ).toFixed(2)}
-                                    %
-                                  </dd>
-                                </div>
-                                <div>
-                                  <dt>生成时间</dt>
-                                  <dd>
-                                    {formatTime(selected.judgement.generatedAt)}
-                                  </dd>
-                                </div>
-                              </dl>
-                              <Typography.Text type="secondary">
-                                支持证据
-                              </Typography.Text>
-                              <pre>
-                                {renderValue(
-                                  selected.judgement.supportingEvidence,
-                                )}
-                              </pre>
-                              <Typography.Text type="secondary">
-                                反面证据
-                              </Typography.Text>
-                              <pre>
-                                {renderValue(
-                                  selected.judgement.contradictingEvidence,
-                                )}
-                              </pre>
-                              <Typography.Text type="secondary">
-                                不确定性
-                              </Typography.Text>
-                              <pre>
-                                {renderValue(
-                                  selected.judgement.uncertaintyDefinition,
-                                )}
-                              </pre>
-                              <Typography.Text type="secondary">
-                                建议措施
-                              </Typography.Text>
-                              <pre>
-                                {renderValue(
-                                  selected.judgement.recommendedActions,
-                                )}
-                              </pre>
-                            </div>
-                          ) : (
+                      <Select
+                        aria-label="业务域"
+                        value={filters.domain}
+                        onChange={(domain) =>
+                          setFilters((current) => ({ ...current, domain }))
+                        }
+                        options={[
+                          { value: "", label: "全部业务域" },
+                          ...Object.entries(domainLabels).map(
+                            ([value, label]) => ({
+                              value,
+                              label,
+                            }),
+                          ),
+                        ]}
+                      />
+                      <Select
+                        aria-label="风险等级"
+                        value={filters.level}
+                        onChange={(level) =>
+                          setFilters((current) => ({ ...current, level }))
+                        }
+                        options={[
+                          { value: "", label: "全部等级" },
+                          ...Object.entries(riskLabels).map(
+                            ([value, label]) => ({
+                              value,
+                              label,
+                            }),
+                          ),
+                        ]}
+                      />
+                      <Select
+                        aria-label="复核状态"
+                        value={filters.status}
+                        onChange={(status) =>
+                          setFilters((current) => ({ ...current, status }))
+                        }
+                        options={[
+                          { value: "OPEN", label: "待复核" },
+                          { value: "REVIEWED", label: "已复核" },
+                          { value: "ALL", label: "全部" },
+                        ]}
+                      />
+                      <Button
+                        icon={<ReloadOutlined />}
+                        loading={loading}
+                        onClick={() => void load()}
+                      >
+                        刷新
+                      </Button>
+                    </Space>
+                  </section>
+                  <section className="risk-workspace">
+                    <div className="risk-event-ledger">
+                      <Table
+                        rowKey="assessmentId"
+                        loading={loading}
+                        columns={columns}
+                        dataSource={[...rows]}
+                        pagination={false}
+                        locale={{
+                          emptyText: (
                             <Empty
                               image={Empty.PRESENTED_IMAGE_SIMPLE}
-                              description="该事件没有AI研判记录"
+                              description={
+                                error
+                                  ? "服务恢复后显示真实风险事件"
+                                  : "当前查询没有风险事件"
+                              }
                             />
-                          )}
-                        </section>
-                        <section>
-                          <h3>人工复核</h3>
-                          <FeedbackForm
-                            assessment={selected}
-                            onSaved={(value) => {
-                              setSelected(value);
-                              void load();
-                            }}
+                          ),
+                        }}
+                        onRow={(row) => ({ onClick: () => void open(row) })}
+                        rowClassName={(row) =>
+                          selected?.assessment.assessmentId === row.assessmentId
+                            ? "is-selected"
+                            : ""
+                        }
+                        scroll={{ x: 1050, y: 360 }}
+                        size="small"
+                      />
+                    </div>
+                    <div className="risk-detail-panel">
+                      <Spin spinning={detailLoading}>
+                        {!selected ? (
+                          <Empty
+                            image={<AuditOutlined />}
+                            description="选择一条真实风险事件查看证据与复核记录"
                           />
-                        </section>
-                      </>
-                    )}
-                  </Spin>
-                </div>
-              </section>
-              </>)}
+                        ) : (
+                          <>
+                            <div className="risk-detail-heading">
+                              <div>
+                                <small>
+                                  {domainLabels[
+                                    selected.assessment.domainCode
+                                  ] ?? selected.assessment.domainCode}
+                                </small>
+                                <h2>{selected.assessment.subjectId}</h2>
+                              </div>
+                              {levelTag(selected.assessment.riskLevel)}
+                            </div>
+                            <Descriptions
+                              bordered
+                              size="small"
+                              column={2}
+                              items={[
+                                {
+                                  key: "type",
+                                  label: "对象类型",
+                                  children: selected.assessment.subjectType,
+                                },
+                                {
+                                  key: "mode",
+                                  label: "研判方式",
+                                  children: selected.assessment.evaluationMode,
+                                },
+                                {
+                                  key: "model",
+                                  label: "模型版本",
+                                  children: selected.assessment.modelName
+                                    ? `${selected.assessment.modelName} v${selected.assessment.modelVersion}`
+                                    : "规则研判",
+                                },
+                                {
+                                  key: "duration",
+                                  label: "计算耗时",
+                                  children: `${selected.assessment.evaluationDurationMs} ms`,
+                                },
+                                {
+                                  key: "reasons",
+                                  label: "原因编码",
+                                  span: 2,
+                                  children:
+                                    selected.assessment.reasonCodes.join(
+                                      "、",
+                                    ) || "—",
+                                },
+                              ]}
+                            />
+                            <section>
+                              <h3>证据快照</h3>
+                              <EvidenceSnapshot
+                                value={selected.evidenceSnapshot}
+                              />
+                            </section>
+                            <section>
+                              <h3>AI研判意见</h3>
+                              {selected.judgement ? (
+                                <div className="risk-ai-record">
+                                  <p>
+                                    {selected.judgement.independentConclusion}
+                                  </p>
+                                  <dl>
+                                    <div>
+                                      <dt>置信度</dt>
+                                      <dd>
+                                        {(
+                                          selected.judgement.confidence * 100
+                                        ).toFixed(2)}
+                                        %
+                                      </dd>
+                                    </div>
+                                    <div>
+                                      <dt>生成时间</dt>
+                                      <dd>
+                                        {formatTime(
+                                          selected.judgement.generatedAt,
+                                        )}
+                                      </dd>
+                                    </div>
+                                  </dl>
+                                  <Typography.Text type="secondary">
+                                    支持证据
+                                  </Typography.Text>
+                                  <pre>
+                                    {renderValue(
+                                      selected.judgement.supportingEvidence,
+                                    )}
+                                  </pre>
+                                  <Typography.Text type="secondary">
+                                    反面证据
+                                  </Typography.Text>
+                                  <pre>
+                                    {renderValue(
+                                      selected.judgement.contradictingEvidence,
+                                    )}
+                                  </pre>
+                                  <Typography.Text type="secondary">
+                                    不确定性
+                                  </Typography.Text>
+                                  <pre>
+                                    {renderValue(
+                                      selected.judgement.uncertaintyDefinition,
+                                    )}
+                                  </pre>
+                                  <Typography.Text type="secondary">
+                                    建议措施
+                                  </Typography.Text>
+                                  <pre>
+                                    {renderValue(
+                                      selected.judgement.recommendedActions,
+                                    )}
+                                  </pre>
+                                </div>
+                              ) : (
+                                <Empty
+                                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                  description="该事件没有AI研判记录"
+                                />
+                              )}
+                            </section>
+                            <section>
+                              <h3>人工复核</h3>
+                              <FeedbackForm
+                                assessment={selected}
+                                onSaved={(value) => {
+                                  setSelected(value);
+                                  void load();
+                                }}
+                              />
+                            </section>
+                          </>
+                        )}
+                      </Spin>
+                    </div>
+                  </section>
+                </>
+              )}
             </main>
           </div>
         </div>

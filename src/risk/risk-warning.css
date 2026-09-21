@@ -882,7 +882,11 @@ a {
 .risk-model-card > footer > span {
   overflow: hidden;
   color: var(--risk-ink-subtle);
-  font: 11px/1.5 "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  font:
+    11px/1.5 "IBM Plex Mono",
+    "SFMono-Regular",
+    Consolas,
+    monospace;
   overflow-wrap: anywhere;
 }
 

@@ -81,7 +81,13 @@ const modelKindLabels: Readonly<Record<string, string>> = {
 };
 
 const executionStatus: Readonly<
-  Record<string, { label: string; badge: "default" | "processing" | "success" | "error" | "warning" }>
+  Record<
+    string,
+    {
+      label: string;
+      badge: "default" | "processing" | "success" | "error" | "warning";
+    }
+  >
 > = {
   QUEUED: { label: "已排队", badge: "default" },
   RUNNING: { label: "训练中", badge: "processing" },
@@ -107,8 +113,10 @@ const promotionReasonLabels: Readonly<Record<string, string>> = {
 };
 
 function activationAction(event: RiskModelActivationEvent): string {
-  if (event.eventCode === "AUTO_ACTIVATED") return `自动上线 v${event.toVersion}`;
-  if (event.eventCode === "AUTO_REJECTED") return `自动淘汰 v${event.toVersion}`;
+  if (event.eventCode === "AUTO_ACTIVATED")
+    return `自动上线 v${event.toVersion}`;
+  if (event.eventCode === "AUTO_REJECTED")
+    return `自动淘汰 v${event.toVersion}`;
   return `自动回滚 v${event.fromVersion ?? "—"} → v${event.toVersion}`;
 }
 
@@ -132,7 +140,11 @@ function time(value: string | null): string {
 }
 
 function schedule(model: RiskModelSummary): string {
-  if (!model.policyEnabled || !model.scheduledLocalTime || !model.scheduleTimezone)
+  if (
+    !model.policyEnabled ||
+    !model.scheduledLocalTime ||
+    !model.scheduleTimezone
+  )
     return "训练策略未启用";
   return `每日 ${model.scheduledLocalTime.slice(0, 5)} ${model.scheduleTimezone}`;
 }
@@ -200,7 +212,8 @@ export function RiskModelCenter() {
         title: "触发方式",
         dataIndex: "triggerCode",
         width: 96,
-        render: (value: string) => (value === "DAILY" ? "每日自动" : "人工请求"),
+        render: (value: string) =>
+          value === "DAILY" ? "每日自动" : "人工请求",
       },
       {
         title: "状态",
@@ -274,7 +287,9 @@ export function RiskModelCenter() {
         <SafetyCertificateOutlined />
         <div>
           <strong>每日自动训练、真实影子验证、自动晋级与异常回滚</strong>
-          <span>真实影子结果达到门槛后自动灰度切换；质量下降时恢复上一稳定版本。</span>
+          <span>
+            真实影子结果达到门槛后自动灰度切换；质量下降时恢复上一稳定版本。
+          </span>
         </div>
         <Tag color="cyan">自动受控上线</Tag>
       </section>
@@ -283,7 +298,8 @@ export function RiskModelCenter() {
           <Empty description="服务端没有登记 AI 模型" />
         ) : (
           overview.models.map((model) => {
-            const trainable = model.statusCode === "ACTIVE" && model.policyEnabled;
+            const trainable =
+              model.statusCode === "ACTIVE" && model.policyEnabled;
             const state = model.lastExecutionStatus
               ? executionStatus[model.lastExecutionStatus]
               : null;
@@ -298,20 +314,28 @@ export function RiskModelCenter() {
                     )}
                   </span>
                   <div>
-                    <small>{modelKindLabels[model.modelKind] ?? model.modelKind}</small>
+                    <small>
+                      {modelKindLabels[model.modelKind] ?? model.modelKind}
+                    </small>
                     <h2>{model.modelName}</h2>
                   </div>
-                  <Tag color={model.statusCode === "ACTIVE" ? "green" : "default"}>
+                  <Tag
+                    color={model.statusCode === "ACTIVE" ? "green" : "default"}
+                  >
                     {model.statusCode === "ACTIVE" ? "已启用" : "待配置"}
                   </Tag>
                 </header>
                 <dl>
                   <div>
-                    <dt><ClockCircleOutlined /> 训练计划</dt>
+                    <dt>
+                      <ClockCircleOutlined /> 训练计划
+                    </dt>
                     <dd>{schedule(model)}</dd>
                   </div>
                   <div>
-                    <dt><DatabaseOutlined /> 数据契约</dt>
+                    <dt>
+                      <DatabaseOutlined /> 数据契约
+                    </dt>
                     <dd>
                       {model.policyEnabled
                         ? `${model.trainingWindowDays} 天窗口 · 至少 ${model.minimumNewLabels} 条新标签`
@@ -338,11 +362,14 @@ export function RiskModelCenter() {
                   </div>
                 </dl>
                 {model.lastOutcomeMessage && (
-                  <p className="risk-model-outcome">{model.lastOutcomeMessage}</p>
+                  <p className="risk-model-outcome">
+                    {model.lastOutcomeMessage}
+                  </p>
                 )}
                 <footer>
                   <span>
-                    实现方式：{implementationLabel(model)} · {model.autoActivationEnabled ? "自动晋级" : "仅训练"}
+                    实现方式：{implementationLabel(model)} ·{" "}
+                    {model.autoActivationEnabled ? "自动晋级" : "仅训练"}
                   </span>
                   <Button
                     type="primary"
@@ -381,7 +408,11 @@ export function RiskModelCenter() {
             <strong>训练运行台账</strong>
             <small>快照、运行、结果和候选版本均来自服务端数据库</small>
           </div>
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void load()}>
+          <Button
+            icon={<ReloadOutlined />}
+            loading={loading}
+            onClick={() => void load()}
+          >
             刷新
           </Button>
         </header>

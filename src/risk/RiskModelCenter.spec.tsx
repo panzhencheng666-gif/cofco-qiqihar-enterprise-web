@@ -71,7 +71,9 @@ describe("RiskModelCenter", () => {
     expect(await screen.findAllByText("风险案例领域分类模型")).toHaveLength(2);
     expect(screen.getByText("每日 02:15 Asia/Shanghai")).toBeInTheDocument();
     expect(screen.getByText("自动受控上线")).toBeInTheDocument();
-    expect(screen.getByText(/真实影子结果达到门槛后自动灰度切换/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/真实影子结果达到门槛后自动灰度切换/),
+    ).toBeInTheDocument();
     expect(screen.queryByText("禁止自动上线")).not.toBeInTheDocument();
     expect(screen.getByText("自动晋级记录")).toBeInTheDocument();
     expect(screen.getByText("自动上线 v1")).toBeInTheDocument();
