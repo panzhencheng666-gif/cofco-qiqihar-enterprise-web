@@ -31,6 +31,9 @@ describe("production workbench navigation", () => {
       "href",
       "/workbench/?page=work&section=my-tasks",
     );
+    expect(
+      screen.queryByRole("link", { name: "风险研判预警" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "业务通知" })).toHaveAttribute(
       "href",
       "/workbench/?panel=notifications",
