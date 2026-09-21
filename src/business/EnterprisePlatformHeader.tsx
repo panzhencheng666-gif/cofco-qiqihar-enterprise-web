@@ -1,4 +1,8 @@
-import { WORKBENCH_URL, identityNavigationUrl } from "./workbenchNavigation";
+import {
+  RISK_WARNING_URL,
+  WORKBENCH_URL,
+  identityNavigationUrl,
+} from "./workbenchNavigation";
 import type { ReactNode } from "react";
 import type { CurrentSession } from "@/platform/api/realtimeBusinessRepository";
 import { EnterpriseIcon } from "./EnterpriseIcon";
@@ -39,7 +43,7 @@ export function EnterprisePlatformHeader({
   displayName: string;
   roleLabel: string;
   canManage: boolean;
-  activeSection: "business" | "tasks" | "management" | "profile";
+  activeSection: "business" | "risk" | "tasks" | "management" | "profile";
   accountHref?: string;
   managementHref?: string;
   managementLabel?: string;
@@ -86,6 +90,25 @@ export function EnterprisePlatformHeader({
             <path d="M8 6V4h8v2M3 7h18v14H3zM3 11l9 4 9-4M10 12h4v4h-4z" />
           </svg>
           业务工作台
+        </a>
+        <a
+          href={RISK_WARNING_URL}
+          aria-current={activeSection === "risk" ? "page" : undefined}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            aria-hidden="true"
+          >
+            <path d="M4 18h16M6 15l3-4 3 2 4-6 2 3" />
+            <circle cx="6" cy="15" r="1" />
+            <circle cx="9" cy="11" r="1" />
+            <circle cx="12" cy="13" r="1" />
+            <circle cx="16" cy="7" r="1" />
+          </svg>
+          风险研判预警
         </a>
         <a
           href={`${WORKBENCH_URL}?page=work&section=my-tasks`}
