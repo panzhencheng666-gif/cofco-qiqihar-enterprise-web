@@ -150,6 +150,22 @@ export const enterpriseApiProxy: ProxyOptions = {
   },
 };
 
+export const riskApiProxy: ProxyOptions = {
+  target: localLoopbackProxyTarget(
+    process.env["COFCO_RISK_API_PROXY_TARGET"],
+    "http://127.0.0.1:63184",
+  ),
+  changeOrigin: true,
+  xfwd: true,
+  configure(proxy) {
+    proxy.on("proxyReq", (proxyRequest, request) => {
+      proxyRequest.removeHeader("x-actor");
+      const actor = actorFromCookie(request.headers.cookie);
+      if (actor !== undefined) proxyRequest.setHeader("X-Actor", actor);
+    });
+  },
+};
+
 export async function verifyLocalOverviewContract(
   fetchContract: typeof fetch = fetch,
 ): Promise<void> {
@@ -278,6 +294,7 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: ["all"],
     proxy: {
+      "/api/v1/risk": riskApiProxy,
       "/api": enterpriseApiProxy,
       "/oauth2": enterpriseApiProxy,
       "/login/oauth2": enterpriseApiProxy,
