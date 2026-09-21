@@ -23,6 +23,7 @@
   },
   "include": [
     "src",
+    "portal/**/*.d.ts",
     "e2e",
     "vite.config.ts",
     "vite.config.spec.ts",

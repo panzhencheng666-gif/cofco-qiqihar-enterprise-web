@@ -1,5 +1,4 @@
 export const WORKBENCH_URL = "/workbench/";
-export const RISK_WARNING_URL = "/risk/";
 
 /** Only return to our business application, never arbitrary redirect targets. */
 export function safeWorkbenchReturn(

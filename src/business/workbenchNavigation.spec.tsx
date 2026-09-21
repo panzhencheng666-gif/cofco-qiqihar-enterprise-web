@@ -23,18 +23,17 @@ describe("production workbench navigation", () => {
         activeSection="business"
       />,
     );
+    expect(screen.getByRole("link", { name: "业务工作台" })).toHaveAttribute(
+      "href",
+      "/workbench/",
+    );
+    expect(screen.getByRole("link", { name: "我的任务" })).toHaveAttribute(
+      "href",
+      "/workbench/?page=work&section=my-tasks",
+    );
     expect(
-      screen.getByRole("link", { name: "业务工作台" }),
-    ).toHaveAttribute("href", "/workbench/");
-    expect(
-      screen.getByRole("link", { name: "我的任务" }),
-    ).toHaveAttribute("href", "/workbench/?page=work&section=my-tasks");
-    expect(
-      screen.getByRole("link", { name: "风险研判预警" }),
-    ).toHaveAttribute("href", "/risk/");
-    expect(
-      screen.getByRole("link", { name: "风险研判预警" }),
-    ).not.toHaveAttribute("aria-current");
+      screen.queryByRole("link", { name: "风险研判预警" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "业务通知" })).toHaveAttribute(
       "href",
       "/workbench/?panel=notifications",
@@ -71,23 +70,6 @@ describe("production workbench navigation", () => {
       origin,
     );
     expect(decodeURI(management.searchParams.get("returnTo")!)).toBe(returnTo);
-  });
-  it("marks the independent risk application as the current platform application", () => {
-    render(
-      <EnterprisePlatformHeader
-        displayName="员工"
-        roleLabel="员工"
-        canManage={false}
-        activeSection="risk"
-      />,
-    );
-
-    expect(
-      screen.getByRole("link", { name: "风险研判预警" }),
-    ).toHaveAttribute("aria-current", "page");
-    expect(
-      screen.getByRole("link", { name: "业务工作台" }),
-    ).not.toHaveAttribute("aria-current");
   });
   it("falls back safely for direct visits and untrusted targets", () => {
     for (const value of [

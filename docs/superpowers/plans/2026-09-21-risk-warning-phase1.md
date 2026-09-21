@@ -4,7 +4,7 @@
 
 ## Completed
 
-- [x] Add the peer `/risk/` platform navigation without changing workbench routing.
+- [x] Add `/risk/` as a second application-center entry without changing workbench routing or navigation.
 - [x] Add the independent Vite entry and isolated React/CSS surface.
 - [x] Replace static prototype controls with real assessment queries, detail reads, refresh, filters and feedback writes.
 - [x] Hide training, promotion, source configuration and response controls until their execution services exist.
@@ -17,7 +17,7 @@
 - [ ] Run backend unit and PostgreSQL integration tests with an explicit isolated `QIQIHAR_TEST_DB_URL`.
 - [ ] Start the backend containing the new endpoints and verify browser list/detail/filter/refresh behavior with a real authorized account.
 - [ ] Create a governed test assessment in the isolated test database, submit feedback through the UI, and re-query database/API evidence.
-- [ ] Run existing workbench regression checks to confirm the additive entry does not change current business functions.
+- [ ] Run existing workbench regression checks to confirm the application-center entry does not change current business functions.
 - [ ] Publish only after migration/readback, real login, API/database re-query and rollback checks pass.
 
 Do not add another UI surface until this vertical slice has passed the release requirements above.
