@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PrivateMessageEnvelope } from "./PrivateMessageEnvelope";
@@ -10,6 +11,30 @@ afterEach(() => {
 });
 
 describe("PrivateMessageEnvelope", () => {
+  it("coalesces the StrictMode mount read but reads again after a fresh mount", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ data: { unreadCount: 0 } }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <StrictMode>
+        <PrivateMessageEnvelope />
+      </StrictMode>,
+    );
+    expect(
+      await screen.findByRole("button", { name: "站内信，0条未读" }),
+    ).toBeVisible();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    cleanup();
+    render(<PrivateMessageEnvelope />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
   it("highlights unread messages and marks an opened inbox message as read", async () => {
     let unread = 1;
     const fetchMock = vi.fn((input: RequestInfo | URL) => {

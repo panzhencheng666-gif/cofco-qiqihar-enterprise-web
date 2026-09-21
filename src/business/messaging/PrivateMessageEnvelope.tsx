@@ -16,6 +16,21 @@ type Message = {
 
 type MessageTab = "inbox" | "sent" | "compose";
 
+let pendingUnreadCount: Promise<number> | undefined;
+
+function readUnreadCount(fresh = false): Promise<number> {
+  if (!fresh && pendingUnreadCount) return pendingUnreadCount;
+  const request = api<{ unreadCount: number }>(
+    "/api/v1/messages/unread-count",
+  ).then((value) => value.unreadCount);
+  pendingUnreadCount = request;
+  const clear = () => {
+    if (pendingUnreadCount === request) pendingUnreadCount = undefined;
+  };
+  void request.then(clear, clear);
+  return request;
+}
+
 export function PrivateMessageEnvelope() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<MessageTab>("inbox");
@@ -23,9 +38,9 @@ export function PrivateMessageEnvelope() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [issue, setIssue] = useState("");
 
-  const loadUnread = () =>
-    api<{ unreadCount: number }>("/api/v1/messages/unread-count")
-      .then((value) => setUnread(value.unreadCount))
+  const loadUnread = (fresh = false) =>
+    readUnreadCount(fresh)
+      .then(setUnread)
       .catch(() => undefined);
 
   const load = (next: "inbox" | "sent") => {
@@ -76,7 +91,7 @@ export function PrivateMessageEnvelope() {
           item.id === message.id ? { ...item, read: true } : item,
         ),
       );
-      void loadUnread();
+      void loadUnread(true);
     } catch {
       setIssue("消息状态更新失败，请重试。");
     }

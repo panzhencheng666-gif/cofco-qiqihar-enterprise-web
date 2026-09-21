@@ -1225,6 +1225,18 @@ describe("realtime business repository", () => {
     expect(get).toHaveBeenCalledTimes(4);
   });
 
+  it("shares the page-entry master-data snapshot without surviving a fresh repository", async () => {
+    const { api, get } = client();
+    const firstPage = createRealtimeBusinessRepository(api);
+
+    await Promise.all([firstPage.loadMasterData(), firstPage.loadMasterData()]);
+    await firstPage.loadMasterData();
+    expect(get).toHaveBeenCalledTimes(4);
+
+    await createRealtimeBusinessRepository(api).loadMasterData();
+    expect(get).toHaveBeenCalledTimes(8);
+  });
+
   it("loads governed supply survey years and nullable quarters", async () => {
     const { api, get } = client();
     const periods =
