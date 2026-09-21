@@ -4,7 +4,7 @@
   "statusSemantics": "IMPLEMENTED 只证明源码位置已登记；交互行为仍归阶段二/三真实浏览器与数据库矩阵验证",
   "sourceBoundary": "src/business/**/*.tsx，排除 *.spec.tsx、*.test.tsx 与 docs",
   "sourceFileCount": 71,
-  "sourceDigest": "a86276153d178549b5136c4623eed280efb8696cea6fad636766ac7d23874eaa",
+  "sourceDigest": "be3f5c47e90d9b40c1427abb4edaca8e57c56254f28d2833051e5d6123177163",
   "itemCount": 533,
   "countsByKind": {
     "BUTTON": 295,
@@ -490,10 +490,10 @@
       "sourceExcerpt": "<button aria-label={`打开${application.label}`} key={application.key} type=\"button\" onClick={() => { onSelect?.(application.key); setOpen(false); }} >"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1409:13:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1414:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1409,
+      "line": 1414,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -504,10 +504,10 @@
       "sourceExcerpt": "<button type=\"button\" onClick={rebuildOperationalState}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:1427:11:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:1432:11:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 1427,
+      "line": 1432,
       "column": 11,
       "tag": "button",
       "accessibleNameSource": null,
@@ -518,10 +518,10 @@
       "sourceExcerpt": "<button onClick={() => updateCoordinates({ regionId: \"authorized-all\", businessDomainId: undefined, businessSubtypeId: undefined, productId: undefined, cultivarId: undefined, releaseVersion: undefined, dataLayer: \"official\", }) } type=\"b..."
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:189:11:LINK",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:194:11:LINK",
       "kind": "LINK",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 189,
+      "line": 194,
       "column": 11,
       "tag": "a",
       "accessibleNameSource": null,
@@ -532,10 +532,10 @@
       "sourceExcerpt": "<a href={loginUrl} onClick={clearAutomaticLoginAttempt}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:255:13:LINK",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:260:13:LINK",
       "kind": "LINK",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 255,
+      "line": 260,
       "column": 13,
       "tag": "a",
       "accessibleNameSource": null,
@@ -546,10 +546,10 @@
       "sourceExcerpt": "<a className=\"enterprise-session-action\" href={loginUrl}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:263:13:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:268:13:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 263,
+      "line": 268,
       "column": 13,
       "tag": "button",
       "accessibleNameSource": null,
@@ -560,10 +560,10 @@
       "sourceExcerpt": "<button className=\"enterprise-session-action\" onClick={onActivationRetry} type=\"button\" >"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:274:15:LINK",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:279:15:LINK",
       "kind": "LINK",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 274,
+      "line": 279,
       "column": 15,
       "tag": "a",
       "accessibleNameSource": null,
@@ -574,10 +574,10 @@
       "sourceExcerpt": "<a className=\"enterprise-session-action\" href={loginUrl}>"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:391:7:DIALOG",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:396:7:DIALOG",
       "kind": "DIALOG",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 391,
+      "line": 396,
       "column": 7,
       "tag": "section",
       "accessibleNameSource": "aria-label={label}",
@@ -588,10 +588,10 @@
       "sourceExcerpt": "<section aria-label={label} aria-modal=\"true\" className=\"realtime-entry-dialog\" role=\"dialog\" >"
     },
     {
-      "id": "src/business/EnterpriseBusinessApplication.tsx:397:9:BUTTON",
+      "id": "src/business/EnterpriseBusinessApplication.tsx:402:9:BUTTON",
       "kind": "BUTTON",
       "sourceFile": "src/business/EnterpriseBusinessApplication.tsx",
-      "line": 397,
+      "line": 402,
       "column": 9,
       "tag": "button",
       "accessibleNameSource": "aria-label={`关闭${label}`}",

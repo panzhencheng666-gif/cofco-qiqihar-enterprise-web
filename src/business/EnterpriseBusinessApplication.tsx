@@ -30,7 +30,6 @@ import { EnterpriseShell } from "./EnterpriseShell";
 import { FormalExecutiveOverviewWorkspace } from "./ExecutiveOverviewWorkspace";
 import { OverviewMonitoringFrame } from "./OverviewMonitoringFrame";
 import { PeriodicReportsFrame } from "./PeriodicReportsFrame";
-import { FormalProductionMonitoringWorkspace } from "./ProductionMonitoringWorkspace";
 import { FormalSupplyDemandWorkspace } from "./SupplyDemandWorkspace";
 import { RegionalAnnualProductionWorkspace } from "./production/RegionalAnnualProductionWorkspace";
 import { SupplyBalanceWorkspace } from "./SupplyBalanceWorkspace";
@@ -90,6 +89,12 @@ const HistoricalSampleWorkspace = lazy(() =>
 const MyTasksWorkspace = lazy(() =>
   import("./MyTasksWorkspace").then((module) => ({
     default: module.MyTasksWorkspace,
+  })),
+);
+
+const FormalProductionMonitoringWorkspace = lazy(() =>
+  import("./ProductionMonitoringWorkspace").then((module) => ({
+    default: module.FormalProductionMonitoringWorkspace,
   })),
 );
 
