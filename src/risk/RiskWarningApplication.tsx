@@ -30,6 +30,11 @@ import {
   RealtimeApiError,
 } from "@/platform/api/realtimeApiClient";
 import type { CurrentSession } from "@/platform/api/realtimeBusinessRepository";
+import { enterpriseLoginPath } from "@/platform/api/browserSession";
+import {
+  clearAutomaticLoginAttempt,
+  redirectToEnterpriseLogin,
+} from "@/business/automaticLogin";
 import { riskAntTheme } from "./riskVisualTheme";
 import { RiskModelCenter } from "./RiskModelCenter";
 
@@ -90,6 +95,7 @@ interface Filters {
 
 const api = createRealtimeApiClient();
 const applicationCenterUrl = "/#/applications";
+const riskLoginUrl = `${enterpriseLoginPath}?returnTo=${encodeURIComponent("/risk/")}`;
 const domainLabels: Readonly<Record<string, string>> = {
   INVENTORY: "库存",
   MARKET: "市场",
@@ -315,6 +321,8 @@ export function RiskWarningApplication() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loginRedirecting, setLoginRedirecting] = useState(false);
+  const [loginRedirectBlocked, setLoginRedirectBlocked] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
@@ -343,6 +351,11 @@ export function RiskWarningApplication() {
           : current,
       );
     } catch (loadError) {
+      if (loadError instanceof RealtimeApiError && loadError.status === 401) {
+        setLoginRedirecting(true);
+        setLoginRedirectBlocked(!redirectToEnterpriseLogin(riskLoginUrl));
+        return;
+      }
       setError(errorMessage(loadError));
       setRows([]);
       setSelected(null);
@@ -411,6 +424,23 @@ export function RiskWarningApplication() {
     } finally {
       setDetailLoading(false);
     }
+  }
+
+  if (loginRedirecting) {
+    return (
+      <main className="enterprise-login-redirect" role="status">
+        <p>
+          {loginRedirectBlocked
+            ? "登录未能完成，请重新尝试。"
+            : "正在进入登录界面…"}
+        </p>
+        {loginRedirectBlocked && (
+          <a href={riskLoginUrl} onClick={clearAutomaticLoginAttempt}>
+            重新登录
+          </a>
+        )}
+      </main>
+    );
   }
 
   return (
