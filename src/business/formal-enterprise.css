@@ -3898,7 +3898,8 @@ body {
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 700px),
+  (max-width: 1180px) and (hover: none) and (pointer: coarse) {
   .formal-enterprise {
     --enterprise-sidebar-width: 0px;
   }
@@ -4003,7 +4004,8 @@ body {
 }
 /* enterprise-mobile-shell-cascade:end */
 /* task-c1-mobile-business-shell:start */
-@media (max-width: 700px) {
+@media (max-width: 700px),
+  (max-width: 1180px) and (hover: none) and (pointer: coarse) {
   .formal-enterprise {
     overflow-x: clip;
   }

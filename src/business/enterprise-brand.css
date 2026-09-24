@@ -499,7 +499,8 @@
     padding-left: 8px;
   }
 }
-@media (max-width: 640px) {
+@media (max-width: 640px),
+  (max-width: 900px) and (hover: none) and (pointer: coarse) {
   .enterprise-platform-header {
     height: 106px;
     flex-wrap: wrap;
@@ -608,7 +609,8 @@
   input::placeholder {
   color: #71849a;
 }
-@media (max-width: 640px) {
+@media (max-width: 640px),
+  (max-width: 900px) and (hover: none) and (pointer: coarse) {
   .reference-enterprise-shell:has(.has-platform-header) {
     --enterprise-header-height: 106px;
   }
@@ -841,7 +843,8 @@
   display: none;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 700px),
+  (max-width: 1180px) and (hover: none) and (pointer: coarse) {
   .enterprise-platform-header .platform-module-menu-toggle {
     min-width: 58px;
     min-height: 44px;
