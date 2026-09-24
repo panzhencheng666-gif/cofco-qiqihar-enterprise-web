@@ -10,6 +10,52 @@ import { EnterpriseShell } from "./EnterpriseShell";
 afterEach(cleanup);
 
 describe("EnterpriseShell", () => {
+  it("opens the mobile module list and closes it after switching modules", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    render(
+      <EnterpriseShell
+        identityPageUrl="/identity.html"
+        location={{
+          route: createFormalRoute("market", "corn-collection"),
+          coordinates: { regionId: "authorized-all" },
+        }}
+        onNavigate={onNavigate}
+        shellIdentity={{
+          platformName: "平台名称",
+          workUnit: {
+            organizationLabel: "组织",
+            currentUnitLabel: "单位一",
+            units: ["单位一"],
+          },
+          account: { displayName: "王洋", menuItems: [] },
+        }}
+      >
+        <h1>workspace</h1>
+      </EnterpriseShell>,
+    );
+
+    const toggle = screen.getByRole("button", { name: "打开模块菜单" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("mobile-business-modules")).toHaveClass(
+      "is-mobile-open",
+    );
+
+    await user.click(
+      within(
+        screen.getByRole("navigation", { name: "市场监测模块" }),
+      ).getByRole("button", { name: "供需平衡" }),
+    );
+    expect(onNavigate).toHaveBeenCalledWith(
+      createFormalRoute("supply", "balance"),
+    );
+    expect(document.getElementById("mobile-business-modules")).not.toHaveClass(
+      "is-mobile-open",
+    );
+  });
+
   it("opens real organization and account governance from the header", async () => {
     const user = userEvent.setup();
     const onIdentityOpen = vi.fn();

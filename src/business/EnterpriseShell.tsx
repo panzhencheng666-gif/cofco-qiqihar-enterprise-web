@@ -303,6 +303,7 @@ export function EnterpriseShell({
       : null,
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const currentApplication =
     formalApplicationDefinitions.find(
       ({ key }) => key === location.route.application,
@@ -467,7 +468,10 @@ export function EnterpriseShell({
     <div
       className="formal-enterprise reference-enterprise-shell"
       onKeyDown={(event) => {
-        if (event.key === "Escape") closePanels();
+        if (event.key === "Escape") {
+          closePanels();
+          setMobileMenuOpen(false);
+        }
       }}
     >
       <header className="formal-header formal-global-header">
@@ -485,6 +489,8 @@ export function EnterpriseShell({
               }
               managementHref={`${identityPageUrl}?view=employees`}
               managementLabel={`当前工作单位：${shellIdentity.workUnit.currentUnitLabel}`}
+              moduleMenuOpen={mobileMenuOpen}
+              onModuleMenuToggle={() => setMobileMenuOpen((open) => !open)}
               tools={
                 <>
                   <details className="platform-search-popover">
@@ -535,6 +541,18 @@ export function EnterpriseShell({
               >
                 <span>齐</span>
                 <strong>{shellIdentity.platformName}</strong>
+              </button>
+
+              <button
+                className="formal-module-menu-toggle"
+                type="button"
+                aria-label={mobileMenuOpen ? "关闭模块菜单" : "打开模块菜单"}
+                aria-controls="mobile-business-modules"
+                aria-expanded={mobileMenuOpen}
+                onClick={() => setMobileMenuOpen((open) => !open)}
+              >
+                <EnterpriseIcon name="list" />
+                <span>模块</span>
               </button>
 
               <nav aria-label="业务应用" className="formal-application-nav">
@@ -724,8 +742,29 @@ export function EnterpriseShell({
         </div>
       </header>
 
+      {mobileMenuOpen && (
+        <button
+          className="formal-mobile-menu-backdrop"
+          type="button"
+          aria-label="关闭模块菜单"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
       <div className="formal-enterprise-shell">
-        <aside className="formal-sidebar">
+        <aside
+          className={`formal-sidebar${mobileMenuOpen ? " is-mobile-open" : ""}`}
+          id="mobile-business-modules"
+        >
+          <div className="formal-mobile-menu-heading">
+            <strong>业务模块</strong>
+            <button
+              type="button"
+              aria-label="关闭模块菜单"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              ×
+            </button>
+          </div>
           <BusinessNavigationTree
             administrator={administrator}
             application={currentApplication}
@@ -733,6 +772,7 @@ export function EnterpriseShell({
             onNavigate={(route) => {
               onNavigate(route);
               closePanels();
+              setMobileMenuOpen(false);
             }}
           />
           <p className="enterprise-sidebar-motto">

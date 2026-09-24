@@ -34,6 +34,8 @@ export function EnterprisePlatformHeader({
   onProfile,
   notification,
   tools,
+  onModuleMenuToggle,
+  moduleMenuOpen = false,
 }: {
   platformName?: string;
   displayName: string;
@@ -46,6 +48,8 @@ export function EnterprisePlatformHeader({
   onProfile?: () => void;
   notification?: ReactNode;
   tools?: ReactNode;
+  onModuleMenuToggle?: () => void;
+  moduleMenuOpen?: boolean;
 }) {
   const person = (
     <>
@@ -71,6 +75,19 @@ export function EnterprisePlatformHeader({
         <strong>{platformName}</strong>
         <small>粮安天下 · 服务产业 · 数智赋能</small>
       </a>
+      {onModuleMenuToggle && (
+        <button
+          className="platform-module-menu-toggle"
+          type="button"
+          aria-label={moduleMenuOpen ? "关闭模块菜单" : "打开模块菜单"}
+          aria-controls="mobile-business-modules"
+          aria-expanded={moduleMenuOpen}
+          onClick={onModuleMenuToggle}
+        >
+          <EnterpriseIcon name="list" />
+          <span>模块</span>
+        </button>
+      )}
       <nav aria-label="平台应用">
         <a
           href={WORKBENCH_URL}

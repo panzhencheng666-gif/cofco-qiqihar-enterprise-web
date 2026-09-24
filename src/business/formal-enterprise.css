@@ -3853,6 +3853,12 @@ body {
 }
 
 /* enterprise-mobile-shell-cascade:start */
+.formal-module-menu-toggle,
+.formal-mobile-menu-heading,
+.formal-mobile-menu-backdrop {
+  display: none;
+}
+
 @media (max-width: 1180px) {
   .formal-enterprise {
     --enterprise-sidebar-width: 180px;
@@ -3905,6 +3911,63 @@ body {
 
   .formal-enterprise .formal-sidebar {
     display: none;
+  }
+
+  .formal-enterprise .formal-sidebar.is-mobile-open {
+    position: fixed;
+    z-index: 61;
+    top: var(--enterprise-header-height);
+    left: 0;
+    width: min(320px, calc(100vw - 48px));
+    height: calc(100dvh - var(--enterprise-header-height));
+    display: flex;
+    overflow-y: auto;
+    box-shadow: 12px 0 28px rgb(6 31 51 / 30%);
+  }
+
+  .formal-enterprise .formal-mobile-menu-backdrop {
+    position: fixed;
+    z-index: 60;
+    inset: var(--enterprise-header-height) 0 0;
+    width: 100%;
+    display: block;
+    border: 0;
+    background: rgb(7 25 43 / 48%);
+  }
+
+  .formal-enterprise .formal-mobile-menu-heading {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px 0 16px;
+    border-bottom: 1px solid rgb(255 255 255 / 18%);
+    color: #fff;
+    font-size: 15px;
+  }
+
+  .formal-mobile-menu-heading button {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    color: #fff;
+    background: transparent;
+    font-size: 24px;
+    cursor: pointer;
+  }
+
+  .formal-enterprise .formal-module-menu-toggle {
+    min-width: 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: 0;
+    color: #fff;
+    background: transparent;
+    font-size: 11px;
+    cursor: pointer;
   }
 
   .formal-enterprise .formal-brand {
