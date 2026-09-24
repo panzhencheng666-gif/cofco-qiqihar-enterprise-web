@@ -27,5 +27,8 @@ describe("formal enterprise responsive shell", () => {
     expect(effectiveMobileRules).toMatch(
       /\.formal-sidebar\s*\{[^}]*display:\s*none/s,
     );
+    expect(effectiveMobileRules).toMatch(
+      /\.formal-sidebar\.is-mobile-open\s*\{[^}]*display:\s*flex/s,
+    );
   });
 });
