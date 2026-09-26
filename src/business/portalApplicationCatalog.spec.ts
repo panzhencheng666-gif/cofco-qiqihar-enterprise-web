@@ -17,10 +17,11 @@ describe("portal application center", () => {
     );
   });
 
-  it("lists the independent risk system beside the existing workbench", () => {
+  it("lists the market screen beside the existing applications", () => {
     expect(applicationCatalog.map((app) => app.id)).toEqual([
       "grain-workbench",
       "risk-warning",
+      "market-intelligence",
     ]);
     expect(availableApps()).toEqual(
       expect.arrayContaining([
@@ -28,6 +29,12 @@ describe("portal application center", () => {
           id: "risk-warning",
           name: "风险研判预警",
           href: "/risk/",
+          published: true,
+        }),
+        expect.objectContaining({
+          id: "market-intelligence",
+          name: "全球商情监测",
+          href: "/overview-monitoring/#/market-intelligence",
           published: true,
         }),
       ]),
