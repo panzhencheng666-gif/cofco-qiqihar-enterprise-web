@@ -279,6 +279,26 @@ function assertNoSecretMaterial(buffer, label, sourcePath = "") {
         continue;
       }
     }
+    // The identity HTML pages compute their XSRF header from a cookie value.
+    // Accept only this complete expression with an empty fallback, never a
+    // literal argument, nonempty fallback, concatenation, or trailing property.
+    if (sourcePath.endsWith(".html")) {
+      const lineEnd = structuredText.indexOf(
+        "\n",
+        match.index + match[0].length,
+      );
+      const statement = structuredText.slice(
+        match.index,
+        lineEnd === -1 ? undefined : lineEnd,
+      );
+      if (
+        /^\s*(["'])X-XSRF-TOKEN\1\s*:\s*decodeURIComponent\(\s*[A-Za-z_$][\w$]*\s*\|\|\s*(["'])\2\s*\)\s*,?[ \t\r]*$/u.test(
+          statement,
+        )
+      ) {
+        continue;
+      }
+    }
     if (
       isSecretKey(key) &&
       !isSecretReferenceKey(key) &&

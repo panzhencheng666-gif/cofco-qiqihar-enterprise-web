@@ -379,6 +379,90 @@ test("Java credential field references bind without admitting literal secrets", 
   }
 });
 
+test("HTML computed XSRF headers bind without admitting credential literals", async (t) => {
+  async function fixtureWithHeader(path, header) {
+    const fixture = await createFixture();
+    await write(
+      join(fixture.web.repository, path),
+      `<script>\nconst headers = {\n${header}\n};\n</script>\n`,
+    );
+    if (!path.startsWith("dist/"))
+      fixture.descriptor.repositories.web.configs.push(path);
+    fixture.descriptor.repositories.web.commitSha = await commit(
+      fixture.web.repository,
+      "header fixture",
+    );
+    return fixture;
+  }
+  await t.test(
+    "accepts decoded variable with empty fallback and verifies bound assets",
+    async () => {
+      const fixture = await fixtureWithHeader(
+        "dist/account-phone.html",
+        '  "X-XSRF-TOKEN": decodeURIComponent(token || ""),',
+      );
+      const manifestPath = await generate(fixture);
+      await verifyReleaseManifest({
+        manifestPath,
+        runtimeRoots: Object.fromEntries(
+          ["backend", "frontend", "web"].map((name) => [
+            name,
+            fixture[name].repository,
+          ]),
+        ),
+        runtimeVersions,
+      });
+    },
+  );
+  for (const [name, path, header] of [
+    [
+      "quoted header value",
+      "dist/account-phone.html",
+      '"X-XSRF-TOKEN": "fixture-private-value",',
+    ],
+    [
+      "decoded literal",
+      "dist/account-phone.html",
+      '"X-XSRF-TOKEN": decodeURIComponent("fixture-private-value"),',
+    ],
+    [
+      "nonempty fallback",
+      "dist/account-phone.html",
+      '"X-XSRF-TOKEN": decodeURIComponent(token || "fixture-private-value"),',
+    ],
+    [
+      "concatenated literal",
+      "dist/account-phone.html",
+      '"X-XSRF-TOKEN": decodeURIComponent(token || "") + "fixture-private-value",',
+    ],
+    [
+      "extra property on same line",
+      "dist/account-phone.html",
+      '"X-XSRF-TOKEN": decodeURIComponent(token || ""), password: "fixture-private-value",',
+    ],
+    [
+      "direct token on another line",
+      "dist/account-phone.html",
+      '"X-XSRF-TOKEN": decodeURIComponent(token || ""),\n// Bearer aaaaaaaaaaaaaaaa',
+    ],
+    [
+      "env expression",
+      "config/headers.env",
+      '"X-XSRF-TOKEN": decodeURIComponent(token || ""),',
+    ],
+    [
+      "unrelated credential key",
+      "dist/account-phone.html",
+      '"password": decodeURIComponent(token || ""),',
+    ],
+  ]) {
+    await t.test(`rejects ${name}`, async () => {
+      const fixture = await fixtureWithHeader(path, header);
+      await assert.rejects(() => generate(fixture), /secret material/u);
+    });
+  }
+});
+
 test("generation rejects a missing repository, traversal, symlinks, and secret material", async (t) => {
   await t.test("missing repository", async () => {
     const fixture = await createFixture();
