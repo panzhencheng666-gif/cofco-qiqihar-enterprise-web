@@ -232,7 +232,7 @@ function containsJsonSecretMaterial(value) {
   });
 }
 
-function assertNoSecretMaterial(buffer, label) {
+function assertNoSecretMaterial(buffer, label, sourcePath = "") {
   const searchableText = buffer.toString("utf8");
   if (
     PRIVATE_KEY_PATTERN.test(searchableText) ||
@@ -258,6 +258,47 @@ function assertNoSecretMaterial(buffer, label) {
     /^\s*(?:export\s+)?["']?([A-Za-z0-9_.-]+)["']?\s*[:=]\s*["']?([^\s,"'#}]+)["']?/gmu;
   for (const match of structuredText.matchAll(assignmentPattern)) {
     const [, key, rawValue] = match;
+    // Bound Java contracts may copy a constructor parameter into a field.
+    // Only accept a complete, literal-free reference statement. Metadata and
+    // configuration files retain the strict assignment check; direct tokens
+    // and private keys have already been scanned across the entire contents.
+    if (sourcePath.endsWith(".java")) {
+      const lineEnd = structuredText.indexOf(
+        "\n",
+        match.index + match[0].length,
+      );
+      const statement = structuredText.slice(
+        match.index,
+        lineEnd === -1 ? undefined : lineEnd,
+      );
+      if (
+        /^\s*this\.[A-Za-z_$][\w$]*\s*=\s*[A-Za-z_$][\w$]*(?:\.trim\(\))?\s*;[ \t\r]*$/u.test(
+          statement,
+        )
+      ) {
+        continue;
+      }
+    }
+    // The identity HTML pages compute their XSRF header from a cookie value.
+    // Accept only this complete expression with an empty fallback, never a
+    // literal argument, nonempty fallback, concatenation, or trailing property.
+    if (sourcePath.endsWith(".html")) {
+      const lineEnd = structuredText.indexOf(
+        "\n",
+        match.index + match[0].length,
+      );
+      const statement = structuredText.slice(
+        match.index,
+        lineEnd === -1 ? undefined : lineEnd,
+      );
+      if (
+        /^\s*(["'])X-XSRF-TOKEN\1\s*:\s*decodeURIComponent\(\s*[A-Za-z_$][\w$]*\s*\|\|\s*(["'])\2\s*\)\s*,?[ \t\r]*$/u.test(
+          statement,
+        )
+      ) {
+        continue;
+      }
+    }
     if (
       isSecretKey(key) &&
       !isSecretReferenceKey(key) &&
@@ -312,7 +353,7 @@ async function readBoundFile(root, path, label) {
 
 async function hashBoundFile(root, path, label, metadata = {}) {
   const { contents, path: safePath } = await readBoundFile(root, path, label);
-  assertNoSecretMaterial(contents, label);
+  assertNoSecretMaterial(contents, label, safePath);
   return {
     ...metadata,
     path: safePath,
