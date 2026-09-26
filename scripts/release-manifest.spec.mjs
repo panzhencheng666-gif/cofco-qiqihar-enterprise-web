@@ -308,6 +308,77 @@ test("generation rejects dirty, wrong-origin, and origin-unreachable commits", a
   );
 });
 
+test("Java credential field references bind without admitting literal secrets", async (t) => {
+  async function fixtureWithSource(path, contents) {
+    const fixture = await createFixture();
+    await write(join(fixture.backend.repository, path), contents);
+    fixture.descriptor.repositories.backend.contracts.push(path);
+    fixture.descriptor.repositories.backend.commitSha = await commit(
+      fixture.backend.repository,
+      "credential source fixture",
+    );
+    return fixture;
+  }
+  await t.test(
+    "accepts constructor parameter references and verifies the bound file",
+    async () => {
+      const fixture = await fixtureWithSource(
+        "contracts/Gateway.java",
+        "class Gateway {\n  Gateway(String bearerToken, String password) {\n    this.bearerToken = bearerToken.trim();\n    this.password = password;\n  }\n}\n",
+      );
+      const manifestPath = await generate(fixture);
+      await verifyReleaseManifest({
+        manifestPath,
+        runtimeRoots: Object.fromEntries(
+          ["backend", "frontend", "web"].map((name) => [
+            name,
+            fixture[name].repository,
+          ]),
+        ),
+        runtimeVersions,
+      });
+    },
+  );
+  for (const [name, path, contents] of [
+    [
+      "Java quoted literal",
+      "contracts/Gateway.java",
+      'this.bearerToken = "fixture-private-value";\n',
+    ],
+    [
+      "Java literal with trim",
+      "contracts/Gateway.java",
+      'this.bearerToken = "fixture-private-value".trim();\n',
+    ],
+    [
+      "Java reference followed by literal",
+      "contracts/Gateway.java",
+      'this.bearerToken = bearerToken.trim(); this.password = "fixture-private-value";\n',
+    ],
+    [
+      "Java reference followed by token",
+      "contracts/Gateway.java",
+      "this.bearerToken = bearerToken.trim();\n// Bearer aaaaaaaaaaaaaaaa\n",
+    ],
+    [
+      "env syntax resembling Java",
+      "config/reference.env",
+      "this.bearerToken = bearerToken.trim();\n",
+    ],
+    ["YAML literal", "config/source.yaml", "password: fixture-private-value\n"],
+    [
+      "JSON literal",
+      "config/source.json",
+      '{"password":"fixture-private-value"}\n',
+    ],
+  ]) {
+    await t.test(`rejects ${name}`, async () => {
+      const fixture = await fixtureWithSource(path, contents);
+      await assert.rejects(() => generate(fixture), /secret material/u);
+    });
+  }
+});
+
 test("generation rejects a missing repository, traversal, symlinks, and secret material", async (t) => {
   await t.test("missing repository", async () => {
     const fixture = await createFixture();
