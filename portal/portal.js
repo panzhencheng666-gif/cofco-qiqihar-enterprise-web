@@ -7,7 +7,14 @@ const workbenchIcon =
   '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
 const riskIcon =
   '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 18h18"/><path d="m5 15 4-5 3 3 5-8 2 4"/><circle cx="5" cy="15" r="1"/><circle cx="9" cy="10" r="1"/><circle cx="12" cy="13" r="1"/><circle cx="17" cy="5" r="1"/></svg>';
-const iconFor = (app) => (app.id === "risk-warning" ? riskIcon : workbenchIcon);
+const marketIcon =
+  '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 4 6 4 9s-1 6-4 9c-3-3-4-6-4-9s1-6 4-9Z"/></svg>';
+const iconFor = (app) =>
+  app.id === "market-intelligence"
+    ? marketIcon
+    : app.id === "risk-warning"
+      ? riskIcon
+      : workbenchIcon;
 const escapeText = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -54,9 +61,9 @@ const views = {
   applications: () =>
     `${title("应用中心", "应用中心", "")}<section class="container application-directory"><div class="directory-tools"><label for="directory-query">查找应用</label><input id="directory-query" type="search" value="${escapeText(directoryQuery)}" placeholder="输入应用名称或关键词"><span id="directory-count" role="status"></span></div><div id="directory-results" class="catalog-list"></div></section>`,
   about: () =>
-    `${title("关于平台", "立足粮食业务，服务区域经营", "齐齐哈尔粮食商情企业平台")}<section class="container prose"><h2>平台定位</h2><p>平台是独立业务系统的统一应用入口，以区域粮食商情业务为起点，支持后续持续建设与完善。</p><h2>当前应用</h2><p>业务工作台承载粮食信息采集、监测与分析；风险研判预警系统独立承担风险发现、证据研判和预警处置。两个系统均从应用中心进入。</p><a class="primary" href="#/applications">浏览应用中心 →</a></section>`,
+    `${title("关于平台", "立足粮食业务，服务区域经营", "齐齐哈尔粮食商情企业平台")}<section class="container prose"><h2>平台定位</h2><p>平台是独立业务系统的统一应用入口，以区域粮食商情业务为起点，支持后续持续建设与完善。</p><h2>当前应用</h2><p>业务工作台承载粮食信息采集、监测与分析；风险研判预警系统独立承担风险发现、证据研判和预警处置；全球商情监测提供全球地图和多品种观察，数据正在接入。三个系统均从应用中心进入。</p><a class="primary" href="#/applications">浏览应用中心 →</a></section>`,
   support: () =>
-    `${title("服务支持", "使用指南", "")}<section class="container help"><details id="help-start" tabindex="-1"><summary>如何进入业务系统？</summary><div class="help-answer"><p>打开“应用中心”，选择“业务工作台”或“风险研判预警”。两个系统均在新标签页独立打开。</p><a class="text-link" href="#/applications">查看应用中心 →</a></div></details><details><summary>如何切换系统和返回首页？</summary><div class="help-answer"><p>各业务系统在新标签页独立运行。返回本标签页即可继续使用应用中心选择其他系统。</p></div></details><details id="help-access" tabindex="-1"><summary>系统需要登录或无法打开怎么办？</summary><div class="help-answer"><p>各系统使用平台账号和权限。若暂时无法访问，请先检查网络与访问地址；仍无法打开时，联系系统管理员。</p></div></details><details><summary>搜索可以找到哪些内容？</summary><div class="help-answer"><p>平台搜索查找应用和使用指南。进入具体系统后，使用该系统自己的业务导航。</p></div></details></section>`,
+    `${title("服务支持", "使用指南", "")}<section class="container help"><details id="help-start" tabindex="-1"><summary>如何进入业务系统？</summary><div class="help-answer"><p>打开“应用中心”，选择所需应用。业务工作台、风险研判预警和全球商情监测均在新标签页独立打开。</p><a class="text-link" href="#/applications">查看应用中心 →</a></div></details><details><summary>如何切换系统和返回首页？</summary><div class="help-answer"><p>各业务系统在新标签页独立运行。返回本标签页即可继续使用应用中心选择其他系统。</p></div></details><details id="help-access" tabindex="-1"><summary>系统需要登录或无法打开怎么办？</summary><div class="help-answer"><p>业务数据功能依平台账号和权限开放；全球商情监测目前是界面预览，指标数据待接入。若暂时无法访问，请先检查网络与访问地址；仍无法打开时，联系系统管理员。</p></div></details><details><summary>搜索可以找到哪些内容？</summary><div class="help-answer"><p>平台搜索查找应用和使用指南。进入具体系统后，使用该系统自己的业务导航。</p></div></details></section>`,
 };
 function render() {
   document.querySelector("[data-login-entry]").href =
