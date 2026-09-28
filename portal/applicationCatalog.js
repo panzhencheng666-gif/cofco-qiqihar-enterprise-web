@@ -22,7 +22,7 @@ export const applicationCatalog = Object.freeze([
     name: "全球商情监测",
     summary: "大屏界面预览 · 指标数据待接入",
     category: "商情监测",
-    href: "/overview-monitoring/#/market-intelligence",
+    href: "/overview-monitoring/market-intelligence/#/market-intelligence",
     featured: true,
     published: true,
   }),

@@ -1,6 +1,6 @@
 /* global document, location, scrollTo, window */
 
-import { applicationCatalog, availableApps } from "./applicationCatalog.js";
+import { applicationCatalog, availableApps } from "./applicationCatalog.js?v=market-public-20260927";
 
 const main = document.querySelector("main");
 const workbenchIcon =

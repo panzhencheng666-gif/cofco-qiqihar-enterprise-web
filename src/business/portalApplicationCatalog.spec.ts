@@ -13,7 +13,7 @@ describe("portal application center", () => {
       'href="/enterprise-portal/depth-7/portal.css?v=selected-depth-7"',
     );
     expect(html).toContain(
-      'src="/enterprise-portal/depth-7/portal.js?v=risk-center-1"',
+      'src="/enterprise-portal/depth-7/portal.js?v=market-public-20260927"',
     );
   });
 
@@ -34,7 +34,7 @@ describe("portal application center", () => {
         expect.objectContaining({
           id: "market-intelligence",
           name: "全球商情监测",
-          href: "/overview-monitoring/#/market-intelligence",
+          href: "/overview-monitoring/market-intelligence/#/market-intelligence",
           published: true,
         }),
       ]),
