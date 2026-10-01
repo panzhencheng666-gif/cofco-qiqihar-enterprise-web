@@ -19,8 +19,8 @@ export const applicationCatalog = Object.freeze([
   }),
   Object.freeze({
     id: "market-intelligence",
-    name: "全球商情监测",
-    summary: "大屏界面预览 · 指标数据待接入",
+    name: "粮食商情与新闻",
+    summary: "国内外新闻 · 数据动态 · 视频资讯",
     category: "商情监测",
     href: "/overview-monitoring/#/market-intelligence",
     featured: true,
