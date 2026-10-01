@@ -1,35 +1,45 @@
 import {
-  Alert,
-  App,
   AuditOutlined,
-  Badge,
-  Button,
-  ConfigProvider,
   DatabaseOutlined,
-  Descriptions,
-  Empty,
   ExperimentOutlined,
   FileSearchOutlined,
-  Input,
   ReloadOutlined,
   SafetyCertificateOutlined,
   SearchOutlined,
+} from "@/shared/enterprise-ui/RiskWorkspaceUi";
+import {
+  Alert,
+  App,
+  Badge,
+  Button,
+  ConfigProvider,
+  Descriptions,
+  Empty,
+  Input,
   Select,
   Space,
   Spin,
   Table,
   Tag,
   Typography,
-  type ColumnsType,
-} from "@/shared/enterprise-ui/EnterpriseUiPrimitives";
+} from "@/shared/enterprise-ui/RiskWorkspaceUi";
+import type { ColumnsType } from "@/shared/enterprise-ui/RiskWorkspaceUi";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createRealtimeApiClient,
   RealtimeApiError,
 } from "@/platform/api/realtimeApiClient";
 import type { CurrentSession } from "@/platform/api/realtimeBusinessRepository";
+import { enterpriseLoginPath } from "@/platform/api/browserSession";
+import {
+  clearAutomaticLoginAttempt,
+  redirectToEnterpriseLogin,
+} from "@/business/automaticLogin";
 import { riskAntTheme } from "./riskVisualTheme";
+import { RiskExpertTrainingCenter } from "./RiskExpertTrainingCenter";
 import { RiskModelCenter } from "./RiskModelCenter";
+import { QiliangAiAssistant } from "./QiliangAiAssistant";
+import { RobotOutlined } from "@/shared/enterprise-ui/RiskWorkspaceUi";
 
 type RiskLevel =
   "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | "UNAVAILABLE";
@@ -88,6 +98,7 @@ interface Filters {
 
 const api = createRealtimeApiClient();
 const applicationCenterUrl = "/#/applications";
+const riskLoginUrl = `${enterpriseLoginPath}?returnTo=${encodeURIComponent("/risk/")}`;
 const domainLabels: Readonly<Record<string, string>> = {
   INVENTORY: "库存",
   MARKET: "市场",
@@ -300,8 +311,11 @@ function FeedbackForm({
 }
 
 export function RiskWarningApplication() {
-  const [activeView, setActiveView] = useState<"events" | "models">("events");
+  const [activeView, setActiveView] = useState<
+    "events" | "assistant" | "models" | "expert"
+  >("events");
   const [session, setSession] = useState<CurrentSession | null>(null);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [rows, setRows] = useState<readonly RiskAssessmentSummary[]>([]);
   const [selected, setSelected] = useState<RiskAssessmentDetail | null>(null);
   const [filters, setFilters] = useState<Filters>({
@@ -313,24 +327,29 @@ export function RiskWarningApplication() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [loginRedirecting, setLoginRedirecting] = useState(false);
+  const [loginRedirectBlocked, setLoginRedirectBlocked] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [current, nextRows] = await Promise.all([
-        api.get<CurrentSession>("/api/v1/session/me"),
-        api.get<RiskAssessmentSummary[]>("/api/v1/risk/workbench/assessments", {
+      const current = await api.get<CurrentSession>("/api/v1/session/me");
+      setSession(current);
+      const nextRows = await api.get<RiskAssessmentSummary[]>(
+        "/api/v1/risk/workbench/assessments",
+        {
           domain: filters.domain,
           level: filters.level,
           status: filters.status,
           search: filters.search,
           limit: 100,
-        }),
-      ]);
-      setSession(current);
+        },
+      );
       setRows(nextRows);
       setError(null);
+      setAccessDenied(false);
       setRefreshedAt(new Date());
       setSelected((current) =>
         current &&
@@ -341,6 +360,14 @@ export function RiskWarningApplication() {
           : current,
       );
     } catch (loadError) {
+      setAccessDenied(
+        loadError instanceof RealtimeApiError && loadError.status === 403,
+      );
+      if (loadError instanceof RealtimeApiError && loadError.status === 401) {
+        setLoginRedirecting(true);
+        setLoginRedirectBlocked(!redirectToEnterpriseLogin(riskLoginUrl));
+        return;
+      }
       setError(errorMessage(loadError));
       setRows([]);
       setSelected(null);
@@ -350,13 +377,15 @@ export function RiskWarningApplication() {
   }, [filters]);
 
   useEffect(() => {
+    if (activeView !== "events") return;
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
-  }, [load]);
+  }, [activeView, load]);
   useEffect(() => {
+    if (activeView !== "events") return;
     const timer = window.setInterval(() => void load(), 30_000);
     return () => window.clearInterval(timer);
-  }, [load]);
+  }, [activeView, load]);
 
   const columns = useMemo<ColumnsType<RiskAssessmentSummary>>(
     () => [
@@ -405,10 +434,30 @@ export function RiskWarningApplication() {
         ),
       );
     } catch (detailError) {
+      setAccessDenied(
+        detailError instanceof RealtimeApiError && detailError.status === 403,
+      );
       setError(errorMessage(detailError));
     } finally {
       setDetailLoading(false);
     }
+  }
+
+  if (loginRedirecting) {
+    return (
+      <main className="enterprise-login-redirect" role="status">
+        <p>
+          {loginRedirectBlocked
+            ? "登录未能完成，请重新尝试。"
+            : "正在进入登录界面…"}
+        </p>
+        {loginRedirectBlocked && (
+          <a href={riskLoginUrl} onClick={clearAutomaticLoginAttempt}>
+            重新登录
+          </a>
+        )}
+      </main>
+    );
   }
 
   return (
@@ -416,7 +465,9 @@ export function RiskWarningApplication() {
       <App>
         <div
           className="risk-application"
-          data-service-state={error ? "error" : "online"}
+          data-service-state={
+            accessDenied ? "forbidden" : error ? "error" : "online"
+          }
         >
           <header className="risk-system-header">
             <a
@@ -449,8 +500,16 @@ export function RiskWarningApplication() {
               </div>
               <div className="risk-live-state">
                 <Badge
-                  status={error ? "error" : "processing"}
-                  text={error ? "服务异常" : "数据链路已连接"}
+                  status={
+                    accessDenied ? "warning" : error ? "error" : "processing"
+                  }
+                  text={
+                    accessDenied
+                      ? "权限不足"
+                      : error
+                        ? "服务异常"
+                        : "数据链路已连接"
+                  }
                 />
                 <small>
                   {refreshedAt
@@ -459,6 +518,17 @@ export function RiskWarningApplication() {
                 </small>
               </div>
               <nav aria-label="风险系统功能">
+                <button
+                  type="button"
+                  aria-current={activeView === "assistant" ? "page" : undefined}
+                  onClick={() => {
+                    setActiveView("assistant");
+                    setAssistantOpen(true);
+                  }}
+                >
+                  <RobotOutlined />
+                  齐粮 AI 助手
+                </button>
                 <button
                   type="button"
                   aria-current={activeView === "events" ? "page" : undefined}
@@ -475,6 +545,17 @@ export function RiskWarningApplication() {
                   <ExperimentOutlined />
                   AI 模型中心
                 </button>
+                {session?.rootAdministrator && (
+                  <button
+                    type="button"
+                    aria-label="专家训练管理"
+                    aria-current={activeView === "expert" ? "page" : undefined}
+                    onClick={() => setActiveView("expert")}
+                  >
+                    <DatabaseOutlined />
+                    专家训练管理
+                  </button>
+                )}
               </nav>
               <div className="risk-rail-foot">
                 <SafetyCertificateOutlined />
@@ -488,12 +569,20 @@ export function RiskWarningApplication() {
                   <h1>
                     {activeView === "events"
                       ? "风险研判预警中心"
-                      : "AI 模型训练与治理中心"}
+                      : activeView === "assistant"
+                        ? "齐粮 AI 助手"
+                        : activeView === "models"
+                          ? "AI 模型训练与治理中心"
+                          : "齐粮专家训练管理"}
                   </h1>
                   <p>
                     {activeView === "events"
                       ? "真实事件 · 可追溯证据 · 受控模型 · 人工复核"
-                      : "每日学习 · 冻结快照 · 真实工件 · 候选受控晋级"}
+                      : activeView === "assistant"
+                        ? "私有模型 · 联网检索 · 知识库 · 来源标注"
+                        : activeView === "models"
+                          ? "每日学习 · 冻结快照 · 真实工件 · 候选受控晋级"
+                          : "数据集登记 · 不可变快照 · 真实节点 · 全程审计"}
                   </p>
                 </div>
                 {activeView === "events" && (
@@ -506,29 +595,52 @@ export function RiskWarningApplication() {
                     <div>
                       <small>同步状态</small>
                       <strong className={error ? "is-error" : "is-online"}>
-                        {error ? "异常" : "在线"}
+                        {accessDenied ? "无权访问" : error ? "异常" : "在线"}
                       </strong>
                       <span>30 秒自动刷新</span>
                     </div>
                   </div>
                 )}
               </header>
-              {activeView === "models" ? (
+              {activeView === "assistant" ? (
+                <section
+                  className="qiliang-assistant-landing"
+                  aria-label="齐粮AI小伙伴入口"
+                >
+                  <h2>齐粮 AI 小伙伴</h2>
+                  <p>
+                    点击右下角的小伙伴，语音或打字提问。回答会保留知识版本和可核验引用。
+                  </p>
+                  <Button type="primary" onClick={() => setAssistantOpen(true)}>
+                    和小伙伴聊天
+                  </Button>
+                </section>
+              ) : activeView === "expert" ? (
+                <RiskExpertTrainingCenter />
+              ) : activeView === "models" ? (
                 <RiskModelCenter />
               ) : (
                 <>
                   {error && (
                     <Alert
-                      type="error"
+                      type={accessDenied ? "warning" : "error"}
                       showIcon
-                      message="无法读取风险研判数据"
-                      description={error}
+                      message={
+                        accessDenied
+                          ? "当前账号无权读取风险研判数据"
+                          : "无法读取风险研判数据"
+                      }
+                      description={
+                        accessDenied
+                          ? "请联系管理员核对风险系统操作权限和可访问地区，授权后重新检查。"
+                          : error
+                      }
                       action={
                         <Button
                           icon={<ReloadOutlined />}
                           onClick={() => void load()}
                         >
-                          重新连接
+                          {accessDenied ? "重新检查权限" : "重新连接"}
                         </Button>
                       }
                     />
@@ -620,9 +732,11 @@ export function RiskWarningApplication() {
                             <Empty
                               image={Empty.PRESENTED_IMAGE_SIMPLE}
                               description={
-                                error
-                                  ? "服务恢复后显示真实风险事件"
-                                  : "当前查询没有风险事件"
+                                accessDenied
+                                  ? "获得授权后显示可访问地区的真实风险事件"
+                                  : error
+                                    ? "服务恢复后显示真实风险事件"
+                                    : "当前查询没有风险事件"
                               }
                             />
                           ),
@@ -786,6 +900,10 @@ export function RiskWarningApplication() {
               )}
             </main>
           </div>
+          <QiliangAiAssistant
+            open={assistantOpen}
+            onOpenChange={setAssistantOpen}
+          />
         </div>
       </App>
     </ConfigProvider>

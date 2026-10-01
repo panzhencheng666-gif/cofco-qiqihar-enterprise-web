@@ -1,20 +1,22 @@
 import {
+  ClockCircleOutlined,
+  DatabaseOutlined,
+  ExperimentOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  ThunderboltOutlined,
+} from "@/shared/enterprise-ui/RiskWorkspaceUi";
+import {
   Alert,
   App,
   Badge,
   Button,
-  ClockCircleOutlined,
-  DatabaseOutlined,
   Empty,
-  ExperimentOutlined,
-  ReloadOutlined,
-  SafetyCertificateOutlined,
   Spin,
   Table,
   Tag,
-  ThunderboltOutlined,
-  type ColumnsType,
-} from "@/shared/enterprise-ui/EnterpriseUiPrimitives";
+} from "@/shared/enterprise-ui/RiskWorkspaceUi";
+import type { ColumnsType } from "@/shared/enterprise-ui/RiskWorkspaceUi";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createRealtimeApiClient,
