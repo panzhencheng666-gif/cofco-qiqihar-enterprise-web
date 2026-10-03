@@ -22,7 +22,7 @@ test("fourth entry preserves all original application objects and order", () => 
   assert.equal(availableApps()[3].id, "gods-eye-view");
   assert.equal(
     availableApps()[3].href,
-    "/enterprise-portal/depth-7/gods-eye-view/",
+    "/enterprise-portal/depth-7/gods-eye-view/releases/20261003-v3/",
   );
 });
 test("feature switch returns exactly the original three applications", async () => {

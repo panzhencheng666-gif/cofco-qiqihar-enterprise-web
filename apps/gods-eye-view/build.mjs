@@ -9,6 +9,10 @@ await mkdir(out, { recursive: true });
 await cp(path.join(root, "public"), out, { recursive: true });
 const result = await build({
   absWorkingDir: root,
+  alias: {
+    meshoptimizer: path.join(root, "src/disabled-meshopt.js"),
+    cesium: "@cesium/engine",
+  },
   entryPoints: {
     host: "src/host.js",
     "frame-bootstrap": "src/frame-bootstrap.js",

@@ -1,3 +1,6 @@
 node_modules/
 dist/
 build-meta.json
+
+# Full upstream archive stays local pending bundled-data redistribution review.
+upstream-snapshot/

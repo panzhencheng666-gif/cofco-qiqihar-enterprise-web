@@ -18,6 +18,18 @@ for (const file of provenance.files) {
     `Vendor modification: ${file.vendorPath}`,
   );
 }
+for (const derivative of provenance.derivatives) {
+  const original = provenance.files.find(
+    (file) => file.upstreamPath === derivative.upstreamPath,
+  );
+  assert.equal(original?.sha256, derivative.upstreamSha256);
+  const bytes = await readFile(path.join(root, derivative.derivedPath));
+  assert.equal(
+    createHash("sha256").update(bytes).digest("hex"),
+    derivative.derivedSha256,
+    `Unrecorded derivative change: ${derivative.derivedPath}`,
+  );
+}
 const pkg = JSON.parse(await read("package.json"));
 assert.deepEqual(pkg.dependencies, { cesium: "1.138.0" });
 assert.deepEqual(pkg.devDependencies, { esbuild: "0.25.12" });
@@ -76,12 +88,33 @@ assert.deepEqual(
     "vendor/src/layers/earthquakes/records.js",
     "vendor/src/layers/earthquakes/source.js",
     "vendor/src/search/coordinateParser.js",
+    "vendor/src/ui/visualEffects.js",
+    "vendor/src/ui/visualPresets.js",
+    "vendor/src/bloom.js",
+    "vendor/src/styles/retro.js",
+    "vendor/src/styles/anime.js",
+    "vendor/src/styles/noir.js",
+    "vendor/src/styles/snow.js",
+    "vendor/src/styles/surveillance.js",
+    "vendor/src/styles/thermal.js",
   ].sort(),
 );
 assert.ok(
   !Object.keys(meta.inputs).some((i) => i.includes("@cesium/widgets/Source/")),
   "Full widgets imported",
 );
+
+assert.ok(
+  !Object.keys(meta.inputs).some((i) =>
+    i.startsWith("node_modules/meshoptimizer/"),
+  ),
+  "Optional model codecs eagerly initialize WASM",
+);
+assert.ok(
+  Object.keys(meta.inputs).includes("src/disabled-meshopt.js"),
+  "Optional model compression must remain disabled",
+);
+
 console.log(
   `Globe source gate passed: ${provenance.files.length} immutable upstream files; ${importedVendor.length} imported upstream modules; no engine in shell graph.`,
 );

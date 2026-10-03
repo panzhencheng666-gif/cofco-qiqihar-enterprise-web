@@ -51,6 +51,51 @@
       "upstreamPath": "src/layers/earthquakes/records.js",
       "vendorPath": "vendor/src/layers/earthquakes/records.js",
       "sha256": "a35859b1cef9b6a5353aad1a62335444781ae7cb7191a1c975a05490e338aa56"
+    },
+    {
+      "upstreamPath": "src/ui/visualEffects.js",
+      "vendorPath": "vendor/src/ui/visualEffects.js",
+      "sha256": "f593d95d3318b9b346395e7bdb44d11f07d522b3049c2aebcade95ea2b269309"
+    },
+    {
+      "upstreamPath": "src/ui/visualPresets.js",
+      "vendorPath": "vendor/src/ui/visualPresets.js",
+      "sha256": "0bb852d077c2740db505dac0d3a6288d44a3de00fc5abb82ff57b37f97886a70"
+    },
+    {
+      "upstreamPath": "src/bloom.js",
+      "vendorPath": "vendor/src/bloom.js",
+      "sha256": "7d67152d956e2658c1de9262c337d086eb46031bb79c6d211acce5b8bfc2de1b"
+    },
+    {
+      "upstreamPath": "src/styles/retro.js",
+      "vendorPath": "vendor/src/styles/retro.js",
+      "sha256": "ac74550b9c60bb9d03b0c2732f450aa96f28e5fa38426301b74afb3a3e406f80"
+    },
+    {
+      "upstreamPath": "src/styles/anime.js",
+      "vendorPath": "vendor/src/styles/anime.js",
+      "sha256": "f7edc2bde2aeb4aa83ac2e25cd93268e4cfd7c1e966fa232d4ed74e15dde708c"
+    },
+    {
+      "upstreamPath": "src/styles/noir.js",
+      "vendorPath": "vendor/src/styles/noir.js",
+      "sha256": "9c75ea2d213a7ad6534ce897bcf0d043f727726da189cea1249c2f8c89b88a8d"
+    },
+    {
+      "upstreamPath": "src/styles/snow.js",
+      "vendorPath": "vendor/src/styles/snow.js",
+      "sha256": "c2a504c7d993a3dbd6462aaeb7d9598ce38c9bc205a70b34b0ed057cec3cfe6f"
+    },
+    {
+      "upstreamPath": "src/styles/surveillance.js",
+      "vendorPath": "vendor/src/styles/surveillance.js",
+      "sha256": "81e064ff369bfc35460ddc245d745668415fa26ea97cd43b87d75814eb695d29"
+    },
+    {
+      "upstreamPath": "src/styles/thermal.js",
+      "vendorPath": "vendor/src/styles/thermal.js",
+      "sha256": "3d70fc4f9af7976923d33339af4d3b38a7ca86cc0f7f496a86b3e0b9a0264940"
     }
   ],
   "derivatives": [
@@ -58,8 +103,8 @@
       "upstreamPath": "src/app/viewer.js",
       "upstreamSha256": "29c41d95ef114edb913e29c3d00e6c2f7051ad57d62d75d6cc6664ae9ba97df4",
       "derivedPath": "src/viewer.js",
-      "derivedSha256": "fc41e0889409964603ba31c7591391819cb5a2829265aa768a7bf2cabb95c4f6",
-      "changes": "CesiumWidget replaces full Viewer; demand rendering, 30fps ceiling, bounded resolution/cache/concurrency; pinch zoom preserved, atmosphere compatibility reused."
+      "derivedSha256": "632b0a2e1974ca2bdcdd8753e777628b15742f2f57fc1af9ddba8eca7298833f",
+      "changes": "CesiumWidget replaces full Viewer; demand rendering, 30fps ceiling, bounded resolution/cache/concurrency; pinch zoom preserved, atmosphere compatibility reused; built-in render-error dialog disabled in favor of terminal application status and parent pause/reopen."
     }
   ]
 }

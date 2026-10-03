@@ -108,6 +108,7 @@ export function createApplicationViewer({ container, creditContainer }) {
     throw new TypeError("Viewer and credit containers are required");
   const viewer = new Cesium.CesiumWidget(container, {
     baseLayer: false,
+    showRenderLoopErrors: false,
     terrainProvider: new Cesium.EllipsoidTerrainProvider(),
     creditContainer,
     requestRenderMode: true,

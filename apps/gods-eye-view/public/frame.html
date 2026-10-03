@@ -22,17 +22,19 @@
     <aside class="left panel">
       <div class="kicker">NAVIGATE / 导航</div>
       <h1>从这里探索地球</h1>
-      <form id="search">
+      <div id="search">
         <label for="query">城市或纬度, 经度</label>
         <div class="search-row">
           <input
             id="query"
             placeholder="北京 / 47.35, 123.92"
             maxlength="120"
-          /><button aria-label="定位">→</button>
+          /><button id="search-button" type="button" aria-label="定位">
+            →
+          </button>
         </div>
         <p id="search-status" role="status">支持本地城市目录及十进制度数。</p>
-      </form>
+      </div>
       <div class="cities">
         <button data-city="齐齐哈尔">齐齐哈尔</button
         ><button data-city="北京">北京</button
@@ -42,10 +44,22 @@
       <div class="rule"></div>
       <label for="map-style">地图样式</label
       ><select id="map-style">
+        <option value="natural">Natural Earth · 历史概览</option>
         <option value="earth">纯净地球 · 无外部地图请求</option>
         <option value="osm">OpenStreetMap · 街道地图</option>
       </select>
       <p>表面：WGS84 椭球，无山地起伏。<br />街道地图并非卫星影像。</p>
+      <label for="visual-style">视觉风格（模拟）</label>
+      <select id="visual-style">
+        <option value="normal">原始画面</option>
+        <option value="noir">黑白电影</option>
+        <option value="surveillance">夜视 · 模拟</option>
+        <option value="thermal">热感 · 模拟</option>
+        <option value="retro">CRT 屏幕</option>
+        <option value="anime">动画线条</option>
+        <option value="snow">静态雪景</option>
+      </select>
+      <p id="effect-status" role="status">原始画面，无模拟滤镜。</p>
       <div class="navigation">
         <button id="home">重置视角</button
         ><button id="zoom-in" aria-label="放大">＋</button
@@ -58,8 +72,9 @@
       <details open>
         <summary>来源与能力边界</summary>
         <p>
-          ✓ 三维地球、坐标及本地城市定位<br />✓ OpenStreetMap 街道底图<br />✓
-          USGS 24 小时 M2.5+ 地震
+          ✓ 三维地球、坐标及本地城市定位<br />✓ Natural Earth 历史概览<br />✓
+          六种静态模拟视觉风格<br />✓ OpenStreetMap 街道底图<br />✓ USGS 24 小时
+          M2.5+ 地震
         </p>
         <p>
           未提供：近期高清影像、精细三维建筑与真实地形（需独立数据源）；飞机、船舶与摄像头（来源及使用许可未接入）；海底电缆与预设场景（第三方数据许可限制）；AI
@@ -77,12 +92,17 @@
       <ol id="events"></ol>
     </aside>
     <div id="map-state" class="map-state" role="status">
-      纯净地球 · 椭球表面
+      Natural Earth · 历史全球概览 · 非近期影像
     </div>
     <div id="coordinates" class="coordinates">拖动地球开始探索</div>
     <div id="credits"></div>
     <footer>
       God’s Eye View © Bilawal Sidhu · MIT
+      <a
+        href="https://www.naturalearthdata.com/about/terms-of-use/"
+        rel="noreferrer"
+        >Made with Natural Earth</a
+      >
       <a href="https://www.openstreetmap.org/copyright" rel="noreferrer"
         >© OpenStreetMap contributors</a
       >

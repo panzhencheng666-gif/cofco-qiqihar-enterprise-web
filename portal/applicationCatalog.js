@@ -34,7 +34,7 @@ export const applicationCatalog = Object.freeze([
     name: "God's Eye View",
     summary: "三维地球 · 开放地图 · 公开地震信息",
     category: "全球地理",
-    href: "/enterprise-portal/depth-7/gods-eye-view/",
+    href: "/enterprise-portal/depth-7/gods-eye-view/releases/20261003-v3/",
     featured: true,
     published: godsEyeViewEnabled,
   }),
