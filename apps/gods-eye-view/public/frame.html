@@ -14,6 +14,7 @@
   </head>
   <body>
     <div id="globe"></div>
+    <svg id="whiteboard-overlay" aria-hidden="true" data-clean-overlay></svg>
     <div class="topbar" data-clean-overlay>
       <span><i></i> GOD’S EYE VIEW <b>地球观察</b></span
       ><span id="globe-status" role="status">正在加载地球…</span
@@ -331,10 +332,12 @@
       <details>
         <summary>本地 JSON 场景导入与复制导出</summary>
         <p>
-          仅保存相机、地图、模拟风格、本地注释与测量。导入会替换这些内容，最多
+          仅保存相机、地图、模拟风格、本地注释、测量与手绘。导入会替换这些内容，最多
           64 KiB；不会导出地震快照。
         </p>
-        <label for="scene-input">粘贴版本 1 场景 JSON</label>
+        <label for="scene-input"
+          >粘贴版本 1 或 2 场景 JSON（版本 1 会清除手绘）</label
+        >
         <textarea
           id="scene-input"
           rows="5"
@@ -355,6 +358,64 @@
           spellcheck="false"
         ></textarea>
         <button id="scene-select" type="button">选择全部导出文本</button>
+      </details>
+      <details id="whiteboard-panel">
+        <summary>手动画板：标记、线条与区域</summary>
+        <p>
+          人工示意，非实际边界、道路或实时追踪；位置在 WGS84
+          椭球上，面积与长度为估算。最多 16 个图形、每个 64 顶点、合计 256
+          顶点，单图形范围不超过 200 km。关闭面板会取消未完成的草稿。
+        </p>
+        <label for="whiteboard-shape">形状</label>
+        <select id="whiteboard-shape">
+          <option value="area">区域</option>
+          <option value="line">线条</option>
+          <option value="pin">标记</option>
+        </select>
+        <label for="whiteboard-label">标签（纯文本，最多 80 字）</label>
+        <input id="whiteboard-label" maxlength="80" value="手动示意" />
+        <label for="whiteboard-color">颜色</label>
+        <select id="whiteboard-color">
+          <option value="primary">薄荷</option>
+          <option value="amber">琥珀</option>
+          <option value="cyan">青色</option>
+          <option value="green">绿色</option>
+          <option value="red">红色</option>
+        </select>
+        <button id="whiteboard-begin" type="button">开始手绘</button>
+        <label for="whiteboard-lat">纬度（−90 至 90）</label>
+        <input
+          id="whiteboard-lat"
+          type="number"
+          min="-90"
+          max="90"
+          step="any"
+        />
+        <label for="whiteboard-lon">经度（−180 至 180）</label>
+        <input
+          id="whiteboard-lon"
+          type="number"
+          min="-180"
+          max="180"
+          step="any"
+        />
+        <div class="navigation">
+          <button id="whiteboard-add" type="button" disabled>
+            添加坐标顶点
+          </button>
+          <button id="whiteboard-undo" type="button" disabled>
+            撤销最后顶点
+          </button>
+          <button id="whiteboard-finish" type="button" disabled>
+            完成图形
+          </button>
+          <button id="whiteboard-cancel" type="button" disabled>
+            取消草稿
+          </button>
+          <button id="whiteboard-clear" type="button">清空手绘</button>
+        </div>
+        <p id="whiteboard-status" role="status">尚无手绘。</p>
+        <ol id="whiteboard-list" aria-label="手绘图形列表"></ol>
       </details>
     </aside>
     <button id="clean-view" type="button" aria-pressed="false">纯净视图</button>

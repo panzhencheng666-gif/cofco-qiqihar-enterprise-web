@@ -6,6 +6,7 @@ export function installCameraSequenceControls({
   nodes,
   signal,
   motionOwner,
+  beforeMotion = () => {},
   document = nodes.panel.ownerDocument,
   motion = document.defaultView?.matchMedia?.(
     "(prefers-reduced-motion: reduce)",
@@ -105,6 +106,7 @@ export function installCameraSequenceControls({
           (motion?.matches && !nodes.allow.checked)
         )
           return;
+        beforeMotion();
         sequence.start();
       }),
     );
@@ -116,10 +118,16 @@ export function installCameraSequenceControls({
     listen(
       nodes.seek,
       "input",
-      action(() => sequence.seek(Number(nodes.seek.value))),
+      action(() => {
+        beforeMotion();
+        sequence.seek(Number(nodes.seek.value));
+      }),
     );
     for (const [key, fn] of Object.entries({
-      select: (index) => sequence.select(index),
+      select: (index) => {
+        beforeMotion();
+        return sequence.select(index);
+      },
       remove: (index) => sequence.remove(index),
       up: (index) => sequence.reorder(index, -1),
       down: (index) => sequence.reorder(index, 1),
@@ -134,6 +142,7 @@ export function installCameraSequenceControls({
       "change",
       action(() => {
         // Selection itself is an explicit manual camera command.
+        beforeMotion();
         sequence.select(Number(nodes.shots.value));
       }),
     );

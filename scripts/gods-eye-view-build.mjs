@@ -10,6 +10,7 @@ for (const args of [
     "tests/camera-sequence.test.mjs",
     "tests/camera-motion.test.mjs",
     "tests/camera-verbs.test.mjs",
+    "tests/whiteboard.test.mjs",
   ],
   ["build.mjs"],
 ]) {

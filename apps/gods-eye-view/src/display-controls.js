@@ -18,6 +18,7 @@ export function installDisplayControls({
   overlays,
   signal,
   beforeCamera = () => {},
+  onCleanChange = () => {},
 }) {
   const camera = createCameraCommands({ viewer, signal, beforeCamera });
   const removers = [];
@@ -28,6 +29,7 @@ export function installDisplayControls({
     for (const [node, hidden] of visibility) node.hidden = clean || hidden;
     nodes.clean.setAttribute("aria-pressed", String(clean));
     nodes.clean.textContent = clean ? "恢复界面" : "纯净视图";
+    onCleanChange(!clean);
   };
   const release = () => {
     if (disposed) return;

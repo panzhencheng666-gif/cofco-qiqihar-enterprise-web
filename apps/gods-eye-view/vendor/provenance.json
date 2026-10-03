@@ -151,6 +151,26 @@
       "upstreamPath": "src/ui/cameraOrientationControls.js",
       "vendorPath": "vendor/src/ui/cameraOrientationControls.js",
       "sha256": "0894272a50d80e92b7119e06c4fe475dee499b4f1edcf252619599c603154b8b"
+    },
+    {
+      "upstreamPath": "src/annotations/drawMode.js",
+      "vendorPath": "vendor/src/annotations/drawMode.js",
+      "sha256": "abaf6006629a1180992558f3d2bc326502f3c40a6d74ba95ac6bdf635aabef60"
+    },
+    {
+      "upstreamPath": "src/annotations/drawTool.js",
+      "vendorPath": "vendor/src/annotations/drawTool.js",
+      "sha256": "ee5e6a662d10b0123e5fa4889a5774b8b94fad60af1620aa133ddbe224e1df1d"
+    },
+    {
+      "upstreamPath": "src/annotations/worldAnnotationRenderer.js",
+      "vendorPath": "vendor/src/annotations/worldAnnotationRenderer.js",
+      "sha256": "e78ccd76db1eba7a1354de9fcf6bb0c0eaa9ae64365cc048b55c37787dd551fc"
+    },
+    {
+      "upstreamPath": "src/annotations/screenAnnotationRenderer.js",
+      "vendorPath": "vendor/src/annotations/screenAnnotationRenderer.js",
+      "sha256": "d6df0de6f50d16b67ce4ec30162c5adbcd3742431ddb04ef68b48bec331b61a6"
     }
   ],
   "derivatives": [
@@ -180,7 +200,21 @@
       "upstreamSha256": "0894272a50d80e92b7119e06c4fe475dee499b4f1edcf252619599c603154b8b",
       "derivedPath": "src/camera-target-frame.js",
       "derivedSha256": "e0f486f2c4d8101d4c2c1fa70ee80ad6d5e396c538f6e2d334a1cd7858f6f6e3",
-      "changes": "Narrow ENU geometry/normalized heading from original lines18\u201324/82\u2013105; explicit ellipsoid target supplied. No tracking/pickPosition/terrain/animator/binders or live lookAt borrowing."
+      "changes": "Narrow ENU geometry/normalized heading from original lines18–24/82–105; explicit ellipsoid target supplied. No tracking/pickPosition/terrain/animator/binders or live lookAt borrowing."
+    },
+    {
+      "upstreamPath": "src/annotations/drawTool.js",
+      "upstreamSha256": "ee5e6a662d10b0123e5fa4889a5774b8b94fad60af1620aa133ddbe224e1df1d",
+      "derivedPath": "src/whiteboard-controls.js",
+      "derivedSha256": "a0f659c02691b92d818f8899db67f81f6716c4c6b9f80b0158a355a967bc6bcd",
+      "changes": "Manual draw session/vertex/finish ownership adapted to CesiumWidget, labeled bounded native inputs and per-frame shared picker cancellation; remove preview entities/dataSources/voice/global leases/keyboard interceptors."
+    },
+    {
+      "upstreamPath": "src/annotations/screenAnnotationRenderer.js",
+      "upstreamSha256": "d6df0de6f50d16b67ce4ec30162c5adbcd3742431ddb04ef68b48bec331b61a6",
+      "derivedPath": "src/whiteboard-renderer.js",
+      "derivedSha256": "3f961a1778b259dd587b2c79285890631f10990861999dc4cef6a3c6f1d11d18",
+      "changes": "Narrow static SVG WGS84 projection, behind-camera/horizon rejection; bounded cached ellipsoid geodesic paths, split hidden line segments, withhold partially hidden areas; textContent labels; only visible nonempty postRender ownership; remove terrain height cache, tracking, global style injection, pulse/fade timers and autonomous animation."
     }
   ]
 }

@@ -5,6 +5,7 @@ export function installCameraVerbsControls({
   nodes,
   signal,
   motionOwner,
+  beforeMotion = () => {},
   document = nodes.panel.ownerDocument,
   motion = document.defaultView?.matchMedia?.(
     "(prefers-reduced-motion: reduce)",
@@ -55,6 +56,7 @@ export function installCameraVerbsControls({
   };
   const start = (mode) => {
     if (!alive() || !visible() || (mode === "continuous" && !animate())) return;
+    beforeMotion();
     verbs.start({
       motion: nodes.motion.value,
       direction: nodes.direction.value,

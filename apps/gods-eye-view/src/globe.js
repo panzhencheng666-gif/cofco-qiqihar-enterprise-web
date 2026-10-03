@@ -25,6 +25,8 @@ import {
 import { installCameraSequenceControls } from "./camera-sequence-controls.js";
 import { createCameraMotionOwner } from "./camera-motion-owner.js";
 import { installCameraVerbsControls } from "./camera-verbs-controls.js";
+import { installWhiteboardControls } from "./whiteboard-controls.js";
+import { installPointerNavigationCancellation } from "./pointer-navigation.js";
 const CITIES = new Map(
   Object.entries({
     齐齐哈尔: [47.3543, 123.9182],
@@ -62,7 +64,11 @@ export async function startGlobe(signal) {
       const scene = viewer.scene;
       const motionOwner = createCameraMotionOwner({ signal });
       defer(() => motionOwner.destroy());
-      const beforeCamera = () => motionOwner.cancel();
+      let cancelPointer = () => {};
+      const beforeCamera = () => {
+        motionOwner.cancel();
+        cancelPointer();
+      };
       let imagery;
       let removeImageryError;
       const clearImagery = () => {
@@ -166,17 +172,35 @@ export async function startGlobe(signal) {
         setStyle,
         beforeCamera,
         motionOwner,
+        setPointerCancel(fn) {
+          cancelPointer = fn;
+        },
       };
     },
     createControls({
-      scene: { viewer, home, go, setStyle, beforeCamera, motionOwner },
+      scene: {
+        viewer,
+        home,
+        go,
+        setStyle,
+        beforeCamera,
+        motionOwner,
+        setPointerCancel,
+      },
       defer,
       signal,
     }) {
+      let whiteboard, localRelease;
+      setPointerCancel(() => {
+        whiteboard?.cancel();
+        localRelease?.cancelPick();
+      });
+      defer(() => setPointerCancel(() => {}));
       const sequence = installCameraSequenceControls({
         viewer,
         signal,
         motionOwner,
+        beforeMotion: beforeCamera,
         nodes: Object.fromEntries(
           [
             "panel",
@@ -204,6 +228,7 @@ export async function startGlobe(signal) {
         viewer,
         signal,
         motionOwner,
+        beforeMotion: beforeCamera,
         nodes: Object.fromEntries(
           [
             "panel",
@@ -220,6 +245,13 @@ export async function startGlobe(signal) {
         ),
       });
       defer(() => verbs.destroy());
+      defer(
+        installPointerNavigationCancellation({
+          viewer,
+          signal,
+          cancel: beforeCamera,
+        }),
+      );
       const listen = (node, event, fn) => {
         node.addEventListener(event, fn);
         defer(() => node.removeEventListener(event, fn));
@@ -274,6 +306,7 @@ export async function startGlobe(signal) {
           effects,
           signal,
           beforeCamera,
+          onCleanChange: (visible) => whiteboard?.setVisible(visible),
           overlays: [...document.querySelectorAll("[data-clean-overlay]")],
           nodes: displayNodes,
         }),
@@ -314,6 +347,9 @@ export async function startGlobe(signal) {
             bloom: displayNodes.bloom.checked,
             bloomIntensity: Number(displayNodes.bloomIntensity.value),
           },
+          ...(whiteboard?.snapshot().length
+            ? { drawings: whiteboard.snapshot() }
+            : {}),
         };
       };
       const applySceneState = (next) => {
@@ -342,80 +378,117 @@ export async function startGlobe(signal) {
         displayNodes.bloomIntensity.value = String(next.style.bloomIntensity);
         updateVisualEffectStatus(displayNodes);
       };
-      defer(
-        installLocalSceneControls({
-          viewer,
-          signal,
-          beforeCamera,
-          nodes: Object.fromEntries(
-            Object.entries({
-              lat: "local-lat",
-              lon: "local-lon",
-              label: "local-label",
-              kind: "local-kind",
-              add: "local-add",
-              pick: "local-pick",
-              cancel: "local-cancel",
-              clear: "local-clear",
-              status: "local-status",
-              list: "local-list",
-              input: "scene-input",
-              file: "scene-file",
-              import: "scene-import",
-              export: "scene-export",
-              output: "scene-output",
-              select: "scene-select",
-            }).map(([key, id]) => [key, $(id)]),
-          ),
-          capture,
-          onFatalError() {
-            stopRendering(
-              "本地场景资源释放失败，地球渲染已停止；请使用上方“暂停地球观察”后重新打开。",
-            );
-          },
-          apply(next, local) {
-            const previous = { ...capture(), ...local.snapshot() };
-            let failure;
-            try {
-              effects.batch(() => {
-                try {
-                  applySceneState(next);
-                  local.replace(next, { render: false });
-                } catch (error) {
-                  if (!signal.aborted && !viewer.isDestroyed()) {
-                    try {
-                      applySceneState(previous);
-                      // Candidate acquisition failure preserves the original
-                      // geometry. Avoid reacquiring it unless it was committed.
-                      if (
-                        JSON.stringify(local.snapshot()) !==
-                        JSON.stringify({
-                          annotations: previous.annotations,
-                          measurement: previous.measurement,
-                        })
-                      )
-                        local.replace(previous, { render: false });
-                    } catch {
-                      stopRendering(
-                        "本地场景恢复失败，地球渲染已停止；请使用上方“暂停地球观察”后重新打开。",
-                      );
-                    }
+      whiteboard = installWhiteboardControls({
+        viewer,
+        signal,
+        beforePick: beforeCamera,
+        onChange: () => localRelease?.invalidate(),
+        onFatalError() {
+          stopRendering("手动画板资源失败，地球已停止；请暂停后重新打开。");
+        },
+        nodes: Object.fromEntries(
+          [
+            "panel",
+            "shape",
+            "label",
+            "color",
+            "lat",
+            "lon",
+            "begin",
+            "add",
+            "undo",
+            "finish",
+            "cancel",
+            "clear",
+            "status",
+            "list",
+            "overlay",
+          ].map((key) => [key, $("whiteboard-" + key)]),
+        ),
+      });
+      defer(() => whiteboard.destroy());
+      localRelease = installLocalSceneControls({
+        viewer,
+        signal,
+        beforeCamera,
+        nodes: Object.fromEntries(
+          Object.entries({
+            lat: "local-lat",
+            lon: "local-lon",
+            label: "local-label",
+            kind: "local-kind",
+            add: "local-add",
+            pick: "local-pick",
+            cancel: "local-cancel",
+            clear: "local-clear",
+            status: "local-status",
+            list: "local-list",
+            input: "scene-input",
+            file: "scene-file",
+            import: "scene-import",
+            export: "scene-export",
+            output: "scene-output",
+            select: "scene-select",
+          }).map(([key, id]) => [key, $(id)]),
+        ),
+        capture,
+        onFatalError() {
+          stopRendering(
+            "本地场景资源释放失败，地球渲染已停止；请使用上方“暂停地球观察”后重新打开。",
+          );
+        },
+        apply(next, local) {
+          whiteboard.prepare(next.drawings || []);
+          const previous = { ...capture(), ...local.snapshot() };
+          let failure;
+          try {
+            effects.batch(() => {
+              try {
+                applySceneState(next);
+                local.replace(next, { render: false });
+                whiteboard.replace(next.drawings || [], { render: false });
+              } catch (error) {
+                if (!signal.aborted && !viewer.isDestroyed()) {
+                  try {
+                    applySceneState(previous);
+                    // Candidate acquisition failure preserves the original
+                    // geometry. Avoid reacquiring it unless it was committed.
+                    if (
+                      JSON.stringify(local.snapshot()) !==
+                      JSON.stringify({
+                        annotations: previous.annotations,
+                        measurement: previous.measurement,
+                      })
+                    )
+                      local.replace(previous, { render: false });
+                    if (
+                      JSON.stringify(whiteboard.snapshot()) !==
+                      JSON.stringify(previous.drawings || [])
+                    )
+                      whiteboard.replace(previous.drawings || [], {
+                        render: false,
+                      });
+                  } catch {
+                    stopRendering(
+                      "本地场景恢复失败，地球渲染已停止；请使用上方“暂停地球观察”后重新打开。",
+                    );
                   }
-                  failure = error;
                 }
-              });
-            } catch (error) {
-              // batch's final requestRender can throw after application or
-              // rollback. Stop ownership instead of hiding a render exception.
-              stopRendering(
-                "本地场景显示失败，地球渲染已停止；请使用上方“暂停地球观察”后重新打开。",
-              );
-              throw error;
-            }
-            if (failure) throw failure;
-          },
-        }),
-      );
+                failure = error;
+              }
+            });
+          } catch (error) {
+            // batch's final requestRender can throw after application or
+            // rollback. Stop ownership instead of hiding a render exception.
+            stopRendering(
+              "本地场景显示失败，地球渲染已停止；请使用上方“暂停地球观察”后重新打开。",
+            );
+            throw error;
+          }
+          if (failure) throw failure;
+        },
+      });
+      defer(localRelease);
       defer(
         installRenderFailureHandler({
           viewer,

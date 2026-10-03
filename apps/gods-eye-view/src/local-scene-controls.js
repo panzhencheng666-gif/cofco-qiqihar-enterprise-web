@@ -118,6 +118,7 @@ export function installLocalSceneControls({
     });
     changed(local.snapshot());
     listen(nodes.add, "click", () => {
+      beforeCamera();
       ++generation;
       if (!nodes.lat.value.trim() || !nodes.lon.value.trim())
         throw new TypeError("请输入纬度与经度。");
@@ -185,6 +186,14 @@ export function installLocalSceneControls({
     });
     signal?.addEventListener("abort", release, { once: true });
     if (signal?.aborted) release();
+    release.cancelPick = () => {
+      local?.cancelPick();
+      nodes.cancel.disabled = true;
+    };
+    release.invalidate = () => {
+      ++generation;
+      forgetExport();
+    };
     return release;
   } catch (value) {
     release();

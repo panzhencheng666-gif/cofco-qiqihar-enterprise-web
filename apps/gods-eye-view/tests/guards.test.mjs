@@ -9,7 +9,8 @@ async function terminalGlobeProbe(
 ) {
   const { readFile } = await import("node:fs/promises");
   const vm = await import("node:vm");
-  const { Cartographic: RealCartographic } = await import("@cesium/engine");
+  const { Cartographic: RealCartographic, Event: RenderEvent } =
+    await import("@cesium/engine");
   const { createApplication } =
     await import("../vendor/src/app/application.js");
   const { installEarthquakeControls } = await load("earthquake-controls");
@@ -25,6 +26,10 @@ async function terminalGlobeProbe(
   const { createCameraMotionOwner } = await load("camera-motion-owner");
   const { installCameraVerbsControls } = await load("camera-verbs-controls");
   const { createLocalGeometry } = await load("local-geometry");
+  const { installWhiteboardControls } = await load("whiteboard-controls");
+  const { createWhiteboardRenderer } = await load("whiteboard-renderer");
+  const { installPointerNavigationCancellation } =
+    await load("pointer-navigation");
   const post = postProcessProbe();
   const source = (
     await readFile(new URL("../src/globe.js", import.meta.url), "utf8")
@@ -52,8 +57,11 @@ async function terminalGlobeProbe(
     removeEventListener(type) {
       delete this.listeners[type];
     }
-    replaceChildren() {
-      this.children = [];
+    get childNodes() {
+      return this.children;
+    }
+    replaceChildren(...children) {
+      this.children = children;
     }
     append(...nodes) {
       this.children.push(...nodes);
@@ -155,6 +163,28 @@ async function terminalGlobeProbe(
     ].map((key) => "verb-" + key),
   );
   const nodes = Object.fromEntries(ids.map((id) => [id, new FakeNode()]));
+  for (const key of [
+    "panel",
+    "shape",
+    "label",
+    "color",
+    "lat",
+    "lon",
+    "begin",
+    "add",
+    "undo",
+    "finish",
+    "cancel",
+    "clear",
+    "status",
+    "list",
+    "overlay",
+  ])
+    nodes["whiteboard-" + key] = new FakeNode();
+  nodes["whiteboard-panel"].open = true;
+  nodes["whiteboard-shape"].value = "area";
+  nodes["whiteboard-color"].value = "primary";
+  nodes["whiteboard-label"].value = "手动示意";
   nodes["verb-motion"].value = "orbit";
   nodes["verb-speed"].value = "normal";
   const city = new FakeNode();
@@ -180,6 +210,9 @@ async function terminalGlobeProbe(
     errors = new Set(),
     localHandlers = [],
     localCollections = [];
+  const whiteboardHandlers = [],
+    postRender = new RenderEvent();
+  let whiteboard;
   let resolveFetch,
     requestSignal,
     disposed = false,
@@ -238,6 +271,7 @@ async function terminalGlobeProbe(
       },
     },
     scene: {
+      postRender,
       postProcessStages: post.viewer.scene.postProcessStages,
       requestRender() {
         if (sceneFailure?.renderFail) throw new Error("request render failed");
@@ -300,6 +334,43 @@ async function terminalGlobeProbe(
       },
     },
     createApplicationViewer: () => viewer,
+    installPointerNavigationCancellation,
+    installWhiteboardControls(options) {
+      const document = new FakeNode();
+      document.createElement = document.createElementNS = () => new FakeNode();
+      for (const node of Object.values(options.nodes))
+        node.ownerDocument = document;
+      const svg = options.nodes.overlay,
+        replace = svg.replaceChildren.bind(svg);
+      svg.replaceChildren = (...children) => {
+        if (sceneFailure?.whiteboardFail) {
+          sceneFailure.whiteboardFail = false;
+          throw new Error("whiteboard insertion failed");
+        }
+        replace(...children);
+      };
+      whiteboard = installWhiteboardControls({
+        ...options,
+        createRenderer: (settings) =>
+          createWhiteboardRenderer({
+            ...settings,
+            projectPoint: () => ({ x: 10, y: 20 }),
+          }),
+        createHandler() {
+          const handler = {
+            setInputAction(fn) {
+              this.click = fn;
+            },
+            destroy() {
+              this.dead = true;
+            },
+          };
+          whiteboardHandlers.push(handler);
+          return handler;
+        },
+      });
+      return whiteboard;
+    },
     installLocalSceneControls(options) {
       for (const node of Object.values(options.nodes))
         node.ownerDocument = { createElement: (tag) => new FakeNode(tag) };
@@ -445,6 +516,10 @@ async function terminalGlobeProbe(
       sequenceQueue,
       cancelledSequence,
       triggerFailure,
+      whiteboard,
+      whiteboardHandlers,
+      localHandlers,
+      postRender,
     });
     external.abort();
     await new Promise((resolve) => setImmediate(resolve));
@@ -671,6 +746,146 @@ test("GPU failure during startup preserves terminal status and returns without a
 test("scene acquisition failure restores active prior style map camera geometry and export", async () => {
   for (const phase of ["effect", "geometry", "map", "camera-once"])
     await terminalGlobeProbe(false, false, { phase });
+});
+test("composed whiteboard scene import validates before mutation and rolls back camera/style/map/both geometry owners", async () => {
+  const faults = {};
+  await terminalGlobeProbe(
+    false,
+    false,
+    faults,
+    async ({ nodes, whiteboard, viewer, postRender }) => {
+      nodes["map-style"].value = "natural";
+      nodes["visual-style"].value = "normal";
+      nodes["sharpen-intensity"].value = ".49";
+      nodes["bloom-intensity"].value = "0";
+      const shape = {
+        shape: "line",
+        vertices: [
+          { lon: 0, lat: 0 },
+          { lon: 0.01, lat: 0 },
+        ],
+        label: "prior",
+        color: "primary",
+      };
+      nodes["local-lat"].value = "0";
+      nodes["local-lon"].value = "0";
+      nodes["local-label"].value = "prior point";
+      nodes["local-kind"].value = "annotation";
+      nodes["local-add"].listeners.click();
+      whiteboard.replace([shape]);
+      nodes["scene-export"].listeners.click();
+      const previous = nodes["scene-output"].value,
+        base = JSON.parse(previous);
+      assert.equal(base.version, 2);
+      assert.equal(postRender.numberOfListeners, 1);
+      let calls = 0;
+      const setView = viewer.camera.setView;
+      viewer.camera.setView = function (args) {
+        calls++;
+        return setView.call(this, args);
+      };
+      nodes["scene-input"].value = JSON.stringify({
+        ...base,
+        drawings: [{ ...shape, url: "bad" }],
+      });
+      nodes["scene-import"].listeners.click();
+      assert.equal(calls, 0);
+      assert.deepEqual(whiteboard.snapshot(), [shape]);
+      const next = {
+        ...base,
+        map: "earth",
+        camera: { ...base.camera, lon: 10, lat: 20 },
+        style: { ...base.style, name: "noir" },
+        annotations: [{ lon: 1, lat: 2, label: "candidate" }],
+        drawings: [{ ...shape, label: "candidate" }],
+      };
+      faults.whiteboardFail = true;
+      nodes["scene-input"].value = JSON.stringify(next);
+      nodes["scene-import"].listeners.click();
+      nodes["scene-export"].listeners.click();
+      assert.equal(nodes["scene-output"].value, previous);
+      assert.deepEqual(whiteboard.snapshot(), [shape]);
+      assert.equal(postRender.numberOfListeners, 1);
+      assert.equal(viewer.isDestroyed(), false);
+      nodes["scene-import"].listeners.click();
+      nodes["scene-export"].listeners.click();
+      assert.equal(
+        JSON.parse(nodes["scene-output"].value).drawings[0].label,
+        "candidate",
+      );
+      const v1 = { ...base, version: 1 };
+      delete v1.drawings;
+      nodes["scene-input"].value = JSON.stringify(v1);
+      nodes["scene-import"].listeners.click();
+      assert.equal(whiteboard.snapshot().length, 0);
+      assert.equal(postRender.numberOfListeners, 0);
+    },
+  );
+});
+test("composed picker handoff and deferred import respect newer manual drafts, camera playback and Clean View", async () => {
+  await terminalGlobeProbe(
+    false,
+    false,
+    undefined,
+    async ({
+      nodes,
+      whiteboard,
+      whiteboardHandlers,
+      localHandlers,
+      sequenceQueue,
+      postRender,
+    }) => {
+      nodes["map-style"].value = "natural";
+      nodes["visual-style"].value = "normal";
+      nodes["sharpen-intensity"].value = ".49";
+      nodes["bloom-intensity"].value = "0";
+      nodes["local-label"].value = "pick";
+      nodes["local-kind"].value = "annotation";
+      nodes["local-pick"].listeners.click();
+      nodes["whiteboard-begin"].listeners.click();
+      assert.equal(localHandlers.at(-1).dead, true);
+      const first = whiteboardHandlers.at(-1);
+      nodes["local-pick"].listeners.click();
+      assert.equal(first.dead, true);
+      assert.equal(nodes["whiteboard-add"].disabled, true);
+      nodes["sequence-panel"].open = true;
+      nodes["sequence-label"].value = "scene";
+      nodes["sequence-duration"].value = "1";
+      nodes["sequence-easing"].value = "linear";
+      nodes["sequence-capture"].listeners.click();
+      nodes["sequence-capture"].listeners.click();
+      nodes["whiteboard-begin"].listeners.click();
+      const second = whiteboardHandlers.at(-1);
+      nodes["sequence-play"].listeners.click();
+      assert.equal(second.dead, true);
+      assert.equal(sequenceQueue.size, 1);
+      nodes["whiteboard-begin"].listeners.click();
+      assert.equal(sequenceQueue.size, 0);
+      nodes["clean-view"].listeners.click();
+      assert.equal(whiteboardHandlers.at(-1).dead, true);
+      assert.equal(postRender.numberOfListeners, 0);
+      nodes["clean-view"].listeners.click();
+      nodes["scene-export"].listeners.click();
+      const text = nodes["scene-output"].value;
+      assert.ok(text);
+      let resolve;
+      nodes["scene-file"].files = [
+        { size: 1, text: () => new Promise((r) => (resolve = r)) },
+      ];
+      nodes["scene-file"].listeners.change();
+      nodes["whiteboard-begin"].listeners.click();
+      assert.equal(nodes["whiteboard-add"].disabled, false);
+      resolve(text);
+      await new Promise((r) => setImmediate(r));
+      assert.equal(
+        nodes["whiteboard-add"].disabled,
+        false,
+        "newer draft invalidates old file completion",
+      );
+      assert.equal(whiteboard.snapshot().length, 0);
+      whiteboard.cancel();
+    },
+  );
 });
 test("scene restoration failure stops and disposes the child and invalidates pending work", () =>
   terminalGlobeProbe(false, false, { phase: "camera" }));
@@ -2811,4 +3026,86 @@ test("composed globe manual camera/search/city/import paths cancel both actual m
         assert.equal(sequenceQueue.size, 0);
       },
     );
+});
+
+test("both explicit shot-select paths cancel drawing and point pickers before camera mutation", async () => {
+  await terminalGlobeProbe(
+    false,
+    false,
+    undefined,
+    async ({ nodes, whiteboardHandlers, localHandlers }) => {
+      nodes["sequence-panel"].open = true;
+      nodes["sequence-label"].value = "shot";
+      nodes["sequence-duration"].value = "1";
+      nodes["sequence-easing"].value = "linear";
+      nodes["sequence-capture"].listeners.click();
+      for (const action of [
+        () => nodes["sequence-select"].listeners.click(),
+        () => nodes["sequence-shots"].listeners.change(),
+      ]) {
+        nodes["whiteboard-begin"].listeners.click();
+        const draw = whiteboardHandlers.at(-1);
+        nodes["sequence-shots"].value = "0";
+        action();
+        assert.equal(draw.dead, true);
+        nodes["local-label"].value = "point";
+        nodes["local-kind"].value = "annotation";
+        nodes["local-pick"].listeners.click();
+        const point = localHandlers.at(-1);
+        nodes["sequence-shots"].value = "0";
+        action();
+        assert.equal(point.dead, true);
+      }
+    },
+  );
+});
+
+test("native canvas navigation cancels both pickers while an ordinary left click remains usable", async () => {
+  await terminalGlobeProbe(
+    false,
+    false,
+    undefined,
+    async ({ nodes, viewer, whiteboardHandlers, localHandlers }) => {
+      const emit = (type, event) => viewer.canvas.listeners[type]?.(event);
+      nodes["whiteboard-begin"].listeners.click();
+      const click = whiteboardHandlers.at(-1);
+      emit("pointerdown", { button: 0, pointerId: 1, clientX: 0, clientY: 0 });
+      emit("pointerup", { pointerId: 1 });
+      assert.notEqual(click.dead, true);
+      nodes["whiteboard-cancel"].listeners.click();
+      const actions = [
+        () => emit("wheel", { ctrlKey: true }),
+        () => emit("keydown", { key: "ArrowLeft" }),
+        () => emit("mousedown", { button: 2 }),
+        () => {
+          emit("pointerdown", {
+            button: 0,
+            pointerId: 1,
+            clientX: 0,
+            clientY: 0,
+          });
+          emit("pointermove", { pointerId: 1, clientX: 10, clientY: 0 });
+        },
+        () =>
+          emit("touchstart", {
+            touches: [
+              { clientX: 0, clientY: 0 },
+              { clientX: 1, clientY: 1 },
+            ],
+          }),
+      ];
+      for (const action of actions) {
+        nodes["whiteboard-begin"].listeners.click();
+        const draw = whiteboardHandlers.at(-1);
+        action();
+        assert.equal(draw.dead, true);
+        nodes["local-label"].value = "point";
+        nodes["local-kind"].value = "annotation";
+        nodes["local-pick"].listeners.click();
+        const point = localHandlers.at(-1);
+        action();
+        assert.equal(point.dead, true);
+      }
+    },
+  );
 });

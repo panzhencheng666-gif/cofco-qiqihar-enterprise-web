@@ -85,6 +85,7 @@ assert.deepEqual(
   importedVendor.sort(),
   [
     "vendor/src/director/camera.js",
+    "vendor/src/annotations/drawMode.js",
     "vendor/src/data/analystEngine.js",
     "vendor/src/data/layerSnapshot.js",
     "vendor/src/data/feedState.js",
@@ -106,7 +107,7 @@ assert.deepEqual(
     "vendor/src/styles/thermal.js",
   ].sort(),
 );
-assert.equal(provenance.files.length, 30, "Immutable upstream closure changed");
+assert.equal(provenance.files.length, 34, "Immutable upstream closure changed");
 for (const input of Object.keys(meta.inputs))
   assert.ok(
     !/naturalEarthRegions|bundledJson|retryableLoad|local_data\//.test(input),
@@ -117,6 +118,12 @@ assert.ok(
   "Narrow pointInRing adapter missing",
 );
 for (const input of Object.keys(meta.inputs)) {
+  assert.ok(
+    !/vendor\/src\/annotations\/(drawTool|worldAnnotationRenderer|screenAnnotationRenderer)\.js/.test(
+      input,
+    ),
+    "Full annotation initializer escaped bounded adapter: " + input,
+  );
   assert.ok(
     !/vendor\/src\/(cameraVerbs|renderGovernor|navigationPolicy)\.js|vendor\/src\/ui\/cameraOrientationControls\.js/.test(
       input,

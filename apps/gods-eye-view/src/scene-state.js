@@ -1,3 +1,4 @@
+import { validateWhiteboard } from "./whiteboard-state.js";
 export const MAX_SCENE_BYTES = 65536;
 export const MAX_ANNOTATIONS = 50;
 const fail = () => {
@@ -71,8 +72,9 @@ export function validateScene(value) {
     "style",
     "annotations",
     "measurement",
+    ...(value?.version === 2 ? ["drawings"] : []),
   ]);
-  if (value.version !== 1) fail();
+  if (value.version !== 1 && value.version !== 2) fail();
   keys(value.camera, ["lon", "lat", "height", "heading", "pitch", "roll"]);
   const camera = {
     lon: number(value.camera.lon, -180, 180),
@@ -106,7 +108,7 @@ export function validateScene(value) {
   )
     fail();
   return {
-    version: 1,
+    version: value.version,
     camera,
     map: value.map,
     style: {
@@ -117,6 +119,9 @@ export function validateScene(value) {
       bloomIntensity: number(style.bloomIntensity, 0, 200),
     },
     ...validateGeometry(value),
+    ...(value.version === 2
+      ? { drawings: validateWhiteboard(value.drawings) }
+      : {}),
   };
 }
 export function parseScene(text) {
@@ -135,13 +140,16 @@ export function parseScene(text) {
 }
 /** Build from explicit public scene fields only; caller objects may contain other state. */
 export function exportScene(value) {
+  const drawings =
+    value.drawings === undefined ? [] : validateWhiteboard(value.drawings);
   const scene = validateScene({
-    version: 1,
+    version: drawings.length ? 2 : 1,
     camera: value.camera,
     map: value.map,
     style: value.style,
     annotations: value.annotations,
     measurement: value.measurement,
+    ...(drawings.length ? { drawings } : {}),
   });
   const text = JSON.stringify(scene, null, 2);
   parseScene(text);
