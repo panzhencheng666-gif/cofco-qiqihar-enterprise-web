@@ -106,7 +106,7 @@ assert.deepEqual(
     "vendor/src/styles/thermal.js",
   ].sort(),
 );
-assert.equal(provenance.files.length, 28, "Immutable upstream closure changed");
+assert.equal(provenance.files.length, 30, "Immutable upstream closure changed");
 for (const input of Object.keys(meta.inputs))
   assert.ok(
     !/naturalEarthRegions|bundledJson|retryableLoad|local_data\//.test(input),
@@ -116,6 +116,23 @@ assert.ok(
   Object.hasOwn(meta.inputs, "src/analyst-regions.js"),
   "Narrow pointInRing adapter missing",
 );
+for (const input of Object.keys(meta.inputs)) {
+  assert.ok(
+    !/vendor\/src\/(cameraVerbs|renderGovernor|navigationPolicy)\.js|vendor\/src\/ui\/cameraOrientationControls\.js/.test(
+      input,
+    ),
+    "Full camera initializer escaped narrow derivative: " + input,
+  );
+}
+for (const source of [
+  "src/camera-motion-owner.js",
+  "src/camera-verbs.js",
+  "src/camera-target-frame.js",
+])
+  assert.ok(
+    Object.hasOwn(meta.inputs, source),
+    "Bounded motion module missing: " + source,
+  );
 const analystImports = meta.inputs["vendor/src/data/analystEngine.js"].imports;
 assert.ok(
   analystImports.some(

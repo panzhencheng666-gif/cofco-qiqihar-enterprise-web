@@ -23,6 +23,8 @@ import {
   updateVisualEffectStatus,
 } from "./display-controls.js";
 import { installCameraSequenceControls } from "./camera-sequence-controls.js";
+import { createCameraMotionOwner } from "./camera-motion-owner.js";
+import { installCameraVerbsControls } from "./camera-verbs-controls.js";
 const CITIES = new Map(
   Object.entries({
     齐齐哈尔: [47.3543, 123.9182],
@@ -58,11 +60,9 @@ export async function startGlobe(signal) {
         if (!viewer.isDestroyed()) viewer.destroy();
       });
       const scene = viewer.scene;
-      let cancelSequence = () => {};
-      const beforeCamera = () => cancelSequence();
-      defer(() => {
-        cancelSequence = () => {};
-      });
+      const motionOwner = createCameraMotionOwner({ signal });
+      defer(() => motionOwner.destroy());
+      const beforeCamera = () => motionOwner.cancel();
       let imagery;
       let removeImageryError;
       const clearImagery = () => {
@@ -165,19 +165,18 @@ export async function startGlobe(signal) {
         go,
         setStyle,
         beforeCamera,
-        ownSequence(cancel) {
-          cancelSequence = cancel;
-        },
+        motionOwner,
       };
     },
     createControls({
-      scene: { viewer, home, go, setStyle, beforeCamera, ownSequence },
+      scene: { viewer, home, go, setStyle, beforeCamera, motionOwner },
       defer,
       signal,
     }) {
       const sequence = installCameraSequenceControls({
         viewer,
         signal,
+        motionOwner,
         nodes: Object.fromEntries(
           [
             "panel",
@@ -201,7 +200,26 @@ export async function startGlobe(signal) {
         ),
       });
       defer(() => sequence.destroy());
-      ownSequence(sequence.cancel);
+      const verbs = installCameraVerbsControls({
+        viewer,
+        signal,
+        motionOwner,
+        nodes: Object.fromEntries(
+          [
+            "panel",
+            "motion",
+            "direction",
+            "speed",
+            "once",
+            "continuous",
+            "stop",
+            "status",
+            "allow",
+            "preference",
+          ].map((key) => [key, $("verb-" + key)]),
+        ),
+      });
+      defer(() => verbs.destroy());
       const listen = (node, event, fn) => {
         node.addEventListener(event, fn);
         defer(() => node.removeEventListener(event, fn));

@@ -141,6 +141,16 @@
       "upstreamPath": "src/director/camera.js",
       "vendorPath": "vendor/src/director/camera.js",
       "sha256": "7b9435e50b2a07c292c0e4eebe38a3fc16d660ed897b71af1c43525e54f06a04"
+    },
+    {
+      "upstreamPath": "src/cameraVerbs.js",
+      "vendorPath": "vendor/src/cameraVerbs.js",
+      "sha256": "c75702426300dd14ed32c5fad3ce7616a57cabce509f0d33384d99570373a35d"
+    },
+    {
+      "upstreamPath": "src/ui/cameraOrientationControls.js",
+      "vendorPath": "vendor/src/ui/cameraOrientationControls.js",
+      "sha256": "0894272a50d80e92b7119e06c4fe475dee499b4f1edcf252619599c603154b8b"
     }
   ],
   "derivatives": [
@@ -157,6 +167,20 @@
       "derivedPath": "src/analyst-regions.js",
       "derivedSha256": "da2b2df4d3d0063ee2668046529415632bf9f321cbf9e36ef9a8ec599b76857e",
       "changes": "Exact pointInRing function only. Build substitutes this source adapter only for analystEngine naturalEarthRegions import; no named-region/pack/node-file loader in runnable graph."
+    },
+    {
+      "upstreamPath": "src/cameraVerbs.js",
+      "upstreamSha256": "c75702426300dd14ed32c5fad3ce7616a57cabce509f0d33384d99570373a35d",
+      "derivedPath": "src/camera-verbs.js",
+      "derivedSha256": "47e376d7035daecc7a90d2e116fdc66ca518bdeac4fb4a05442aa9f261982010",
+      "changes": "Original four non-route constants/ease-out and step branches. Remove singleton/clock/governor/route/tracking/voice/arrival behavior; shared per-viewer authority; lazy scratch Camera preflight and fixed-world application;30fps and30s bounds, instant reduced-motion Once, fail-closed geographic/pitch/vector limits."
+    },
+    {
+      "upstreamPath": "src/ui/cameraOrientationControls.js",
+      "upstreamSha256": "0894272a50d80e92b7119e06c4fe475dee499b4f1edcf252619599c603154b8b",
+      "derivedPath": "src/camera-target-frame.js",
+      "derivedSha256": "e0f486f2c4d8101d4c2c1fa70ee80ad6d5e396c538f6e2d334a1cd7858f6f6e3",
+      "changes": "Narrow ENU geometry/normalized heading from original lines18\u201324/82\u2013105; explicit ellipsoid target supplied. No tracking/pickPosition/terrain/animator/binders or live lookAt borrowing."
     }
   ]
 }

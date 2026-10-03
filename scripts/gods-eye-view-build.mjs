@@ -8,6 +8,8 @@ for (const args of [
     "tests/guards.test.mjs",
     "tests/analyst.test.mjs",
     "tests/camera-sequence.test.mjs",
+    "tests/camera-motion.test.mjs",
+    "tests/camera-verbs.test.mjs",
   ],
   ["build.mjs"],
 ]) {

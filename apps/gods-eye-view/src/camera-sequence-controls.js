@@ -5,6 +5,7 @@ export function installCameraSequenceControls({
   viewer,
   nodes,
   signal,
+  motionOwner,
   document = nodes.panel.ownerDocument,
   motion = document.defaultView?.matchMedia?.(
     "(prefers-reduced-motion: reduce)",
@@ -73,6 +74,7 @@ export function installCameraSequenceControls({
     sequence = createCameraSequence({
       viewer,
       signal,
+      motionOwner,
       schedule,
       onChange: update,
       canRender,

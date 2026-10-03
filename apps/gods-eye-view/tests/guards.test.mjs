@@ -9,6 +9,7 @@ async function terminalGlobeProbe(
 ) {
   const { readFile } = await import("node:fs/promises");
   const vm = await import("node:vm");
+  const { Cartographic: RealCartographic } = await import("@cesium/engine");
   const { createApplication } =
     await import("../vendor/src/app/application.js");
   const { installEarthquakeControls } = await load("earthquake-controls");
@@ -21,6 +22,8 @@ async function terminalGlobeProbe(
     "camera-sequence-controls",
   );
   const { installSearchControls } = await load("search-controls");
+  const { createCameraMotionOwner } = await load("camera-motion-owner");
+  const { installCameraVerbsControls } = await load("camera-verbs-controls");
   const { createLocalGeometry } = await load("local-geometry");
   const post = postProcessProbe();
   const source = (
@@ -137,7 +140,23 @@ async function terminalGlobeProbe(
       "motion",
     ].map((key) => "sequence-" + key),
   );
+  ids.push(
+    ...[
+      "panel",
+      "motion",
+      "direction",
+      "speed",
+      "once",
+      "continuous",
+      "stop",
+      "status",
+      "allow",
+      "preference",
+    ].map((key) => "verb-" + key),
+  );
   const nodes = Object.fromEntries(ids.map((id) => [id, new FakeNode()]));
+  nodes["verb-motion"].value = "orbit";
+  nodes["verb-speed"].value = "normal";
   const city = new FakeNode();
   city.dataset.city = "北京";
   const sequenceQueue = new Map(),
@@ -178,11 +197,13 @@ async function terminalGlobeProbe(
       zoomOut() {},
       setView({ destination, orientation }) {
         if (destination)
-          this.positionCartographic = {
-            longitude: destination.lon,
-            latitude: destination.lat,
-            height: destination.height,
-          };
+          this.positionCartographic = Object.hasOwn(destination, "lon")
+            ? {
+                longitude: destination.lon,
+                latitude: destination.lat,
+                height: destination.height,
+              }
+            : RealCartographic.fromCartesian(destination);
         if (orientation) Object.assign(this, orientation);
         if (sceneFailure?.cameraFail) {
           if (sceneFailure.phase === "camera-once")
@@ -334,6 +355,19 @@ async function terminalGlobeProbe(
           },
         }),
       });
+    },
+    createCameraMotionOwner(options) {
+      return createCameraMotionOwner({
+        ...options,
+        schedule: sequenceSchedule,
+      });
+    },
+    installCameraVerbsControls(options) {
+      const document = new FakeNode();
+      document.createElement = (tag) => new FakeNode(tag);
+      for (const node of Object.values(options.nodes))
+        node.ownerDocument = document;
+      return installCameraVerbsControls({ ...options, document });
     },
     installCameraSequenceControls(options) {
       const document = new FakeNode();
@@ -2635,79 +2669,146 @@ test("sampled measurement chords remain above the WGS84 ellipsoid", async () => 
 
 import "./ion-regressions.mjs";
 
-test("composed globe manual camera/search/city/import paths cancel the actual sequence first", async () => {
-  await terminalGlobeProbe(
-    false,
-    false,
-    undefined,
-    async ({
-      nodes,
-      viewer,
-      city,
-      sequenceQueue,
-      cancelledSequence,
-      triggerFailure,
-    }) => {
-      nodes["sequence-panel"].open = true;
-      nodes["sequence-label"].value = "镜头";
-      nodes["sequence-duration"].value = "3";
-      nodes["sequence-easing"].value = "linear";
-      nodes["sequence-capture"].listeners.click();
-      viewer.camera.positionCartographic.longitude = 1;
-      nodes["sequence-capture"].listeners.click();
-      assert.equal(nodes["sequence-shots"].children.length, 2);
-      nodes["save-view"].listeners.click();
-      const actions = [
-        () => nodes.home.listeners.click(),
-        () => city.listeners.click(),
-        () => {
-          nodes.query.value = "北京";
-          nodes["search-button"].listeners.click();
-        },
-        () => {
-          nodes.query.value = "上海";
-          nodes.query.listeners.keydown({ key: "Enter", preventDefault() {} });
-        },
-        ...["zoom-in", "zoom-out", "north", "overhead", "restore-view"].map(
-          (id) => () => nodes[id].listeners.click(),
-        ),
-        () => {
-          nodes["scene-input"].value = "invalid";
-          nodes["scene-import"].listeners.click();
-        },
-        () => {
-          nodes["scene-file"].files = [];
-          nodes["scene-file"].listeners.change();
-        },
-        () => nodes["clean-view"].listeners.click(),
-      ];
-      for (const name of ["setView", "flyTo", "zoomIn", "zoomOut"]) {
-        const original = viewer.camera[name];
-        viewer.camera[name] = function (...args) {
-          // Sequence's own setView is allowed while initiating explicit playback.
-          if (!sequenceMutation) assert.equal(sequenceQueue.size, 0, name);
-          return original.apply(this, args);
-        };
-      }
-      let sequenceMutation = false;
-      for (const action of actions) {
+test("composed globe manual camera/search/city/import paths cancel both actual motion owners first", async () => {
+  for (const player of ["sequence", "verb"])
+    await terminalGlobeProbe(
+      false,
+      false,
+      undefined,
+      async ({
+        nodes,
+        viewer,
+        city,
+        sequenceQueue,
+        cancelledSequence,
+        triggerFailure,
+      }) => {
+        nodes["sequence-panel"].open = true;
+        nodes["sequence-label"].value = "镜头";
+        nodes["sequence-duration"].value = "3";
+        nodes["sequence-easing"].value = "linear";
+        nodes["sequence-capture"].listeners.click();
+        viewer.camera.positionCartographic.longitude = 1;
+        nodes["sequence-capture"].listeners.click();
+        assert.equal(nodes["sequence-shots"].children.length, 2);
+        nodes["save-view"].listeners.click();
+        const actions = [
+          () => nodes.home.listeners.click(),
+          () => city.listeners.click(),
+          () => {
+            nodes.query.value = "北京";
+            nodes["search-button"].listeners.click();
+          },
+          () => {
+            nodes.query.value = "上海";
+            nodes.query.listeners.keydown({
+              key: "Enter",
+              preventDefault() {},
+            });
+          },
+          ...["zoom-in", "zoom-out", "north", "overhead", "restore-view"].map(
+            (id) => () => nodes[id].listeners.click(),
+          ),
+          () => {
+            nodes["scene-input"].value = "invalid";
+            nodes["scene-import"].listeners.click();
+          },
+          () => {
+            nodes["scene-file"].files = [];
+            nodes["scene-file"].listeners.change();
+          },
+          () => nodes["clean-view"].listeners.click(),
+        ];
+        for (const name of ["setView", "flyTo", "zoomIn", "zoomOut"]) {
+          const original = viewer.camera[name];
+          viewer.camera[name] = function (...args) {
+            // Sequence's own setView is allowed while initiating explicit playback.
+            if (!sequenceMutation) assert.equal(sequenceQueue.size, 0, name);
+            return original.apply(this, args);
+          };
+        }
+        nodes["verb-panel"].open = true;
+        nodes["verb-motion"].value = "pan";
+        nodes["verb-direction"].value = "left";
+        const play = () =>
+          nodes[
+            player === "sequence" ? "sequence-play" : "verb-continuous"
+          ].listeners.click();
+        let sequenceMutation = false;
+        for (const action of actions) {
+          sequenceMutation = true;
+          play();
+          sequenceMutation = false;
+          assert.equal(
+            sequenceQueue.size,
+            1,
+            `${player}: ${nodes[player + "-status"].textContent}`,
+          );
+          action();
+          assert.equal(sequenceQueue.size, 0);
+          const message = nodes[player + "-status"].textContent;
+          cancelledSequence.at(-1)?.();
+          assert.equal(sequenceQueue.size, 0);
+          assert.equal(nodes[player + "-status"].textContent, message);
+        }
+        // A pending valid file completion must cancel motion restarted after file selection.
+        let resolveFile;
+        nodes["scene-file"].files = [
+          {
+            size: 1,
+            text: () =>
+              new Promise((resolve) => {
+                resolveFile = resolve;
+              }),
+          },
+        ];
         sequenceMutation = true;
-        nodes["sequence-play"].listeners.click();
+        play();
+        sequenceMutation = false;
+        nodes["scene-file"].listeners.change();
+        assert.equal(sequenceQueue.size, 0);
+        sequenceMutation = true;
+        play();
         sequenceMutation = false;
         assert.equal(sequenceQueue.size, 1);
-        action();
+        resolveFile(
+          JSON.stringify({
+            version: 1,
+            camera: {
+              lon: 0,
+              lat: 0,
+              height: 1000000,
+              heading: 0,
+              pitch: -1,
+              roll: 0,
+            },
+            map: "earth",
+            style: {
+              name: "normal",
+              sharpen: false,
+              sharpenIntensity: 0.49,
+              bloom: false,
+              bloomIntensity: 0,
+            },
+            annotations: [],
+            measurement: [],
+          }),
+        );
+        await new Promise((resolve) => setImmediate(resolve));
         assert.equal(sequenceQueue.size, 0);
-        const message = nodes["sequence-status"].textContent;
+        assert.match(nodes["local-status"].textContent, /已导入/);
         cancelledSequence.at(-1)?.();
         assert.equal(sequenceQueue.size, 0);
-        assert.equal(nodes["sequence-status"].textContent, message);
-      }
-      sequenceMutation = true;
-      nodes["sequence-play"].listeners.click();
-      sequenceMutation = false;
-      assert.equal(sequenceQueue.size, 1);
-      triggerFailure();
-      assert.equal(sequenceQueue.size, 0);
-    },
-  );
+        sequenceMutation = true;
+        play();
+        sequenceMutation = false;
+        assert.equal(
+          sequenceQueue.size,
+          1,
+          `${player}: ${nodes[player + "-status"].textContent}`,
+        );
+        triggerFailure();
+        assert.equal(sequenceQueue.size, 0);
+      },
+    );
 });

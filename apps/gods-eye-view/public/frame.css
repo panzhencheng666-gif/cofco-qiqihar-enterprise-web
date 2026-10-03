@@ -442,7 +442,8 @@ summary:focus-visible {
   }
 }
 
-#sequence-allow {
+#sequence-allow,
+#verb-allow {
   width: auto;
   margin-right: 5px;
 }

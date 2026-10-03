@@ -95,6 +95,44 @@
         <button id="restore-view" type="button" disabled>恢复视角</button>
       </div>
       <p id="camera-status" role="status">保存一个视角，仅在本次观察中保留。</p>
+      <details id="verb-panel">
+        <summary>相机操作：环绕、平移、倾斜、转向</summary>
+        <label for="verb-motion">操作</label>
+        <select id="verb-motion">
+          <option value="orbit">环绕画面中心</option>
+          <option value="pan">平移</option>
+          <option value="tilt">倾斜</option>
+          <option value="rotate">转向</option>
+        </select>
+        <label for="verb-direction">方向</label
+        ><select id="verb-direction"></select>
+        <label for="verb-speed">连续运动速度</label>
+        <select id="verb-speed">
+          <option value="slow">慢速</option>
+          <option value="normal" selected>正常</option>
+          <option value="fast">快速</option>
+        </select>
+        <p id="verb-preference"></p>
+        <label
+          ><input
+            id="verb-allow"
+            type="checkbox"
+          />系统减少动态时仍允许本次动画</label
+        >
+        <div class="navigation">
+          <button id="verb-once" type="button">单次操作</button
+          ><button id="verb-continuous" type="button">开始连续运动</button
+          ><button id="verb-stop" type="button" disabled>停止运动</button>
+        </div>
+        <p id="verb-status" role="status" aria-live="off">
+          选择操作后手动开始。
+        </p>
+        <p>
+          环绕目标为画面中心的 WGS84 椭球位置，无地形或路线跟随。单次环绕
+          30°，倾斜或转向
+          15°；平移约当前高度的四分之一。新相机操作会停止镜头播放；切出或关闭面板会停止运动。
+        </p>
+      </details>
       <details id="sequence-panel">
         <summary>本地镜头序列（相机功能）</summary>
         <p>

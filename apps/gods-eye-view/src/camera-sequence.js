@@ -56,6 +56,7 @@ export function applyCameraPose(viewer, pose, canRender = () => true) {
 export function createCameraSequence({
   viewer,
   signal,
+  motionOwner,
   onChange = () => {},
   canAnimate = () => true,
   canRender = () => true,
@@ -94,6 +95,7 @@ export function createCameraSequence({
   };
   const stop = (reason = "已停止。") => {
     unschedule();
+    authority?.release();
     if (!alive()) return;
     if (status === "playing") {
       status = "stopped";
@@ -103,6 +105,7 @@ export function createCameraSequence({
   };
   const fail = (error) => {
     unschedule();
+    authority?.release();
     if (!alive()) return;
     status = "error";
     message = `镜头操作未完成：${error.message || "相机不可用"}`;
@@ -133,7 +136,11 @@ export function createCameraSequence({
     return applyCameraPose(
       viewer,
       sample(time),
-      () => alive() && ticket === generation && canRender(),
+      () =>
+        alive() &&
+        ticket === generation &&
+        canRender() &&
+        (!authority || authority.valid()),
     );
   };
   const edit = (action) => {
@@ -150,6 +157,7 @@ export function createCameraSequence({
     if (!alive() || !canRender() || !shots.length) return false;
     bounded(seconds, 0, total());
     stop("手动定位时间线，已停止播放。");
+    if (authority && !authority.claim()) return false;
     const ticket = generation;
     try {
       time = seconds;
@@ -163,20 +171,27 @@ export function createCameraSequence({
     } catch (error) {
       if (ticket === generation) fail(error);
       return false;
+    } finally {
+      authority?.release();
     }
   };
   const start = () => {
     if (!alive() || !canAnimate() || !shots.length || status === "playing")
       return false;
     unschedule();
+    if (authority && !authority.claim()) return false;
     const ticket = generation;
     try {
       if (time >= total()) time = 0;
       viewer.camera.cancelFlight();
-      if (!render()) return false;
+      if (!render()) {
+        stop();
+        return false;
+      }
       if (!alive() || ticket !== generation) return false;
       if (shots.length === 1) {
         time = total();
+        authority?.release();
         status = "complete";
         message = "单镜头已定位，无需动画。";
         notify();
@@ -210,6 +225,7 @@ export function createCameraSequence({
               return;
             if (time >= total()) {
               unschedule();
+              authority?.release();
               status = "complete";
               message = "本地镜头播放完成。";
               notify();
@@ -235,11 +251,17 @@ export function createCameraSequence({
     if (disposed) return;
     unschedule();
     disposed = true;
+    authority?.destroy();
     shots = [];
     selected = -1;
     status = "disposed";
     signal?.removeEventListener("abort", destroy);
   };
+  const authority = motionOwner?.register({
+    stop,
+    eligible: () => alive() && canRender(),
+  });
+  if (authority) schedule = authority.schedule;
   signal?.addEventListener("abort", destroy, { once: true });
   if (signal?.aborted) destroy();
   return {
