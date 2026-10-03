@@ -136,6 +136,11 @@
       "upstreamPath": "src/data/installationFeedback.js",
       "vendorPath": "vendor/src/data/installationFeedback.js",
       "sha256": "4658712e8bdafc5ccf4724c06385fae4a6f8baab9413a59d4f53bf93904dffe7"
+    },
+    {
+      "upstreamPath": "src/director/camera.js",
+      "vendorPath": "vendor/src/director/camera.js",
+      "sha256": "7b9435e50b2a07c292c0e4eebe38a3fc16d660ed897b71af1c43525e54f06a04"
     }
   ],
   "derivatives": [

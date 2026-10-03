@@ -22,6 +22,7 @@ import {
   installDisplayControls,
   updateVisualEffectStatus,
 } from "./display-controls.js";
+import { installCameraSequenceControls } from "./camera-sequence-controls.js";
 const CITIES = new Map(
   Object.entries({
     齐齐哈尔: [47.3543, 123.9182],
@@ -57,6 +58,11 @@ export async function startGlobe(signal) {
         if (!viewer.isDestroyed()) viewer.destroy();
       });
       const scene = viewer.scene;
+      let cancelSequence = () => {};
+      const beforeCamera = () => cancelSequence();
+      defer(() => {
+        cancelSequence = () => {};
+      });
       let imagery;
       let removeImageryError;
       const clearImagery = () => {
@@ -99,6 +105,7 @@ export async function startGlobe(signal) {
       const removeError = scene.renderError.addEventListener(onError);
       defer(removeError);
       const home = () => {
+        beforeCamera();
         viewer.camera.cancelFlight();
         viewer.camera.flyTo({
           destination: Cartesian3.fromDegrees(108, 24, 28000000),
@@ -107,6 +114,7 @@ export async function startGlobe(signal) {
         scene.requestRender();
       };
       const go = (lat, lon, height = 220000) => {
+        beforeCamera();
         viewer.camera.cancelFlight();
         viewer.camera.flyTo({
           destination: Cartesian3.fromDegrees(lon, lat, height),
@@ -151,9 +159,49 @@ export async function startGlobe(signal) {
       };
       setStyle("natural");
       home();
-      return { viewer, home, go, setStyle };
+      return {
+        viewer,
+        home,
+        go,
+        setStyle,
+        beforeCamera,
+        ownSequence(cancel) {
+          cancelSequence = cancel;
+        },
+      };
     },
-    createControls({ scene: { viewer, home, go, setStyle }, defer, signal }) {
+    createControls({
+      scene: { viewer, home, go, setStyle, beforeCamera, ownSequence },
+      defer,
+      signal,
+    }) {
+      const sequence = installCameraSequenceControls({
+        viewer,
+        signal,
+        nodes: Object.fromEntries(
+          [
+            "panel",
+            "label",
+            "duration",
+            "easing",
+            "capture",
+            "shots",
+            "select",
+            "remove",
+            "up",
+            "down",
+            "play",
+            "stop",
+            "seek",
+            "progress",
+            "status",
+            "allow",
+            "motion",
+          ].map((key) => [key, $("sequence-" + key)]),
+        ),
+      });
+      defer(() => sequence.destroy());
+      ownSequence(sequence.cancel);
       const listen = (node, event, fn) => {
         node.addEventListener(event, fn);
         defer(() => node.removeEventListener(event, fn));
@@ -207,11 +255,13 @@ export async function startGlobe(signal) {
           viewer,
           effects,
           signal,
+          beforeCamera,
           overlays: [...document.querySelectorAll("[data-clean-overlay]")],
           nodes: displayNodes,
         }),
       );
       const stopRendering = (message) => {
+        beforeCamera();
         if (renderStopped) return;
         renderStopped = true;
         viewer.useDefaultRenderLoop = false;
@@ -249,6 +299,7 @@ export async function startGlobe(signal) {
         };
       };
       const applySceneState = (next) => {
+        beforeCamera();
         viewer.camera.cancelFlight();
         effects.setStyle(next.style.name);
         effects.setSharpenIntensity(next.style.sharpenIntensity);
@@ -277,6 +328,7 @@ export async function startGlobe(signal) {
         installLocalSceneControls({
           viewer,
           signal,
+          beforeCamera,
           nodes: Object.fromEntries(
             Object.entries({
               lat: "local-lat",
@@ -372,18 +424,21 @@ export async function startGlobe(signal) {
         }
       });
       listen($("zoom-in"), "click", () => {
+        beforeCamera();
         viewer.camera.zoomIn(
           Math.max(viewer.camera.positionCartographic.height * 0.4, 100),
         );
         viewer.scene.requestRender();
       });
       listen($("zoom-out"), "click", () => {
+        beforeCamera();
         viewer.camera.zoomOut(
           Math.max(viewer.camera.positionCartographic.height * 0.4, 100),
         );
         viewer.scene.requestRender();
       });
       listen($("north"), "click", () => {
+        beforeCamera();
         viewer.camera.setView({
           orientation: { heading: 0, pitch: viewer.camera.pitch, roll: 0 },
         });
@@ -404,11 +459,12 @@ export async function startGlobe(signal) {
       }, ScreenSpaceEventType.MOUSE_MOVE);
       return {};
     },
-    createData({ scene: { viewer }, defer, signal }) {
+    createData({ scene: { viewer, beforeCamera }, defer, signal }) {
       defer(
         installEarthquakeControls({
           viewer,
           signal,
+          beforeCamera,
           nodes: Object.fromEntries(
             Object.entries({
               refresh: "refresh",
@@ -431,6 +487,7 @@ export async function startGlobe(signal) {
             }).map(([key, id]) => [key, $(id)]),
           ),
           onFatalError() {
+            beforeCamera();
             if (renderStopped) return;
             renderStopped = true;
             viewer.useDefaultRenderLoop = false;

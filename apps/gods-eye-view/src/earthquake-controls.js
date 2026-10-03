@@ -7,6 +7,7 @@ export function installEarthquakeControls({
   signal,
   nodes,
   onFatalError,
+  beforeCamera = () => {},
   fetchSnapshot = fetchEarthquakes,
   createCollection = () => new PointPrimitiveCollection(),
 }) {
@@ -111,6 +112,7 @@ export function installEarthquakeControls({
     const row = analyst.state().selected;
     if (!row || disposed || signal.aborted) return;
     try {
+      beforeCamera();
       analyst.select(row.stableId);
       if (disposed || signal.aborted) return;
       viewer.camera.cancelFlight();

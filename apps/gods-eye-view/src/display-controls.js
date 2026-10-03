@@ -17,8 +17,9 @@ export function installDisplayControls({
   nodes,
   overlays,
   signal,
+  beforeCamera = () => {},
 }) {
-  const camera = createCameraCommands({ viewer, signal });
+  const camera = createCameraCommands({ viewer, signal, beforeCamera });
   const removers = [];
   const visibility = overlays.map((node) => [node, node.hidden]);
   let clean = false;
@@ -75,6 +76,7 @@ export function installDisplayControls({
         : "尚无可恢复的视角。";
     });
     listen(nodes.clean, "click", () => {
+      beforeCamera();
       clean = !clean;
       updateClean();
       nodes.clean.focus();

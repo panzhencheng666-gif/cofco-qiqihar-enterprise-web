@@ -5,6 +5,7 @@ async function terminalGlobeProbe(
   failDuringStartup,
   preAborted = false,
   sceneFailure,
+  composition,
 ) {
   const { readFile } = await import("node:fs/promises");
   const vm = await import("node:vm");
@@ -16,6 +17,10 @@ async function terminalGlobeProbe(
     await load("display-controls");
   const { createStaticVisualEffects } = await loadStaticEffects();
   const { installLocalSceneControls } = await load("local-scene-controls");
+  const { installCameraSequenceControls } = await load(
+    "camera-sequence-controls",
+  );
+  const { installSearchControls } = await load("search-controls");
   const { createLocalGeometry } = await load("local-geometry");
   const post = postProcessProbe();
   const source = (
@@ -35,6 +40,9 @@ async function terminalGlobeProbe(
     }
     setAttribute() {}
     focus() {}
+    closest() {
+      return null;
+    }
     addEventListener(type, fn) {
       this.listeners[type] = fn;
     }
@@ -108,7 +116,45 @@ async function terminalGlobeProbe(
     "scene-output",
     "scene-select",
   ];
+  ids.push(
+    ...[
+      "panel",
+      "label",
+      "duration",
+      "easing",
+      "capture",
+      "shots",
+      "select",
+      "remove",
+      "up",
+      "down",
+      "play",
+      "stop",
+      "seek",
+      "progress",
+      "status",
+      "allow",
+      "motion",
+    ].map((key) => "sequence-" + key),
+  );
   const nodes = Object.fromEntries(ids.map((id) => [id, new FakeNode()]));
+  const city = new FakeNode();
+  city.dataset.city = "北京";
+  const sequenceQueue = new Map(),
+    cancelledSequence = [];
+  let sequenceSerial = 0;
+  const sequenceSchedule = {
+    now: () => 0,
+    request(fn) {
+      const id = ++sequenceSerial;
+      sequenceQueue.set(id, fn);
+      return id;
+    },
+    cancel(id) {
+      cancelledSequence.push(sequenceQueue.get(id));
+      sequenceQueue.delete(id);
+    },
+  };
   const dynamic = [],
     imageryCreated = [],
     imageryErrors = new Set(),
@@ -152,7 +198,7 @@ async function terminalGlobeProbe(
       directionWC: { x: -1, y: 0, z: 0 },
       upWC: { x: 0, y: 0, z: 1 },
     },
-    canvas: {},
+    canvas: new FakeNode(),
     imageryLayers: {
       values: [],
       add(layer) {
@@ -223,7 +269,9 @@ async function terminalGlobeProbe(
     document: {
       getElementById: (id) => nodes[id],
       querySelectorAll: (selector) =>
-        selector === "[data-city]" ? [] : [...Object.values(nodes), ...dynamic],
+        selector === "[data-city]"
+          ? [city]
+          : [...Object.values(nodes), ...dynamic],
       createElement(tag) {
         const n = new FakeNode(tag);
         dynamic.push(n);
@@ -287,11 +335,22 @@ async function terminalGlobeProbe(
         }),
       });
     },
+    installCameraSequenceControls(options) {
+      const document = new FakeNode();
+      document.createElement = (tag) => new FakeNode(tag);
+      for (const node of Object.values(options.nodes))
+        node.ownerDocument = document;
+      return installCameraSequenceControls({
+        ...options,
+        document,
+        schedule: sequenceSchedule,
+      });
+    },
     installDisplayControls,
     updateVisualEffectStatus,
     createStaticVisualEffects: (options) =>
       createStaticVisualEffects({ ...options, createStage: post.createStage }),
-    installSearchControls: () => () => {},
+    installSearchControls,
     installTrackpadPinchZoom: () => () => {},
     fetchEarthquakes: ({ signal }) => {
       requestSignal = signal;
@@ -344,6 +403,21 @@ async function terminalGlobeProbe(
     return;
   }
   await context.startGlobe(external.signal);
+  if (composition) {
+    await composition({
+      nodes,
+      viewer,
+      city,
+      sequenceQueue,
+      cancelledSequence,
+      triggerFailure,
+    });
+    external.abort();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(sequenceQueue.size, 0);
+    assert.equal(disposed, true);
+    return;
+  }
   if (!failDuringStartup) {
     assert.equal(typeof nodes["local-add"].listeners.click, "function");
     assert.equal(typeof nodes["scene-import"].listeners.click, "function");
@@ -2513,3 +2587,80 @@ test("sampled measurement chords remain above the WGS84 ellipsoid", async () => 
 });
 
 import "./ion-regressions.mjs";
+
+test("composed globe manual camera/search/city/import paths cancel the actual sequence first", async () => {
+  await terminalGlobeProbe(
+    false,
+    false,
+    undefined,
+    async ({
+      nodes,
+      viewer,
+      city,
+      sequenceQueue,
+      cancelledSequence,
+      triggerFailure,
+    }) => {
+      nodes["sequence-panel"].open = true;
+      nodes["sequence-label"].value = "镜头";
+      nodes["sequence-duration"].value = "3";
+      nodes["sequence-easing"].value = "linear";
+      nodes["sequence-capture"].listeners.click();
+      viewer.camera.positionCartographic.longitude = 1;
+      nodes["sequence-capture"].listeners.click();
+      assert.equal(nodes["sequence-shots"].children.length, 2);
+      nodes["save-view"].listeners.click();
+      const actions = [
+        () => nodes.home.listeners.click(),
+        () => city.listeners.click(),
+        () => {
+          nodes.query.value = "北京";
+          nodes["search-button"].listeners.click();
+        },
+        () => {
+          nodes.query.value = "上海";
+          nodes.query.listeners.keydown({ key: "Enter", preventDefault() {} });
+        },
+        ...["zoom-in", "zoom-out", "north", "overhead", "restore-view"].map(
+          (id) => () => nodes[id].listeners.click(),
+        ),
+        () => {
+          nodes["scene-input"].value = "invalid";
+          nodes["scene-import"].listeners.click();
+        },
+        () => {
+          nodes["scene-file"].files = [];
+          nodes["scene-file"].listeners.change();
+        },
+        () => nodes["clean-view"].listeners.click(),
+      ];
+      for (const name of ["setView", "flyTo", "zoomIn", "zoomOut"]) {
+        const original = viewer.camera[name];
+        viewer.camera[name] = function (...args) {
+          // Sequence's own setView is allowed while initiating explicit playback.
+          if (!sequenceMutation) assert.equal(sequenceQueue.size, 0, name);
+          return original.apply(this, args);
+        };
+      }
+      let sequenceMutation = false;
+      for (const action of actions) {
+        sequenceMutation = true;
+        nodes["sequence-play"].listeners.click();
+        sequenceMutation = false;
+        assert.equal(sequenceQueue.size, 1);
+        action();
+        assert.equal(sequenceQueue.size, 0);
+        const message = nodes["sequence-status"].textContent;
+        cancelledSequence.at(-1)?.();
+        assert.equal(sequenceQueue.size, 0);
+        assert.equal(nodes["sequence-status"].textContent, message);
+      }
+      sequenceMutation = true;
+      nodes["sequence-play"].listeners.click();
+      sequenceMutation = false;
+      assert.equal(sequenceQueue.size, 1);
+      triggerFailure();
+      assert.equal(sequenceQueue.size, 0);
+    },
+  );
+});

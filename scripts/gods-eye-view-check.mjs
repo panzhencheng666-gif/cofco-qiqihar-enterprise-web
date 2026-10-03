@@ -84,6 +84,7 @@ const importedVendor = Object.keys(meta.inputs).filter((i) =>
 assert.deepEqual(
   importedVendor.sort(),
   [
+    "vendor/src/director/camera.js",
     "vendor/src/data/analystEngine.js",
     "vendor/src/data/layerSnapshot.js",
     "vendor/src/data/feedState.js",
@@ -105,7 +106,7 @@ assert.deepEqual(
     "vendor/src/styles/thermal.js",
   ].sort(),
 );
-assert.equal(provenance.files.length, 27, "Immutable upstream closure changed");
+assert.equal(provenance.files.length, 28, "Immutable upstream closure changed");
 for (const input of Object.keys(meta.inputs))
   assert.ok(
     !/naturalEarthRegions|bundledJson|retryableLoad|local_data\//.test(input),
@@ -144,9 +145,9 @@ console.log(
   `Globe source gate passed: ${provenance.files.length} immutable upstream files; ${importedVendor.length} imported upstream modules; no engine in shell graph.`,
 );
 
-for (const [module, adapter] of [
-  ["Core/Ion.js", "src/disabled-ion.js"],
-  ["Scene/ArcGisMapService.js", "src/disabled-arcgis.js"],
+for (const [module, adapter, expectedMappings] of [
+  ["Core/Ion.js", "src/disabled-ion.js", 3],
+  ["Scene/ArcGisMapService.js", "src/disabled-arcgis.js", 2],
 ]) {
   const original = `/Source/${module}`;
   assert.ok(
@@ -182,7 +183,11 @@ for (const [module, adapter] of [
     );
     if (Object.hasOwn(details.inputs, adapter)) emitted++;
   }
-  assert.ok(mappings > 0, `No SDK default import mappings: ${module}`);
+  assert.equal(
+    mappings,
+    expectedMappings,
+    `SDK default import closure changed: ${module}`,
+  );
   assert.ok(emitted > 0, `Adapter not emitted: ${adapter}`);
   console.log(
     `SDK defaults replaced: ${module}; ${mappings} import mappings; ${emitted} emitted adapter outputs.`,

@@ -95,6 +95,63 @@
         <button id="restore-view" type="button" disabled>恢复视角</button>
       </div>
       <p id="camera-status" role="status">保存一个视角，仅在本次观察中保留。</p>
+      <details id="sequence-panel">
+        <summary>本地镜头序列（相机功能）</summary>
+        <p>
+          手动记录最多 12 个视角，仅本次观察保留。高度为 WGS84
+          椭球高度；无地形推断。首镜头停留，后续按所设时长从上一镜头移动。总时长最多
+          360 秒。
+        </p>
+        <label for="sequence-label">镜头名称（纯文本，最多 80 字）</label>
+        <input id="sequence-label" maxlength="80" value="我的镜头" />
+        <label for="sequence-duration">镜头时长（0.2–30 秒）</label>
+        <input
+          id="sequence-duration"
+          type="number"
+          min="0.2"
+          max="30"
+          step="0.1"
+          value="3"
+        />
+        <label for="sequence-easing">进入镜头的插值</label>
+        <select id="sequence-easing">
+          <option value="cubic">平滑（三次曲线）</option>
+          <option value="linear">线性</option>
+        </select>
+        <button id="sequence-capture" type="button">记录当前视角</button>
+        <label for="sequence-shots">已记录镜头</label>
+        <select id="sequence-shots" size="3" aria-label="已记录镜头"></select>
+        <div class="navigation">
+          <button id="sequence-select" type="button">定位所选镜头</button
+          ><button id="sequence-remove" type="button">删除所选镜头</button>
+          <button id="sequence-up" type="button">上移</button
+          ><button id="sequence-down" type="button">下移</button>
+        </div>
+        <p id="sequence-motion"></p>
+        <label
+          ><input id="sequence-allow" type="checkbox" />
+          系统减少动态时仍允许本次动画</label
+        >
+        <div class="navigation">
+          <button id="sequence-play" type="button">开始播放</button
+          ><button id="sequence-stop" type="button">停止播放</button>
+        </div>
+        <label for="sequence-seek">手动时间线定位（秒）</label>
+        <input
+          id="sequence-seek"
+          type="range"
+          min="0"
+          max="0"
+          step="0.01"
+          value="0"
+        />
+        <p id="sequence-progress" aria-live="off"></p>
+        <p id="sequence-status" role="status">尚无镜头。</p>
+        <p>
+          本功能仅包含本地相机序列；完整 Scene
+          Director、预设场景、分享、序列导入导出与录制尚未提供。手动导航或关闭面板会停止播放。
+        </p>
+      </details>
       <p class="hint">拖动旋转 · 滚轮缩放<br />按住 Ctrl 拖动倾斜视角</p>
       <div class="rule"></div>
       <div class="kicker">CAPABILITIES / 免费版能力</div>

@@ -441,3 +441,16 @@ summary:focus-visible {
     display: none;
   }
 }
+
+#sequence-allow {
+  width: auto;
+  margin-right: 5px;
+}
+#sequence-panel input[type="range"] {
+  padding: 0;
+  accent-color: #72e1bd;
+}
+#sequence-panel select,
+#sequence-panel input[type="number"] {
+  margin-bottom: 8px;
+}

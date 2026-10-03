@@ -14,12 +14,17 @@ const vector = (value) =>
 const length = (value) => Math.hypot(value.x, value.y, value.z);
 
 /** One copied world-space camera pose, kept only for this viewer's lifetime. */
-export function createCameraCommands({ viewer, signal }) {
+export function createCameraCommands({
+  viewer,
+  signal,
+  beforeCamera = () => {},
+}) {
   let saved;
   let destroyed = false;
   const alive = () => !destroyed && !signal?.aborted && !viewer.isDestroyed?.();
   const apply = (view) => {
     if (!alive()) return false;
+    beforeCamera();
     viewer.camera.cancelFlight();
     viewer.camera.setView(view);
     viewer.scene.requestRender();
@@ -50,6 +55,7 @@ export function createCameraCommands({ viewer, signal }) {
         Math.min(2000000, Cartesian3.distance(position, target)),
       );
       const heading = viewer.camera.heading;
+      beforeCamera();
       viewer.camera.cancelFlight();
       try {
         viewer.camera.lookAt(

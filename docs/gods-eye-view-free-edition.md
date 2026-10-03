@@ -67,26 +67,26 @@ Upstream links below are pinned to the preserved commit. The original [source/li
 
 以下覆盖 README 的主要交互/演示能力；不以外部数据障碍掩盖纯代码未完成项：
 
-| 上游交互能力                                  | 状态                                                    | 差距                                                                                                       |
-| --------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 重置地球、坐标定位、基础北向/缩放、触控板捏合 | 已接                                                    | 已复用实际上游解析/捏合代码；本地城市目录仍有限。                                                          |
-| 斜视/垂直俯视、环绕/平移/倾斜模式             | 俯视/斜视与临时保存恢复已实现，待本次GPU验收            | 专用环绕/平移/倾斜模式与完整相机模块仍可免费继续接。                                                       |
-| CRT / 夜视 / 热成像 / 黑白 / 雪景 / 动画滤镜  | 六种静态风格通过v4实际GPU验收；后续组合版本待验收       | 动态动画仍可免费继续接；时间冻结、不常驻动画，标明模拟、非传感器实测。夜视默认值在v4仍饱和，仍需质量调校。 |
-| Bloom / 锐化 / Clean View / 显示控制          | 有界后处理与键盘Clean View已通过v4浏览器验收            | 借用的泛光状态会还原；完整HUD仍可免费继续接。                                                              |
-| 目标点击跟踪、轨迹、元数据卡                  | 免费合法可继续接（代码）；live feeds未审                | 跟踪代码不是收费许可障碍，数据接入另行审查；禁止宣称实时源已接。                                           |
-| 驾驶舱、附近Contacts roster                   | 免费合法可继续接（代码）；航班来源未审                  | MIT相机/HUD/联系人模块可继续移植，需可信源才显示实时目标。                                                 |
-| 检测框、Military HUD                          | 免费合法可继续接                                        | MIT渲染/显示代码；不得将模拟框/标签说成真实检测或身份识别。                                                |
-| Global Context / 返回原视图                   | 本次临时单视角保存恢复已实现，v4浏览器验收通过          | 完整上游上下文状态仍未移植；图层来源审核独立。                                                             |
-| Scene Director 相机游览                       | 免费合法可继续接（代码）；外带data packs未审            | 本地作者相机动作可移植；导入包须校验，另有资产/来源许可。                                                  |
-| Share Links / 场景文件导入预览导出            | 严格64KiB本地JSON导入/复制文本导出已通过v4浏览器验收    | URL分享状态、完整预设/Scene Director仍未移植；无身份、密钥、USGS快照序列化。                               |
-| 手动画图、距离测量、注释/边界                 | 有界手动点注释/两点椭球测量已通过v4浏览器验收           | 完整绘图/多边形/边界能力仍未移植；真实区域数据逐源署名。                                                   |
-| 语音白板、实时AI对话、视觉问答/截图           | 需费用或许可不能启用                                    | OpenAI实时服务需计费/密钥及截图/音频范围授权；手动注释不受该费用阻碍。                                     |
-| 卫星过境预测                                  | 免费合法可继续接（计算）；TLE来源未审                   | 数学计算可以接入文本UI；语音触发额外受AI服务限制。                                                         |
-| Analyst数量/筛选/排名                         | USGS本地数量/筛选/排名/详情已实现；后续构建待浏览器验收 | 仅查询手动获取的有限快照；源UTC、抓取UTC、过时和截断分别展示，AI路径关闭。                                 |
-| 发射重建、速度/时间线播放                     | 免费合法可继续接（代码）；feed未审                      | 保留“重建估计”标签；不能声称实测航迹。                                                                     |
-| 最近摄像头跳转、实况视频投影                  | 未审                                                    | 依赖摄像头源/隐私与代理许可，当前未启用。                                                                  |
-| 可选浏览器SDR/硬件接收                        | 未审                                                    | 软件独立第三方Apache许可、设备权限和用户硬件要求待审；不能自动申请权限。                                   |
-| Provider Settings / 密钥管理 / 独立服务器     | 未审                                                    | 无意复制上游本机密钥存储/Keychain行为到企业宿主；需适合此平台的凭据隔离方案。                              |
+| 上游交互能力                                  | 状态                                                     | 差距                                                                                                       |
+| --------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 重置地球、坐标定位、基础北向/缩放、触控板捏合 | 已接                                                     | 已复用实际上游解析/捏合代码；本地城市目录仍有限。                                                          |
+| 斜视/垂直俯视、环绕/平移/倾斜模式             | 俯视/斜视与临时保存恢复已实现，待本次GPU验收             | 专用环绕/平移/倾斜模式与完整相机模块仍可免费继续接。                                                       |
+| CRT / 夜视 / 热成像 / 黑白 / 雪景 / 动画滤镜  | 六种静态风格通过v4实际GPU验收；后续组合版本待验收        | 动态动画仍可免费继续接；时间冻结、不常驻动画，标明模拟、非传感器实测。夜视默认值在v4仍饱和，仍需质量调校。 |
+| Bloom / 锐化 / Clean View / 显示控制          | 有界后处理与键盘Clean View已通过v4浏览器验收             | 借用的泛光状态会还原；完整HUD仍可免费继续接。                                                              |
+| 目标点击跟踪、轨迹、元数据卡                  | 免费合法可继续接（代码）；live feeds未审                 | 跟踪代码不是收费许可障碍，数据接入另行审查；禁止宣称实时源已接。                                           |
+| 驾驶舱、附近Contacts roster                   | 免费合法可继续接（代码）；航班来源未审                   | MIT相机/HUD/联系人模块可继续移植，需可信源才显示实时目标。                                                 |
+| 检测框、Military HUD                          | 免费合法可继续接                                         | MIT渲染/显示代码；不得将模拟框/标签说成真实检测或身份识别。                                                |
+| Global Context / 返回原视图                   | 本次临时单视角保存恢复已实现，v4浏览器验收通过           | 完整上游上下文状态仍未移植；图层来源审核独立。                                                             |
+| Scene Director 相机游览                       | 本地相机序列已实现，待独立制品浏览器验收；完整功能未完成 | 本地作者相机动作可移植；导入包须校验，另有资产/来源许可。                                                  |
+| Share Links / 场景文件导入预览导出            | 严格64KiB本地JSON导入/复制文本导出已通过v4浏览器验收     | URL分享状态、完整预设/Scene Director仍未移植；无身份、密钥、USGS快照序列化。                               |
+| 手动画图、距离测量、注释/边界                 | 有界手动点注释/两点椭球测量已通过v4浏览器验收            | 完整绘图/多边形/边界能力仍未移植；真实区域数据逐源署名。                                                   |
+| 语音白板、实时AI对话、视觉问答/截图           | 需费用或许可不能启用                                     | OpenAI实时服务需计费/密钥及截图/音频范围授权；手动注释不受该费用阻碍。                                     |
+| 卫星过境预测                                  | 免费合法可继续接（计算）；TLE来源未审                    | 数学计算可以接入文本UI；语音触发额外受AI服务限制。                                                         |
+| Analyst数量/筛选/排名                         | USGS本地数量/筛选/排名/详情已实现；后续构建待浏览器验收  | 仅查询手动获取的有限快照；源UTC、抓取UTC、过时和截断分别展示，AI路径关闭。                                 |
+| 发射重建、速度/时间线播放                     | 免费合法可继续接（代码）；feed未审                       | 保留“重建估计”标签；不能声称实测航迹。                                                                     |
+| 最近摄像头跳转、实况视频投影                  | 未审                                                     | 依赖摄像头源/隐私与代理许可，当前未启用。                                                                  |
+| 可选浏览器SDR/硬件接收                        | 未审                                                     | 软件独立第三方Apache许可、设备权限和用户硬件要求待审；不能自动申请权限。                                   |
+| Provider Settings / 密钥管理 / 独立服务器     | 未审                                                     | 无意复制上游本机密钥存储/Keychain行为到企业宿主；需适合此平台的凭据隔离方案。                              |
 
 The tables distinguish the deployed v3 subset from newly implemented local camera/display/geometry/scene capabilities awaiting composed browser acceptance. These additions are described below. Full upstream Scene Director, sharing and drawing parity is still incomplete.
 
@@ -132,6 +132,16 @@ Scene schema version 1 contains exactly `version`, `camera`, `map`, `style`, `an
 
 Generate export text, then use “选择全部导出文本” and the browser's normal user copy command. **Export is copied JSON text, not automatic file save:** there is no download, programmatic clipboard operation or permission expansion. Export is constructed from the explicit scene whitelist; session/auth data, credentials, USGS payloads and business state are excluded. Everything stays in this child memory until the user copies the text. Importing `osm` is an explicit choice of the existing street-map provider; it does not add a source origin. There are no URL, HTML or executable scene fields, persistent storage or share-link state.
 
+## Local authored camera sequence (source base 021678)
+
+The later local camera slice uses the exact pinned MIT `src/director/camera.js`, without imports, assets or bundled scene packs. It is a camera-only subset, not full upstream Scene Director parity. Upstream SceneDirector itself is never constructed. No persistent storage, telemetry, recording, sequence import/export, sharing or additional source is introduced; version 1 scene JSON remains unchanged and does not include the sequence.
+
+Open the local camera sequence panel, name a shot and explicitly capture the current viewport. At most 12 copied user-created poses remain in child memory; labels use the existing plain-text 80-character validator. Coordinates, 0–100,000,000 m ellipsoidal heights and radian heading/pitch/roll use the existing camera bounds; the adapter explicitly converts to upstream degrees and back to installed Cesium radians. Each shot duration is finite 0.2–30 seconds, so total duration cannot exceed 360 seconds. The first shot holds its pose; later shots interpolate from the preceding pose using the selected linear or cubic curve and shortest longitude/heading/roll arc. Selection, deletion and adjacent reorder are keyboard-accessible native controls. Empty playback is disabled; one shot applies instantly without animation.
+
+Explicit Start creates exactly one owned cancellable timeout chain, with camera/frame updates capped at 30 fps. Seeking stops playback, samples the same authored curve and requests one frame. Idle, stopped and completed states own no timer or continuous-render subscription; the sequence does not borrow `useDefaultRenderLoop` or `maximumRenderTimeChange`. World camera application uses Cesium `setView` with the identity end transform and retains no target frame. Stop/completion, manual navigation, saved restore, local scene import, USGS selected focus, canvas pointer/wheel/touch/navigation keys, panel close, clean view, page hiding, exit, abort and teardown invalidate late callbacks before further camera mutation. Reduced-motion preference defaults to manual seeking and requires a labeled explicit animation opt-in; changing the preference stops playback. Camera/render/scheduling failures cancel ownership and leave an error state, never completion.
+
+Controlled callback tests and actual installed Cesium Camera tests verify source interpolation, degree/radian conversion, bounds, temporal cancellation and real DOM event bindings. These are local CPU tests; native WebGL, browser layout/CSP and performance acceptance for a future exact artifact remain outstanding. Existing v4 acceptance and source-base 021678 tests do not imply this slice has been deployed or accepted in a browser.
+
 ## Performance and CSP
 
 CesiumWidget replaces the upstream full Viewer while reusing its pinch control and atmosphere compatibility module. Demand rendering, infinite time-change threshold, <=30 fps target, resolution scale <=1, 64-tile cache, reduced screen-space detail and <=4 requests per server are configured. No polling runs. Heavy code exists only in the frame’s dynamic graph. The deployed v3 globe chunk was 3,696,428 bytes uncompressed, its host graph about 3.8 KB including helpers, and its dist 11,115,708 bytes; these are historical v3 sizes, not a claim about later composed builds. Each immutable release record must bind fresh sizes and hashes to its exact commit.
@@ -140,6 +150,6 @@ Both documents have scoped CSP meta tags. Host script/style/frame resources are 
 
 ## Provenance and removal
 
-`vendor/provenance.json` maps immutable SHA256s to preserved upstream paths and commit. Twenty-three selected upstream source files and four original legal/source/security documents are copied exactly. These include VisualEffects/presets, bloom normalization, six GLSL styles and the eight-file analyst dependency closure. Nineteen vendor modules enter the runtime graph. The immutable naturalEarthRegions/bundledJson/retryableLoad source is retained for provenance but excluded from that graph; the analyst region import resolves only to a provenance-pinned derivative containing the exact upstream pointInRing function, with no named-region packs or loaders. `src/viewer.js` is derived from the copied viewer: constructor uses CesiumWidget with free edition resource limits; upstream pinch logic stays intact. Build copies the provenance and upstream notices into the artifact plus Cesium license and third-party notices.
+`vendor/provenance.json` maps immutable SHA256s to preserved upstream paths and commit. Twenty-four selected upstream source files and four original legal/source/security documents are copied exactly. These include VisualEffects/presets, bloom normalization, six GLSL styles and the eight-file analyst dependency closure. Twenty vendor modules enter the runtime graph, including the byte-exact MIT `src/director/camera.js` interpolation module. The immutable naturalEarthRegions/bundledJson/retryableLoad source is retained for provenance but excluded from that graph; the analyst region import resolves only to a provenance-pinned derivative containing the exact upstream pointInRing function, with no named-region packs or loaders. `src/viewer.js` is derived from the copied viewer: constructor uses CesiumWidget with free edition resource limits; upstream pinch logic stays intact. Build copies the provenance and upstream notices into the artifact plus Cesium license and third-party notices.
 
 To remove: remove the portal catalogue entry and independently served globe directory, then delete `apps/gods-eye-view`, `scripts/gods-eye-view*.mjs` and this document. Remove the associated root package test/build scripts and the two isolated CI steps in the same removal change. The build-time feature switch can hide the catalog entry while leaving the inert module available for recovery. Existing three application bundles and dependencies are unaffected.

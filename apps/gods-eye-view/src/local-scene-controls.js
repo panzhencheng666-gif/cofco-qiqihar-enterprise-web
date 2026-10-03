@@ -8,6 +8,7 @@ export function installLocalSceneControls({
   nodes,
   capture,
   apply,
+  beforeCamera = () => {},
   onFatalError = () => {},
   createGeometry = createLocalGeometry,
 }) {
@@ -93,6 +94,7 @@ export function installLocalSceneControls({
     removers.push(() => node.removeEventListener(event, handler));
   };
   const importText = (text) => {
+    beforeCamera();
     const next = parseScene(text);
     local.prepare(next); // Validate the geodesic as well, before map/style/camera mutation.
     apply(next, local);
@@ -127,6 +129,7 @@ export function installLocalSceneControls({
       else local.addAnnotation({ ...point, label: nodes.label.value });
     });
     listen(nodes.pick, "click", () => {
+      beforeCamera();
       ++generation;
       local.beginPick(nodes.kind.value, nodes.label.value);
       nodes.cancel.disabled = false;
@@ -147,6 +150,7 @@ export function installLocalSceneControls({
       importText(nodes.input.value);
     });
     listen(nodes.file, "change", () => {
+      beforeCamera();
       const file = nodes.file.files?.[0],
         ticket = ++generation;
       nodes.file.value = "";
