@@ -10,6 +10,8 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
   const { installDisplayControls, updateVisualEffectStatus } =
     await load("display-controls");
   const { createStaticVisualEffects } = await loadStaticEffects();
+  const { installLocalSceneControls } = await load("local-scene-controls");
+  const { createLocalGeometry } = await load("local-geometry");
   const post = postProcessProbe();
   const source = (
     await readFile(new URL("../src/globe.js", import.meta.url), "utf8")
@@ -24,6 +26,7 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
       this.children = [];
       this.dataset = {};
       this.value = "";
+      this.checked = false;
     }
     setAttribute() {}
     focus() {}
@@ -70,13 +73,32 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
     "sharpen-intensity",
     "bloom",
     "bloom-intensity",
+    "local-lat",
+    "local-lon",
+    "local-label",
+    "local-kind",
+    "local-add",
+    "local-pick",
+    "local-cancel",
+    "local-clear",
+    "local-status",
+    "local-list",
+    "scene-input",
+    "scene-file",
+    "scene-import",
+    "scene-export",
+    "scene-output",
+    "scene-select",
   ];
   const nodes = Object.fromEntries(ids.map((id) => [id, new FakeNode()]));
   const dynamic = [],
-    errors = new Set();
+    errors = new Set(),
+    localHandlers = [],
+    localCollections = [];
   let resolveFetch,
     requestSignal,
-    disposed = false;
+    disposed = false,
+    renderRequests = 0;
   const viewer = {
     isDestroyed: () => disposed,
     useDefaultRenderLoop: true,
@@ -89,7 +111,9 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
       zoomIn() {},
       zoomOut() {},
       setView() {},
-      positionCartographic: { height: 1000 },
+      positionCartographic: { height: 1000, longitude: 0, latitude: 0 },
+      pitch: -1.5,
+      roll: 0,
       heading: 0,
       positionWC: { x: 6379000, y: 12, z: 34 },
       directionWC: { x: -1, y: 0, z: 0 },
@@ -99,7 +123,9 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
     imageryLayers: { add() {}, remove() {} },
     scene: {
       postProcessStages: post.viewer.scene.postProcessStages,
-      requestRender() {},
+      requestRender() {
+        renderRequests++;
+      },
       renderError: {
         addEventListener(fn) {
           errors.add(fn);
@@ -146,6 +172,39 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
       },
     },
     createApplicationViewer: () => viewer,
+    installLocalSceneControls(options) {
+      for (const node of Object.values(options.nodes))
+        node.ownerDocument = { createElement: (tag) => new FakeNode(tag) };
+      return installLocalSceneControls({
+        ...options,
+        capture: () => JSON.parse(JSON.stringify(options.capture())),
+        createGeometry: (settings) =>
+          createLocalGeometry({
+            ...settings,
+            createCollection: () => {
+              const collection = {
+                add() {},
+                removeAll() {},
+                destroy() {
+                  this.dead = true;
+                },
+              };
+              localCollections.push(collection);
+              return collection;
+            },
+            createHandler: () => {
+              const handler = {
+                setInputAction() {},
+                destroy() {
+                  this.dead = true;
+                },
+              };
+              localHandlers.push(handler);
+              return handler;
+            },
+          }),
+      });
+    },
     installDisplayControls,
     updateVisualEffectStatus,
     createStaticVisualEffects: (options) =>
@@ -193,7 +252,40 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
   }
   await context.startGlobe(external.signal);
   if (!failDuringStartup) {
+    assert.equal(typeof nodes["local-add"].listeners.click, "function");
+    assert.equal(typeof nodes["scene-import"].listeners.click, "function");
     assert.equal(typeof nodes.overhead.listeners.click, "function");
+    const validScene = {
+      version: 1,
+      camera: {
+        lon: 123,
+        lat: 47,
+        height: 200000,
+        heading: 0,
+        pitch: -1.5,
+        roll: 0,
+      },
+      map: "earth",
+      style: {
+        name: "normal",
+        sharpen: false,
+        sharpenIntensity: 0.49,
+        bloom: false,
+        bloomIntensity: 0,
+      },
+      annotations: [],
+      measurement: [],
+    };
+    const previousRenders = renderRequests;
+    nodes["scene-input"].value = JSON.stringify({ ...validScene, url: "bad" });
+    nodes["scene-import"].listeners.click();
+    assert.equal(renderRequests, previousRenders);
+    nodes["scene-input"].value = JSON.stringify(validScene);
+    nodes["scene-import"].listeners.click();
+    assert.equal(renderRequests, previousRenders + 1);
+    assert.equal(nodes["map-style"].value, "earth");
+    nodes["scene-export"].listeners.click();
+    assert.equal(JSON.parse(nodes["scene-output"].value).version, 1);
     nodes["save-view"].listeners.click();
     assert.equal(nodes["restore-view"].disabled, false);
     nodes.sharpen.checked = true;
@@ -201,8 +293,14 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
     nodes.bloom.checked = true;
     nodes.bloom.listeners.change();
     assert.equal(post.stages.length, 1);
+    nodes["local-label"].value = "Selected point";
+    nodes["local-kind"].value = "annotation";
+    nodes["local-pick"].listeners.click();
+    assert.equal(localHandlers.length, 1);
+    assert.equal(localHandlers[0].dead, undefined);
     const pending = nodes.refresh.listeners.click();
     triggerFailure();
+    assert.equal(localHandlers[0].dead, true);
     assert.equal(requestSignal.aborted, true);
     resolveFetch({
       rows: [{ lat: 47, lon: 123, mag: 3, time: 1, place: "probe" }],
@@ -219,6 +317,10 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
     false,
   );
   assert.equal(disposed, true);
+  assert.equal(localCollections.length, 3);
+  assert.ok(localCollections.every((collection) => collection.dead));
+  assert.equal(nodes["scene-input"].value, "");
+  assert.equal(nodes["scene-output"].value, "");
   assert.equal(errors.size, 0);
   assert.equal(post.stages.length, 0);
   assert.deepEqual(post.bloom, post.original);
@@ -1293,5 +1395,543 @@ test("oblique view keeps a center-ray ground hit from global and city altitudes"
       "normal globe navigation retains its world reference frame",
     );
     commands.destroy();
+  }
+});
+
+import { Cartographic, Ellipsoid } from "@cesium/engine";
+const codec = await import("../src/scene-state.js").catch(() => ({}));
+const geometry = await import("../src/local-geometry.js").catch(() => ({}));
+const scene = () => ({
+  version: 1,
+  camera: {
+    lon: 123,
+    lat: 47,
+    height: 200000,
+    heading: 0,
+    pitch: -1.5,
+    roll: 0,
+  },
+  map: "earth",
+  style: {
+    name: "normal",
+    sharpen: false,
+    sharpenIntensity: 0.49,
+    bloom: false,
+    bloomIntensity: 0,
+  },
+  annotations: [{ lon: 123, lat: 47, label: "Local point" }],
+  measurement: [
+    { lon: 0, lat: 0 },
+    { lon: 1, lat: 0 },
+  ],
+});
+const required = (module, name) => {
+  assert.equal(typeof module[name], "function", `${name} must be implemented`);
+  return module[name];
+};
+
+test("scene round trip is a copied whitelist with bounded finite geometry", () => {
+  const encode = required(codec, "exportScene"),
+    decode = required(codec, "parseScene");
+  const source = {
+    ...scene(),
+    session: { secret: "sentinel" },
+    events: ["USGS"],
+    url: "https://example.test",
+  };
+  const exported = encode(source);
+  assert.ok(!/sentinel|session|events|url|USGS/.test(exported));
+  assert.deepEqual(decode(exported), scene());
+  const copy = decode(exported);
+  copy.annotations[0].label = "changed";
+  assert.equal(source.annotations[0].label, "Local point");
+});
+
+test("scene rejects malformed oversized unknown prototype and partial state", () => {
+  const parse = required(codec, "parseScene");
+  const base = scene();
+  for (const text of [
+    "{",
+    " ".repeat(65537),
+    '"' + "界".repeat(22000) + '"',
+    JSON.stringify({ ...base, version: 2 }),
+    JSON.stringify({ ...base, url: "https://example.test" }),
+    JSON.stringify({ ...base, camera: { ...base.camera, height: null } }),
+    JSON.stringify({ ...base, style: { ...base.style, constructor: "x" } }),
+    JSON.stringify({
+      ...base,
+      annotations: [{ lon: 1, lat: 2, label: "x", html: "x" }],
+    }),
+    JSON.stringify({
+      ...base,
+      annotations: Array(51).fill(base.annotations[0]),
+    }),
+    JSON.stringify({ ...base, measurement: Array(3).fill({ lon: 0, lat: 0 }) }),
+    JSON.stringify({
+      ...base,
+      annotations: [{ lon: 181, lat: 0, label: "x" }],
+    }),
+    JSON.stringify({
+      ...base,
+      annotations: [{ lon: 0, lat: 0, label: "x".repeat(81) }],
+    }),
+    JSON.stringify({
+      ...base,
+      annotations: [{ lon: 0, lat: 0, label: "<b>unsafe</b>" }],
+    }),
+    '{"__proto__":{},' + JSON.stringify(base).slice(1),
+  ]) {
+    assert.throws(() => parse(text));
+    assert.deepEqual(base, scene());
+  }
+});
+
+test("WGS84 ellipsoid estimate matches equatorial one degree and zero distance", () => {
+  const measure = required(geometry, "measureSurface");
+  assert.ok(
+    Math.abs(
+      measure({ lon: 0, lat: 0 }, { lon: 1, lat: 0 }).distance - 111319.490793,
+    ) < 0.01,
+  );
+  assert.equal(
+    measure({ lon: 123, lat: 47 }, { lon: 123, lat: 47 }).distance,
+    0,
+  );
+  assert.ok(
+    Math.abs(
+      measure({ lon: 179.5, lat: 0 }, { lon: -179.5, lat: 0 }).distance -
+        111319.490793,
+    ) < 0.01,
+  );
+  for (const point of [
+    { lon: Infinity, lat: 0 },
+    { lon: 0, lat: NaN },
+    { lon: 0, lat: 91 },
+    { lon: "0", lat: 0 },
+  ])
+    assert.throws(() => measure(point, { lon: 1, lat: 0 }));
+});
+
+function probe() {
+  const collections = [],
+    handlers = [];
+  let renders = 0,
+    destroyed = false;
+  const viewer = {
+    isDestroyed: () => destroyed,
+    canvas: {},
+    camera: {
+      pickEllipsoid: () =>
+        Ellipsoid.WGS84.cartographicToCartesian(
+          Cartographic.fromDegrees(10, 20),
+        ),
+    },
+    scene: {
+      requestRender() {
+        renders++;
+      },
+      primitives: {
+        add(v) {
+          collections.push(v);
+          return v;
+        },
+        remove(v) {
+          const index = collections.indexOf(v);
+          if (index < 0) return false;
+          collections.splice(index, 1);
+          v.destroy();
+          return true;
+        },
+      },
+    },
+  };
+  const createCollection = () => ({
+    values: [],
+    add(value) {
+      this.values.push(value);
+      return value;
+    },
+    removeAll() {
+      this.values = [];
+    },
+    destroy() {
+      this.dead = true;
+    },
+  });
+  const createHandler = () => {
+    const handler = {
+      setInputAction(fn) {
+        this.click = fn;
+      },
+      destroy() {
+        this.dead = true;
+      },
+    };
+    handlers.push(handler);
+    return handler;
+  };
+  return {
+    viewer,
+    collections,
+    handlers,
+    createCollection,
+    createHandler,
+    createLineMaterial: () => ({}),
+    renders: () => renders,
+    stop: () => {
+      destroyed = true;
+    },
+  };
+}
+
+test("manual geometry owns bounded positions one render and handler cleanup", () => {
+  const create = required(geometry, "createLocalGeometry");
+  const p = probe(),
+    controller = new AbortController();
+  const local = create({ ...p, signal: controller.signal });
+  assert.equal(p.handlers.length, 0);
+  const annotations = Array.from({ length: 50 }, (_, i) => ({
+    lon: i,
+    lat: 20,
+    label: `Point ${i}`,
+  }));
+  local.replace({ annotations, measurement: scene().measurement });
+  assert.equal(p.renders(), 1);
+  assert.ok(
+    p.collections
+      .flatMap((c) => c.values)
+      .reduce((n, v) => n + (v.positions?.length || 1), 0) <= 200,
+  );
+  assert.throws(() => local.addAnnotation({ lon: 0, lat: 0, label: "51" }));
+  assert.equal(p.renders(), 1);
+  local.beginPick("annotation", "Selected");
+  assert.equal(p.handlers.length, 1);
+  local.cancelPick();
+  assert.equal(p.handlers[0].dead, true);
+  local.clear();
+  local.beginPick("annotation", "Chosen");
+  p.handlers[1].click({ position: {} });
+  assert.equal(local.snapshot().annotations[0].label, "Chosen");
+  assert.equal(p.renders(), 3);
+  assert.equal(p.handlers[1].dead, true);
+  local.beginPick("measurement");
+  controller.abort();
+  assert.equal(p.handlers[2].dead, true);
+  assert.equal(p.collections.length, 0);
+  local.destroy();
+  assert.throws(() => local.clear());
+});
+
+test("invalid replacements preserve geometry through repeated scene and clear cycles", () => {
+  const create = required(geometry, "createLocalGeometry"),
+    parse = required(codec, "parseScene");
+  const p = probe(),
+    local = create(p);
+  for (let i = 0; i < 10; i++) {
+    const valid = parse(JSON.stringify(scene()));
+    local.replace(valid);
+    const before = local.snapshot(),
+      renders = p.renders();
+    assert.throws(() =>
+      local.replace({
+        annotations: [...valid.annotations, { lon: NaN, lat: 2, label: "bad" }],
+        measurement: [],
+      }),
+    );
+    assert.deepEqual(local.snapshot(), before);
+    assert.equal(p.renders(), renders);
+    assert.throws(() =>
+      parse(
+        JSON.stringify({ ...scene(), camera: { ...scene().camera, lat: 91 } }),
+      ),
+    );
+    assert.deepEqual(local.snapshot(), before);
+    local.clear();
+    assert.deepEqual(local.snapshot(), { annotations: [], measurement: [] });
+  }
+  local.destroy();
+  assert.equal(p.collections.length, 0);
+});
+
+const controlsModule = await import("../src/local-scene-controls.js").catch(
+  () => ({}),
+);
+async function controlsProbe() {
+  const { JSDOM } = await import("jsdom");
+  const dom = new JSDOM("<body></body>"),
+    doc = dom.window.document;
+  const nodes = Object.fromEntries(
+    [
+      "lat",
+      "lon",
+      "label",
+      "kind",
+      "add",
+      "pick",
+      "cancel",
+      "clear",
+      "status",
+      "list",
+      "input",
+      "file",
+      "import",
+      "export",
+      "output",
+      "select",
+    ].map((key) => {
+      const node = doc.createElement(
+        key === "list"
+          ? "ol"
+          : key === "input" || key === "output"
+            ? "textarea"
+            : ["lat", "lon", "label", "kind", "file"].includes(key)
+              ? "input"
+              : "button",
+      );
+      doc.body.append(node);
+      return [key, node];
+    }),
+  );
+  nodes.lat.value = "47";
+  nodes.lon.value = "123";
+  nodes.label.value = "My point";
+  nodes.kind.value = "annotation";
+  const p = probe(),
+    signal = new AbortController();
+  let applied = 0;
+  const install = required(controlsModule, "installLocalSceneControls");
+  const release = install({
+    viewer: p.viewer,
+    signal: signal.signal,
+    nodes,
+    capture: () => scene(),
+    apply(value, local) {
+      applied++;
+      local.replace(value);
+    },
+    createGeometry: (options) =>
+      geometry.createLocalGeometry({ ...p, ...options }),
+  });
+  return { ...p, dom, nodes, signal, release, applied: () => applied };
+}
+test("scene controls preserve state on invalid import and refuse oversized files before read", async () => {
+  const p = await controlsProbe();
+  p.nodes.add.click();
+  assert.equal(p.nodes.list.children.length, 1);
+  p.nodes.input.value = JSON.stringify({ ...scene(), url: "bad" });
+  p.nodes.import.click();
+  assert.equal(p.applied(), 0);
+  assert.equal(p.nodes.list.children.length, 1);
+  let reads = 0;
+  Object.defineProperty(p.nodes.file, "files", {
+    configurable: true,
+    value: [
+      {
+        size: 65537,
+        text() {
+          reads++;
+        },
+      },
+    ],
+  });
+  p.nodes.file.dispatchEvent(new p.dom.window.Event("change"));
+  await Promise.resolve();
+  assert.equal(reads, 0);
+  assert.equal(p.applied(), 0);
+  p.nodes.input.value = JSON.stringify(scene());
+  p.nodes.import.click();
+  assert.equal(p.applied(), 1);
+  p.nodes.export.click();
+  assert.equal(
+    JSON.parse(p.nodes.output.value).annotations[0].label,
+    "Local point",
+  );
+  p.nodes.clear.click();
+  assert.equal(p.nodes.list.children.length, 0);
+  assert.equal(p.nodes.output.value, "");
+  p.signal.abort();
+  assert.equal(p.collections.length, 0);
+  p.nodes.add.click();
+  assert.equal(p.nodes.list.children.length, 0);
+  p.release();
+});
+test("pending file import cannot revive a cleared or destroyed scene", async () => {
+  const p = await controlsProbe();
+  let resolve;
+  Object.defineProperty(p.nodes.file, "files", {
+    value: [
+      {
+        size: 100,
+        text: () =>
+          new Promise((r) => {
+            resolve = r;
+          }),
+      },
+    ],
+  });
+  p.nodes.file.dispatchEvent(new p.dom.window.Event("change"));
+  p.nodes.clear.click();
+  resolve(JSON.stringify(scene()));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(p.applied(), 0);
+  p.nodes.file.dispatchEvent(new p.dom.window.Event("change"));
+  p.signal.abort();
+  resolve(JSON.stringify(scene()));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(p.applied(), 0);
+});
+test("render batching makes multiple effect edits request only one frame", async () => {
+  const { createStaticVisualEffects } =
+    await import("../src/static-effects.js");
+  let renders = 0;
+  const effects = createStaticVisualEffects({
+    viewer: {
+      isDestroyed: () => false,
+      scene: {
+        requestRender() {
+          renders++;
+        },
+      },
+    },
+  });
+  assert.equal(
+    typeof effects.batch,
+    "function",
+    "scene application needs an effect render batch",
+  );
+  effects.batch(() => {
+    effects.setStyle("normal");
+    effects.setSharpenEnabled(false);
+    effects.setBloomEnabled(false);
+  });
+  assert.equal(renders, 1);
+  effects.destroy();
+});
+
+test("geometry acquisition failure releases attached and unattached collections", () => {
+  for (const failing of [1, 2, 3]) {
+    const p = probe(),
+      acquired = [];
+    let adds = 0;
+    p.viewer.scene.primitives.add = (collection) => {
+      if (++adds === failing) throw new Error("insert failed");
+      p.collections.push(collection);
+      return collection;
+    };
+    assert.throws(
+      () =>
+        geometry.createLocalGeometry({
+          ...p,
+          createCollection: () => {
+            const c = p.createCollection();
+            acquired.push(c);
+            return c;
+          },
+        }),
+      /insert failed/,
+    );
+    assert.equal(p.collections.length, 0);
+    assert.ok(acquired.every((c) => c.dead));
+  }
+});
+test("geometry rejects near-antipodal measurement before changing valid positions", () => {
+  const p = probe(),
+    local = geometry.createLocalGeometry(p);
+  local.replace(scene());
+  const before = local.snapshot(),
+    renders = p.renders();
+  assert.throws(
+    () =>
+      local.replace({
+        annotations: [],
+        measurement: [
+          { lon: 0, lat: 0 },
+          { lon: 180, lat: 0 },
+        ],
+      }),
+    /对跖/,
+  );
+  assert.deepEqual(local.snapshot(), before);
+  assert.equal(p.renders(), renders);
+  local.destroy();
+});
+
+test("scene size limit counts UTF-8 bytes before JSON or field validation", () => {
+  const multibyte = JSON.stringify({
+    ...scene(),
+    annotations: [{ lon: 0, lat: 0, label: "界".repeat(22000) }],
+  });
+  assert.ok(multibyte.length < 65536);
+  assert.throws(() => codec.parseScene(multibyte), /64 KiB/);
+  assert.deepEqual(
+    codec.parseScene(JSON.stringify(scene()).padEnd(65536, " ")),
+    scene(),
+  );
+  assert.throws(
+    () => codec.parseScene(JSON.stringify(scene()).padEnd(65537, " ")),
+    /64 KiB/,
+  );
+});
+
+test("cancelled globe selection callbacks cannot mutate local state", () => {
+  const p = probe(),
+    local = geometry.createLocalGeometry(p);
+  local.beginPick("annotation", "Stale");
+  const stale = p.handlers[0].click;
+  local.cancelPick();
+  stale({ position: {} });
+  assert.deepEqual(local.snapshot(), { annotations: [], measurement: [] });
+  assert.equal(p.renders(), 0);
+  local.destroy();
+});
+test("choosing an import file cancels globe placement and later manual edits invalidate its result", async () => {
+  const p = await controlsProbe();
+  let resolve;
+  p.nodes.pick.click();
+  const stale = p.handlers[0].click;
+  Object.defineProperty(p.nodes.file, "files", {
+    value: [
+      {
+        size: 100,
+        text: () =>
+          new Promise((r) => {
+            resolve = r;
+          }),
+      },
+    ],
+  });
+  p.nodes.file.dispatchEvent(new p.dom.window.Event("change"));
+  assert.equal(p.handlers[0].dead, true);
+  stale({ position: {} });
+  assert.equal(p.nodes.list.children.length, 0);
+  p.nodes.add.click();
+  assert.equal(p.nodes.list.children.length, 1);
+  resolve(JSON.stringify({ ...scene(), annotations: [] }));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(p.applied(), 0);
+  assert.equal(p.nodes.list.children.length, 1);
+  p.release();
+});
+
+test("sampled measurement chords remain above the WGS84 ellipsoid", async () => {
+  const { Cartesian3 } = await import("@cesium/engine");
+  for (const latitude of [80, 89]) {
+    const { positions } = geometry.measureSurface(
+      { lon: 0, lat: -latitude },
+      { lon: 0, lat: latitude },
+    );
+    for (let index = 1; index < positions.length; index++) {
+      const midpoint = Cartesian3.midpoint(
+        positions[index - 1],
+        positions[index],
+        new Cartesian3(),
+      );
+      assert.ok(
+        Cartographic.fromCartesian(midpoint, Ellipsoid.WGS84).height >= 0,
+      );
+    }
   }
 });

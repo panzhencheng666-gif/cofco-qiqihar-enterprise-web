@@ -391,3 +391,53 @@ input:focus-visible {
     right: 12px;
   }
 }
+
+textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  resize: vertical;
+  color: #cbe0dc;
+  background: #10242b;
+  border: 1px solid #2c4950;
+  border-radius: 4px;
+  font: 11px monospace;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+#local-list {
+  padding-left: 18px;
+  font-size: 11px;
+}
+#local-list li {
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+#local-list button {
+  margin: 4px 0;
+}
+.right input,
+.right select {
+  margin-bottom: 8px;
+}
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #72e1bd;
+  outline-offset: 3px;
+}
+@media (max-width: 420px) {
+  .panel {
+    width: calc(100% - 24px);
+    max-height: 23vh;
+  }
+  .right {
+    top: calc(100px + 23vh);
+  }
+  .topbar {
+    font-size: 9px;
+  }
+  .topbar b {
+    display: none;
+  }
+}

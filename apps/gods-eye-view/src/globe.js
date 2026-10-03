@@ -15,6 +15,7 @@ import { createApplication } from "../vendor/src/app/application.js";
 import { parseCoordinateQuery } from "../vendor/src/search/coordinateParser.js";
 import { createApplicationViewer, installTrackpadPinchZoom } from "./viewer.js";
 import { fetchEarthquakes } from "./earthquakes.js";
+import { installLocalSceneControls } from "./local-scene-controls.js";
 import { installSearchControls } from "./search-controls.js";
 import { NATURAL_EARTH_OPTIONS } from "./basemaps.js";
 import { createStaticVisualEffects } from "./static-effects.js";
@@ -92,7 +93,7 @@ export async function startGlobe(signal) {
         });
         scene.requestRender();
       };
-      const setStyle = (value) => {
+      const setStyle = (value, render = true) => {
         if (signal.aborted || viewer.isDestroyed()) return;
         clearImagery();
         if (value === "natural") {
@@ -124,7 +125,7 @@ export async function startGlobe(signal) {
           viewer.imageryLayers.add(imagery);
           $("map-state").textContent = "OpenStreetMap 街道地图 · 非卫星影像";
         } else $("map-state").textContent = "纯净地球 · 椭球表面";
-        scene.requestRender();
+        if (render) scene.requestRender();
       };
       setStyle("natural");
       home();
@@ -189,6 +190,81 @@ export async function startGlobe(signal) {
         }),
       );
       defer(
+        installLocalSceneControls({
+          viewer,
+          signal,
+          nodes: Object.fromEntries(
+            Object.entries({
+              lat: "local-lat",
+              lon: "local-lon",
+              label: "local-label",
+              kind: "local-kind",
+              add: "local-add",
+              pick: "local-pick",
+              cancel: "local-cancel",
+              clear: "local-clear",
+              status: "local-status",
+              list: "local-list",
+              input: "scene-input",
+              file: "scene-file",
+              import: "scene-import",
+              export: "scene-export",
+              output: "scene-output",
+              select: "scene-select",
+            }).map(([key, id]) => [key, $(id)]),
+          ),
+          capture() {
+            const position = viewer.camera.positionCartographic;
+            return {
+              camera: {
+                lon: CesiumMath.toDegrees(position.longitude),
+                lat: CesiumMath.toDegrees(position.latitude),
+                height: position.height,
+                heading: viewer.camera.heading,
+                pitch: viewer.camera.pitch,
+                roll: viewer.camera.roll,
+              },
+              map: $("map-style").value,
+              style: {
+                name: displayNodes.style.value,
+                sharpen: displayNodes.sharpen.checked,
+                sharpenIntensity: Number(displayNodes.sharpenIntensity.value),
+                bloom: displayNodes.bloom.checked,
+                bloomIntensity: Number(displayNodes.bloomIntensity.value),
+              },
+            };
+          },
+          apply(next, local) {
+            effects.batch(() => {
+              viewer.camera.cancelFlight();
+              effects.setStyle(next.style.name);
+              effects.setSharpenIntensity(next.style.sharpenIntensity);
+              effects.setBloomIntensity(next.style.bloomIntensity);
+              effects.setSharpenEnabled(next.style.sharpen);
+              effects.setBloomEnabled(next.style.bloom);
+              if ($("map-style").value !== next.map) setStyle(next.map, false);
+              $("map-style").value = next.map;
+              displayNodes.style.value = next.style.name;
+              displayNodes.sharpen.checked = next.style.sharpen;
+              displayNodes.sharpenIntensity.value = String(
+                next.style.sharpenIntensity,
+              );
+              displayNodes.bloom.checked = next.style.bloom;
+              displayNodes.bloomIntensity.value = String(
+                next.style.bloomIntensity,
+              );
+              updateVisualEffectStatus(displayNodes);
+              const { lon, lat, height, heading, pitch, roll } = next.camera;
+              viewer.camera.setView({
+                destination: Cartesian3.fromDegrees(lon, lat, height),
+                orientation: { heading, pitch, roll },
+              });
+              local.replace(next, { render: false });
+            });
+          },
+        }),
+      );
+      defer(
         installRenderFailureHandler({
           viewer,
           effects,
@@ -199,9 +275,11 @@ export async function startGlobe(signal) {
               "地球渲染已停止，请使用上方“暂停地球观察”后重新打开。";
             $("effect-status").textContent =
               "视觉渲染已停止，当前画面不可继续使用。";
-            document.querySelectorAll("button,input,select").forEach((node) => {
-              node.disabled = true;
-            });
+            document
+              .querySelectorAll("button,input,select,textarea")
+              .forEach((node) => {
+                node.disabled = true;
+              });
             // Abort all application work immediately; cleanup runs after this
             // render callback and disposes controls/data before the widget.
             void app.destroy().catch(() => {});

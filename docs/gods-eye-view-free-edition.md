@@ -88,6 +88,8 @@ Upstream links below are pinned to the preserved commit. The original [source/li
 | 可选浏览器SDR/硬件接收                        | 未审                                                | 软件独立第三方Apache许可、设备权限和用户硬件要求待审；不能自动申请权限。                   |
 | Provider Settings / 密钥管理 / 独立服务器     | 未审                                                | 无意复制上游本机密钥存储/Keychain行为到企业宿主；需适合此平台的凭据隔离方案。              |
 
+The tables above retain the phase-one upstream capability inventory; the local manual annotations, measurement and versioned scene text now added are described below. Full upstream Scene Director, sharing and drawing parity is still incomplete.
+
 Next free implementation work should be selected from the MIT effects/camera/display/annotation modules above, with the same teardown, source-boundary and performance constraints. Full integration still requires an explicit capability plan and per-source/data review; the phase-one subset must not be described as upstream feature parity.
 
 ## Build and integration
@@ -116,6 +118,18 @@ The visible pause control, hiding the page or `pagehide` immediately aborts sess
 - Local city directory and strict upstream decimal-degree parser. No remote geocoding.
 
 Google/ion imagery, Esri, camera/people tracking, planes/ships, AI/voice, incompatible bundled cables/scenes and all recent-high-resolution imagery promises are absent. A Chinese source/capability panel explains these limits.
+
+## Local annotations, measurement and scene text
+
+The local geometry and JSON modules are original integration code, using the installed Cesium engine APIs; no additional upstream source, datasets, fixtures or assets were copied. They extend this limited child application without claiming full upstream annotation or Scene Director parity.
+
+Open the right-panel local tools, choose point annotation or measurement, and explicitly add coordinates or enable one globe click. Each enabled globe click places one point and exits selection mode; coordinate inputs offer the keyboard path. Labels are plain text, limited to 80 characters, and the accessible list supports individual removal. There are at most 50 annotations and two measurement endpoints. The three owned Cesium primitive collections contain at most 167 geometric positions (50 annotation points, 50 labels, two endpoints and a line sampled at 65 positions). Clear removes only these local objects. Abort, terminal render failure and normal destroy remove owned primitives, selection handlers, list handlers and input listeners.
+
+Distance is a WGS84 ellipsoid surface estimate, not a road or terrain measurement. The display line is raised slightly to keep sampled chords visible above the flat ellipsoid; that display offset does not enter the distance calculation. Coincident points report zero. Pairs within one degree of the antipodal singularity are rejected before Cesium's Vincenty iteration; choose closer points. Each successful geometric input or scene application requests one frame, without animation or polling.
+
+Scene schema version 1 contains exactly `version`, `camera`, `map`, `style`, `annotations` and `measurement`. Camera is bounded decimal `lon`, `lat`, `height` (0–100,000,000 m), `heading`, `pitch` and `roll` (radians); map is `earth`, `natural` or `osm`. Style accepts only the existing named static filter plus bounded sharpen/bloom settings. Annotation entries contain only `lon`, `lat`, `label`; measurement accepts zero, one or two entries containing only `lon`, `lat`. Imports reject unknown keys, prototype-related keys, HTML labels, invalid counts, non-finite/out-of-range values, unsupported versions and inputs over 64 KiB. The entire scene and measurement solution are checked before camera/map/style/local geometry changes. Invalid imports preserve the valid scene. Selected files are size-checked before reading; late results cannot revive cleared or destroyed local state. No file is read without explicit user selection.
+
+Generate export text, then use “选择全部导出文本” and the browser's normal user copy command. **Export is copied JSON text, not automatic file save:** there is no download, programmatic clipboard operation or permission expansion. Export is constructed from the explicit scene whitelist; session/auth data, credentials, USGS payloads and business state are excluded. Everything stays in this child memory until the user copies the text. Importing `osm` is an explicit choice of the existing street-map provider; it does not add a source origin. There are no URL, HTML or executable scene fields, persistent storage or share-link state.
 
 ## Performance and CSP
 

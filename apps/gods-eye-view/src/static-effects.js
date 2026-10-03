@@ -9,6 +9,7 @@ export function createStaticVisualEffects({
   createStage = (options) => new PostProcessStage(options),
 }) {
   let styles, postProcess;
+  let batchDepth = 0;
   let destroyed = false;
   let sharpenEnabled = false,
     bloomEnabled = false;
@@ -17,7 +18,7 @@ export function createStaticVisualEffects({
   const alive = () => !viewer.isDestroyed?.();
   const usable = () => !destroyed && alive();
   const render = () => {
-    if (alive()) viewer.scene.requestRender();
+    if (alive() && batchDepth === 0) viewer.scene.requestRender();
   };
   const acquire = (initialize) => {
     const acquired = [];
@@ -103,6 +104,16 @@ export function createStaticVisualEffects({
     render();
   };
   return {
+    batch(action) {
+      if (!usable()) return false;
+      ++batchDepth;
+      try {
+        return action();
+      } finally {
+        --batchDepth;
+        render();
+      }
+    },
     setStyle(name) {
       if (!usable()) return false;
       if (name === "normal") {

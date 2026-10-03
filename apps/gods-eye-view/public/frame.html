@@ -103,7 +103,8 @@
         <p>
           ✓ 三维地球、坐标及本地城市定位<br />✓ Natural Earth 历史概览<br />✓
           六种静态模拟视觉风格、锐化与泛光<br />✓ 俯视、倾斜与临时保存视角<br />✓
-          OpenStreetMap 街道底图<br />✓ USGS 24 小时 M2.5+ 地震
+          OpenStreetMap 街道底图<br />✓ USGS 24 小时 M2.5+ 地震<br />✓
+          本地手动注释、椭球测量与 JSON 场景
         </p>
         <p>
           未提供：近期高清影像、精细三维建筑与真实地形（需独立数据源）；飞机、船舶与摄像头（来源及使用许可未接入）；海底电缆与预设场景（第三方数据许可限制）；AI
@@ -119,6 +120,64 @@
       ><button id="clear" class="secondary" disabled>关闭地震图层</button>
       <p id="feed-status" role="status">尚未加载。地图上的点表示震中位置。</p>
       <ol id="events"></ol>
+      <div class="rule"></div>
+      <details>
+        <summary>本地注释与距离测量</summary>
+        <p>
+          仅由你手动选择点。最多 50 个注释，标签最多 80 字；仅在本次观察中保留。
+        </p>
+        <label for="local-kind">操作类型</label>
+        <select id="local-kind">
+          <option value="annotation">点注释</option>
+          <option value="measurement">两点距离测量</option>
+        </select>
+        <label for="local-label">注释标签（纯文本）</label>
+        <input id="local-label" maxlength="80" value="本地点" />
+        <label for="local-lat">纬度（−90 至 90）</label>
+        <input id="local-lat" type="number" min="-90" max="90" step="any" />
+        <label for="local-lon">经度（−180 至 180）</label>
+        <input id="local-lon" type="number" min="-180" max="180" step="any" />
+        <div class="navigation">
+          <button id="local-add" type="button">使用坐标添加点</button>
+          <button id="local-pick" type="button">在地球上选择一个点</button>
+          <button id="local-cancel" type="button" disabled>取消选择</button>
+          <button id="local-clear" type="button">清除本地注释与测量</button>
+        </div>
+        <p>
+          测量时添加两个点；第三个点开始新测量。WGS84
+          椭球表面估算，非道路或地形距离。接近对跖点的测量不支持。
+        </p>
+        <p id="local-status" role="status">尚无本地注释。</p>
+        <ol id="local-list" aria-label="本地注释列表"></ol>
+      </details>
+      <details>
+        <summary>本地 JSON 场景导入与复制导出</summary>
+        <p>
+          仅保存相机、地图、模拟风格、本地注释与测量。导入会替换这些内容，最多
+          64 KiB；不会导出地震快照。
+        </p>
+        <label for="scene-input">粘贴版本 1 场景 JSON</label>
+        <textarea
+          id="scene-input"
+          rows="5"
+          maxlength="65536"
+          spellcheck="false"
+        ></textarea>
+        <button id="scene-import" type="button">导入粘贴的场景</button>
+        <label for="scene-file">或选择本地 JSON 文件导入</label>
+        <input id="scene-file" type="file" accept=".json,application/json" />
+        <button id="scene-export" type="button">生成 JSON 导出文本</button>
+        <label for="scene-output"
+          >只读导出文本（自行复制；不会自动保存文件）</label
+        >
+        <textarea
+          id="scene-output"
+          rows="5"
+          readonly
+          spellcheck="false"
+        ></textarea>
+        <button id="scene-select" type="button">选择全部导出文本</button>
+      </details>
     </aside>
     <button id="clean-view" type="button" aria-pressed="false">纯净视图</button>
     <div id="map-state" class="map-state" role="status" data-clean-overlay>
