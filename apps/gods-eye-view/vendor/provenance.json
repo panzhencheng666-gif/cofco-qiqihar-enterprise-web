@@ -1,0 +1,65 @@
+{
+  "repository": "https://github.com/bilawalsidhu/gods-eye-view",
+  "commit": "aa16b7c3b0166a89d8c7a6089e0aff53a22faaee",
+  "files": [
+    {
+      "upstreamPath": "LICENSE",
+      "vendorPath": "vendor/LICENSE",
+      "sha256": "b231bb38e2d4eab741643126087cbe9df2b58e2f2e5abf27ad613d05f52b01ca"
+    },
+    {
+      "upstreamPath": "DATA_SOURCES.md",
+      "vendorPath": "vendor/DATA_SOURCES.md",
+      "sha256": "934943af2420e27f6a16302412e26f8d73110a90ddfab4652bfe9db91bdff045"
+    },
+    {
+      "upstreamPath": "THIRD_PARTY_NOTICES.md",
+      "vendorPath": "vendor/THIRD_PARTY_NOTICES.md",
+      "sha256": "d90d9f5e12851f67f3e61613d4e91e6c2f20dfb0c8b056e85f4068cd3e86b6b4"
+    },
+    {
+      "upstreamPath": "SECURITY.md",
+      "vendorPath": "vendor/SECURITY.md",
+      "sha256": "6b16ce599768fc16158fe493f9bb8c2fb19c26c3d7600cea68da76736c658b6a"
+    },
+    {
+      "upstreamPath": "src/app/application.js",
+      "vendorPath": "vendor/src/app/application.js",
+      "sha256": "69300438ffefd2ed7c243c77ff7e9f25f60bd3bc2ffe1a051aeb4926450da9bd"
+    },
+    {
+      "upstreamPath": "src/app/viewer.js",
+      "vendorPath": "vendor/src/app/viewer.js",
+      "sha256": "29c41d95ef114edb913e29c3d00e6c2f7051ad57d62d75d6cc6664ae9ba97df4"
+    },
+    {
+      "upstreamPath": "src/app/atmosphereCompat.js",
+      "vendorPath": "vendor/src/app/atmosphereCompat.js",
+      "sha256": "4682531175416e582d7992bffb6a32c7511e75042589068efa6bb50925be088b"
+    },
+    {
+      "upstreamPath": "src/search/coordinateParser.js",
+      "vendorPath": "vendor/src/search/coordinateParser.js",
+      "sha256": "e666a7b905d8f4dd89985f4da1ccacbb70eb4f79f68f2f52a685de55553b8457"
+    },
+    {
+      "upstreamPath": "src/layers/earthquakes/source.js",
+      "vendorPath": "vendor/src/layers/earthquakes/source.js",
+      "sha256": "fd04c42b6d7386bc262054b78611b87bf7c3a3e3c7a7fe815a22e4642080f2d3"
+    },
+    {
+      "upstreamPath": "src/layers/earthquakes/records.js",
+      "vendorPath": "vendor/src/layers/earthquakes/records.js",
+      "sha256": "a35859b1cef9b6a5353aad1a62335444781ae7cb7191a1c975a05490e338aa56"
+    }
+  ],
+  "derivatives": [
+    {
+      "upstreamPath": "src/app/viewer.js",
+      "upstreamSha256": "29c41d95ef114edb913e29c3d00e6c2f7051ad57d62d75d6cc6664ae9ba97df4",
+      "derivedPath": "src/viewer.js",
+      "derivedSha256": "fc41e0889409964603ba31c7591391819cb5a2829265aa768a7bf2cabb95c4f6",
+      "changes": "CesiumWidget replaces full Viewer; demand rendering, 30fps ceiling, bounded resolution/cache/concurrency; pinch zoom preserved, atmosphere compatibility reused."
+    }
+  ]
+}

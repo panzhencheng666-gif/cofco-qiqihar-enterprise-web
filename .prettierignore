@@ -1,0 +1,3 @@
+# Preserve upstream bytes and the recorded provenance hashes.
+apps/gods-eye-view/vendor/
+apps/gods-eye-view/build-meta.json

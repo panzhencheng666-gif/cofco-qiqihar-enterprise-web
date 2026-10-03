@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://tile.openstreetmap.org https://earthquake.usgs.gov; img-src 'self' data: blob: https://tile.openstreetmap.org; worker-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <title>地球观察 · 免费版</title>
+    <link rel="stylesheet" href="frame.css" />
+    <link rel="stylesheet" href="cesium/Widgets/widgets.css" />
+  </head>
+  <body>
+    <div id="globe"></div>
+    <div class="topbar">
+      <span><i></i> GOD’S EYE VIEW <b>地球观察</b></span
+      ><span id="globe-status" role="status">正在加载地球…</span
+      ><span class="edition">FREE EDITION</span>
+    </div>
+    <aside class="left panel">
+      <div class="kicker">NAVIGATE / 导航</div>
+      <h1>从这里探索地球</h1>
+      <form id="search">
+        <label for="query">城市或纬度, 经度</label>
+        <div class="search-row">
+          <input
+            id="query"
+            placeholder="北京 / 47.35, 123.92"
+            maxlength="120"
+          /><button aria-label="定位">→</button>
+        </div>
+        <p id="search-status" role="status">支持本地城市目录及十进制度数。</p>
+      </form>
+      <div class="cities">
+        <button data-city="齐齐哈尔">齐齐哈尔</button
+        ><button data-city="北京">北京</button
+        ><button data-city="上海">上海</button
+        ><button data-city="伦敦">伦敦</button>
+      </div>
+      <div class="rule"></div>
+      <label for="map-style">地图样式</label
+      ><select id="map-style">
+        <option value="earth">纯净地球 · 无外部地图请求</option>
+        <option value="osm">OpenStreetMap · 街道地图</option>
+      </select>
+      <p>表面：WGS84 椭球，无山地起伏。<br />街道地图并非卫星影像。</p>
+      <div class="navigation">
+        <button id="home">重置视角</button
+        ><button id="zoom-in" aria-label="放大">＋</button
+        ><button id="zoom-out" aria-label="缩小">－</button
+        ><button id="north">北向</button>
+      </div>
+      <p class="hint">拖动旋转 · 滚轮缩放<br />按住 Ctrl 拖动倾斜视角</p>
+      <div class="rule"></div>
+      <div class="kicker">CAPABILITIES / 免费版能力</div>
+      <details open>
+        <summary>来源与能力边界</summary>
+        <p>
+          ✓ 三维地球、坐标及本地城市定位<br />✓ OpenStreetMap 街道底图<br />✓
+          USGS 24 小时 M2.5+ 地震
+        </p>
+        <p>
+          未提供：近期高清影像、精细三维建筑与真实地形（需独立数据源）；飞机、船舶与摄像头（来源及使用许可未接入）；海底电缆与预设场景（第三方数据许可限制）；AI
+          / 语音（需额外服务）；Esri 影像（使用许可待确认）。
+        </p>
+      </details>
+    </aside>
+    <aside class="right panel">
+      <div class="kicker">LIVE SOURCES / 公开来源</div>
+      <h2>地震观察 <span>USGS</span></h2>
+      <p>过去 24 小时 · M2.5+<br />公开来源快照，仅在点击时获取。</p>
+      <button id="refresh" class="primary">加载地震数据</button
+      ><button id="clear" class="secondary" disabled>关闭地震图层</button>
+      <p id="feed-status" role="status">尚未加载。地图上的点表示震中位置。</p>
+      <ol id="events"></ol>
+    </aside>
+    <div id="map-state" class="map-state" role="status">
+      纯净地球 · 椭球表面
+    </div>
+    <div id="coordinates" class="coordinates">拖动地球开始探索</div>
+    <div id="credits"></div>
+    <footer>
+      God’s Eye View © Bilawal Sidhu · MIT
+      <a href="https://www.openstreetmap.org/copyright" rel="noreferrer"
+        >© OpenStreetMap contributors</a
+      >
+      <a
+        href="https://www.usgs.gov/programs/earthquake-hazards"
+        rel="noreferrer"
+        >USGS Earthquake Hazards</a
+      >
+    </footer>
+    <script type="module" src="frame-bootstrap.js"></script>
+  </body>
+</html>

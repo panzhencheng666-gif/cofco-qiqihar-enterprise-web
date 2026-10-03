@@ -1,0 +1,9 @@
+# God's Eye View isolated fourth application
+
+Authorized task: integrate a removable free fourth application into the current application center, keeping existing three applications and their assets unchanged. Reuse MIT upstream code at aa16b7c3b0166a89d8c7a6089e0aff53a22faaee with provenance and license notices. The production free edition explicitly excludes paid, noncommercial and unapproved providers.
+
+An independent static child application under the existing portal namespace is preferable to importing Cesium into the business shell (shared bundle regression) or exposing upstream Vite/provider server (new service/auth/security approval). The portal adds one normal new-tab link. A tiny child host checks existing session semantics, creates an isolated globe only after entry, and destroys it when hidden/closed. Separate build/lockfile/assets and one feature switch permit removal without reverting shared versions.
+
+No new public ports, service, gateway policy, keys, credentials or paid fallback. No private business data is sent to providers. Basemap and live events must show attribution and freshness; imagery cannot be described as recent unless actual source dates establish it. Public data unavailable states remain explicit.
+
+Acceptance: pinned provenance, reviewed dependency graph, functional real browser entry and exit, unchanged original application links and resources, zero fourth-app network before entry, aborted requests and destroyed canvas/worker on hide, source-failure isolation, measured cold/warm and repeated-entry budget, scoped rollback with concurrent drift refusal. Deployment needs fresh production hashes, shared lock, immutable new assets and compare-and-swap only for portal pointer. Any new legal/security permissions stop production publication until approval.

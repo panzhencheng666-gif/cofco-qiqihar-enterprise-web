@@ -14,7 +14,7 @@
     "preview:e2e": "vite preview --host 127.0.0.1 --port 63180 --strictPort",
     "build": "tsc -b && vite build",
     "budget": "node scripts/check-initial-bundle-budget.mjs",
-    "test": "vitest run && npm run test:local-runtime && npm run stage3:idp-supplement:test && npm run stage5:preproduction:test && npm run stage7:performance:test && npm run stage9:observability:test",
+    "test": "vitest run && npm run test:gods-eye-view && npm run test:local-runtime && npm run stage3:idp-supplement:test && npm run stage5:preproduction:test && npm run stage7:performance:test && npm run stage9:observability:test",
     "test:local-runtime": "node --test scripts/release-manifest.spec.mjs scripts/local-runtime-publish.spec.mjs scripts/local-runtime-smoke.spec.mjs scripts/email-entry-visibility.spec.mjs",
     "test:watch": "vitest",
     "test:e2e": "npm run build && npm run budget && npm run test:e2e:preview",
@@ -47,7 +47,9 @@
     "verify:local-runtime": "node scripts/local-runtime-publish.mjs verify",
     "release:manifest": "node scripts/release-manifest-cli.mjs",
     "verify": "npm run verify:runtime && npm run format:check && npm run lint && npm run architecture && npm run stage1:inventory:check && npm run test && npm run build && npm run budget",
-    "verify:full": "npm run verify && npm run test:e2e:preview"
+    "verify:full": "npm run verify && npm run test:e2e:preview",
+    "test:gods-eye-view": "node --test scripts/fourth-application.test.mjs apps/gods-eye-view/tests/guards.test.mjs",
+    "build:gods-eye-view": "node scripts/gods-eye-view-build.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "6.3.2",

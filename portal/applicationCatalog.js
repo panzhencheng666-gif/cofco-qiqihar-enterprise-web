@@ -1,3 +1,6 @@
+// Disable only this optional application; the original three entries stay intact.
+const godsEyeViewEnabled = true;
+
 export const applicationCatalog = Object.freeze([
   Object.freeze({
     id: "grain-workbench",
@@ -25,6 +28,15 @@ export const applicationCatalog = Object.freeze([
     href: "/overview-monitoring/#/market-intelligence",
     featured: true,
     published: true,
+  }),
+  Object.freeze({
+    id: "gods-eye-view",
+    name: "God's Eye View",
+    summary: "三维地球 · 开放地图 · 公开地震信息",
+    category: "全球地理",
+    href: "/enterprise-portal/depth-7/gods-eye-view/",
+    featured: true,
+    published: godsEyeViewEnabled,
   }),
 ]);
 
