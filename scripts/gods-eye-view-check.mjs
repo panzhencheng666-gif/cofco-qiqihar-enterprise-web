@@ -120,27 +120,51 @@ console.log(
   `Globe source gate passed: ${provenance.files.length} immutable upstream files; ${importedVendor.length} imported upstream modules; no engine in shell graph.`,
 );
 
-assert.ok(
-  !Object.keys(meta.inputs).some((input) =>
-    input.endsWith("/Source/Core/Ion.js"),
-  ),
-  "Bundled SDK Ion defaults must be replaced",
-);
-assert.ok(
-  Object.hasOwn(meta.inputs, "src/disabled-ion.js"),
-  "Disabled Ion adapter must be bundled",
-);
-for (const [input, details] of Object.entries(meta.inputs)) {
-  for (const dependency of details.imports) {
-    if (dependency.original?.endsWith("/Ion.js"))
-      assert.equal(
-        dependency.path,
-        "src/disabled-ion.js",
-        `Ion default import not replaced: ${input}`,
+for (const [module, adapter] of [
+  ["Core/Ion.js", "src/disabled-ion.js"],
+  ["Scene/ArcGisMapService.js", "src/disabled-arcgis.js"],
+]) {
+  const original = `/Source/${module}`;
+  assert.ok(
+    !Object.keys(meta.inputs).some((input) => input.endsWith(original)),
+    `Bundled SDK defaults must be replaced: ${module}`,
+  );
+  assert.ok(
+    Object.hasOwn(meta.inputs, adapter),
+    `Disabled adapter must be bundled: ${adapter}`,
+  );
+  let mappings = 0,
+    emitted = 0;
+  for (const [input, details] of Object.entries(meta.inputs)) {
+    for (const dependency of details.imports) {
+      if (dependency.original?.endsWith(`/${path.basename(module)}`)) {
+        assert.equal(
+          dependency.path,
+          adapter,
+          `SDK default import not replaced: ${input}`,
+        );
+        mappings++;
+      }
+      assert.ok(
+        !dependency.path.endsWith(original),
+        `SDK default dependency remains: ${input}`,
       );
+    }
   }
+  for (const [output, details] of Object.entries(meta.outputs)) {
+    assert.ok(
+      !Object.keys(details.inputs).some((input) => input.endsWith(original)),
+      `SDK defaults emitted: ${output}`,
+    );
+    if (Object.hasOwn(details.inputs, adapter)) emitted++;
+  }
+  assert.ok(mappings > 0, `No SDK default import mappings: ${module}`);
+  assert.ok(emitted > 0, `Adapter not emitted: ${adapter}`);
+  console.log(
+    `SDK defaults replaced: ${module}; ${mappings} import mappings; ${emitted} emitted adapter outputs.`,
+  );
 }
-await checkEmbeddedCredentials(path.join(root, "dist"));
+const counts = await checkEmbeddedCredentials(path.join(root, "dist"));
 console.log(
-  "Globe credential gate passed: disabled Ion defaults; no JWT-like literals in emitted JS.",
+  `Globe credential gate passed: ${counts.filesScanned} emitted JS files; ${counts.knownDefaultsChecked} pinned SDK defaults; ${counts.credentialMatches} credential matches.`,
 );

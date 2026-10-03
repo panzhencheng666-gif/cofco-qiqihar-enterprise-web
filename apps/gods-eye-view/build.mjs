@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import { disabledArcGisPlugin } from "./build/disabled-arcgis-plugin.mjs";
 import { disabledIonPlugin } from "./build/disabled-ion-plugin.mjs";
 import { checkEmbeddedCredentials } from "../../scripts/gods-eye-view-credentials.mjs";
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
@@ -11,7 +12,7 @@ await mkdir(out, { recursive: true });
 await cp(path.join(root, "public"), out, { recursive: true });
 const result = await build({
   absWorkingDir: root,
-  plugins: [disabledIonPlugin()],
+  plugins: [disabledIonPlugin(), disabledArcGisPlugin()],
   alias: {
     meshoptimizer: path.join(root, "src/disabled-meshopt.js"),
     cesium: "@cesium/engine",
