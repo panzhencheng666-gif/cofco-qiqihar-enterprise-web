@@ -12,6 +12,7 @@ export function createStaticVisualEffects({
   createStage = (options) => new PostProcessStage(options),
 }) {
   let styles, postProcess;
+  let activeStyle = "normal";
   let batchDepth = 0;
   let destroyed = false;
   let sharpenEnabled = false,
@@ -83,6 +84,7 @@ export function createStaticVisualEffects({
   const clear = () => {
     const previous = styles;
     styles = undefined;
+    activeStyle = "normal";
     try {
       previous?.release();
     } finally {
@@ -106,7 +108,88 @@ export function createStaticVisualEffects({
     }
     render();
   };
+  const metadata = () => STYLES[activeStyle]?.uniforms || {};
+  const snapshot = () => ({
+    style: activeStyle,
+    values: Object.fromEntries(
+      Object.keys(metadata()).map((name) => [
+        name,
+        styles.effects.stages[activeStyle].uniforms[name],
+      ]),
+    ),
+  });
+  const plain = (value) =>
+    value &&
+    typeof value === "object" &&
+    [Object.prototype, null].includes(Object.getPrototypeOf(value));
+  const validValue = (name, value) =>
+    typeof name === "string" &&
+    Object.hasOwn(metadata(), name) &&
+    Number.isFinite(value) &&
+    value >= metadata()[name].min &&
+    value <= metadata()[name].max;
   return {
+    getStyleParameters() {
+      return snapshot();
+    },
+    getStyleParameterMetadata() {
+      return Object.fromEntries(
+        Object.entries(metadata()).map(([name, entry]) => [
+          name,
+          { ...entry, editable: !(activeStyle === "snow" && name === "wind") },
+        ]),
+      );
+    },
+    setStyleParameter(name, value) {
+      if (!usable()) return false;
+      if (
+        !validValue(name, value) ||
+        (activeStyle === "snow" && name === "wind")
+      )
+        throw new Error(
+          "Unknown, unavailable or out-of-range static parameter",
+        );
+      styles.effects.stages[activeStyle].uniforms[name] = value;
+      render();
+      return true;
+    },
+    // Internal transaction recovery only; scene v1/v2 never accepts these fields.
+    restoreStyleParameters(saved) {
+      if (!usable()) return false;
+      const fail = () => {
+        throw new Error("Invalid internal style parameter snapshot");
+      };
+      if (!plain(saved)) fail();
+      const fields = Object.getOwnPropertyDescriptors(saved);
+      if (
+        Reflect.ownKeys(fields).length !== 2 ||
+        !["style", "values"].every(
+          (name) =>
+            fields[name]?.enumerable && Object.hasOwn(fields[name], "value"),
+        ) ||
+        fields.style.value !== activeStyle ||
+        !plain(fields.values.value)
+      )
+        fail();
+      const keys = Object.keys(metadata());
+      const supplied = Object.getOwnPropertyDescriptors(fields.values.value);
+      if (Reflect.ownKeys(supplied).length !== keys.length) fail();
+      const restored = {};
+      for (const name of keys) {
+        const descriptor = supplied[name];
+        if (
+          !descriptor?.enumerable ||
+          !Object.hasOwn(descriptor, "value") ||
+          !validValue(name, descriptor.value)
+        )
+          fail();
+        restored[name] = descriptor.value;
+      }
+      if (keys.length)
+        Object.assign(styles.effects.stages[activeStyle].uniforms, restored);
+      render();
+      return true;
+    },
     batch(action) {
       if (!usable()) return false;
       ++batchDepth;
@@ -119,6 +202,7 @@ export function createStaticVisualEffects({
     },
     setStyle(name) {
       if (!usable()) return false;
+      if (typeof name !== "string") throw new Error("Unknown visual style");
       if (name === "normal") {
         const previous = styles;
         styles = undefined;
@@ -132,12 +216,19 @@ export function createStaticVisualEffects({
         // retain their existing free-edition owners.
         Object.assign(
           styles.effects.stages[name].uniforms,
+          Object.fromEntries(
+            Object.entries(STYLES[name].uniforms).map(([key, meta]) => [
+              key,
+              meta.default,
+            ]),
+          ),
           STYLE_PRESET_DEFAULTS[name]?.styleParams?.[name],
         );
         // Injected scheduler never invokes/schedules its callback. Shader time=0.
         for (const [key, stage] of styles.effects.stageEntries)
           styles.effects.setStageIntensity(stage, key === name ? 1 : 0);
       }
+      activeStyle = name;
       render();
       return true;
     },

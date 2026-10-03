@@ -468,3 +468,19 @@ summary:focus-visible {
 #sequence-panel input[type="number"] {
   margin-bottom: 8px;
 }
+
+.param-slider-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) minmax(60px, 1.3fr) 38px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.param-slider-row input[type="range"] {
+  width: 100%;
+  padding: 0;
+}
+.param-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

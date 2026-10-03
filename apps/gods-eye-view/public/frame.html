@@ -61,6 +61,16 @@
         <option value="snow">静态雪景</option>
       </select>
       <p id="effect-status" role="status">原始画面，无模拟滤镜。</p>
+      <details id="style-parameters-panel">
+        <summary>模拟视觉参数</summary>
+        <p id="style-parameters-status" role="status">
+          选择模拟视觉风格后可调整参数。
+        </p>
+        <div id="style-parameters-rows"></div>
+        <button id="style-parameters-reset" disabled>
+          恢复当前风格默认参数
+        </button>
+      </details>
       <div class="effect-toggle">
         <label><input id="sharpen" type="checkbox" /> 锐化</label>
         <label for="sharpen-intensity">锐化强度（0–1）</label>

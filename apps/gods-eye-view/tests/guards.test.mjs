@@ -18,6 +18,10 @@ async function terminalGlobeProbe(
   const { installDisplayControls, updateVisualEffectStatus } =
     await load("display-controls");
   const { createStaticVisualEffects } = await loadStaticEffects();
+  const { installStyleParameterControls } = await load(
+    "style-parameters-controls",
+  );
+  let styleParameters, staticEffects;
   const { installLocalSceneControls } = await load("local-scene-controls");
   const { installCameraSequenceControls } = await load(
     "camera-sequence-controls",
@@ -66,6 +70,15 @@ async function terminalGlobeProbe(
     append(...nodes) {
       this.children.push(...nodes);
     }
+    appendChild(node) {
+      this.children.push(node);
+    }
+    querySelectorAll() {
+      return this.children.flatMap((node) => [
+        ...(node.tag === "input" && node.type === "range" ? [node] : []),
+        ...node.querySelectorAll(),
+      ]);
+    }
   }
   const ids = [
     "globe",
@@ -79,6 +92,10 @@ async function terminalGlobeProbe(
     "map-style",
     "visual-style",
     "effect-status",
+    "style-parameters-panel",
+    "style-parameters-rows",
+    "style-parameters-reset",
+    "style-parameters-status",
     "zoom-in",
     "zoom-out",
     "north",
@@ -454,7 +471,17 @@ async function terminalGlobeProbe(
     installDisplayControls,
     updateVisualEffectStatus,
     createStaticVisualEffects: (options) =>
-      createStaticVisualEffects({ ...options, createStage: post.createStage }),
+      (staticEffects = createStaticVisualEffects({
+        ...options,
+        createStage: post.createStage,
+      })),
+    installStyleParameterControls(options) {
+      const document = new FakeNode();
+      document.createElement = (tag) => new FakeNode(tag);
+      options.nodes.container.ownerDocument = document;
+      styleParameters = installStyleParameterControls(options);
+      return styleParameters;
+    },
     installSearchControls,
     installTrackpadPinchZoom: () => () => {},
     fetchEarthquakes: ({ signal }) => {
@@ -520,6 +547,9 @@ async function terminalGlobeProbe(
       whiteboardHandlers,
       localHandlers,
       postRender,
+      effects: staticEffects,
+      styleParameters,
+      post,
     });
     external.abort();
     await new Promise((resolve) => setImmediate(resolve));
@@ -3106,6 +3136,152 @@ test("native canvas navigation cancels both pickers while an ordinary left click
         action();
         assert.equal(point.dead, true);
       }
+    },
+  );
+});
+
+test("composed old scene import resets temporary visual parameters; failed candidate restores their exact snapshot and rows", async () => {
+  const faults = {};
+  await terminalGlobeProbe(
+    false,
+    false,
+    faults,
+    async ({ nodes, effects, styleParameters, viewer }) => {
+      nodes["map-style"].value = "natural";
+      nodes["visual-style"].value = "thermal";
+      nodes["visual-style"].listeners.change({ target: nodes["visual-style"] });
+      nodes["sharpen-intensity"].value = "0.49";
+      nodes["bloom-intensity"].value = "0";
+      nodes["style-parameters-panel"].open = true;
+      styleParameters.refresh();
+      const sliders = nodes["style-parameters-rows"].querySelectorAll();
+      assert.equal(sliders.length, 5);
+      sliders[4].value = "0.7";
+      sliders[4].listeners.input();
+      const saved = effects.getStyleParameters();
+      assert.equal(saved.values.palette, 0.7);
+      nodes["scene-export"].listeners.click();
+      const base = JSON.parse(nodes["scene-output"].value);
+      assert.equal(base.version, 1);
+      assert.deepEqual(Object.keys(base.style), [
+        "name",
+        "sharpen",
+        "sharpenIntensity",
+        "bloom",
+        "bloomIntensity",
+      ]);
+      assert.equal(Object.hasOwn(base, "parameters"), false);
+      faults.whiteboardFail = true;
+      nodes["scene-input"].value = JSON.stringify({
+        ...base,
+        version: 2,
+        drawings: [
+          {
+            shape: "pin",
+            vertices: [{ lon: 0, lat: 0 }],
+            label: "candidate",
+            color: "primary",
+          },
+        ],
+      });
+      nodes["scene-import"].listeners.click();
+      assert.equal(viewer.isDestroyed(), false);
+      assert.deepEqual(effects.getStyleParameters(), saved);
+      assert.equal(
+        nodes["style-parameters-rows"].querySelectorAll()[4].value,
+        0.7,
+      );
+      nodes["scene-input"].value = JSON.stringify(base);
+      nodes["scene-import"].listeners.click();
+      assert.match(nodes["local-status"].textContent, /已导入/);
+      assert.equal(effects.getStyleParameters().values.palette, 0);
+      assert.equal(
+        nodes["style-parameters-rows"].querySelectorAll()[4].value,
+        0,
+      );
+    },
+  );
+});
+
+test("composed newer style parameter edit discards a pending file result and clears stale exported scene text", async () => {
+  await terminalGlobeProbe(
+    false,
+    false,
+    undefined,
+    async ({ nodes, effects, styleParameters }) => {
+      nodes["map-style"].value = "natural";
+      nodes["visual-style"].value = "thermal";
+      nodes["visual-style"].listeners.change({ target: nodes["visual-style"] });
+      nodes["sharpen-intensity"].value = "0.49";
+      nodes["bloom-intensity"].value = "0";
+      nodes["style-parameters-panel"].open = true;
+      styleParameters.refresh();
+      nodes["scene-export"].listeners.click();
+      const old = nodes["scene-output"].value;
+      assert.ok(old);
+      let resolveFile;
+      nodes["scene-file"].files = [
+        {
+          size: 1,
+          text: () =>
+            new Promise((resolve) => {
+              resolveFile = resolve;
+            }),
+        },
+      ];
+      nodes["scene-file"].listeners.change();
+      const slider = nodes["style-parameters-rows"].querySelectorAll()[4];
+      slider.value = "0.7";
+      slider.listeners.input();
+      assert.equal(nodes["scene-output"].value, "");
+      resolveFile(old);
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(effects.getStyleParameters().values.palette, 0.7);
+      assert.doesNotMatch(nodes["local-status"].textContent, /已导入/);
+    },
+  );
+});
+
+test("composed Clean View and actual postprocess collection failure retire the new parameter owner", async () => {
+  await terminalGlobeProbe(
+    false,
+    false,
+    undefined,
+    async ({ nodes, effects, styleParameters, post }) => {
+      nodes["visual-style"].value = "thermal";
+      nodes["visual-style"].listeners.change({ target: nodes["visual-style"] });
+      nodes["style-parameters-panel"].open = true;
+      styleParameters.refresh();
+      const old = nodes["style-parameters-rows"].querySelectorAll()[4],
+        oldInput = old.listeners.input;
+      nodes["clean-view"].listeners.click();
+      assert.equal(nodes["style-parameters-rows"].childNodes.length, 0);
+      assert.equal(nodes["style-parameters-reset"].disabled, true);
+      old.value = "0.7";
+      oldInput();
+      assert.equal(effects.getStyleParameters().values.palette, 0);
+      styleParameters.refresh();
+      assert.equal(nodes["style-parameters-rows"].childNodes.length, 0);
+      nodes["clean-view"].listeners.click();
+      assert.equal(nodes["style-parameters-rows"].querySelectorAll().length, 5);
+      const add = post.viewer.scene.postProcessStages.add;
+      post.viewer.scene.postProcessStages.add = (stage) => {
+        if (stage.name === "godsEyeView_sharpen")
+          throw new Error("postprocess insertion failed");
+        return add(stage);
+      };
+      nodes.sharpen.checked = true;
+      nodes.sharpen.listeners.change();
+      assert.equal(nodes["visual-style"].value, "normal");
+      assert.equal(effects.getStyleParameters().style, "normal");
+      assert.equal(nodes["style-parameters-rows"].childNodes.length, 0);
+      assert.equal(nodes["style-parameters-reset"].disabled, true);
+      assert.match(
+        nodes["style-parameters-status"].textContent,
+        /选择模拟视觉风格/,
+      );
+      oldInput();
+      assert.equal(nodes["style-parameters-rows"].childNodes.length, 0);
     },
   );
 });

@@ -17,6 +17,7 @@ import { installLocalSceneControls } from "./local-scene-controls.js";
 import { installSearchControls } from "./search-controls.js";
 import { NATURAL_EARTH_OPTIONS } from "./basemaps.js";
 import { createStaticVisualEffects } from "./static-effects.js";
+import { installStyleParameterControls } from "./style-parameters-controls.js";
 import { installRenderFailureHandler } from "./render-errors.js";
 import {
   installDisplayControls,
@@ -190,7 +191,7 @@ export async function startGlobe(signal) {
       defer,
       signal,
     }) {
-      let whiteboard, localRelease;
+      let whiteboard, localRelease, styleParameters;
       setPointerCancel(() => {
         whiteboard?.cancel();
         localRelease?.cancelPick();
@@ -306,7 +307,14 @@ export async function startGlobe(signal) {
           effects,
           signal,
           beforeCamera,
-          onCleanChange: (visible) => whiteboard?.setVisible(visible),
+          onCleanChange: (visible) => {
+            whiteboard?.setVisible(visible);
+            styleParameters?.setVisible(visible);
+          },
+          onEffectsChange: () => {
+            styleParameters?.refresh();
+            localRelease?.invalidate();
+          },
           overlays: [...document.querySelectorAll("[data-clean-overlay]")],
           nodes: displayNodes,
         }),
@@ -328,6 +336,33 @@ export async function startGlobe(signal) {
         // before the widget. The parent shell's pause/reopen remains reachable.
         void app.destroy().catch(() => {});
       };
+      styleParameters = installStyleParameterControls({
+        viewer,
+        effects,
+        signal,
+        nodes: {
+          panel: $("style-parameters-panel"),
+          container: $("style-parameters-rows"),
+          reset: $("style-parameters-reset"),
+          status: $("style-parameters-status"),
+          style: displayNodes.style,
+        },
+        onChange: () => localRelease?.invalidate(),
+        onError() {
+          try {
+            effects.clear();
+          } catch {
+            stopRendering("视觉参数恢复失败，地球已停止；请暂停后重新打开。");
+            return;
+          }
+          displayNodes.style.value = "normal";
+          displayNodes.sharpen.checked = displayNodes.bloom.checked = false;
+          displayNodes.effectStatus.textContent =
+            "视觉参数不可用，已恢复原始画面。";
+          localRelease?.invalidate();
+        },
+      });
+      defer(() => styleParameters.destroy());
       const capture = () => {
         const position = viewer.camera.positionCartographic;
         return {
@@ -377,6 +412,7 @@ export async function startGlobe(signal) {
         displayNodes.bloom.checked = next.style.bloom;
         displayNodes.bloomIntensity.value = String(next.style.bloomIntensity);
         updateVisualEffectStatus(displayNodes);
+        styleParameters.refresh();
       };
       whiteboard = installWhiteboardControls({
         viewer,
@@ -440,6 +476,7 @@ export async function startGlobe(signal) {
         apply(next, local) {
           whiteboard.prepare(next.drawings || []);
           const previous = { ...capture(), ...local.snapshot() };
+          const previousParameters = effects.getStyleParameters();
           let failure;
           try {
             effects.batch(() => {
@@ -451,6 +488,8 @@ export async function startGlobe(signal) {
                 if (!signal.aborted && !viewer.isDestroyed()) {
                   try {
                     applySceneState(previous);
+                    effects.restoreStyleParameters(previousParameters);
+                    styleParameters.refresh();
                     // Candidate acquisition failure preserves the original
                     // geometry. Avoid reacquiring it unless it was committed.
                     if (
@@ -505,6 +544,8 @@ export async function startGlobe(signal) {
         try {
           effects.setStyle(event.target.value);
           updateVisualEffectStatus(displayNodes);
+          styleParameters.refresh();
+          localRelease?.invalidate();
         } catch {
           effects.clear();
           $("visual-style").value = "normal";
@@ -512,6 +553,8 @@ export async function startGlobe(signal) {
           $("bloom").checked = false;
           $("effect-status").textContent =
             "此浏览器暂时无法使用该视觉风格，已恢复原始画面。";
+          styleParameters.refresh();
+          localRelease?.invalidate();
         }
       });
       listen($("zoom-in"), "click", () => {

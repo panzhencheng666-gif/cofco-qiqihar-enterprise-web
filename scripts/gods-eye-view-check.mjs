@@ -97,6 +97,7 @@ assert.deepEqual(
     "vendor/src/layers/earthquakes/source.js",
     "vendor/src/search/coordinateParser.js",
     "vendor/src/ui/visualEffects.js",
+    "vendor/src/ui/styleParameters.js",
     "vendor/src/ui/visualPresets.js",
     "vendor/src/bloom.js",
     "vendor/src/styles/retro.js",
@@ -107,7 +108,7 @@ assert.deepEqual(
     "vendor/src/styles/thermal.js",
   ].sort(),
 );
-assert.equal(provenance.files.length, 34, "Immutable upstream closure changed");
+assert.equal(provenance.files.length, 35, "Immutable upstream closure changed");
 for (const input of Object.keys(meta.inputs))
   assert.ok(
     !/naturalEarthRegions|bundledJson|retryableLoad|local_data\//.test(input),

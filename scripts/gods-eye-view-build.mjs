@@ -11,6 +11,7 @@ for (const args of [
     "tests/camera-motion.test.mjs",
     "tests/camera-verbs.test.mjs",
     "tests/whiteboard.test.mjs",
+    "tests/style-parameters.test.mjs",
   ],
   ["build.mjs"],
 ]) {

@@ -19,6 +19,7 @@ export function installDisplayControls({
   signal,
   beforeCamera = () => {},
   onCleanChange = () => {},
+  onEffectsChange = () => {},
 }) {
   const camera = createCameraCommands({ viewer, signal, beforeCamera });
   const removers = [];
@@ -51,6 +52,7 @@ export function installDisplayControls({
     try {
       action();
       updateVisualEffectStatus(nodes);
+      onEffectsChange();
     } catch {
       effects.clear();
       nodes.sharpen.checked = false;
@@ -58,6 +60,7 @@ export function installDisplayControls({
       nodes.style.value = "normal";
       nodes.effectStatus.textContent =
         "此浏览器暂时无法使用该视觉处理，已恢复原始画面。";
+      onEffectsChange();
     }
   };
   try {
