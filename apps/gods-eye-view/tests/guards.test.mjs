@@ -1112,6 +1112,53 @@ async function loadStaticEffects() {
       Buffer.from(result.outputFiles[0].text).toString("base64")
   );
 }
+test("static styles use the pinned upstream display presets rather than raw shader defaults", async () => {
+  const { createStaticVisualEffects } = await loadStaticEffects();
+  const stages = [];
+  const owner = createStaticVisualEffects({
+    viewer: {
+      scene: {
+        postProcessStages: {
+          add(stage) {
+            stages.push(stage);
+          },
+          remove(stage) {
+            const index = stages.indexOf(stage);
+            if (index !== -1) stages.splice(index, 1);
+          },
+        },
+        requestRender() {},
+      },
+    },
+  });
+  try {
+    const expected = {
+      surveillance: {
+        gain: 0.18,
+        bloom: 0.22,
+        scanlineStr: 0.96,
+        pixelation: 1,
+      },
+      retro: { pixelation: 1, distortion: 0, instability: 0.42 },
+      thermal: { sensitivity: 0.85, bloom: 0.2, mode: 0.33, pixelation: 1 },
+    };
+    for (const [name, uniforms] of Object.entries(expected)) {
+      owner.setStyle(name);
+      const active = stages.filter((stage) => stage.enabled);
+      assert.equal(active.length, 1);
+      for (const [key, value] of Object.entries(uniforms))
+        assert.equal(active[0].uniforms[key], value, `${name}.${key}`);
+      assert.equal(active[0].uniforms.time, 0);
+    }
+    owner.setStyle("normal");
+    assert.equal(stages.length, 0);
+    owner.setStyle("surveillance");
+    assert.equal(stages.find((stage) => stage.enabled).uniforms.gain, 0.18);
+  } finally {
+    owner.destroy();
+  }
+  assert.equal(stages.length, 0);
+});
 test("Nth style construction or collection insertion failure releases every acquired stage", async () => {
   const { createStaticVisualEffects } = await loadStaticEffects();
   for (const phase of ["construct", "add"]) {

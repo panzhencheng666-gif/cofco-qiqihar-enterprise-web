@@ -1,6 +1,9 @@
 import { PostProcessStage } from "cesium";
 import { VisualEffects } from "../vendor/src/ui/visualEffects.js";
-import { STYLES } from "../vendor/src/ui/visualPresets.js";
+import {
+  STYLES,
+  STYLE_PRESET_DEFAULTS,
+} from "../vendor/src/ui/visualPresets.js";
 import { clampBloomIntensity } from "../vendor/src/bloom.js";
 
 /** Own upstream effects with time frozen at zero and no scheduled animation. */
@@ -124,6 +127,13 @@ export function createStaticVisualEffects({
         if (!Object.hasOwn(STYLES, name))
           throw new Error("Unknown visual style");
         styles ||= acquire((effects) => effects.initStyles());
+        // Apply the upstream display preset, not its shader's raw defaults.
+        // Only style uniforms belong here; HUD/detection and global post state
+        // retain their existing free-edition owners.
+        Object.assign(
+          styles.effects.stages[name].uniforms,
+          STYLE_PRESET_DEFAULTS[name]?.styleParams?.[name],
+        );
         // Injected scheduler never invokes/schedules its callback. Shader time=0.
         for (const [key, stage] of styles.effects.stageEntries)
           styles.effects.setStageIntensity(stage, key === name ? 1 : 0);
