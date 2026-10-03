@@ -62,11 +62,35 @@ export async function startGlobe(signal) {
       let imagery;
       let removeImageryError;
       const clearImagery = () => {
-        removeImageryError?.();
-        removeImageryError = undefined;
-        if (imagery && !viewer.isDestroyed())
-          viewer.imageryLayers.remove(imagery, true);
-        imagery = undefined;
+        const previous = imagery,
+          removeError = removeImageryError,
+          failures = [];
+        imagery = removeImageryError = undefined;
+        try {
+          removeError?.();
+        } catch (error) {
+          failures.push(error);
+        }
+        if (previous && !previous.isDestroyed?.()) {
+          try {
+            const removed =
+              !viewer.isDestroyed() &&
+              viewer.imageryLayers.remove(previous, true);
+            // add() can fail before transferring the new layer to the viewer.
+            if (!removed && !previous.isDestroyed?.()) previous.destroy();
+          } catch (error) {
+            failures.push(error);
+            if (!previous.isDestroyed?.()) {
+              try {
+                previous.destroy();
+              } catch (failure) {
+                failures.push(failure);
+              }
+            }
+          }
+        }
+        if (failures.length)
+          throw new AggregateError(failures, "场景地图资源释放失败。");
       };
       defer(clearImagery);
       const onError = () => {
@@ -189,6 +213,68 @@ export async function startGlobe(signal) {
           nodes: displayNodes,
         }),
       );
+      const stopRendering = (message) => {
+        if (renderStopped) return;
+        renderStopped = true;
+        viewer.useDefaultRenderLoop = false;
+        $("globe-status").textContent = message;
+        $("effect-status").textContent =
+          "视觉渲染已停止，当前画面不可继续使用。";
+        document
+          .querySelectorAll("button,input,select,textarea")
+          .forEach((node) => {
+            node.disabled = true;
+          });
+        // Abort synchronously; application disposal releases controls/data
+        // before the widget. The parent shell's pause/reopen remains reachable.
+        void app.destroy().catch(() => {});
+      };
+      const capture = () => {
+        const position = viewer.camera.positionCartographic;
+        return {
+          camera: {
+            lon: CesiumMath.toDegrees(position.longitude),
+            lat: CesiumMath.toDegrees(position.latitude),
+            height: position.height,
+            heading: viewer.camera.heading,
+            pitch: viewer.camera.pitch,
+            roll: viewer.camera.roll,
+          },
+          map: $("map-style").value,
+          style: {
+            name: displayNodes.style.value,
+            sharpen: displayNodes.sharpen.checked,
+            sharpenIntensity: Number(displayNodes.sharpenIntensity.value),
+            bloom: displayNodes.bloom.checked,
+            bloomIntensity: Number(displayNodes.bloomIntensity.value),
+          },
+        };
+      };
+      const applySceneState = (next) => {
+        viewer.camera.cancelFlight();
+        effects.setStyle(next.style.name);
+        effects.setSharpenIntensity(next.style.sharpenIntensity);
+        effects.setBloomIntensity(next.style.bloomIntensity);
+        effects.setSharpenEnabled(next.style.sharpen);
+        effects.setBloomEnabled(next.style.bloom);
+        // Always install the requested map on recovery, even when a failed
+        // acquisition left the selector unchanged but removed its imagery.
+        setStyle(next.map, false);
+        const { lon, lat, height, heading, pitch, roll } = next.camera;
+        viewer.camera.setView({
+          destination: Cartesian3.fromDegrees(lon, lat, height),
+          orientation: { heading, pitch, roll },
+        });
+        $("map-style").value = next.map;
+        displayNodes.style.value = next.style.name;
+        displayNodes.sharpen.checked = next.style.sharpen;
+        displayNodes.sharpenIntensity.value = String(
+          next.style.sharpenIntensity,
+        );
+        displayNodes.bloom.checked = next.style.bloom;
+        displayNodes.bloomIntensity.value = String(next.style.bloomIntensity);
+        updateVisualEffectStatus(displayNodes);
+      };
       defer(
         installLocalSceneControls({
           viewer,
@@ -213,54 +299,52 @@ export async function startGlobe(signal) {
               select: "scene-select",
             }).map(([key, id]) => [key, $(id)]),
           ),
-          capture() {
-            const position = viewer.camera.positionCartographic;
-            return {
-              camera: {
-                lon: CesiumMath.toDegrees(position.longitude),
-                lat: CesiumMath.toDegrees(position.latitude),
-                height: position.height,
-                heading: viewer.camera.heading,
-                pitch: viewer.camera.pitch,
-                roll: viewer.camera.roll,
-              },
-              map: $("map-style").value,
-              style: {
-                name: displayNodes.style.value,
-                sharpen: displayNodes.sharpen.checked,
-                sharpenIntensity: Number(displayNodes.sharpenIntensity.value),
-                bloom: displayNodes.bloom.checked,
-                bloomIntensity: Number(displayNodes.bloomIntensity.value),
-              },
-            };
+          capture,
+          onFatalError() {
+            stopRendering(
+              "本地场景资源释放失败，地球渲染已停止；请使用上方“暂停地球观察”后重新打开。",
+            );
           },
           apply(next, local) {
-            effects.batch(() => {
-              viewer.camera.cancelFlight();
-              effects.setStyle(next.style.name);
-              effects.setSharpenIntensity(next.style.sharpenIntensity);
-              effects.setBloomIntensity(next.style.bloomIntensity);
-              effects.setSharpenEnabled(next.style.sharpen);
-              effects.setBloomEnabled(next.style.bloom);
-              if ($("map-style").value !== next.map) setStyle(next.map, false);
-              $("map-style").value = next.map;
-              displayNodes.style.value = next.style.name;
-              displayNodes.sharpen.checked = next.style.sharpen;
-              displayNodes.sharpenIntensity.value = String(
-                next.style.sharpenIntensity,
-              );
-              displayNodes.bloom.checked = next.style.bloom;
-              displayNodes.bloomIntensity.value = String(
-                next.style.bloomIntensity,
-              );
-              updateVisualEffectStatus(displayNodes);
-              const { lon, lat, height, heading, pitch, roll } = next.camera;
-              viewer.camera.setView({
-                destination: Cartesian3.fromDegrees(lon, lat, height),
-                orientation: { heading, pitch, roll },
+            const previous = { ...capture(), ...local.snapshot() };
+            let failure;
+            try {
+              effects.batch(() => {
+                try {
+                  applySceneState(next);
+                  local.replace(next, { render: false });
+                } catch (error) {
+                  if (!signal.aborted && !viewer.isDestroyed()) {
+                    try {
+                      applySceneState(previous);
+                      // Candidate acquisition failure preserves the original
+                      // geometry. Avoid reacquiring it unless it was committed.
+                      if (
+                        JSON.stringify(local.snapshot()) !==
+                        JSON.stringify({
+                          annotations: previous.annotations,
+                          measurement: previous.measurement,
+                        })
+                      )
+                        local.replace(previous, { render: false });
+                    } catch {
+                      stopRendering(
+                        "本地场景恢复失败，地球渲染已停止；请使用上方“暂停地球观察”后重新打开。",
+                      );
+                    }
+                  }
+                  failure = error;
+                }
               });
-              local.replace(next, { render: false });
-            });
+            } catch (error) {
+              // batch's final requestRender can throw after application or
+              // rollback. Stop ownership instead of hiding a render exception.
+              stopRendering(
+                "本地场景显示失败，地球渲染已停止；请使用上方“暂停地球观察”后重新打开。",
+              );
+              throw error;
+            }
+            if (failure) throw failure;
           },
         }),
       );
@@ -270,19 +354,9 @@ export async function startGlobe(signal) {
           effects,
           signal,
           onStopped() {
-            renderStopped = true;
-            $("globe-status").textContent =
-              "地球渲染已停止，请使用上方“暂停地球观察”后重新打开。";
-            $("effect-status").textContent =
-              "视觉渲染已停止，当前画面不可继续使用。";
-            document
-              .querySelectorAll("button,input,select,textarea")
-              .forEach((node) => {
-                node.disabled = true;
-              });
-            // Abort all application work immediately; cleanup runs after this
-            // render callback and disposes controls/data before the widget.
-            void app.destroy().catch(() => {});
+            stopRendering(
+              "地球渲染已停止，请使用上方“暂停地球观察”后重新打开。",
+            );
           },
         }),
       );

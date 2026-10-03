@@ -57,6 +57,7 @@ export function createLocalGeometry({
   signal,
   onChange = () => {},
   onError = () => {},
+  onFatalError = () => {},
   createCollection = (kind) =>
     kind === "points"
       ? new PointPrimitiveCollection()
@@ -70,7 +71,8 @@ export function createLocalGeometry({
   let disposed = false,
     handler,
     state = { annotations: [], measurement: [] };
-  const owned = [];
+  const owned = new Set();
+  let active = [];
   const alive = () => !disposed && !signal?.aborted && !viewer.isDestroyed?.();
   const requireAlive = () => {
     if (!alive()) throw new Error("本次观察已结束。");
@@ -81,35 +83,77 @@ export function createLocalGeometry({
       handler = undefined;
     }
   };
-  const destroy = () => {
-    if (disposed) return;
-    disposed = true;
-    cancelPick();
-    signal?.removeEventListener("abort", destroy);
-    for (const collection of owned.splice(0).reverse()) {
+  const release = (collections) => {
+    const failures = [];
+    for (const collection of [...collections].reverse()) {
       try {
         const removed =
           !viewer.isDestroyed?.() && viewer.scene.primitives.remove(collection);
         if (!removed && !collection.isDestroyed?.()) collection.destroy();
-      } catch {
+        owned.delete(collection);
+      } catch (error) {
+        failures.push(error);
+        // Keep ownership if detach/destruction failed; terminal viewer teardown
+        // is the final owner. Continue releasing every other candidate resource.
         if (!collection.isDestroyed?.()) {
           try {
             collection.destroy();
-          } catch {
-            /* Continue releasing other resources. */
+          } catch (failure) {
+            failures.push(failure);
           }
         }
       }
     }
-    state = { annotations: [], measurement: [] };
+    if (failures.length)
+      throw new AggregateError(failures, "本地几何资源释放失败。");
+  };
+  const destroy = () => {
+    if (disposed) return;
+    disposed = true;
+    signal?.removeEventListener("abort", destroy);
+    try {
+      cancelPick();
+    } finally {
+      state = { annotations: [], measurement: [] };
+      active = [];
+      release(owned);
+    }
+  };
+  const fatal = (error) => {
+    try {
+      if (!signal?.aborted && !viewer.isDestroyed?.()) onFatalError(error);
+    } finally {
+      destroy();
+    }
+  };
+  const acquire = () => {
+    const candidate = [];
+    try {
+      for (const kind of ["points", "labels", "lines"]) {
+        const collection = createCollection(kind);
+        owned.add(collection);
+        candidate.push(collection);
+        collection.show = false;
+      }
+      return candidate;
+    } catch (error) {
+      try {
+        release(candidate);
+      } catch (cleanupError) {
+        fatal(cleanupError);
+      }
+      throw error;
+    }
   };
   try {
     requireAlive();
-    for (const kind of ["points", "labels", "lines"]) {
-      const collection = createCollection(kind);
-      owned.push(collection);
+    active = acquire();
+    for (const collection of active) {
+      requireAlive();
       viewer.scene.primitives.add(collection);
     }
+    requireAlive();
+    for (const collection of active) collection.show = true;
   } catch (error) {
     destroy();
     throw error;
@@ -132,35 +176,82 @@ export function createLocalGeometry({
     requireAlive();
     const { next, estimate } = prepare(value);
     cancelPick();
-    const [points, labels, lines] = owned;
-    for (const collection of owned) collection.removeAll();
-    for (const point of next.annotations) {
-      const position = Cartesian3.fromDegrees(point.lon, point.lat);
-      points.add({ position, color: Color.CYAN, pixelSize: 8 });
-      labels.add({
-        position,
-        text: point.label,
-        font: "12px sans-serif",
-        fillColor: Color.CYAN,
-        showBackground: true,
-        pixelOffset: { x: 0, y: -18 },
-      });
+    // Populate detached, hidden resources. A failed Nth insertion cannot touch
+    // the currently rendered scene, including its labels and measured line.
+    const candidate = acquire();
+    const [points, labels, lines] = candidate;
+    let pendingMaterial;
+    try {
+      for (const point of next.annotations) {
+        const position = Cartesian3.fromDegrees(point.lon, point.lat);
+        points.add({ position, color: Color.CYAN, pixelSize: 8 });
+        labels.add({
+          position,
+          text: point.label,
+          font: "12px sans-serif",
+          fillColor: Color.CYAN,
+          showBackground: true,
+          pixelOffset: { x: 0, y: -18 },
+        });
+      }
+      for (const point of next.measurement)
+        points.add({
+          position: Cartesian3.fromDegrees(point.lon, point.lat),
+          color: Color.YELLOW,
+          pixelSize: 9,
+        });
+      if (estimate && estimate.distance > 0) {
+        pendingMaterial = createLineMaterial();
+        lines.add({
+          positions: estimate.positions,
+          width: 2,
+          material: pendingMaterial,
+        });
+        pendingMaterial = undefined; // PolylineCollection owns it after add.
+      }
+      for (const collection of candidate) {
+        requireAlive();
+        viewer.scene.primitives.add(collection);
+      }
+      requireAlive();
+    } catch (error) {
+      try {
+        try {
+          release(candidate);
+        } finally {
+          // add() may throw before taking ownership or after attaching a line.
+          // Release the collection first, then any still-unowned material.
+          if (pendingMaterial && !pendingMaterial.isDestroyed?.())
+            pendingMaterial.destroy?.();
+        }
+      } catch (cleanupError) {
+        fatal(cleanupError);
+      }
+      throw error;
     }
-    for (const point of next.measurement)
-      points.add({
-        position: Cartesian3.fromDegrees(point.lon, point.lat),
-        color: Color.YELLOW,
-        pixelSize: 9,
-      });
-    if (estimate && estimate.distance > 0)
-      lines.add({
-        positions: estimate.positions,
-        width: 2,
-        material: createLineMaterial(),
-      });
+    const previous = active;
+    // All acquisition has succeeded. No render is requested during this swap;
+    // there are never two visible sets or more than 167 visible positions.
+    for (const collection of previous) collection.show = false;
+    for (const collection of candidate) collection.show = true;
+    active = candidate;
+    try {
+      release(previous);
+    } catch (error) {
+      fatal(error);
+      throw error;
+    }
+    // Cesium primitiveRemoved listeners may abort synchronously during release.
+    requireAlive();
     state = next;
-    if (render) viewer.scene.requestRender();
-    onChange(snapshot(), estimate?.distance);
+    try {
+      if (render) viewer.scene.requestRender();
+      requireAlive();
+      onChange(snapshot(), estimate?.distance);
+    } catch (error) {
+      fatal(error);
+      throw error;
+    }
     return estimate?.distance;
   };
   const addAnnotation = (point) =>

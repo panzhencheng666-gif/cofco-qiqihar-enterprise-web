@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 const load = (name) => import(`../src/${name}.js`).catch(() => ({}));
-async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
+async function terminalGlobeProbe(
+  failDuringStartup,
+  preAborted = false,
+  sceneFailure,
+) {
   const { readFile } = await import("node:fs/promises");
   const vm = await import("node:vm");
   const { createApplication } =
@@ -92,6 +96,8 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
   ];
   const nodes = Object.fromEntries(ids.map((id) => [id, new FakeNode()]));
   const dynamic = [],
+    imageryCreated = [],
+    imageryErrors = new Set(),
     errors = new Set(),
     localHandlers = [],
     localCollections = [];
@@ -110,7 +116,20 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
       flyTo() {},
       zoomIn() {},
       zoomOut() {},
-      setView() {},
+      setView({ destination, orientation }) {
+        if (destination)
+          this.positionCartographic = {
+            longitude: destination.lon,
+            latitude: destination.lat,
+            height: destination.height,
+          };
+        if (orientation) Object.assign(this, orientation);
+        if (sceneFailure?.cameraFail) {
+          if (sceneFailure.phase === "camera-once")
+            sceneFailure.cameraFail = false;
+          throw new Error("camera mutation failed");
+        }
+      },
       positionCartographic: { height: 1000, longitude: 0, latitude: 0 },
       pitch: -1.5,
       roll: 0,
@@ -120,10 +139,27 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
       upWC: { x: 0, y: 0, z: 1 },
     },
     canvas: {},
-    imageryLayers: { add() {}, remove() {} },
+    imageryLayers: {
+      values: [],
+      add(layer) {
+        if (sceneFailure?.mapFail) {
+          sceneFailure.mapFail = false;
+          throw new Error("imagery insertion failed");
+        }
+        this.values.push(layer);
+      },
+      remove(layer) {
+        const i = this.values.indexOf(layer);
+        if (i < 0) return false;
+        this.values.splice(i, 1);
+        layer.destroy();
+        return true;
+      },
+    },
     scene: {
       postProcessStages: post.viewer.scene.postProcessStages,
       requestRender() {
+        if (sceneFailure?.renderFail) throw new Error("request render failed");
         renderRequests++;
       },
       renderError: {
@@ -136,7 +172,15 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
         add(v) {
           return v;
         },
-        remove() {},
+        remove(collection) {
+          if (sceneFailure?.cleanupFail) {
+            if (sceneFailure.phase !== "cleanup-persistent")
+              sceneFailure.cleanupFail = false;
+            throw new Error("primitive detach failed");
+          }
+          collection.destroy?.();
+          return true;
+        },
       },
     },
   };
@@ -146,8 +190,9 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
   const Provider = class {
     constructor() {
       this.errorEvent = {
-        addEventListener() {
-          return () => {};
+        addEventListener(fn) {
+          imageryErrors.add(fn);
+          return () => imageryErrors.delete(fn);
         },
       };
     }
@@ -181,9 +226,15 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
         createGeometry: (settings) =>
           createLocalGeometry({
             ...settings,
-            createCollection: () => {
+            createCollection: (kind) => {
               const collection = {
-                add() {},
+                kind,
+                values: [],
+                add(value) {
+                  if (sceneFailure?.geometryFail)
+                    throw new Error("geometry insertion failed");
+                  this.values.push(value);
+                },
                 removeAll() {},
                 destroy() {
                   this.dead = true;
@@ -219,13 +270,24 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
     },
     NATURAL_EARTH_OPTIONS: {},
     parseCoordinateQuery: () => null,
-    Cartesian3: { fromDegrees: () => ({}) },
+    Cartesian3: { fromDegrees: (lon, lat, height) => ({ lon, lat, height }) },
     Color: { fromCssColorString: () => ({}) },
     CesiumMath: { toDegrees: (v) => v },
     OpenStreetMapImageryProvider: Provider,
     UrlTemplateImageryProvider: Provider,
     GeographicTilingScheme: class {},
-    ImageryLayer: class {},
+    ImageryLayer: class {
+      constructor(provider) {
+        this.provider = provider;
+        imageryCreated.push(this);
+      }
+      isDestroyed() {
+        return !!this.dead;
+      }
+      destroy() {
+        this.dead = true;
+      }
+    },
     PointPrimitiveCollection: class {
       add() {}
       removeAll() {}
@@ -276,6 +338,138 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
       annotations: [],
       measurement: [],
     };
+    if (sceneFailure) {
+      nodes["map-style"].value = "natural";
+      nodes["visual-style"].value = "noir";
+      nodes["visual-style"].listeners.change({ target: nodes["visual-style"] });
+      nodes["local-lat"].value = "2";
+      nodes["local-lon"].value = "1";
+      nodes["local-label"].value = "original";
+      nodes["local-kind"].value = "annotation";
+      nodes["local-add"].listeners.click();
+      Object.assign(viewer.camera, { heading: 0.6, pitch: -0.8, roll: 0.2 });
+      viewer.camera.positionCartographic = {
+        longitude: 12,
+        latitude: 34,
+        height: 567890,
+      };
+      nodes["scene-export"].listeners.click();
+      const before = nodes["scene-output"].value;
+      const layers = [...viewer.imageryLayers.values];
+      const rendered = localCollections
+        .filter((c) => !c.dead)
+        .map((c) => [...c.values]);
+      let resolveRead;
+      nodes["scene-file"].files = [
+        {
+          size: 1,
+          text: () =>
+            new Promise((r) => {
+              resolveRead = r;
+            }),
+        },
+      ];
+      nodes["scene-file"].listeners.change();
+      const staleFile = resolveRead;
+      nodes["local-pick"].listeners.click();
+      const pending = nodes.refresh.listeners.click();
+      const addStage = post.viewer.scene.postProcessStages.add;
+      post.viewer.scene.postProcessStages.add = () => {
+        throw new Error("post-process insertion failed");
+      };
+      // Camera/geometry cases reach later mutation positions without enhancement acquisition.
+      if (sceneFailure.phase !== "effect")
+        post.viewer.scene.postProcessStages.add = addStage;
+      sceneFailure.cameraFail = ["camera", "camera-once"].includes(
+        sceneFailure.phase,
+      );
+      sceneFailure.mapFail = sceneFailure.phase === "map";
+      sceneFailure.cleanupFail = ["cleanup", "cleanup-persistent"].includes(
+        sceneFailure.phase,
+      );
+      sceneFailure.renderFail = ["render", "manual-render"].includes(
+        sceneFailure.phase,
+      );
+      sceneFailure.geometryFail = sceneFailure.phase === "geometry";
+      const next = {
+        ...validScene,
+        map: sceneFailure.phase === "map" ? "osm" : "earth",
+        style: {
+          ...validScene.style,
+          name: "thermal",
+          sharpen: sceneFailure.phase === "effect",
+        },
+        annotations: [{ lon: 3, lat: 4, label: "candidate" }],
+      };
+      if (sceneFailure.phase === "camera") sceneFailure.cameraFail = true;
+      nodes["scene-input"].value = JSON.stringify(next);
+      if (sceneFailure.phase === "manual-render")
+        nodes["local-add"].listeners.click();
+      else nodes["scene-import"].listeners.click();
+      await new Promise((r) => setImmediate(r));
+      if (
+        [
+          "camera",
+          "cleanup",
+          "cleanup-persistent",
+          "render",
+          "manual-render",
+        ].includes(sceneFailure.phase)
+      ) {
+        // Persistent camera failure makes rollback impossible: terminal child disposal.
+        assert.equal(disposed, true);
+        assert.equal(viewer.useDefaultRenderLoop, false);
+        assert.ok(Object.values(nodes).every((n) => n.disabled));
+        assert.match(nodes["globe-status"].textContent, /场景.*暂停地球观察/);
+        sceneFailure.renderFail = false;
+        assert.equal(requestSignal.aborted, true);
+        assert.equal(post.stages.length, 0);
+        assert.ok(localCollections.every((c) => c.dead));
+        assert.equal(nodes["scene-output"].value, "");
+        staleFile(JSON.stringify(validScene));
+        resolveFetch({ rows: [], fetchedAt: "late" });
+        await pending;
+        await new Promise((r) => setImmediate(r));
+        assert.ok(Object.values(nodes).every((n) => n.disabled));
+        assert.equal(errors.size, 0);
+        return;
+      }
+      assert.equal(disposed, false);
+      assert.equal(nodes["visual-style"].value, "noir");
+      assert.equal(post.stages.find((s) => s.enabled).name, "godsEyeView_noir");
+      assert.equal(nodes["map-style"].value, "natural");
+      assert.equal(viewer.imageryLayers.values.length, layers.length);
+      assert.equal(imageryErrors.size, 1);
+      assert.ok(
+        imageryCreated.every(
+          (layer) => viewer.imageryLayers.values.includes(layer) || layer.dead,
+        ),
+      );
+      assert.deepEqual(
+        localCollections.filter((c) => !c.dead).map((c) => c.values),
+        rendered,
+      );
+      nodes["scene-export"].listeners.click();
+      assert.equal(nodes["scene-output"].value, before);
+      assert.match(nodes["local-status"].textContent, /JSON/);
+      sceneFailure.geometryFail = false;
+      post.viewer.scene.postProcessStages.add = addStage;
+      nodes["scene-input"].value = JSON.stringify(next);
+      nodes["scene-import"].listeners.click();
+      assert.equal(nodes["visual-style"].value, "thermal");
+      assert.equal(nodes["map-style"].value, next.map);
+      external.abort();
+      staleFile(JSON.stringify(validScene));
+      resolveFetch({ rows: [], fetchedAt: "late" });
+      await pending;
+      await new Promise((r) => setImmediate(r));
+      assert.equal(disposed, true);
+      assert.equal(post.stages.length, 0);
+      assert.ok(localCollections.every((c) => c.dead));
+      assert.equal(imageryErrors.size, 0);
+      assert.ok(imageryCreated.every((layer) => layer.dead));
+      return;
+    }
     const previousRenders = renderRequests;
     nodes["scene-input"].value = JSON.stringify({ ...validScene, url: "bad" });
     nodes["scene-import"].listeners.click();
@@ -317,7 +511,7 @@ async function terminalGlobeProbe(failDuringStartup, preAborted = false) {
     false,
   );
   assert.equal(disposed, true);
-  assert.equal(localCollections.length, 3);
+  assert.ok(localCollections.length >= 3);
   assert.ok(localCollections.every((collection) => collection.dead));
   assert.equal(nodes["scene-input"].value, "");
   assert.equal(nodes["scene-output"].value, "");
@@ -335,6 +529,20 @@ test("GPU failure aborts pending data without re-enabling controls or creating t
   terminalGlobeProbe(false));
 test("GPU failure during startup preserves terminal status and returns without a bootstrap error", () =>
   terminalGlobeProbe(true));
+test("scene acquisition failure restores active prior style map camera geometry and export", async () => {
+  for (const phase of ["effect", "geometry", "map", "camera-once"])
+    await terminalGlobeProbe(false, false, { phase });
+});
+test("scene restoration failure stops and disposes the child and invalidates pending work", () =>
+  terminalGlobeProbe(false, false, { phase: "camera" }));
+test("scene resource cleanup failure disposes all child ownership", () =>
+  terminalGlobeProbe(false, false, { phase: "cleanup" }));
+test("persistent cleanup errors still clear local input export and readers", () =>
+  terminalGlobeProbe(false, false, { phase: "cleanup-persistent" }));
+test("scene request-render failure visibly stops and invalidates pending work", () =>
+  terminalGlobeProbe(false, false, { phase: "render" }));
+test("manual request-render failure stops controls and invalidates file data and pick work", () =>
+  terminalGlobeProbe(false, false, { phase: "manual-render" }));
 const session = {
   subjectId: "s",
   displayName: "人",
@@ -1547,6 +1755,9 @@ function probe() {
   };
   const createCollection = () => ({
     values: [],
+    isDestroyed() {
+      return !!this.dead;
+    },
     add(value) {
       this.values.push(value);
       return value;
@@ -1656,7 +1867,7 @@ test("invalid replacements preserve geometry through repeated scene and clear cy
 const controlsModule = await import("../src/local-scene-controls.js").catch(
   () => ({}),
 );
-async function controlsProbe() {
+async function controlsProbe({ decorateCollection = (c) => c } = {}) {
   const { JSDOM } = await import("jsdom");
   const dom = new JSDOM("<body></body>"),
     doc = dom.window.document;
@@ -1698,7 +1909,8 @@ async function controlsProbe() {
   nodes.kind.value = "annotation";
   const p = probe(),
     signal = new AbortController();
-  let applied = 0;
+  let applied = 0,
+    local;
   const install = required(controlsModule, "installLocalSceneControls");
   const release = install({
     viewer: p.viewer,
@@ -1709,10 +1921,17 @@ async function controlsProbe() {
       applied++;
       local.replace(value);
     },
-    createGeometry: (options) =>
-      geometry.createLocalGeometry({ ...p, ...options }),
+    createGeometry: (options) => {
+      local = geometry.createLocalGeometry({
+        ...p,
+        ...options,
+        createCollection: (kind) =>
+          decorateCollection(p.createCollection(), kind),
+      });
+      return local;
+    },
   });
-  return { ...p, dom, nodes, signal, release, applied: () => applied };
+  return { ...p, dom, nodes, signal, release, local, applied: () => applied };
 }
 test("scene controls preserve state on invalid import and refuse oversized files before read", async () => {
   const p = await controlsProbe();
@@ -1755,6 +1974,59 @@ test("scene controls preserve state on invalid import and refuse oversized files
   assert.equal(p.nodes.list.children.length, 0);
   p.release();
 });
+test("manual add remove measurement and import failures retain rendered rows snapshot and export", async () => {
+  for (const action of ["add", "remove", "measurement", "import"]) {
+    let fail = false;
+    const p = await controlsProbe({
+      decorateCollection(c, kind) {
+        const add = c.add;
+        c.add = (value) => {
+          if (fail && kind === "labels")
+            throw new Error("label insertion failed");
+          return add.call(c, value);
+        };
+        return c;
+      },
+    });
+    p.local.replace({
+      ...scene(),
+      annotations: [
+        { lon: 1, lat: 2, label: "original" },
+        { lon: 3, lat: 4, label: "retained" },
+      ],
+    });
+    p.nodes.export.click();
+    const before = p.local.snapshot(),
+      rendered = p.collections.map((c) => [...c.values]);
+    const output = p.nodes.output.value,
+      rows = p.nodes.list.textContent,
+      renders = p.renders();
+    fail = true;
+    if (action === "remove") p.nodes.list.querySelector("button").click();
+    else if (action === "import") {
+      p.nodes.input.value = JSON.stringify(scene());
+      p.nodes.import.click();
+    } else {
+      if (action === "measurement") p.nodes.kind.value = "measurement";
+      p.nodes.add.click();
+    }
+    assert.deepEqual(p.local.snapshot(), before);
+    assert.deepEqual(
+      p.collections.map((c) => c.values),
+      rendered,
+    );
+    assert.equal(p.nodes.list.textContent, rows);
+    assert.equal(p.nodes.output.value, output);
+    assert.match(p.nodes.status.textContent, /label insertion failed/);
+    assert.equal(p.renders(), renders);
+    fail = false;
+    p.nodes.clear.click();
+    assert.equal(p.nodes.list.children.length, 0);
+    p.release();
+    assert.equal(p.collections.length, 0);
+  }
+});
+
 test("pending file import cannot revive a cleared or destroyed scene", async () => {
   const p = await controlsProbe();
   let resolve;
@@ -1836,6 +2108,279 @@ test("geometry acquisition failure releases attached and unattached collections"
     assert.ok(acquired.every((c) => c.dead));
   }
 });
+test("candidate geometry failure preserves nonempty rendered state and retries cleanly", () => {
+  for (const phase of [
+    "points",
+    "labels",
+    "lines",
+    "material",
+    "attach",
+    "construct",
+    "attach-after",
+  ]) {
+    for (const failing of [
+      "points",
+      "labels",
+      "attach",
+      "construct",
+      "attach-after",
+    ].includes(phase)
+      ? [1, 2, 3]
+      : [1]) {
+      const p = probe(),
+        created = [];
+      let fail = false,
+        attempts = 0;
+      const add = p.viewer.scene.primitives.add;
+      p.viewer.scene.primitives.add = (collection) => {
+        if (fail && phase.startsWith("attach") && ++attempts === failing) {
+          if (phase === "attach-after") add(collection);
+          throw new Error("candidate failed");
+        }
+        return add(collection);
+      };
+      const local = geometry.createLocalGeometry({
+        ...p,
+        createCollection(kind) {
+          if (fail && phase === "construct" && ++attempts === failing)
+            throw new Error("candidate failed");
+          const c = p.createCollection();
+          c.kind = kind;
+          const insert = c.add;
+          c.add = (value) => {
+            if (fail && phase === kind && ++attempts === failing)
+              throw new Error("candidate failed");
+            return insert.call(c, value);
+          };
+          created.push(c);
+          return c;
+        },
+        createLineMaterial() {
+          if (fail && phase === "material") throw new Error("candidate failed");
+          return {};
+        },
+      });
+      const prior = {
+        ...scene(),
+        annotations: [
+          { lon: 1, lat: 2, label: "original" },
+          { lon: 3, lat: 4, label: "retained" },
+        ],
+      };
+      local.replace(prior);
+      const active = [...p.collections],
+        rendered = active.map((c) => [...c.values]);
+      const before = local.snapshot(),
+        renders = p.renders(),
+        ownedCount = created.length;
+      fail = true;
+      assert.throws(
+        () =>
+          local.replace({
+            ...scene(),
+            annotations: [
+              ...prior.annotations,
+              { lon: 5, lat: 6, label: "candidate" },
+            ],
+          }),
+        /candidate failed/,
+      );
+      assert.deepEqual(local.snapshot(), before);
+      assert.deepEqual(p.collections, active);
+      assert.deepEqual(
+        active.map((c) => c.values),
+        rendered,
+      );
+      assert.equal(p.renders(), renders);
+      assert.ok(created.slice(ownedCount).every((c) => c.dead));
+      fail = false;
+      local.addAnnotation({ lon: 7, lat: 8, label: "retry" });
+      assert.equal(local.snapshot().annotations.length, 3);
+      assert.equal(p.collections.length, 3);
+      local.destroy();
+      assert.equal(p.collections.length, 0);
+      assert.ok(created.every((c) => c.dead));
+    }
+  }
+});
+
+test("manual geometry publication failures stop ownership instead of retaining stale controls", () => {
+  for (const phase of ["render", "change"]) {
+    const p = probe();
+    let fail = false,
+      stopped = 0,
+      published;
+    const render = p.viewer.scene.requestRender;
+    p.viewer.scene.requestRender = () => {
+      if (fail && phase === "render") throw new Error("publication failed");
+      render();
+    };
+    const local = geometry.createLocalGeometry({
+      ...p,
+      onChange(value) {
+        if (fail && phase === "change") throw new Error("publication failed");
+        published = value;
+      },
+      onFatalError() {
+        stopped++;
+      },
+    });
+    local.addAnnotation({ lon: 1, lat: 2, label: "original" });
+    fail = true;
+    assert.throws(
+      () => local.addAnnotation({ lon: 3, lat: 4, label: "candidate" }),
+      /publication failed/,
+    );
+    assert.equal(stopped, 1);
+    assert.equal(p.collections.length, 0);
+    assert.deepEqual(local.snapshot(), { annotations: [], measurement: [] });
+    assert.equal(published.annotations.length, 1);
+    assert.throws(() => local.clear(), /已结束/);
+  }
+});
+
+test("abort from actual Cesium primitiveRemoved cannot republish disposed geometry", async () => {
+  const { PrimitiveCollection } = await import("@cesium/engine");
+  const p = probe(),
+    controller = new AbortController(),
+    primitives = new PrimitiveCollection();
+  p.viewer.scene.primitives = primitives;
+  let changes = 0;
+  const local = geometry.createLocalGeometry({
+    ...p,
+    signal: controller.signal,
+    onChange() {
+      changes++;
+    },
+  });
+  local.replace(scene());
+  const remove = primitives.primitiveRemoved.addEventListener(() =>
+    controller.abort(),
+  );
+  assert.throws(
+    () => local.addAnnotation({ lon: 2, lat: 3, label: "candidate" }),
+    /已结束/,
+  );
+  assert.equal(primitives.length, 0);
+  assert.deepEqual(local.snapshot(), { annotations: [], measurement: [] });
+  assert.equal(p.renders(), 1);
+  assert.equal(changes, 1);
+  remove();
+  primitives.destroy();
+});
+
+test("abort during candidate attachment releases every set and cancelled pick", () => {
+  const p = probe(),
+    controller = new AbortController(),
+    created = [];
+  const add = p.viewer.scene.primitives.add;
+  let fail = false;
+  p.viewer.scene.primitives.add = (c) => {
+    assert.equal(
+      c.dead,
+      undefined,
+      "cannot attach a resource destroyed by abort",
+    );
+    const result = add(c);
+    if (fail) controller.abort();
+    return result;
+  };
+  const local = geometry.createLocalGeometry({
+    ...p,
+    signal: controller.signal,
+    createCollection() {
+      const c = p.createCollection();
+      created.push(c);
+      return c;
+    },
+  });
+  local.replace(scene());
+  local.beginPick("annotation", "Cancelled");
+  const stale = p.handlers[0].click;
+  fail = true;
+  assert.throws(() => local.replace(scene()), /已结束/);
+  stale({ position: {} });
+  assert.equal(p.collections.length, 0);
+  assert.ok(created.every((c) => c.dead));
+  assert.ok(p.handlers.every((h) => h.dead));
+  assert.deepEqual(local.snapshot(), { annotations: [], measurement: [] });
+});
+
+test("failed line insertion destroys a material before or after ownership transfer", () => {
+  for (const afterAdd of [false, true]) {
+    const p = probe(),
+      materials = [];
+    let fail = false;
+    const local = geometry.createLocalGeometry({
+      ...p,
+      createCollection(kind) {
+        const c = p.createCollection();
+        const insert = c.add;
+        c.add = (value) => {
+          if (kind === "lines" && fail) {
+            if (afterAdd) insert.call(c, value);
+            throw new Error("line insertion failed");
+          }
+          return insert.call(c, value);
+        };
+        c.destroy = () => {
+          c.dead = true;
+          for (const value of c.values) value.material?.destroy();
+        };
+        return c;
+      },
+      createLineMaterial() {
+        const material = {
+          dead: false,
+          isDestroyed() {
+            return this.dead;
+          },
+          destroy() {
+            assert.equal(this.dead, false);
+            this.dead = true;
+          },
+        };
+        materials.push(material);
+        return material;
+      },
+    });
+    local.replace(scene());
+    fail = true;
+    assert.throws(() => local.replace(scene()), /line insertion failed/);
+    assert.equal(materials[1].dead, true);
+    assert.equal(materials[0].dead, false);
+    local.destroy();
+    assert.ok(materials.every((m) => m.dead));
+  }
+});
+
+test("abort during initial collection attachment releases partial acquisition", () => {
+  const p = probe(),
+    controller = new AbortController(),
+    created = [];
+  const add = p.viewer.scene.primitives.add;
+  p.viewer.scene.primitives.add = (c) => {
+    const result = add(c);
+    controller.abort();
+    return result;
+  };
+  assert.throws(
+    () =>
+      geometry.createLocalGeometry({
+        ...p,
+        signal: controller.signal,
+        createCollection() {
+          const c = p.createCollection();
+          created.push(c);
+          return c;
+        },
+      }),
+    /已结束/,
+  );
+  assert.equal(p.collections.length, 0);
+  assert.ok(created.every((c) => c.dead));
+});
+
 test("geometry rejects near-antipodal measurement before changing valid positions", () => {
   const p = probe(),
     local = geometry.createLocalGeometry(p);

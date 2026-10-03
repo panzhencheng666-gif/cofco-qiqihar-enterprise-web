@@ -8,6 +8,7 @@ export function installLocalSceneControls({
   nodes,
   capture,
   apply,
+  onFatalError = () => {},
   createGeometry = createLocalGeometry,
 }) {
   const removers = [],
@@ -46,7 +47,11 @@ export function installLocalSceneControls({
         ++generation;
         const next = local.snapshot();
         next.annotations.splice(index, 1);
-        local.replace(next);
+        try {
+          local.replace(next);
+        } catch (value) {
+          error(value);
+        }
       };
       remove.addEventListener("click", click);
       rowRemovers.push(() => remove.removeEventListener("click", click));
@@ -69,8 +74,11 @@ export function installLocalSceneControls({
     signal?.removeEventListener("abort", release);
     for (const remove of removers.splice(0).reverse()) remove();
     emptyRows();
-    local?.destroy();
-    nodes.input.value = nodes.output.value = nodes.file.value = "";
+    try {
+      local?.destroy();
+    } finally {
+      nodes.input.value = nodes.output.value = nodes.file.value = "";
+    }
   };
   const listen = (node, event, action) => {
     const handler = () => {
@@ -88,7 +96,7 @@ export function installLocalSceneControls({
     const next = parseScene(text);
     local.prepare(next); // Validate the geodesic as well, before map/style/camera mutation.
     apply(next, local);
-    nodes.status.textContent += " 已导入本地场景。";
+    if (alive()) nodes.status.textContent += " 已导入本地场景。";
   };
   try {
     local = createGeometry({
@@ -96,6 +104,15 @@ export function installLocalSceneControls({
       signal,
       onChange: changed,
       onError: error,
+      onFatalError(value) {
+        // Invalidate pending readers and local controls before publishing the
+        // terminal owner failure. The globe owns the viewer/application stop.
+        try {
+          release();
+        } finally {
+          onFatalError(value);
+        }
+      },
     });
     changed(local.snapshot());
     listen(nodes.add, "click", () => {
