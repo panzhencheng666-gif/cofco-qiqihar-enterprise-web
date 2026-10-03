@@ -1,10 +1,8 @@
 import {
   Cartesian3,
-  Color,
   Math as CesiumMath,
   OpenStreetMapImageryProvider,
   ImageryLayer,
-  PointPrimitiveCollection,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   Cartographic,
@@ -14,7 +12,7 @@ import {
 import { createApplication } from "../vendor/src/app/application.js";
 import { parseCoordinateQuery } from "../vendor/src/search/coordinateParser.js";
 import { createApplicationViewer, installTrackpadPinchZoom } from "./viewer.js";
-import { fetchEarthquakes } from "./earthquakes.js";
+import { installEarthquakeControls } from "./earthquake-controls.js";
 import { installLocalSceneControls } from "./local-scene-controls.js";
 import { installSearchControls } from "./search-controls.js";
 import { NATURAL_EARTH_OPTIONS } from "./basemaps.js";
@@ -406,88 +404,47 @@ export async function startGlobe(signal) {
       }, ScreenSpaceEventType.MOUSE_MOVE);
       return {};
     },
-    createData({ scene: { viewer, go }, defer, signal }) {
-      const points = viewer.scene.primitives.add(
-        new PointPrimitiveCollection(),
+    createData({ scene: { viewer }, defer, signal }) {
+      defer(
+        installEarthquakeControls({
+          viewer,
+          signal,
+          nodes: Object.fromEntries(
+            Object.entries({
+              refresh: "refresh",
+              clear: "clear",
+              list: "events",
+              status: "feed-status",
+              summary: "analyst-status",
+              metadata: "event-metadata",
+              focus: "event-focus",
+              apply: "analyst-apply",
+              magnitude: "analyst-magnitude",
+              minDepth: "analyst-min-depth",
+              maxDepth: "analyst-max-depth",
+              place: "analyst-place",
+              sort: "analyst-sort",
+              scope: "analyst-scope",
+              lat: "analyst-lat",
+              lon: "analyst-lon",
+              km: "analyst-km",
+            }).map(([key, id]) => [key, $(id)]),
+          ),
+          onFatalError() {
+            if (renderStopped) return;
+            renderStopped = true;
+            viewer.useDefaultRenderLoop = false;
+            $("globe-status").textContent =
+              "地震显示资源无法恢复，地球渲染已停止；请暂停后重新打开。";
+            document
+              .querySelectorAll("button,input,select,textarea")
+              .forEach((node) => {
+                node.disabled = true;
+              });
+            void app.destroy().catch(() => {});
+          },
+        }),
       );
-      defer(() => viewer.scene.primitives.remove(points));
-      let request;
-      let generation = 0;
-      const clear = () => {
-        ++generation;
-        request?.abort();
-        points.removeAll();
-        $("events").replaceChildren();
-        $("clear").disabled = true;
-        viewer.scene.requestRender();
-      };
-      defer(clear);
-      const refresh = async () => {
-        const ticket = ++generation;
-        request?.abort();
-        request = new AbortController();
-        const combined = AbortSignal.any([signal, request.signal]);
-        $("refresh").disabled = true;
-        $("feed-status").textContent = "正在获取 USGS 公开快照…";
-        try {
-          const { rows, fetchedAt } = await fetchEarthquakes({
-            signal: combined,
-          });
-          combined.throwIfAborted();
-          if (ticket !== generation) return;
-          points.removeAll();
-          $("events").replaceChildren();
-          for (const row of rows) {
-            points.add({
-              position: Cartesian3.fromDegrees(row.lon, row.lat, 2500),
-              pixelSize: Math.min(14, 5 + row.mag),
-              color:
-                row.mag >= 5
-                  ? Color.fromCssColorString("#ff8c64")
-                  : Color.fromCssColorString("#f3c56c"),
-              outlineColor: Color.fromCssColorString("#3a241a"),
-              outlineWidth: 1,
-              disableDepthTestDistance: 0,
-            });
-          }
-          for (const row of [...rows].sort((a, b) => b.time - a.time)) {
-            const li = document.createElement("li");
-            const button = document.createElement("button");
-            button.textContent = `M${row.mag.toFixed(1)} · ${row.place || "未提供地点"}`;
-            button.addEventListener("click", () =>
-              go(row.lat, row.lon, 650000),
-            );
-            const time = document.createElement("time");
-            time.dateTime = new Date(row.time).toISOString();
-            time.textContent = `震时 ${time.dateTime} · UTC`;
-            li.append(button, time);
-            $("events").append(li);
-          }
-          $("clear").disabled = false;
-          $("feed-status").textContent =
-            `${rows.length} 个事件 · 获取时间 ${fetchedAt}（UTC）。来源可能延迟，点击重新获取。`;
-          $("refresh").textContent = "重新获取地震数据";
-          viewer.scene.requestRender();
-        } catch (error) {
-          if (ticket === generation && !signal.aborted)
-            $("feed-status").textContent =
-              `USGS 暂时不可用：${error.name === "TimeoutError" ? "请求超时" : error.message}。${points.length ? "保留上次快照，数据可能过时。" : "尚无可用数据。"}`;
-        } finally {
-          if (ticket === generation && !signal.aborted)
-            $("refresh").disabled = false;
-        }
-      };
-      const clearClick = () => {
-        clear();
-        $("refresh").disabled = false;
-        $("feed-status").textContent = "地震图层已关闭，未继续请求。";
-      };
-      $("refresh").addEventListener("click", refresh);
-      $("clear").addEventListener("click", clearClick);
-      defer(() => {
-        $("refresh").removeEventListener("click", refresh);
-        $("clear").removeEventListener("click", clearClick);
-      });
       return {};
     },
     createTools() {

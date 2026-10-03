@@ -1,3 +1,4 @@
+import { analystRegionsPlugin } from "./build/analyst-regions-plugin.mjs";
 import { build } from "esbuild";
 import { disabledArcGisPlugin } from "./build/disabled-arcgis-plugin.mjs";
 import { disabledIonPlugin } from "./build/disabled-ion-plugin.mjs";
@@ -12,7 +13,11 @@ await mkdir(out, { recursive: true });
 await cp(path.join(root, "public"), out, { recursive: true });
 const result = await build({
   absWorkingDir: root,
-  plugins: [disabledIonPlugin(), disabledArcGisPlugin()],
+  plugins: [
+    disabledIonPlugin(),
+    disabledArcGisPlugin(),
+    analystRegionsPlugin(root),
+  ],
   alias: {
     meshoptimizer: path.join(root, "src/disabled-meshopt.js"),
     cesium: "@cesium/engine",

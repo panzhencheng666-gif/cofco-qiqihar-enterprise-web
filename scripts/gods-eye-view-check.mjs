@@ -84,6 +84,11 @@ const importedVendor = Object.keys(meta.inputs).filter((i) =>
 assert.deepEqual(
   importedVendor.sort(),
   [
+    "vendor/src/data/analystEngine.js",
+    "vendor/src/data/layerSnapshot.js",
+    "vendor/src/data/feedState.js",
+    "vendor/src/loadingFeedback.js",
+    "vendor/src/data/installationFeedback.js",
     "vendor/src/app/application.js",
     "vendor/src/app/atmosphereCompat.js",
     "vendor/src/layers/earthquakes/records.js",
@@ -99,6 +104,25 @@ assert.deepEqual(
     "vendor/src/styles/surveillance.js",
     "vendor/src/styles/thermal.js",
   ].sort(),
+);
+assert.equal(provenance.files.length, 27, "Immutable upstream closure changed");
+for (const input of Object.keys(meta.inputs))
+  assert.ok(
+    !/naturalEarthRegions|bundledJson|retryableLoad|local_data\//.test(input),
+    "Region/node-file graph escaped: " + input,
+  );
+assert.ok(
+  Object.hasOwn(meta.inputs, "src/analyst-regions.js"),
+  "Narrow pointInRing adapter missing",
+);
+const analystImports = meta.inputs["vendor/src/data/analystEngine.js"].imports;
+assert.ok(
+  analystImports.some(
+    (item) =>
+      item.original === "./naturalEarthRegions.js" &&
+      item.path === "src/analyst-regions.js",
+  ),
+  "Analyst region adapter mapping missing",
 );
 assert.ok(
   !Object.keys(meta.inputs).some((i) => i.includes("@cesium/widgets/Source/")),

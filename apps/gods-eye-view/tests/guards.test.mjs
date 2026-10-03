@@ -10,6 +10,7 @@ async function terminalGlobeProbe(
   const vm = await import("node:vm");
   const { createApplication } =
     await import("../vendor/src/app/application.js");
+  const { installEarthquakeControls } = await load("earthquake-controls");
   const { installRenderFailureHandler } = await load("render-errors");
   const { installDisplayControls, updateVisualEffectStatus } =
     await load("display-controls");
@@ -63,6 +64,19 @@ async function terminalGlobeProbe(
     "zoom-out",
     "north",
     "coordinates",
+    "analyst-status",
+    "event-metadata",
+    "event-focus",
+    "analyst-apply",
+    "analyst-magnitude",
+    "analyst-min-depth",
+    "analyst-max-depth",
+    "analyst-place",
+    "analyst-sort",
+    "analyst-scope",
+    "analyst-lat",
+    "analyst-lon",
+    "analyst-km",
     "events",
     "clear",
     "refresh",
@@ -254,6 +268,23 @@ async function terminalGlobeProbe(
               return handler;
             },
           }),
+      });
+    },
+    installEarthquakeControls(options) {
+      for (const node of Object.values(options.nodes))
+        node.ownerDocument = { createElement: (tag) => new FakeNode(tag) };
+      return installEarthquakeControls({
+        ...options,
+        fetchSnapshot: context.fetchEarthquakes,
+        createCollection: () => ({
+          add() {},
+          destroy() {
+            this.dead = true;
+          },
+          isDestroyed() {
+            return !!this.dead;
+          },
+        }),
       });
     },
     installDisplayControls,

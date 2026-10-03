@@ -2,7 +2,10 @@ import { spawnSync } from "node:child_process";
 import { commandExitCode } from "../apps/gods-eye-view/src/command-status.js";
 import { fileURLToPath } from "node:url";
 const app = fileURLToPath(new URL("../apps/gods-eye-view/", import.meta.url));
-for (const args of [["--test", "tests/guards.test.mjs"], ["build.mjs"]]) {
+for (const args of [
+  ["--test", "tests/guards.test.mjs", "tests/analyst.test.mjs"],
+  ["build.mjs"],
+]) {
   const result = spawnSync(process.execPath, args, {
     cwd: app,
     stdio: "inherit",

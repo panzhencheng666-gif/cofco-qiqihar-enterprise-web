@@ -96,6 +96,46 @@
       "upstreamPath": "src/styles/thermal.js",
       "vendorPath": "vendor/src/styles/thermal.js",
       "sha256": "3d70fc4f9af7976923d33339af4d3b38a7ca86cc0f7f496a86b3e0b9a0264940"
+    },
+    {
+      "upstreamPath": "src/data/analystEngine.js",
+      "vendorPath": "vendor/src/data/analystEngine.js",
+      "sha256": "66281fcdc1a002aa5807cbdc129fc31fd7901a550c294cb29702cdc36b40aaa9"
+    },
+    {
+      "upstreamPath": "src/data/layerSnapshot.js",
+      "vendorPath": "vendor/src/data/layerSnapshot.js",
+      "sha256": "da5ea617fd8a733e15e9e0c4e9f4c51bb87ed554f1fbff9c5d041f9c0bd28095"
+    },
+    {
+      "upstreamPath": "src/data/feedState.js",
+      "vendorPath": "vendor/src/data/feedState.js",
+      "sha256": "5bfe81076c446b9b4910bb3620f291ad03bb2eaf13199265afedd546acf9d0d6"
+    },
+    {
+      "upstreamPath": "src/loadingFeedback.js",
+      "vendorPath": "vendor/src/loadingFeedback.js",
+      "sha256": "8952b9ad946077f850a761bd2b74922ad93c44dbcdb365eac8832743208c595d"
+    },
+    {
+      "upstreamPath": "src/data/naturalEarthRegions.js",
+      "vendorPath": "vendor/src/data/naturalEarthRegions.js",
+      "sha256": "e3362ee60ca1f0c1c871164514cd0018166133488d043572b0a47316923a3e68"
+    },
+    {
+      "upstreamPath": "src/data/bundledJson.js",
+      "vendorPath": "vendor/src/data/bundledJson.js",
+      "sha256": "db6fc76e7e768ba48aa3944edc1b5bb45cdb8525bd6dde46064fc100ff2315c7"
+    },
+    {
+      "upstreamPath": "src/data/retryableLoad.js",
+      "vendorPath": "vendor/src/data/retryableLoad.js",
+      "sha256": "a0f9a3d4bb65d76baf2d13ab62b00518bff2f0f84fc4474837cc27e3bd79ae34"
+    },
+    {
+      "upstreamPath": "src/data/installationFeedback.js",
+      "vendorPath": "vendor/src/data/installationFeedback.js",
+      "sha256": "4658712e8bdafc5ccf4724c06385fae4a6f8baab9413a59d4f53bf93904dffe7"
     }
   ],
   "derivatives": [
@@ -105,6 +145,13 @@
       "derivedPath": "src/viewer.js",
       "derivedSha256": "632b0a2e1974ca2bdcdd8753e777628b15742f2f57fc1af9ddba8eca7298833f",
       "changes": "CesiumWidget replaces full Viewer; demand rendering, 30fps ceiling, bounded resolution/cache/concurrency; pinch zoom preserved, atmosphere compatibility reused; built-in render-error dialog disabled in favor of terminal application status and parent pause/reopen."
+    },
+    {
+      "upstreamPath": "src/data/naturalEarthRegions.js",
+      "upstreamSha256": "e3362ee60ca1f0c1c871164514cd0018166133488d043572b0a47316923a3e68",
+      "derivedPath": "src/analyst-regions.js",
+      "derivedSha256": "da2b2df4d3d0063ee2668046529415632bf9f321cbf9e36ef9a8ec599b76857e",
+      "changes": "Exact pointInRing function only. Build substitutes this source adapter only for analystEngine naturalEarthRegions import; no named-region/pack/node-file loader in runnable graph."
     }
   ]
 }
