@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <title>God’s Eye View · 地球观察</title>
+    <link rel="stylesheet" href="host.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/#/applications">← 应用中心</a
+      ><span>GOD’S EYE VIEW <b>免费版</b></span
+      ><span class="tiny">EARTH OBSERVATORY / 04</span>
+      <button id="pause" hidden>暂停地球观察</button>
+    </header>
+    <main>
+      <section id="welcome">
+        <div class="eyebrow">一个地球 · 多个视角</div>
+        <h1>换个高度，<br />看见世界。</h1>
+        <p>
+          探索三维地球、城市位置与过去 24 小时的地震。<br />免费地图，无需额外
+          API 密钥。
+        </p>
+        <div class="actions">
+          <button id="open">打开地球观察</button
+          ><a
+            id="login"
+            hidden
+            href="/api/v1/session/login"
+            target="_blank"
+            rel="noopener noreferrer"
+            >前往登录</a
+          >
+        </div>
+        <p id="status" role="status">点击打开后确认登录状态并加载地球。</p>
+        <div class="facts">
+          <span>三维地球<span>历史全球概览</span></span
+          ><span>城市定位<span>本地地点目录</span></span
+          ><span>USGS<span>M2.5+ 地震</span></span>
+        </div>
+      </section>
+      <div class="orb" aria-hidden="true"><div></div></div>
+      <section id="frame-mount" aria-label="地球观察窗口"></section>
+    </main>
+    <footer>
+      基于 Bilawal Sidhu 的 God’s Eye View · MIT 代码许可 · 数据来源各自保留许可
+    </footer>
+    <script type="module" src="host.js"></script>
+  </body>
+</html>

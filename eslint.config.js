@@ -5,7 +5,14 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "coverage", "playwright-report", "test-results"],
+    ignores: [
+      "dist",
+      "coverage",
+      "playwright-report",
+      "test-results",
+      "apps/gods-eye-view/dist/**",
+      "apps/gods-eye-view/vendor/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -16,6 +23,10 @@ export default tseslint.config(
   },
   {
     files: ["public/session-recovery-v1.js"],
+    languageOptions: { globals: globals.browser },
+  },
+  {
+    files: ["apps/gods-eye-view/src/**/*.js"],
     languageOptions: { globals: globals.browser },
   },
   {

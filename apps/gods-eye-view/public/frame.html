@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://tile.openstreetmap.org https://earthquake.usgs.gov; img-src 'self' data: blob: https://tile.openstreetmap.org; worker-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <title>地球观察 · 免费版</title>
+    <link rel="stylesheet" href="frame.css" />
+    <link rel="stylesheet" href="cesium/Widgets/widgets.css" />
+  </head>
+  <body>
+    <div id="globe"></div>
+    <svg id="whiteboard-overlay" aria-hidden="true" data-clean-overlay></svg>
+    <div class="topbar" data-clean-overlay>
+      <span><i></i> GOD’S EYE VIEW <b>地球观察</b></span
+      ><span id="globe-status" role="status">正在加载地球…</span
+      ><span class="edition">FREE EDITION</span>
+    </div>
+    <aside class="left panel" data-clean-overlay>
+      <div class="kicker">NAVIGATE / 导航</div>
+      <h1>从这里探索地球</h1>
+      <div id="search">
+        <label for="query">城市或纬度, 经度</label>
+        <div class="search-row">
+          <input
+            id="query"
+            placeholder="北京 / 47.35, 123.92"
+            maxlength="120"
+          /><button id="search-button" type="button" aria-label="定位">
+            →
+          </button>
+        </div>
+        <p id="search-status" role="status">支持本地城市目录及十进制度数。</p>
+      </div>
+      <div class="cities">
+        <button data-city="齐齐哈尔">齐齐哈尔</button
+        ><button data-city="北京">北京</button
+        ><button data-city="上海">上海</button
+        ><button data-city="伦敦">伦敦</button>
+      </div>
+      <div class="rule"></div>
+      <label for="map-style">地图样式</label
+      ><select id="map-style">
+        <option value="natural">Natural Earth · 历史概览</option>
+        <option value="earth">纯净地球 · 无外部地图请求</option>
+        <option value="osm">OpenStreetMap · 街道地图</option>
+      </select>
+      <p>表面：WGS84 椭球，无山地起伏。<br />街道地图并非卫星影像。</p>
+      <label for="visual-style">视觉风格（模拟）</label>
+      <select id="visual-style">
+        <option value="normal">原始画面</option>
+        <option value="noir">黑白电影</option>
+        <option value="surveillance">夜视 · 模拟</option>
+        <option value="thermal">热感 · 模拟</option>
+        <option value="retro">CRT 屏幕</option>
+        <option value="anime">动画线条</option>
+        <option value="snow">静态雪景</option>
+      </select>
+      <p id="effect-status" role="status">原始画面，无模拟滤镜。</p>
+      <details id="style-parameters-panel">
+        <summary>模拟视觉参数</summary>
+        <p id="style-parameters-status" role="status">
+          选择模拟视觉风格后可调整参数。
+        </p>
+        <div id="style-parameters-rows"></div>
+        <button id="style-parameters-reset" disabled>
+          恢复当前风格默认参数
+        </button>
+      </details>
+      <div class="effect-toggle">
+        <label><input id="sharpen" type="checkbox" /> 锐化</label>
+        <label for="sharpen-intensity">锐化强度（0–1）</label>
+        <input
+          id="sharpen-intensity"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.49"
+        />
+        <label><input id="bloom" type="checkbox" /> 泛光</label>
+        <label for="bloom-intensity">泛光强度（0–200）</label>
+        <input
+          id="bloom-intensity"
+          type="range"
+          min="0"
+          max="200"
+          step="1"
+          value="0"
+        />
+      </div>
+      <div class="navigation">
+        <button id="home">重置视角</button
+        ><button id="zoom-in" aria-label="放大">＋</button
+        ><button id="zoom-out" aria-label="缩小">－</button
+        ><button id="north">北向</button>
+      </div>
+      <div class="navigation camera-views">
+        <button id="overhead" type="button">俯视</button>
+        <button id="oblique" type="button">倾斜视角</button>
+        <button id="save-view" type="button">保存视角</button>
+        <button id="restore-view" type="button" disabled>恢复视角</button>
+      </div>
+      <p id="camera-status" role="status">保存一个视角，仅在本次观察中保留。</p>
+      <details id="verb-panel">
+        <summary>相机操作：环绕、平移、倾斜、转向</summary>
+        <label for="verb-motion">操作</label>
+        <select id="verb-motion">
+          <option value="orbit">环绕画面中心</option>
+          <option value="pan">平移</option>
+          <option value="tilt">倾斜</option>
+          <option value="rotate">转向</option>
+        </select>
+        <label for="verb-direction">方向</label
+        ><select id="verb-direction"></select>
+        <label for="verb-speed">连续运动速度</label>
+        <select id="verb-speed">
+          <option value="slow">慢速</option>
+          <option value="normal" selected>正常</option>
+          <option value="fast">快速</option>
+        </select>
+        <p id="verb-preference"></p>
+        <label
+          ><input
+            id="verb-allow"
+            type="checkbox"
+          />系统减少动态时仍允许本次动画</label
+        >
+        <div class="navigation">
+          <button id="verb-once" type="button">单次操作</button
+          ><button id="verb-continuous" type="button">开始连续运动</button
+          ><button id="verb-stop" type="button" disabled>停止运动</button>
+        </div>
+        <p id="verb-status" role="status" aria-live="off">
+          选择操作后手动开始。
+        </p>
+        <p>
+          环绕目标为画面中心的 WGS84 椭球位置，无地形或路线跟随。单次环绕
+          30°，倾斜或转向
+          15°；平移约当前高度的四分之一。新相机操作会停止镜头播放；切出或关闭面板会停止运动。
+        </p>
+      </details>
+      <details id="sequence-panel">
+        <summary>本地镜头序列（相机功能）</summary>
+        <p>
+          手动记录最多 12 个视角，仅本次观察保留。高度为 WGS84
+          椭球高度；无地形推断。首镜头停留，后续按所设时长从上一镜头移动。总时长最多
+          360 秒。
+        </p>
+        <label for="sequence-label">镜头名称（纯文本，最多 80 字）</label>
+        <input id="sequence-label" maxlength="80" value="我的镜头" />
+        <label for="sequence-duration">镜头时长（0.2–30 秒）</label>
+        <input
+          id="sequence-duration"
+          type="number"
+          min="0.2"
+          max="30"
+          step="0.1"
+          value="3"
+        />
+        <label for="sequence-easing">进入镜头的插值</label>
+        <select id="sequence-easing">
+          <option value="cubic">平滑（三次曲线）</option>
+          <option value="linear">线性</option>
+        </select>
+        <button id="sequence-capture" type="button">记录当前视角</button>
+        <label for="sequence-shots">已记录镜头</label>
+        <select id="sequence-shots" size="3" aria-label="已记录镜头"></select>
+        <div class="navigation">
+          <button id="sequence-select" type="button">定位所选镜头</button
+          ><button id="sequence-remove" type="button">删除所选镜头</button>
+          <button id="sequence-up" type="button">上移</button
+          ><button id="sequence-down" type="button">下移</button>
+        </div>
+        <p id="sequence-motion"></p>
+        <label
+          ><input id="sequence-allow" type="checkbox" />
+          系统减少动态时仍允许本次动画</label
+        >
+        <div class="navigation">
+          <button id="sequence-play" type="button">开始播放</button
+          ><button id="sequence-stop" type="button">停止播放</button>
+        </div>
+        <label for="sequence-seek">手动时间线定位（秒）</label>
+        <input
+          id="sequence-seek"
+          type="range"
+          min="0"
+          max="0"
+          step="0.01"
+          value="0"
+        />
+        <p id="sequence-progress" aria-live="off"></p>
+        <p id="sequence-status" role="status">尚无镜头。</p>
+        <p>
+          本功能仅包含本地相机序列；完整 Scene
+          Director、预设场景、分享、序列导入导出与录制尚未提供。手动导航或关闭面板会停止播放。
+        </p>
+      </details>
+      <p class="hint">拖动旋转 · 滚轮缩放<br />按住 Ctrl 拖动倾斜视角</p>
+      <div class="rule"></div>
+      <div class="kicker">CAPABILITIES / 免费版能力</div>
+      <details open>
+        <summary>来源与能力边界</summary>
+        <p>
+          ✓ 三维地球、坐标及本地城市定位<br />✓ Natural Earth 历史概览<br />✓
+          六种静态模拟视觉风格、锐化与泛光<br />✓ 俯视、倾斜与临时保存视角<br />✓
+          OpenStreetMap 街道底图<br />✓ USGS 24 小时 M2.5+ 地震<br />✓
+          本地手动注释、椭球测量与 JSON 场景
+        </p>
+        <p>
+          未提供：近期高清影像、精细三维建筑与真实地形（需独立数据源）；飞机、船舶与摄像头（来源及使用许可未接入）；海底电缆与预设场景（第三方数据许可限制）；AI
+          / 语音（需额外服务）；Esri 影像（使用许可待确认）。
+        </p>
+      </details>
+    </aside>
+    <aside class="right panel" data-clean-overlay>
+      <div class="kicker">LIVE SOURCES / 公开来源</div>
+      <h2>地震观察 <span>USGS</span></h2>
+      <p>过去 24 小时 · M2.5+<br />公开来源快照，仅在点击时获取。</p>
+      <button id="refresh" class="primary">加载地震数据</button
+      ><button id="clear" class="secondary" disabled>关闭地震图层</button>
+      <p id="feed-status" role="status">尚未加载。地图上的点表示震中位置。</p>
+      <details open>
+        <summary>已加载地震分析</summary>
+        <p>
+          仅查询本次手动快照；最多加载 500 个事件，结果列表最多 50
+          个，不会自动获取。地点文字显示最多 200 字。
+        </p>
+        <label for="analyst-magnitude">最低震级（2.5–10）</label>
+        <input
+          id="analyst-magnitude"
+          type="number"
+          min="2.5"
+          max="10"
+          step="0.1"
+          value="2.5"
+          disabled
+        />
+        <label for="analyst-min-depth">最低深度 km（可留空，−10–1000）</label>
+        <input
+          id="analyst-min-depth"
+          type="number"
+          min="-10"
+          max="1000"
+          step="any"
+          disabled
+        />
+        <label for="analyst-max-depth">最高深度 km（可留空，−10–1000）</label>
+        <input
+          id="analyst-max-depth"
+          type="number"
+          min="-10"
+          max="1000"
+          step="any"
+          disabled
+        />
+        <label for="analyst-place">地点包含文字</label
+        ><input id="analyst-place" maxlength="80" disabled />
+        <label for="analyst-sort">排序</label>
+        <select id="analyst-sort" disabled>
+          <option value="magnitude-desc">震级由大到小</option>
+          <option value="magnitude-asc">震级由小到大</option>
+          <option value="depth-asc">深度由浅到深（排除未知）</option>
+          <option value="depth-desc">深度由深到浅（排除未知）</option>
+        </select>
+        <label for="analyst-scope">范围</label>
+        <select id="analyst-scope" disabled>
+          <option value="anywhere">全部已加载记录</option>
+          <option value="radius">指定坐标半径</option>
+        </select>
+        <label for="analyst-lat">半径中心纬度</label
+        ><input
+          id="analyst-lat"
+          type="number"
+          min="-90"
+          max="90"
+          step="any"
+          disabled
+        />
+        <label for="analyst-lon">半径中心经度</label
+        ><input
+          id="analyst-lon"
+          type="number"
+          min="-180"
+          max="180"
+          step="any"
+          disabled
+        />
+        <label for="analyst-km">半径 km（1–20000）</label
+        ><input
+          id="analyst-km"
+          type="number"
+          min="1"
+          max="20000"
+          step="any"
+          value="100"
+          disabled
+        />
+        <button id="analyst-apply" type="button" disabled>
+          分析已加载快照
+        </button>
+        <p id="analyst-status" role="status">尚无可查询快照。</p>
+      </details>
+      <ol id="events" aria-label="地震分析结果，选择事件查看详情"></ol>
+      <p id="event-metadata" role="status">尚未选择地震事件。</p>
+      <button id="event-focus" type="button" disabled>定位所选事件</button>
+      <div class="rule"></div>
+      <details>
+        <summary>本地注释与距离测量</summary>
+        <p>
+          仅由你手动选择点。最多 50 个注释，标签最多 80 字；仅在本次观察中保留。
+        </p>
+        <label for="local-kind">操作类型</label>
+        <select id="local-kind">
+          <option value="annotation">点注释</option>
+          <option value="measurement">两点距离测量</option>
+        </select>
+        <label for="local-label">注释标签（纯文本）</label>
+        <input id="local-label" maxlength="80" value="本地点" />
+        <label for="local-lat">纬度（−90 至 90）</label>
+        <input id="local-lat" type="number" min="-90" max="90" step="any" />
+        <label for="local-lon">经度（−180 至 180）</label>
+        <input id="local-lon" type="number" min="-180" max="180" step="any" />
+        <div class="navigation">
+          <button id="local-add" type="button">使用坐标添加点</button>
+          <button id="local-pick" type="button">在地球上选择一个点</button>
+          <button id="local-cancel" type="button" disabled>取消选择</button>
+          <button id="local-clear" type="button">清除本地注释与测量</button>
+        </div>
+        <p>
+          测量时添加两个点；第三个点开始新测量。WGS84
+          椭球表面估算，非道路或地形距离。接近对跖点的测量不支持。
+        </p>
+        <p id="local-status" role="status">尚无本地注释。</p>
+        <ol id="local-list" aria-label="本地注释列表"></ol>
+      </details>
+      <details>
+        <summary>本地 JSON 场景导入与复制导出</summary>
+        <p>
+          仅保存相机、地图、模拟风格、本地注释、测量与手绘。导入会替换这些内容，最多
+          64 KiB；不会导出地震快照。
+        </p>
+        <label for="scene-input"
+          >粘贴版本 1 或 2 场景 JSON（版本 1 会清除手绘）</label
+        >
+        <textarea
+          id="scene-input"
+          rows="5"
+          maxlength="65536"
+          spellcheck="false"
+        ></textarea>
+        <button id="scene-import" type="button">导入粘贴的场景</button>
+        <label for="scene-file">或选择本地 JSON 文件导入</label>
+        <input id="scene-file" type="file" accept=".json,application/json" />
+        <button id="scene-export" type="button">生成 JSON 导出文本</button>
+        <label for="scene-output"
+          >只读导出文本（自行复制；不会自动保存文件）</label
+        >
+        <textarea
+          id="scene-output"
+          rows="5"
+          readonly
+          spellcheck="false"
+        ></textarea>
+        <button id="scene-select" type="button">选择全部导出文本</button>
+      </details>
+      <details id="whiteboard-panel">
+        <summary>手动画板：标记、线条与区域</summary>
+        <p>
+          人工示意，非实际边界、道路或实时追踪；位置在 WGS84
+          椭球上，面积与长度为估算。最多 16 个图形、每个 64 顶点、合计 256
+          顶点，单图形范围不超过 200 km。关闭面板会取消未完成的草稿。
+        </p>
+        <label for="whiteboard-shape">形状</label>
+        <select id="whiteboard-shape">
+          <option value="area">区域</option>
+          <option value="line">线条</option>
+          <option value="pin">标记</option>
+        </select>
+        <label for="whiteboard-label">标签（纯文本，最多 80 字）</label>
+        <input id="whiteboard-label" maxlength="80" value="手动示意" />
+        <label for="whiteboard-color">颜色</label>
+        <select id="whiteboard-color">
+          <option value="primary">薄荷</option>
+          <option value="amber">琥珀</option>
+          <option value="cyan">青色</option>
+          <option value="green">绿色</option>
+          <option value="red">红色</option>
+        </select>
+        <button id="whiteboard-begin" type="button">开始手绘</button>
+        <label for="whiteboard-lat">纬度（−90 至 90）</label>
+        <input
+          id="whiteboard-lat"
+          type="number"
+          min="-90"
+          max="90"
+          step="any"
+        />
+        <label for="whiteboard-lon">经度（−180 至 180）</label>
+        <input
+          id="whiteboard-lon"
+          type="number"
+          min="-180"
+          max="180"
+          step="any"
+        />
+        <div class="navigation">
+          <button id="whiteboard-add" type="button" disabled>
+            添加坐标顶点
+          </button>
+          <button id="whiteboard-undo" type="button" disabled>
+            撤销最后顶点
+          </button>
+          <button id="whiteboard-finish" type="button" disabled>
+            完成图形
+          </button>
+          <button id="whiteboard-cancel" type="button" disabled>
+            取消草稿
+          </button>
+          <button id="whiteboard-clear" type="button">清空手绘</button>
+        </div>
+        <p id="whiteboard-status" role="status">尚无手绘。</p>
+        <ol id="whiteboard-list" aria-label="手绘图形列表"></ol>
+      </details>
+    </aside>
+    <button id="clean-view" type="button" aria-pressed="false">纯净视图</button>
+    <div id="map-state" class="map-state" role="status" data-clean-overlay>
+      Natural Earth · 历史全球概览 · 非近期影像
+    </div>
+    <div id="coordinates" class="coordinates" data-clean-overlay>
+      拖动地球开始探索
+    </div>
+    <div id="credits"></div>
+    <footer>
+      God’s Eye View © Bilawal Sidhu · MIT
+      <a
+        href="https://www.naturalearthdata.com/about/terms-of-use/"
+        rel="noreferrer"
+        >Made with Natural Earth</a
+      >
+      <a href="https://www.openstreetmap.org/copyright" rel="noreferrer"
+        >© OpenStreetMap contributors</a
+      >
+      <a
+        href="https://www.usgs.gov/programs/earthquake-hazards"
+        rel="noreferrer"
+        >USGS Earthquake Hazards</a
+      >
+    </footer>
+    <script type="module" src="frame-bootstrap.js"></script>
+  </body>
+</html>

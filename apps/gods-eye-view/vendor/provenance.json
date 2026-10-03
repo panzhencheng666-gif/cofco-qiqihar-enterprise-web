@@ -1,0 +1,225 @@
+{
+  "repository": "https://github.com/bilawalsidhu/gods-eye-view",
+  "commit": "aa16b7c3b0166a89d8c7a6089e0aff53a22faaee",
+  "files": [
+    {
+      "upstreamPath": "LICENSE",
+      "vendorPath": "vendor/LICENSE",
+      "sha256": "b231bb38e2d4eab741643126087cbe9df2b58e2f2e5abf27ad613d05f52b01ca"
+    },
+    {
+      "upstreamPath": "DATA_SOURCES.md",
+      "vendorPath": "vendor/DATA_SOURCES.md",
+      "sha256": "934943af2420e27f6a16302412e26f8d73110a90ddfab4652bfe9db91bdff045"
+    },
+    {
+      "upstreamPath": "THIRD_PARTY_NOTICES.md",
+      "vendorPath": "vendor/THIRD_PARTY_NOTICES.md",
+      "sha256": "d90d9f5e12851f67f3e61613d4e91e6c2f20dfb0c8b056e85f4068cd3e86b6b4"
+    },
+    {
+      "upstreamPath": "SECURITY.md",
+      "vendorPath": "vendor/SECURITY.md",
+      "sha256": "6b16ce599768fc16158fe493f9bb8c2fb19c26c3d7600cea68da76736c658b6a"
+    },
+    {
+      "upstreamPath": "src/app/application.js",
+      "vendorPath": "vendor/src/app/application.js",
+      "sha256": "69300438ffefd2ed7c243c77ff7e9f25f60bd3bc2ffe1a051aeb4926450da9bd"
+    },
+    {
+      "upstreamPath": "src/app/viewer.js",
+      "vendorPath": "vendor/src/app/viewer.js",
+      "sha256": "29c41d95ef114edb913e29c3d00e6c2f7051ad57d62d75d6cc6664ae9ba97df4"
+    },
+    {
+      "upstreamPath": "src/app/atmosphereCompat.js",
+      "vendorPath": "vendor/src/app/atmosphereCompat.js",
+      "sha256": "4682531175416e582d7992bffb6a32c7511e75042589068efa6bb50925be088b"
+    },
+    {
+      "upstreamPath": "src/search/coordinateParser.js",
+      "vendorPath": "vendor/src/search/coordinateParser.js",
+      "sha256": "e666a7b905d8f4dd89985f4da1ccacbb70eb4f79f68f2f52a685de55553b8457"
+    },
+    {
+      "upstreamPath": "src/layers/earthquakes/source.js",
+      "vendorPath": "vendor/src/layers/earthquakes/source.js",
+      "sha256": "fd04c42b6d7386bc262054b78611b87bf7c3a3e3c7a7fe815a22e4642080f2d3"
+    },
+    {
+      "upstreamPath": "src/layers/earthquakes/records.js",
+      "vendorPath": "vendor/src/layers/earthquakes/records.js",
+      "sha256": "a35859b1cef9b6a5353aad1a62335444781ae7cb7191a1c975a05490e338aa56"
+    },
+    {
+      "upstreamPath": "src/ui/visualEffects.js",
+      "vendorPath": "vendor/src/ui/visualEffects.js",
+      "sha256": "f593d95d3318b9b346395e7bdb44d11f07d522b3049c2aebcade95ea2b269309"
+    },
+    {
+      "upstreamPath": "src/ui/visualPresets.js",
+      "vendorPath": "vendor/src/ui/visualPresets.js",
+      "sha256": "0bb852d077c2740db505dac0d3a6288d44a3de00fc5abb82ff57b37f97886a70"
+    },
+    {
+      "upstreamPath": "src/bloom.js",
+      "vendorPath": "vendor/src/bloom.js",
+      "sha256": "7d67152d956e2658c1de9262c337d086eb46031bb79c6d211acce5b8bfc2de1b"
+    },
+    {
+      "upstreamPath": "src/styles/retro.js",
+      "vendorPath": "vendor/src/styles/retro.js",
+      "sha256": "ac74550b9c60bb9d03b0c2732f450aa96f28e5fa38426301b74afb3a3e406f80"
+    },
+    {
+      "upstreamPath": "src/styles/anime.js",
+      "vendorPath": "vendor/src/styles/anime.js",
+      "sha256": "f7edc2bde2aeb4aa83ac2e25cd93268e4cfd7c1e966fa232d4ed74e15dde708c"
+    },
+    {
+      "upstreamPath": "src/styles/noir.js",
+      "vendorPath": "vendor/src/styles/noir.js",
+      "sha256": "9c75ea2d213a7ad6534ce897bcf0d043f727726da189cea1249c2f8c89b88a8d"
+    },
+    {
+      "upstreamPath": "src/styles/snow.js",
+      "vendorPath": "vendor/src/styles/snow.js",
+      "sha256": "c2a504c7d993a3dbd6462aaeb7d9598ce38c9bc205a70b34b0ed057cec3cfe6f"
+    },
+    {
+      "upstreamPath": "src/styles/surveillance.js",
+      "vendorPath": "vendor/src/styles/surveillance.js",
+      "sha256": "81e064ff369bfc35460ddc245d745668415fa26ea97cd43b87d75814eb695d29"
+    },
+    {
+      "upstreamPath": "src/styles/thermal.js",
+      "vendorPath": "vendor/src/styles/thermal.js",
+      "sha256": "3d70fc4f9af7976923d33339af4d3b38a7ca86cc0f7f496a86b3e0b9a0264940"
+    },
+    {
+      "upstreamPath": "src/data/analystEngine.js",
+      "vendorPath": "vendor/src/data/analystEngine.js",
+      "sha256": "66281fcdc1a002aa5807cbdc129fc31fd7901a550c294cb29702cdc36b40aaa9"
+    },
+    {
+      "upstreamPath": "src/data/layerSnapshot.js",
+      "vendorPath": "vendor/src/data/layerSnapshot.js",
+      "sha256": "da5ea617fd8a733e15e9e0c4e9f4c51bb87ed554f1fbff9c5d041f9c0bd28095"
+    },
+    {
+      "upstreamPath": "src/data/feedState.js",
+      "vendorPath": "vendor/src/data/feedState.js",
+      "sha256": "5bfe81076c446b9b4910bb3620f291ad03bb2eaf13199265afedd546acf9d0d6"
+    },
+    {
+      "upstreamPath": "src/loadingFeedback.js",
+      "vendorPath": "vendor/src/loadingFeedback.js",
+      "sha256": "8952b9ad946077f850a761bd2b74922ad93c44dbcdb365eac8832743208c595d"
+    },
+    {
+      "upstreamPath": "src/data/naturalEarthRegions.js",
+      "vendorPath": "vendor/src/data/naturalEarthRegions.js",
+      "sha256": "e3362ee60ca1f0c1c871164514cd0018166133488d043572b0a47316923a3e68"
+    },
+    {
+      "upstreamPath": "src/data/bundledJson.js",
+      "vendorPath": "vendor/src/data/bundledJson.js",
+      "sha256": "db6fc76e7e768ba48aa3944edc1b5bb45cdb8525bd6dde46064fc100ff2315c7"
+    },
+    {
+      "upstreamPath": "src/data/retryableLoad.js",
+      "vendorPath": "vendor/src/data/retryableLoad.js",
+      "sha256": "a0f9a3d4bb65d76baf2d13ab62b00518bff2f0f84fc4474837cc27e3bd79ae34"
+    },
+    {
+      "upstreamPath": "src/data/installationFeedback.js",
+      "vendorPath": "vendor/src/data/installationFeedback.js",
+      "sha256": "4658712e8bdafc5ccf4724c06385fae4a6f8baab9413a59d4f53bf93904dffe7"
+    },
+    {
+      "upstreamPath": "src/director/camera.js",
+      "vendorPath": "vendor/src/director/camera.js",
+      "sha256": "7b9435e50b2a07c292c0e4eebe38a3fc16d660ed897b71af1c43525e54f06a04"
+    },
+    {
+      "upstreamPath": "src/cameraVerbs.js",
+      "vendorPath": "vendor/src/cameraVerbs.js",
+      "sha256": "c75702426300dd14ed32c5fad3ce7616a57cabce509f0d33384d99570373a35d"
+    },
+    {
+      "upstreamPath": "src/ui/cameraOrientationControls.js",
+      "vendorPath": "vendor/src/ui/cameraOrientationControls.js",
+      "sha256": "0894272a50d80e92b7119e06c4fe475dee499b4f1edcf252619599c603154b8b"
+    },
+    {
+      "upstreamPath": "src/annotations/drawMode.js",
+      "vendorPath": "vendor/src/annotations/drawMode.js",
+      "sha256": "abaf6006629a1180992558f3d2bc326502f3c40a6d74ba95ac6bdf635aabef60"
+    },
+    {
+      "upstreamPath": "src/annotations/drawTool.js",
+      "vendorPath": "vendor/src/annotations/drawTool.js",
+      "sha256": "ee5e6a662d10b0123e5fa4889a5774b8b94fad60af1620aa133ddbe224e1df1d"
+    },
+    {
+      "upstreamPath": "src/annotations/worldAnnotationRenderer.js",
+      "vendorPath": "vendor/src/annotations/worldAnnotationRenderer.js",
+      "sha256": "e78ccd76db1eba7a1354de9fcf6bb0c0eaa9ae64365cc048b55c37787dd551fc"
+    },
+    {
+      "upstreamPath": "src/annotations/screenAnnotationRenderer.js",
+      "vendorPath": "vendor/src/annotations/screenAnnotationRenderer.js",
+      "sha256": "d6df0de6f50d16b67ce4ec30162c5adbcd3742431ddb04ef68b48bec331b61a6"
+    },
+    {
+      "upstreamPath": "src/ui/styleParameters.js",
+      "vendorPath": "vendor/src/ui/styleParameters.js",
+      "sha256": "da3d970160571332a4e6a5c6b4454a3412fb1e6faf27e85e1d59ff9e443dd51f"
+    }
+  ],
+  "derivatives": [
+    {
+      "upstreamPath": "src/app/viewer.js",
+      "upstreamSha256": "29c41d95ef114edb913e29c3d00e6c2f7051ad57d62d75d6cc6664ae9ba97df4",
+      "derivedPath": "src/viewer.js",
+      "derivedSha256": "632b0a2e1974ca2bdcdd8753e777628b15742f2f57fc1af9ddba8eca7298833f",
+      "changes": "CesiumWidget replaces full Viewer; demand rendering, 30fps ceiling, bounded resolution/cache/concurrency; pinch zoom preserved, atmosphere compatibility reused; built-in render-error dialog disabled in favor of terminal application status and parent pause/reopen."
+    },
+    {
+      "upstreamPath": "src/data/naturalEarthRegions.js",
+      "upstreamSha256": "e3362ee60ca1f0c1c871164514cd0018166133488d043572b0a47316923a3e68",
+      "derivedPath": "src/analyst-regions.js",
+      "derivedSha256": "da2b2df4d3d0063ee2668046529415632bf9f321cbf9e36ef9a8ec599b76857e",
+      "changes": "Exact pointInRing function only. Build substitutes this source adapter only for analystEngine naturalEarthRegions import; no named-region/pack/node-file loader in runnable graph."
+    },
+    {
+      "upstreamPath": "src/cameraVerbs.js",
+      "upstreamSha256": "c75702426300dd14ed32c5fad3ce7616a57cabce509f0d33384d99570373a35d",
+      "derivedPath": "src/camera-verbs.js",
+      "derivedSha256": "47e376d7035daecc7a90d2e116fdc66ca518bdeac4fb4a05442aa9f261982010",
+      "changes": "Original four non-route constants/ease-out and step branches. Remove singleton/clock/governor/route/tracking/voice/arrival behavior; shared per-viewer authority; lazy scratch Camera preflight and fixed-world application;30fps and30s bounds, instant reduced-motion Once, fail-closed geographic/pitch/vector limits."
+    },
+    {
+      "upstreamPath": "src/ui/cameraOrientationControls.js",
+      "upstreamSha256": "0894272a50d80e92b7119e06c4fe475dee499b4f1edcf252619599c603154b8b",
+      "derivedPath": "src/camera-target-frame.js",
+      "derivedSha256": "e0f486f2c4d8101d4c2c1fa70ee80ad6d5e396c538f6e2d334a1cd7858f6f6e3",
+      "changes": "Narrow ENU geometry/normalized heading from original lines18\u201324/82\u2013105; explicit ellipsoid target supplied. No tracking/pickPosition/terrain/animator/binders or live lookAt borrowing."
+    },
+    {
+      "upstreamPath": "src/annotations/drawTool.js",
+      "upstreamSha256": "ee5e6a662d10b0123e5fa4889a5774b8b94fad60af1620aa133ddbe224e1df1d",
+      "derivedPath": "src/whiteboard-controls.js",
+      "derivedSha256": "a0f659c02691b92d818f8899db67f81f6716c4c6b9f80b0158a355a967bc6bcd",
+      "changes": "Manual draw session/vertex/finish ownership adapted to CesiumWidget, labeled bounded native inputs and per-frame shared picker cancellation; remove preview entities/dataSources/voice/global leases/keyboard interceptors."
+    },
+    {
+      "upstreamPath": "src/annotations/screenAnnotationRenderer.js",
+      "upstreamSha256": "d6df0de6f50d16b67ce4ec30162c5adbcd3742431ddb04ef68b48bec331b61a6",
+      "derivedPath": "src/whiteboard-renderer.js",
+      "derivedSha256": "3f961a1778b259dd587b2c79285890631f10990861999dc4cef6a3c6f1d11d18",
+      "changes": "Narrow static SVG WGS84 projection, behind-camera/horizon rejection; bounded cached ellipsoid geodesic paths, split hidden line segments, withhold partially hidden areas; textContent labels; only visible nonempty postRender ownership; remove terrain height cache, tracking, global style injection, pulse/fade timers and autonomous animation."
+    }
+  ]
+}

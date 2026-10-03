@@ -322,6 +322,8 @@ export default defineConfig({
       ...configDefaults.exclude,
       "e2e/**",
       ".worktrees/**",
+      "apps/gods-eye-view/tests/**",
+      "scripts/fourth-application.test.mjs",
       "scripts/run-stage-three-idp-supplement.spec.mjs",
       "scripts/preproduction-assets.spec.mjs",
       "scripts/preproduction-config.spec.mjs",

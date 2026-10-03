@@ -22,6 +22,7 @@ describe("portal application center", () => {
       "grain-workbench",
       "risk-warning",
       "market-intelligence",
+      "gods-eye-view",
     ]);
     expect(availableApps()).toEqual(
       expect.arrayContaining([
