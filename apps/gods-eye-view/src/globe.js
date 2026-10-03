@@ -19,6 +19,10 @@ import { installSearchControls } from "./search-controls.js";
 import { NATURAL_EARTH_OPTIONS } from "./basemaps.js";
 import { createStaticVisualEffects } from "./static-effects.js";
 import { installRenderFailureHandler } from "./render-errors.js";
+import {
+  installDisplayControls,
+  updateVisualEffectStatus,
+} from "./display-controls.js";
 const CITIES = new Map(
   Object.entries({
     齐齐哈尔: [47.3543, 123.9182],
@@ -40,10 +44,12 @@ const CITIES = new Map(
 );
 const $ = (id) => document.getElementById(id);
 export async function startGlobe(signal) {
+  const externalSignal = signal;
   let renderStopped = false;
   const app = createApplication({
     createScene({ defer, signal }) {
       signal.throwIfAborted();
+      defer(() => externalSignal.removeEventListener("abort", destroy));
       const viewer = createApplicationViewer({
         container: $("globe"),
         creditContainer: $("credits"),
@@ -159,6 +165,29 @@ export async function startGlobe(signal) {
       listen($("map-style"), "change", (event) => setStyle(event.target.value));
       const effects = createStaticVisualEffects({ viewer });
       defer(() => effects.destroy());
+      const displayNodes = {
+        overhead: $("overhead"),
+        oblique: $("oblique"),
+        save: $("save-view"),
+        restore: $("restore-view"),
+        cameraStatus: $("camera-status"),
+        clean: $("clean-view"),
+        sharpen: $("sharpen"),
+        sharpenIntensity: $("sharpen-intensity"),
+        bloom: $("bloom"),
+        bloomIntensity: $("bloom-intensity"),
+        effectStatus: $("effect-status"),
+        style: $("visual-style"),
+      };
+      defer(
+        installDisplayControls({
+          viewer,
+          effects,
+          signal,
+          overlays: [...document.querySelectorAll("[data-clean-overlay]")],
+          nodes: displayNodes,
+        }),
+      );
       defer(
         installRenderFailureHandler({
           viewer,
@@ -182,13 +211,12 @@ export async function startGlobe(signal) {
       listen($("visual-style"), "change", (event) => {
         try {
           effects.setStyle(event.target.value);
-          $("effect-status").textContent =
-            event.target.value === "normal"
-              ? "原始画面，无模拟滤镜。"
-              : "静态模拟视觉风格 · 非真实传感器数据";
+          updateVisualEffectStatus(displayNodes);
         } catch {
           effects.clear();
           $("visual-style").value = "normal";
+          $("sharpen").checked = false;
+          $("bloom").checked = false;
           $("effect-status").textContent =
             "此浏览器暂时无法使用该视觉风格，已恢复原始画面。";
         }
@@ -315,6 +343,7 @@ export async function startGlobe(signal) {
     },
   });
   const destroy = () => {
+    externalSignal.removeEventListener("abort", destroy);
     void app.destroy().catch(() => {});
   };
   signal.addEventListener("abort", destroy, { once: true });

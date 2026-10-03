@@ -14,12 +14,12 @@
   </head>
   <body>
     <div id="globe"></div>
-    <div class="topbar">
+    <div class="topbar" data-clean-overlay>
       <span><i></i> GOD’S EYE VIEW <b>地球观察</b></span
       ><span id="globe-status" role="status">正在加载地球…</span
       ><span class="edition">FREE EDITION</span>
     </div>
-    <aside class="left panel">
+    <aside class="left panel" data-clean-overlay>
       <div class="kicker">NAVIGATE / 导航</div>
       <h1>从这里探索地球</h1>
       <div id="search">
@@ -60,12 +60,41 @@
         <option value="snow">静态雪景</option>
       </select>
       <p id="effect-status" role="status">原始画面，无模拟滤镜。</p>
+      <div class="effect-toggle">
+        <label><input id="sharpen" type="checkbox" /> 锐化</label>
+        <label for="sharpen-intensity">锐化强度（0–1）</label>
+        <input
+          id="sharpen-intensity"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.49"
+        />
+        <label><input id="bloom" type="checkbox" /> 泛光</label>
+        <label for="bloom-intensity">泛光强度（0–200）</label>
+        <input
+          id="bloom-intensity"
+          type="range"
+          min="0"
+          max="200"
+          step="1"
+          value="0"
+        />
+      </div>
       <div class="navigation">
         <button id="home">重置视角</button
         ><button id="zoom-in" aria-label="放大">＋</button
         ><button id="zoom-out" aria-label="缩小">－</button
         ><button id="north">北向</button>
       </div>
+      <div class="navigation camera-views">
+        <button id="overhead" type="button">俯视</button>
+        <button id="oblique" type="button">倾斜视角</button>
+        <button id="save-view" type="button">保存视角</button>
+        <button id="restore-view" type="button" disabled>恢复视角</button>
+      </div>
+      <p id="camera-status" role="status">保存一个视角，仅在本次观察中保留。</p>
       <p class="hint">拖动旋转 · 滚轮缩放<br />按住 Ctrl 拖动倾斜视角</p>
       <div class="rule"></div>
       <div class="kicker">CAPABILITIES / 免费版能力</div>
@@ -73,8 +102,8 @@
         <summary>来源与能力边界</summary>
         <p>
           ✓ 三维地球、坐标及本地城市定位<br />✓ Natural Earth 历史概览<br />✓
-          六种静态模拟视觉风格<br />✓ OpenStreetMap 街道底图<br />✓ USGS 24 小时
-          M2.5+ 地震
+          六种静态模拟视觉风格、锐化与泛光<br />✓ 俯视、倾斜与临时保存视角<br />✓
+          OpenStreetMap 街道底图<br />✓ USGS 24 小时 M2.5+ 地震
         </p>
         <p>
           未提供：近期高清影像、精细三维建筑与真实地形（需独立数据源）；飞机、船舶与摄像头（来源及使用许可未接入）；海底电缆与预设场景（第三方数据许可限制）；AI
@@ -82,7 +111,7 @@
         </p>
       </details>
     </aside>
-    <aside class="right panel">
+    <aside class="right panel" data-clean-overlay>
       <div class="kicker">LIVE SOURCES / 公开来源</div>
       <h2>地震观察 <span>USGS</span></h2>
       <p>过去 24 小时 · M2.5+<br />公开来源快照，仅在点击时获取。</p>
@@ -91,10 +120,13 @@
       <p id="feed-status" role="status">尚未加载。地图上的点表示震中位置。</p>
       <ol id="events"></ol>
     </aside>
-    <div id="map-state" class="map-state" role="status">
+    <button id="clean-view" type="button" aria-pressed="false">纯净视图</button>
+    <div id="map-state" class="map-state" role="status" data-clean-overlay>
       Natural Earth · 历史全球概览 · 非近期影像
     </div>
-    <div id="coordinates" class="coordinates">拖动地球开始探索</div>
+    <div id="coordinates" class="coordinates" data-clean-overlay>
+      拖动地球开始探索
+    </div>
     <div id="credits"></div>
     <footer>
       God’s Eye View © Bilawal Sidhu · MIT

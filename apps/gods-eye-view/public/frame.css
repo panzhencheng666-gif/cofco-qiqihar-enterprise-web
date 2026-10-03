@@ -350,3 +350,44 @@ a {
     bottom: 50px;
   }
 }
+
+[hidden] {
+  display: none !important;
+}
+.topbar {
+  padding-right: 140px;
+}
+#clean-view {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  z-index: 1;
+}
+.camera-views {
+  margin-top: 8px;
+}
+.effect-toggle {
+  margin: 14px 0;
+}
+.effect-toggle input[type="checkbox"] {
+  width: auto;
+  margin-right: 5px;
+}
+.effect-toggle input[type="range"] {
+  padding: 0;
+  margin-bottom: 12px;
+  accent-color: #72e1bd;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #72e1bd;
+  outline-offset: 3px;
+}
+@media (max-width: 700px) {
+  .topbar {
+    padding-right: 125px;
+  }
+  #clean-view {
+    right: 12px;
+  }
+}
