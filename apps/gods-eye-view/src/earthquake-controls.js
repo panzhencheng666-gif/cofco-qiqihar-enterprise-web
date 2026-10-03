@@ -71,7 +71,7 @@ export function installEarthquakeControls({
         nodes.summary.textContent = `已加载 ${snapshot.rows.length}/${snapshot.totalMatched} 个 M2.5+ 事件（源共 ${snapshot.sourceFeatures} 条）；${snapshot.totalMatched > snapshot.rows.length ? "源记录截断；" : ""}本地匹配 ${result.count} 个，列出前 ${result.items.length} 个${result.truncated ? "（列表截断）" : ""}。${result.query.scope.kind === "radius" ? `范围：中心 ${result.query.scope.center.lat}, ${result.query.scope.center.lon}，${result.query.scope.km} km；` : "范围：全部已加载记录；"}地图点为全部已加载事件。${result.query.sortBy === "depthKm" ? "深度排序排除未提供深度的事件。" : ""}${stale ? "结果来自可能过时的快照。" : ""}`;
       else if (!stopped) nodes.summary.textContent = "尚无可查询快照。";
       nodes.metadata.textContent = selected
-        ? `USGS ID ${selected.usgsId ?? selected.stableId} · ${selected.place?.slice(0, 200) || "未提供地点"}${selected.place?.length > 200 ? "（地点显示截断）" : ""} · M${selected.mag.toFixed(1)} · 深度 ${selected.depthKm === null ? "未提供" : `${selected.depthKm} km`} · 纬度 ${selected.lat} · 经度 ${selected.lon} · 震时 UTC ${new Date(selected.time).toISOString()} · 获取 UTC ${snapshot.fetchedAt} · 源生成 UTC ${snapshot.sourceAt || "未提供"}${stale ? " · 可能过时（STALE）" : ""}`
+        ? `USGS ID ${selected.usgsId || "未提供"}${selected.usgsId ? "" : ` · 本地事件标识 ${selected.stableId}`} · ${selected.place?.slice(0, 200) || "未提供地点"}${selected.place?.length > 200 ? "（地点显示截断）" : ""} · M${selected.mag.toFixed(1)} · 深度 ${selected.depthKm === null ? "未提供" : `${selected.depthKm} km`} · 纬度 ${selected.lat} · 经度 ${selected.lon} · 震时 UTC ${new Date(selected.time).toISOString()} · 获取 UTC ${snapshot.fetchedAt} · 源生成 UTC ${snapshot.sourceAt || "未提供"}${stale ? " · 可能过时（STALE）" : ""}`
         : "尚未选择地震事件。";
     },
   });

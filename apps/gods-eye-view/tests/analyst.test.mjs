@@ -5,6 +5,7 @@ const stamp = "2026-10-03T00:00:00.000Z";
 const rows = [
   {
     stableId: "a",
+    usgsId: "a",
     mag: 3,
     depthKm: 12,
     lat: 0,
@@ -14,6 +15,7 @@ const rows = [
   },
   {
     stableId: "b",
+    usgsId: "b",
     mag: 5,
     depthKm: null,
     lat: 1,
@@ -23,6 +25,7 @@ const rows = [
   },
   {
     stableId: "c",
+    usgsId: "c",
     mag: 4,
     depthKm: 70,
     lat: 50,
@@ -373,7 +376,7 @@ test("actual Cesium primitiveAdded abort stops candidate attachment and list pub
   assert.equal(list.children.length, 0);
   primitives.destroy();
 });
-async function controlsProbe() {
+async function controlsProbe(source = snapshot) {
   const { JSDOM } = await import("../../../node_modules/jsdom/lib/api.js");
   const { readFile } = await import("node:fs/promises");
   const { installEarthquakeControls } =
@@ -441,7 +444,7 @@ async function controlsProbe() {
     fetchSnapshot: async () => {
       fetches++;
       if (fail) throw new Error("offline");
-      return snapshot();
+      return source();
     },
     createCollection: () => {
       const c = {
@@ -740,4 +743,28 @@ test("selection during an asynchronous replacement keeps prior failure provenanc
   await pending;
   assert.equal(p.controller.state().stale, false);
   p.controller.destroy();
+});
+
+test("actual admitted source identities distinguish missing/null/empty from USGS identifiers", async () => {
+  for (const identity of [undefined, null, "", "usgs-real-id"]) {
+    const event = feature("usgs-real-id");
+    if (identity === undefined) delete event.id;
+    else event.id = identity;
+    const source = await fetchPayload({ features: [event] });
+    const p = await controlsProbe(() => source);
+    try {
+      await p.click(p.nodes.refresh);
+      await p.click(p.nodes.list.querySelector("button"));
+      if (identity) {
+        assert.match(p.nodes.metadata.textContent, /USGS ID usgs-real-id/);
+        assert.doesNotMatch(p.nodes.metadata.textContent, /本地事件标识/);
+      } else {
+        assert.match(p.nodes.metadata.textContent, /USGS ID 未提供/);
+        assert.match(p.nodes.metadata.textContent, /本地事件标识 event-1/);
+        assert.doesNotMatch(p.nodes.metadata.textContent, /USGS ID event-1/);
+      }
+    } finally {
+      p.destroy();
+    }
+  }
 });
