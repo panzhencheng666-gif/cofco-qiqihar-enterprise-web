@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { checkEmbeddedCredentials } from "./gods-eye-view-credentials.mjs";
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -117,4 +118,29 @@ assert.ok(
 
 console.log(
   `Globe source gate passed: ${provenance.files.length} immutable upstream files; ${importedVendor.length} imported upstream modules; no engine in shell graph.`,
+);
+
+assert.ok(
+  !Object.keys(meta.inputs).some((input) =>
+    input.endsWith("/Source/Core/Ion.js"),
+  ),
+  "Bundled SDK Ion defaults must be replaced",
+);
+assert.ok(
+  Object.hasOwn(meta.inputs, "src/disabled-ion.js"),
+  "Disabled Ion adapter must be bundled",
+);
+for (const [input, details] of Object.entries(meta.inputs)) {
+  for (const dependency of details.imports) {
+    if (dependency.original?.endsWith("/Ion.js"))
+      assert.equal(
+        dependency.path,
+        "src/disabled-ion.js",
+        `Ion default import not replaced: ${input}`,
+      );
+  }
+}
+await checkEmbeddedCredentials(path.join(root, "dist"));
+console.log(
+  "Globe credential gate passed: disabled Ion defaults; no JWT-like literals in emitted JS.",
 );

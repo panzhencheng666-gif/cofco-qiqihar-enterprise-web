@@ -1,4 +1,6 @@
 import { build } from "esbuild";
+import { disabledIonPlugin } from "./build/disabled-ion-plugin.mjs";
+import { checkEmbeddedCredentials } from "../../scripts/gods-eye-view-credentials.mjs";
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +11,7 @@ await mkdir(out, { recursive: true });
 await cp(path.join(root, "public"), out, { recursive: true });
 const result = await build({
   absWorkingDir: root,
+  plugins: [disabledIonPlugin()],
   alias: {
     meshoptimizer: path.join(root, "src/disabled-meshopt.js"),
     cesium: "@cesium/engine",
@@ -53,4 +56,5 @@ await writeFile(
   path.join(root, "build-meta.json"),
   JSON.stringify(result.metafile, null, 2) + "\n",
 );
+await checkEmbeddedCredentials(out);
 console.log(`Isolated globe build: ${out}`);
